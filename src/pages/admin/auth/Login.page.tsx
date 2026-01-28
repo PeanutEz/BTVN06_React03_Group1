@@ -7,6 +7,7 @@ import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { isAdminRole } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
+import { showSuccess, showError } from "../../../utils";
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
@@ -33,11 +34,12 @@ const AdminLoginPage = () => {
   const onSubmit = async (values: AuthCredentials) => {
     const found = await loginUser(values);
     if (!found || !isAdminRole(found.role)) {
-      alert("Bạn không có quyền truy cập admin hoặc thông tin đăng nhập sai");
+      showError("Bạn không có quyền truy cập admin hoặc thông tin đăng nhập sai");
       return;
     }
 
     login(found);
+    showSuccess("Đăng nhập thành công");
     const redirectTo = (location.state as { from?: Location })?.from?.pathname;
     navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
   };

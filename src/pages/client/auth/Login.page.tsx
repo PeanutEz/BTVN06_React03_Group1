@@ -7,6 +7,7 @@ import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { isAdminRole } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
+import { showSuccess, showError } from "../../../utils";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -37,11 +38,12 @@ const LoginPage = () => {
   const onSubmit = async (values: AuthCredentials) => {
     const found = await loginUser(values);
     if (!found) {
-      alert("Sai email hoặc mật khẩu");
+      showError("Sai email hoặc mật khẩu");
       return;
     }
 
     login(found);
+    showSuccess("Đăng nhập thành công");
     const redirectTo = (location.state as { from?: Location })?.from?.pathname;
     if (redirectTo) {
       navigate(redirectTo, { replace: true });
