@@ -1,8 +1,8 @@
 const LoadingLayout = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-700">
+    <div className="flex min-h-screen items-center justify-center bg-[#0f0a08] text-primary-50">
       <div className="flex items-center gap-3 text-sm font-medium">
-        <span className="size-3 animate-ping rounded-full bg-blue-500" />
+        <span className="size-3 animate-ping rounded-full bg-primary-400" />
         <span>Đang tải...</span>
       </div>
     </div>

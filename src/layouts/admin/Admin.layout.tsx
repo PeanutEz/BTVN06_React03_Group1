@@ -5,7 +5,7 @@ import AdminFooter from "./AdminFooter.layout";
 
 const AdminLayout = () => {
   return (
-    <div className="grid min-h-screen grid-cols-[240px_1fr] bg-slate-50 text-slate-900">
+    <div className="grid min-h-screen grid-cols-[240px_1fr] bg-[#f8f1ea] text-[#2f1a12]">
       <AdminSidebar />
       <div className="flex min-h-screen flex-col">
         <AdminHeader />

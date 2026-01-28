@@ -3,9 +3,9 @@ import { cn } from "../../lib/utils";
 const baseStyles = "inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
 const variantStyles: Record<string, string> = {
-  primary: "bg-blue-600 text-white hover:bg-blue-700 focus-visible:outline-blue-600 disabled:bg-blue-400",
-  outline: "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 focus-visible:outline-blue-600 disabled:bg-slate-100",
-  ghost: "text-slate-700 hover:bg-slate-100 focus-visible:outline-blue-600 disabled:text-slate-400",
+  primary: "bg-primary-500 text-primary-foreground hover:bg-primary-400 focus-visible:outline-primary-300 disabled:bg-primary-300",
+  outline: "border border-primary-200/60 bg-white text-[#2f1a12] hover:bg-primary-50 focus-visible:outline-primary-300 disabled:bg-primary-50 disabled:text-primary-300",
+  ghost: "text-[#3d2417] hover:bg-primary-50 focus-visible:outline-primary-300 disabled:text-primary-300",
 };
 
 const sizeStyles: Record<string, string> = {

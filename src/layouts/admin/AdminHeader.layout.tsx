@@ -23,13 +23,13 @@ const AdminHeader = () => {
   };
 
   return (
-    <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-      <h1 className="text-lg font-semibold text-slate-900">Admin Panel</h1>
+    <header className="flex items-center justify-between border-b border-primary-900/40 bg-[#120c0a]/80 px-6 py-4 text-primary-50 shadow-lg shadow-black/30">
+      <h1 className="text-lg font-semibold">Admin Panel</h1>
       <div className="relative" ref={menuRef}>
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+          className="flex items-center gap-3 rounded-full border border-primary-800/50 bg-[#1b100c] px-3 py-2 text-sm font-semibold text-primary-50 shadow-sm shadow-black/20 transition hover:bg-primary-800/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
           aria-expanded={menuOpen}
         >
           {user && (
@@ -37,31 +37,31 @@ const AdminHeader = () => {
               <img src={user.avatar} alt={user.name} className="size-8 rounded-full object-cover" />
               <div className="text-left leading-tight">
                 <p className="text-sm font-semibold">{user.name}</p>
-                <p className="text-xs text-slate-500">{user.role}</p>
+                <p className="text-xs text-primary-100/80">{user.role}</p>
               </div>
             </>
           )}
-          <svg viewBox="0 0 20 20" aria-hidden className="size-4 text-slate-500">
+          <svg viewBox="0 0 20 20" aria-hidden className="size-4 text-primary-100/70">
             <path fill="currentColor" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.51a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06Z" />
           </svg>
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+          <div className="absolute right-0 mt-2 w-56 rounded-xl border border-primary-800/60 bg-[#1b100c]/95 py-2 shadow-2xl shadow-black/40">
             {user && (
               <div className="flex items-center gap-3 px-4 pb-2">
                 <img src={user.avatar} alt={user.name} className="size-10 rounded-full object-cover" />
                 <div className="leading-tight">
-                  <p className="text-sm font-semibold text-slate-900">{user.name}</p>
-                  <p className="text-xs text-slate-500">{user.role}</p>
+                  <p className="text-sm font-semibold text-primary-50">{user.name}</p>
+                  <p className="text-xs text-primary-100/70">{user.role}</p>
                 </div>
               </div>
             )}
-            <div className="my-2 border-t border-slate-100" />
+            <div className="my-2 border-t border-primary-800/50" />
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+              className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-primary-50 transition hover:bg-primary-800/30"
             >
               <span>Đăng xuất</span>
             </button>

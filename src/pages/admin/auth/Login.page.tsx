@@ -43,10 +43,10 @@ const AdminLoginPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-white to-slate-100 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white/90 p-8 shadow-xl shadow-blue-100">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#f7e9dc] via-white to-[#f0e1d3] px-4">
+      <div className="w-full max-w-md rounded-2xl border border-primary-200/60 bg-white/90 p-8 shadow-xl shadow-primary-900/15">
         <div className="space-y-2 text-center">
-          <p className="text-sm font-semibold text-blue-600">Admin Portal</p>
+          <p className="text-sm font-semibold text-primary-600">Admin Portal</p>
           <h1 className="text-2xl font-bold text-slate-900">Đăng nhập Admin</h1>
           <p className="text-xs text-slate-500">Chỉ tài khoản có role Admin mới vào được.</p>
         </div>
@@ -56,7 +56,7 @@ const AdminLoginPage = () => {
             <label className="text-sm font-semibold text-slate-700">Email</label>
             <input
               type="email"
-              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-200 transition focus:ring"
+              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-primary-200 transition focus:ring"
               placeholder="admin@gmail.com"
               {...register("email", { required: "Email không được để trống" })}
             />
@@ -67,7 +67,7 @@ const AdminLoginPage = () => {
             <label className="text-sm font-semibold text-slate-700">Mật khẩu</label>
             <input
               type="password"
-              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-blue-200 transition focus:ring"
+              className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-primary-200 transition focus:ring"
               placeholder="••••••••"
               {...register("password", { required: "Mật khẩu không được để trống" })}
             />

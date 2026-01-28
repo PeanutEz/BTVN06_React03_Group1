@@ -68,7 +68,7 @@ const UserPage = () => {
                 </td>
                 <td className="px-4 py-3 text-slate-700">{u.email}</td>
                 <td className="px-4 py-3">
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{u.role}</span>
+                  <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">{u.role}</span>
                 </td>
                 <td className="px-4 py-3 text-xs text-slate-500">{new Date(u.createDate).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
@@ -110,7 +110,7 @@ const UserPage = () => {
               <div className="leading-tight">
                 <p className="font-semibold text-slate-900">{u.name}</p>
                 <p className="text-xs text-slate-500">{u.email}</p>
-                <p className="text-xs font-semibold text-blue-700">{u.role}</p>
+                <p className="text-xs font-semibold text-primary-700">{u.role}</p>
               </div>
             </div>
           ))}

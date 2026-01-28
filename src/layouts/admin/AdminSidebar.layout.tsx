@@ -8,17 +8,17 @@ const adminNav = [
 
 const AdminSidebar = () => {
   return (
-    <aside className="border-r border-slate-200 bg-white px-4 py-6 shadow-sm">
-      <Link to={ROUTER_URL.ADMIN} className="mb-6 block text-xl font-semibold text-blue-700">
+    <aside className="border-r border-primary-900/40 bg-[#120c0a]/80 px-4 py-6 text-primary-50 shadow-lg shadow-black/30">
+      <Link to={ROUTER_URL.ADMIN} className="mb-6 block text-xl font-semibold text-primary-50">
         Admin
       </Link>
-      <nav className="space-y-2 text-sm font-medium text-slate-700">
+      <nav className="space-y-2 text-sm font-medium">
         {adminNav.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-slate-100 ${isActive ? "bg-slate-100 text-blue-700" : ""}`
+              `flex items-center gap-2 rounded-lg px-3 py-2 transition hover:bg-primary-50/10 ${isActive ? "bg-primary-50/10 text-accent" : "text-primary-100/80"}`
             }
             end
           >
