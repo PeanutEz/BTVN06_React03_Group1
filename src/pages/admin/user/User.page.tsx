@@ -45,7 +45,6 @@ const UserPage = () => {
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
             <tr>
-              <th className="px-4 py-3">ID</th>
               <th className="px-4 py-3">Tên</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Role</th>
@@ -56,7 +55,6 @@ const UserPage = () => {
           <tbody className="divide-y divide-slate-200">
             {users.map((u) => (
               <tr key={u.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-mono text-xs text-slate-600">{u.id}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <img src={u.avatar} alt={u.name} className="size-9 rounded-full object-cover" />
@@ -85,14 +83,14 @@ const UserPage = () => {
             ))}
             {users.length === 0 && !loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
                   Không có người dùng
                 </td>
               </tr>
             )}
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
                   Đang tải...
                 </td>
               </tr>

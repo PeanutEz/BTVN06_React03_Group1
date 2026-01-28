@@ -23,8 +23,8 @@ const AdminHeader = () => {
   };
 
   return (
-    <header className="flex items-center justify-between border-b border-primary-900/40 bg-[#120c0a]/80 px-6 py-4 text-primary-50 shadow-lg shadow-black/30">
-      <h1 className="text-lg font-semibold">Admin Panel</h1>
+    <header className="sticky top-0 z-50 flex items-center justify-between border-b border-primary-900/40 bg-[#3d3d3d] px-6 py-4 text-primary-50 shadow-lg shadow-black/30">
+      <h1 className="text-xl font-bold">Admin</h1>
       <div className="relative" ref={menuRef}>
         <button
           type="button"

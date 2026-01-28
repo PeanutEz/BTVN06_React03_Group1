@@ -5,14 +5,16 @@ import AdminFooter from "./AdminFooter.layout";
 
 const AdminLayout = () => {
   return (
-    <div className="grid min-h-screen grid-cols-[240px_1fr] bg-[#f8f1ea] text-[#2f1a12]">
-      <AdminSidebar />
-      <div className="flex min-h-screen flex-col">
-        <AdminHeader />
-        <main className="flex-1 px-6 py-6">
-          <Outlet />
-        </main>
-        <AdminFooter />
+    <div className="min-h-screen bg-[#f8f1ea] text-[#2f1a12]">
+      <AdminHeader />
+      <div className="flex">
+        <AdminSidebar />
+        <div className="ml-20 flex flex-1 flex-col transition-all duration-300 peer-hover:ml-60">
+          <main className="flex-1 px-6 py-6">
+            <Outlet />
+          </main>
+          <AdminFooter />
+        </div>
       </div>
     </div>
   );
