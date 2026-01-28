@@ -4,7 +4,6 @@ import LoadingLayout from "../layouts/Loading.layout";
 import ClientLayout from "../layouts/client/Client.layout";
 import AdminLayout from "../layouts/admin/Admin.layout";
 import AdminGuard from "./guard/AdminGuard";
-import ClientGuard from "./guard/ClientGuard";
 import { ROUTER_URL } from "./router.const";
 import { CLIENT_MENU } from "./client/Client.menu";
 import { ADMIN_MENU } from "./admin/Admin.menu";
