@@ -8,6 +8,7 @@ import type { AuthCredentials } from "../../../models";
 import { isAdminRole } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
+import bgUserLogin from "../../../assets/bg-user-login.jpg";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -18,12 +19,7 @@ const LoginPage = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<AuthCredentials>({
-    defaultValues: {
-      email: "admin@gmail.com",
-      password: "12345",
-    },
-  });
+  } = useForm<AuthCredentials>();
 
   useEffect(() => {
     if (user) {
@@ -58,53 +54,19 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
-      <div className="relative hidden bg-gradient-to-br from-[#3d1d12] via-primary-600 to-[#1c100b] lg:block">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(240,201,135,0.16),transparent_25%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_0%,rgba(188,112,65,0.18),transparent_25%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_80%,rgba(159,92,54,0.15),transparent_25%)]" />
-        <div className="relative flex h-full flex-col justify-between px-12 py-12 text-white">
-          <div className="space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">
-              Mock API • Admin/User
-            </span>
-            <h2 className="text-4xl font-bold leading-tight">BTVN06 Group1</h2>
-            <p className="max-w-md text-sm text-white/80">
-              Đăng nhập bằng tài khoản trong mock API để xem trang Home, Admin và User Management. Hỗ trợ tự động điều
-              hướng theo role.
-            </p>
-          </div>
-          <div className="space-y-4 text-sm text-white/80">
-            <p className="font-semibold text-white">Tài khoản mẫu</p>
-            <ul className="space-y-2">
-              <li className="flex items-center justify-between rounded-lg bg-white/10 px-4 py-3">
-                <span>Admin</span>
-                <span className="text-white/80">admin@gmail.com / 12345</span>
-              </li>
-              <li className="flex items-center justify-between rounded-lg bg-white/10 px-4 py-3">
-                <span>User</span>
-                <span className="text-white/80">user@gmail.com / 12345</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-center bg-white px-6 py-12">
-        <div className="w-full max-w-md space-y-8">
-          <div className="space-y-2 text-center">
-            <p className="text-sm font-semibold text-primary-600">Welcome back</p>
-            <h1 className="text-3xl font-bold text-slate-900">Đăng nhập</h1>
-            <p className="text-sm text-slate-500">Sử dụng tài khoản từ mock API</p>
-          </div>
-
+    <div className="relative min-h-screen bg-cover bg-center bg-no-repeat overflow-hidden" style={{ backgroundImage: `url(${bgUserLogin})` }}>
+      <div className="absolute inset-0 bg-black/20" />
+      
+      <div className="absolute right-0 top-0 h-full w-full lg:w-1/2 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-6 py-12 animate-slide-in-right">
+        <div className="w-full max-w-md space-y-8 animate-fade-in">
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">Đăng nhập</h1>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Email</label>
               <input
                 type="email"
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-primary-200 transition focus:ring"
-                placeholder="you@example.com"
+                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 outline-none ring-primary-200 transition focus:ring placeholder:text-slate-600 placeholder:font-normal"
+                placeholder="Email của bạn"
                 {...register("email", { required: "Email không được để trống" })}
               />
               {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
@@ -114,8 +76,8 @@ const LoginPage = () => {
               <label className="text-sm font-semibold text-slate-700">Mật khẩu</label>
               <input
                 type="password"
-                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm outline-none ring-primary-200 transition focus:ring"
-                placeholder="••••••••"
+                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 outline-none ring-primary-200 transition focus:ring placeholder:text-slate-600 placeholder:font-normal"
+                placeholder="Mật khẩu của bạn"
                 {...register("password", { required: "Mật khẩu không được để trống" })}
               />
               {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
@@ -126,9 +88,18 @@ const LoginPage = () => {
             </Button>
           </form>
 
-          <p className="text-center text-xs text-slate-500">
-            Lưu ý: Mật khẩu đang kiểm tra trực tiếp trên mock API, chưa mã hóa.
-          </p>
+          <div className="text-center">
+            <p className="text-sm text-slate-600">
+              Chưa có tài khoản?{" "}
+              <button
+                type="button"
+                onClick={() => navigate(ROUTER_URL.REGISTER)}
+                className="font-semibold text-primary-600 hover:text-primary-700 transition-colors"
+              >
+                Đăng ký ngay
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </div>

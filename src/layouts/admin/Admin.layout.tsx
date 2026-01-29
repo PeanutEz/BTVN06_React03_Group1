@@ -5,9 +5,9 @@ import AdminFooter from "./AdminFooter.layout";
 
 const AdminLayout = () => {
   return (
-    <div className="min-h-screen bg-[#f8f1ea] text-[#2f1a12]">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 text-slate-900 flex flex-col">
       <AdminHeader />
-      <div className="flex">
+      <div className="flex flex-1">
         <AdminSidebar />
         <div className="ml-20 flex flex-1 flex-col transition-all duration-300 peer-hover:ml-60">
           <main className="flex-1 px-6 py-6">

@@ -23,13 +23,13 @@ const AdminHeader = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between border-b border-primary-900/40 bg-[#3d3d3d] px-6 py-4 text-primary-50 shadow-lg shadow-black/30">
+    <header className="sticky top-0 z-50 flex items-center justify-between border-b border-primary-500/20 bg-slate-900/80 backdrop-blur-xl px-6 py-4 text-white shadow-lg shadow-primary-500/10">
       <h1 className="text-xl font-bold">Admin</h1>
       <div className="relative" ref={menuRef}>
         <button
           type="button"
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex items-center gap-3 rounded-full border border-primary-800/50 bg-[#1b100c] px-3 py-2 text-sm font-semibold text-primary-50 shadow-sm shadow-black/20 transition hover:bg-primary-800/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
+          className="flex items-center gap-3 rounded-full border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-black/20 transition-all duration-200 hover:bg-slate-700 hover:border-primary-500 hover:shadow-primary-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
           aria-expanded={menuOpen}
         >
           {user && (
@@ -47,7 +47,7 @@ const AdminHeader = () => {
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 mt-2 w-56 rounded-xl border border-primary-800/60 bg-[#1b100c]/95 py-2 shadow-2xl shadow-black/40">
+          <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl py-2 shadow-2xl shadow-primary-500/20 animate-fade-in">
             {user && (
               <div className="flex items-center gap-3 px-4 pb-2">
                 <img src={user.avatar} alt={user.name} className="size-10 rounded-full object-cover" />
@@ -57,14 +57,16 @@ const AdminHeader = () => {
                 </div>
               </div>
             )}
-            <div className="my-2 border-t border-primary-800/50" />
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-primary-50 transition hover:bg-primary-800/30"
-            >
-              <span>Đăng xuất</span>
-            </button>
+            <div className="my-2 border-t border-slate-700" />
+            <div className="px-2">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg"
+              >
+                <span>Đăng xuất</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -24,7 +24,7 @@ const adminNav = [
 
 const AdminSidebar = () => {
   return (
-    <aside className="peer group fixed left-0 z-40 h-[calc(100vh-72px)] w-20 border-r border-primary-900/40 bg-[#5C4A3A] shadow-lg shadow-black/30 transition-all duration-300 hover:w-60">
+    <aside className="peer group fixed left-0 z-40 h-[calc(100vh-72px)] w-20 border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 transition-all duration-300 hover:w-60 hover:shadow-primary-500/30 backdrop-blur-xl">
       <div className="flex h-full flex-col py-6">
         <nav className="flex-1 space-y-2 px-3">
           {adminNav.map((item) => (
@@ -32,7 +32,7 @@ const AdminSidebar = () => {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-4 rounded-lg px-3 py-3 text-primary-50 transition hover:bg-primary-50/10 ${isActive ? "bg-primary-50/10 text-accent" : "text-primary-100/80"}`
+                `flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-200 ${isActive ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/50" : "text-slate-300 hover:bg-slate-700/50 hover:text-white"}`
               }
               end
             >

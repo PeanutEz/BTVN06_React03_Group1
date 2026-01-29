@@ -98,26 +98,6 @@ const UserPage = () => {
           </tbody>
         </table>
       </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Danh sách tất cả user</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {users.map((u) => (
-            <div key={u.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-              <img src={u.avatar} alt={u.name} className="size-10 rounded-full object-cover" />
-              <div className="leading-tight">
-                <p className="font-semibold text-slate-900">{u.name}</p>
-                <p className="text-xs text-slate-500">{u.email}</p>
-                <p className="text-xs font-semibold text-primary-700">{u.role}</p>
-              </div>
-            </div>
-          ))}
-          {users.length === 0 && !loading && (
-            <p className="text-sm text-slate-500">Không có người dùng để hiển thị.</p>
-          )}
-          {loading && <p className="text-sm text-slate-500">Đang tải...</p>}
-        </div>
-      </div>
     </div>
   );
 };

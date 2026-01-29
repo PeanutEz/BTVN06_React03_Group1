@@ -33,24 +33,26 @@ const ClientHeader = () => {
   };
 
   return (
-    <header className="border-b border-primary-800/40 bg-[#120c0a]/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 text-primary-50">
+    <header className="border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-xl shadow-lg shadow-black/20">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 text-white">
         <Link to={ROUTER_URL.HOME} className="text-lg font-semibold tracking-tight">
           BTVN06 Group1
         </Link>
-        <nav className="flex items-center gap-6 text-sm font-medium">
+        <nav className="absolute left-1/2 -translate-x-1/2 flex items-center gap-6 text-sm font-medium">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `transition hover:text-primary-200 ${isActive ? "text-accent" : "text-primary-100/80"}`
+                `transition-all duration-200 hover:text-primary-400 ${isActive ? "text-primary-500 font-semibold" : "text-slate-300"}`
               }
               end
             >
               {item.label}
             </NavLink>
           ))}
+        </nav>
+        <div className="flex items-center gap-6">
           {!user ? (
             <button
               type="button"
@@ -67,7 +69,7 @@ const ClientHeader = () => {
               <button
                 type="button"
                 onClick={() => setMenuOpen((open) => !open)}
-                className="flex items-center gap-3 rounded-full border border-primary-800/50 bg-[#1b100c] px-3 py-2 text-sm font-semibold text-primary-50 shadow-sm shadow-black/20 transition hover:bg-primary-800/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
+                className="flex items-center gap-3 rounded-full border border-slate-700 bg-slate-800 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-black/20 transition-all duration-200 hover:bg-slate-700 hover:border-primary-500 hover:shadow-primary-500/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
                 aria-expanded={menuOpen}
               >
                 <img src={user.avatar} alt={user.name} className="size-8 rounded-full object-cover" />
@@ -81,7 +83,7 @@ const ClientHeader = () => {
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-primary-800/60 bg-[#1b100c]/95 py-2 shadow-2xl shadow-black/40">
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl py-2 shadow-2xl shadow-primary-500/20 animate-fade-in">
                   <div className="flex items-center gap-3 px-4 pb-2">
                     <img src={user.avatar} alt={user.name} className="size-10 rounded-full object-cover" />
                     <div className="leading-tight">
@@ -89,19 +91,21 @@ const ClientHeader = () => {
                       <p className="text-xs text-primary-100/70">{user.role}</p>
                     </div>
                   </div>
-                  <div className="my-2 border-t border-primary-800/50" />
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-primary-50 transition hover:bg-primary-800/30"
-                  >
-                    <span>Đăng xuất</span>
-                  </button>
+                  <div className="my-2 border-t border-slate-700" />
+                  <div className="px-2">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg"
+                    >
+                      <span>Đăng xuất</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           )}
-        </nav>
+        </div>
       </div>
     </header>
   );
