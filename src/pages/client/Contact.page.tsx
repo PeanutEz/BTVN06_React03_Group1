@@ -1,5 +1,5 @@
 const ContactPage = () => {
-	return null;
+	return <></>;
 };
 
 export default ContactPage;
