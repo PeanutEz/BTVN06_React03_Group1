@@ -18,5 +18,12 @@ export const ROUTER_URL = {
 	ADMIN_ROUTES: {
 		DASHBOARD: "dashboard",
 		USERS: "users",
+		ORDERS: "orders",
+		ORDER_DETAIL: "orders/:id",
+		CUSTOMERS: "customers",
+		CUSTOMER_DETAIL: "customers/:id",
+		PAYMENTS: "payments",
+		PAYMENT_DETAIL: "payments/:id",
+		LOYALTY: "loyalty",
 	},
 } as const;
