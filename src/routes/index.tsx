@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import LoadingLayout from "../layouts/Loading.layout";
 import ClientLayout from "../layouts/client/Client.layout";
+import LandingLayout from "../layouts/landing/Landing.layout";
 import AdminLayout from "../layouts/admin/Admin.layout";
 import AdminGuard from "./guard/AdminGuard";
 import { ROUTER_URL } from "./router.const";
@@ -13,15 +14,21 @@ import ResetPasswordPage from "../pages/client/auth/ResetPassword.page";
 import AdminLoginPage from "../pages/admin/auth/Login.page";
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
+const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
 
 function AppRoutes() {
   return (
     <BrowserRouter>
       <React.Suspense fallback={<LoadingLayout />}>
         <Routes>
-          {/* Public client pages */}
+          {/* Landing page with its own header */}
+          <Route element={<LandingLayout />}>
+            <Route path={ROUTER_URL.HOME} element={<LandingPage />} />
+          </Route>
+
+          {/* Public client pages with standard header */}
           <Route element={<ClientLayout />}>
-            {CLIENT_MENU.map((item) => (
+            {CLIENT_MENU.filter(item => item.path !== ROUTER_URL.HOME).map((item) => (
               <Route key={item.path} path={item.path} element={<item.component />} />
             ))}
           </Route>

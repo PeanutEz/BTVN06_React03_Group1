@@ -14,7 +14,14 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 	{
 		label: "Trang chủ",
 		path: ROUTER_URL.HOME,
-		component: React.lazy(() => import("@/modules/product/pages/Home")),
+		component: React.lazy(() => import("../../pages/client/Landing.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
+		label: "Đặt hàng",
+		path: ROUTER_URL.ORDER,
+		component: React.lazy(() => import("../../pages/client/Order.page")),
 		isEnd: true,
 		showInNav: true,
 	},
