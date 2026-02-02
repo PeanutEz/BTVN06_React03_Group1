@@ -191,12 +191,16 @@ const ClientHeader = () => {
                     <div className="py-2 px-2">
                       <button
                         type="button"
+                        onClick={() => {
+                          navigate(ROUTER_URL.PROFILE);
+                          setMenuOpen(false);
+                        }}
                         className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        <span>Thông tin cá nhân</span>
+                        <span>Hồ sơ</span>
                       </button>
                       <button
                         type="button"
