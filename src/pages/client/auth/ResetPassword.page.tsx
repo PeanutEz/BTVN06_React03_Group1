@@ -75,10 +75,9 @@ const ResetPasswordPage = () => {
                   type={showPassword ? "text" : "password"}
                   className="w-full rounded-lg border border-slate-200 px-4 py-3 pr-12 text-sm font-semibold text-slate-900 outline-none ring-primary-200 transition focus:ring placeholder:text-slate-600 placeholder:font-normal"
                   placeholder="Nhập mật khẩu mới"
-                  maxLength={5}
                   {...register("newPassword", {
                     required: "Mật khẩu không được để trống",
-                    maxLength: { value: 5, message: "Mật khẩu tối đa 5 ký tự" },
+                    minLength: { value: 5, message: "Mật khẩu ít nhất 5 ký tự" },
                   })}
                 />
                 <button
@@ -126,10 +125,9 @@ const ResetPasswordPage = () => {
                   type={showConfirmPassword ? "text" : "password"}
                   className="w-full rounded-lg border border-slate-200 px-4 py-3 pr-12 text-sm font-semibold text-slate-900 outline-none ring-primary-200 transition focus:ring placeholder:text-slate-600 placeholder:font-normal"
                   placeholder="Nhập lại mật khẩu mới"
-                  maxLength={5}
                   {...register("confirmPassword", {
                     required: "Vui lòng xác nhận mật khẩu",
-                    maxLength: { value: 5, message: "Mật khẩu tối đa 5 ký tự" },
+                    minLength: { value: 5, message: "Mật khẩu ít nhất 5 ký tự" },
                     validate: (value) => value === watch("newPassword") || "Mật khẩu xác nhận không khớp",
                   })}
                 />

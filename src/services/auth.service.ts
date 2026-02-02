@@ -1,12 +1,27 @@
 import type { AuthCredentials, User } from "../models";
 import api from "./api";
-import { requestWithUserResource } from "./user.resource";
+
+const getErrorStatus = (error: unknown) => {
+  if (!error || typeof error !== "object") return undefined;
+  const maybeResponse = (error as { response?: { status?: number } }).response;
+  return maybeResponse?.status;
+};
+
+const fetchUsersWithFallback = async (): Promise<User[]> => {
+	try {
+		const response = await api.get<User[]>("/users");
+		return response.data ?? [];
+	} catch (error) {
+		if (getErrorStatus(error) === 404) {
+			const response = await api.get<User[]>("/user");
+			return response.data ?? [];
+		}
+		throw error;
+	}
+};
 
 export async function loginUser(credentials: AuthCredentials): Promise<User | null> {
-	const users = await requestWithUserResource(async (resource) => {
-		const response = await api.get<User[]>(resource);
-		return response.data;
-	});
+	const users = await fetchUsersWithFallback();
 	const match = users.find(
 		(user) => user.email.toLowerCase() === credentials.email.toLowerCase() && user.password === credentials.password,
 	);
@@ -15,10 +30,7 @@ export async function loginUser(credentials: AuthCredentials): Promise<User | nu
 }
 
 export async function findUserByEmail(email: string): Promise<User | null> {
-	const users = await requestWithUserResource(async (resource) => {
-		const response = await api.get<User[]>(resource);
-		return response.data;
-	});
+	const users = await fetchUsersWithFallback();
 	const match = users.find((user) => user.email.toLowerCase() === email.toLowerCase());
 	return match ?? null;
 }
@@ -30,8 +42,8 @@ export async function registerUser(payload: Pick<User, "name" | "email" | "passw
 	}
 
 	const now = new Date().toISOString();
-	return requestWithUserResource(async (resource) => {
-		const response = await api.post<User>(resource, {
+	try {
+		const response = await api.post<User>("/users", {
 			name: payload.name,
 			email: payload.email,
 			password: payload.password,
@@ -41,7 +53,21 @@ export async function registerUser(payload: Pick<User, "name" | "email" | "passw
 			updateDate: now,
 		});
 		return response.data;
-	});
+	} catch (error) {
+		if (getErrorStatus(error) === 404) {
+			const response = await api.post<User>("/user", {
+				name: payload.name,
+				email: payload.email,
+				password: payload.password,
+				role: "User",
+				avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.name)}&background=random`,
+				createDate: now,
+				updateDate: now,
+			});
+			return response.data;
+		}
+		throw error;
+	}
 }
 
 export async function requestPasswordReset(email: string): Promise<boolean> {
@@ -56,14 +82,23 @@ export async function resetPasswordByEmail(email: string, newPassword: string): 
 	}
 
 	const now = new Date().toISOString();
-	await requestWithUserResource(async (resource) => {
-		await api.put(`${resource}/${existing.id}`, {
+	try {
+		await api.put(`/users/${existing.id}`, {
 			...existing,
 			password: newPassword,
 			updateDate: now,
 		});
-		return true;
-	});
+	} catch (error) {
+		if (getErrorStatus(error) === 404) {
+			await api.put(`/user/${existing.id}`, {
+				...existing,
+				password: newPassword,
+				updateDate: now,
+			});
+		} else {
+			throw error;
+		}
+	}
 
 	return true;
 }
