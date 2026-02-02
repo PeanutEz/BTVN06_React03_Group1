@@ -53,4 +53,11 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		isEnd: true,
 		showInNav: true,
 	},
+	{
+		label: "Hồ sơ",
+		path: ROUTER_URL.PROFILE,
+		component: React.lazy(() => import("@/modules/product/pages/Profile")),
+		isEnd: true,
+		showInNav: true,
+	},
 ];

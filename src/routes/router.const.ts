@@ -5,6 +5,7 @@ export const ROUTER_URL = {
 	LOGIN: "/login",
 	REGISTER: "/register",
 	RESET_PASSWORD: "/reset-password",
+	PROFILE: "/profile",
 
 	// Browse & Product
 	CATEGORIES: "/categories",

@@ -15,3 +15,13 @@ export async function deleteUser(id: string): Promise<void> {
 		return true;
 	});
 }
+
+export async function updateUserProfile(
+	id: string,
+	data: Partial<User>
+): Promise<User> {
+	return requestWithUserResource(async (resource) => {
+		const response = await api.put<User>(`${resource}/${id}`, data);
+		return response.data ?? {};
+	});
+}

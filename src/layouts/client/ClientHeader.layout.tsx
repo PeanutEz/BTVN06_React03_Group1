@@ -95,8 +95,18 @@ const ClientHeader = () => {
                   <div className="px-2">
                     <button
                       type="button"
-                      onClick={handleLogout}
+                      onClick={() => {
+                        navigate(ROUTER_URL.PROFILE);
+                        setMenuOpen(false);
+                      }}
                       className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg"
+                    >
+                      <span>Hồ sơ</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-red-600 hover:text-white rounded-lg mt-2"
                     >
                       <span>Đăng xuất</span>
                     </button>
