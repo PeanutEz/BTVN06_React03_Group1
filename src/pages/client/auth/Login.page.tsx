@@ -88,7 +88,7 @@ const LoginPage = () => {
             </Button>
           </form>
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <p className="text-sm text-slate-600">
               Chưa có tài khoản?{" "}
               <button
@@ -99,6 +99,13 @@ const LoginPage = () => {
                 Đăng ký ngay
               </button>
             </p>
+            <button
+              type="button"
+              onClick={() => navigate(ROUTER_URL.RESET_PASSWORD)}
+              className="text-sm font-semibold text-slate-600 hover:text-primary-600 transition-colors"
+            >
+              Quên mật khẩu?
+            </button>
           </div>
         </div>
       </div>
