@@ -36,8 +36,14 @@ export async function updateUserProfile(
 	id: string,
 	data: Partial<User>
 ): Promise<User> {
-	return requestWithUserResource(async (resource) => {
-		const response = await api.put<User>(`${resource}/${id}`, data);
+	try {
+		const response = await api.put<User>(`/users/${id}`, data);
 		return response.data ?? {};
-	});
+	} catch (error) {
+		if (getErrorStatus(error) === 404) {
+			const response = await api.put<User>(`/user/${id}`, data);
+			return response.data ?? {};
+		}
+		throw error;
+	}
 }
