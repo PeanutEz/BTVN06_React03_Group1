@@ -33,7 +33,7 @@ const ClientHeader = () => {
   };
 
   return (
-    <header className="border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-xl shadow-lg shadow-black/20">
+    <header className="sticky top-0 z-50 border-b border-slate-800/50 bg-slate-900/80 backdrop-blur-xl shadow-lg shadow-black/20">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 text-white">
         <Link to={ROUTER_URL.HOME} className="text-lg font-semibold tracking-tight">
           BTVN06 Group1
@@ -83,7 +83,7 @@ const ClientHeader = () => {
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl py-2 shadow-2xl shadow-primary-500/20 animate-fade-in">
+                <div className="absolute right-0 mt-2 w-56 z-50 rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl py-2 shadow-2xl shadow-primary-500/20 animate-fade-in">
                   <div className="flex items-center gap-3 px-4 pb-2">
                     <img src={user.avatar} alt={user.name} className="size-10 rounded-full object-cover" />
                     <div className="leading-tight">
@@ -95,8 +95,18 @@ const ClientHeader = () => {
                   <div className="px-2">
                     <button
                       type="button"
-                      onClick={handleLogout}
+                      onClick={() => {
+                        navigate(ROUTER_URL.PROFILE);
+                        setMenuOpen(false);
+                      }}
                       className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg"
+                    >
+                      <span>Hồ sơ</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-red-600 hover:text-white rounded-lg mt-2"
                     >
                       <span>Đăng xuất</span>
                     </button>
