@@ -5,6 +5,11 @@ export const ROUTER_URL = {
 	LOGIN: "/login",
 	REGISTER: "/register",
 
+	// Browse & Product
+	CATEGORIES: "/categories",
+	PRODUCTS: "/products",
+	PRODUCT_DETAIL: "/products/:id",
+
 	ADMIN: "/admin",
 	ADMIN_LOGIN: "/admin/login",
 	ADMIN_ROUTES: {
