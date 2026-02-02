@@ -21,7 +21,7 @@ const LandingPage = () => {
 						{/* Left Content */}
 						<div className="animate-fade-in text-center lg:text-left">
 							{/* Main Heading */}
-							<h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold mb-4 lg:mb-6 font-serif tracking-tight text-[#E6B800] drop-shadow-[0_4px_20px_rgba(230,184,0,0.4)]">
+							<h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold text-white mb-4 lg:mb-6 font-serif tracking-tight">
 								Hylux
 							</h1>
 							<p className="text-xl sm:text-2xl lg:text-3xl text-amber-200 font-medium mb-6 lg:mb-8 tracking-wider uppercase">

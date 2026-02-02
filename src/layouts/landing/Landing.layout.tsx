@@ -4,7 +4,7 @@ import LandingFooter from "./LandingFooter.layout";
 
 const LandingLayout = () => {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="min-h-screen flex flex-col">
       <LandingHeader />
       <main className="flex-1">
         <Outlet />
