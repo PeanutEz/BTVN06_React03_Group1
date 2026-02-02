@@ -3,6 +3,7 @@ import { useAuthStore } from "../../../store/auth.store";
 import { updateUserProfile } from "../../../services/user.service";
 import { showSuccess, showError } from "../../../utils/toast.util";
 import type { User } from "../../../models";
+import { ROLE } from "../../../models/role.model";
 
 export default function ProfilePage() {
 	const { user, login } = useAuthStore();
@@ -117,7 +118,7 @@ export default function ProfilePage() {
 						{formData.name || user.name}
 					</h2>
 					<p className="text-gray-600 mt-1">
-						{user.role === "admin" ? "Quản trị viên" : "Người dùng"}
+						{user.role === ROLE.ADMIN ? "Quản trị viên" : "Người dùng"}
 					</p>
 				</div>
 
@@ -222,12 +223,12 @@ export default function ProfilePage() {
 							<span className="text-gray-600 capitalize">{user.role}</span>
 							<span
 								className={`ml-auto px-3 py-1 rounded-full text-sm font-medium ${
-									user.role === "admin"
+									user.role === ROLE.ADMIN
 										? "bg-red-100 text-red-800"
 										: "bg-green-100 text-green-800"
 								}`}
 							>
-								{user.role === "admin" ? "Quản trị viên" : "Người dùng"}
+								{user.role === ROLE.ADMIN ? "Quản trị viên" : "Người dùng"}
 							</span>
 						</div>
 					</div>
