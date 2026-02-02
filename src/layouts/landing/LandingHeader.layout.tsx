@@ -1,10 +1,11 @@
     import { useState } from "react";
-import { Link } from "react-router-dom";
-import { ROUTER_URL } from "../../routes/router.const";
-import { Button } from "../../components";
-import logoHylux from "../../assets/logo-hylux.png";
+    import { Link, useNavigate } from "react-router-dom";
+    import { ROUTER_URL } from "../../routes/router.const";
+    import { Button } from "../../components";
+    import logoHylux from "../../assets/logo-hylux.png";
 
-const LandingHeader = () => {
+    const LandingHeader = () => {
+    const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
 
     const scrollToSection = (sectionId: string) => {
