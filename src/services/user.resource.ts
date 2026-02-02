@@ -1,5 +1,3 @@
-import api from "./api";
-
 let cachedUserResource: "/users" | "/user" | null = null;
 
 const getErrorStatus = (error: unknown) => {
