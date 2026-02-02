@@ -28,4 +28,9 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		component: React.lazy(() => import("../../pages/client/Contact.page.tsx")),
 		isEnd: true,
 	},
+	{
+		label: "Hồ sơ",
+		path: ROUTER_URL.PROFILE,
+		component: React.lazy(() => import("../../pages/profile/Profile.page.tsx")),
+	},
 ];

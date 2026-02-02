@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store";
 
 const AdminHeader = () => {
@@ -57,6 +59,16 @@ const AdminHeader = () => {
                 </div>
               </div>
             )}
+
+            <div className="px-2">
+              <Link
+                to={ROUTER_URL.PROFILE}
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-slate-800 rounded-lg"
+              >
+                <span>Hồ sơ</span>
+              </Link>
+            </div>
+
             <div className="my-2 border-t border-slate-700" />
             <div className="px-2">
               <button

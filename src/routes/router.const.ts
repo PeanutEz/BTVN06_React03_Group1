@@ -11,4 +11,5 @@ export const ROUTER_URL = {
 		DASHBOARD: "dashboard",
 		USERS: "users",
 	},
+    PROFILE: "/profile",
 } as const;

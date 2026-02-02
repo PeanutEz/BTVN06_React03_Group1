@@ -91,6 +91,14 @@ const ClientHeader = () => {
                       <p className="text-xs text-primary-100/70">{user.role}</p>
                     </div>
                   </div>
+                  <div className="px-2">
+                    <Link
+                      to={ROUTER_URL.PROFILE}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-slate-800 rounded-lg"
+                    >
+                      <span>Hồ sơ</span>
+                    </Link>
+                  </div>
                   <div className="my-2 border-t border-slate-700" />
                   <div className="px-2">
                     <button
