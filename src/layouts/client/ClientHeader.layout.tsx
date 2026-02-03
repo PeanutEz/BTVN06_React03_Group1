@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
-import { useAuthStore } from "../../store";
+import { useAuthStore, useCartStore } from "../../store";
 import logoHylux from "../../assets/logo-hylux.png";
 
 const navItems = [
@@ -9,6 +9,7 @@ const navItems = [
   { label: "Đặt hàng", to: ROUTER_URL.ORDER },
   { label: "Sản phẩm", to: ROUTER_URL.PRODUCTS },
   { label: "Danh mục", to: ROUTER_URL.CATEGORIES },
+  { label: "Giỏ hàng", to: ROUTER_URL.CART },
   { label: "Giới thiệu", to: ROUTER_URL.ABOUT },
   { label: "Liên hệ", to: ROUTER_URL.CONTACT },
 ];
@@ -16,6 +17,7 @@ const navItems = [
 const ClientHeader = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const cartCount = useCartStore((s) => s.totalItems());
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [scrollOpacity, setScrollOpacity] = useState(1);
@@ -138,14 +140,18 @@ const ClientHeader = () => {
             </button>
 
             {/* Cart Icon */}
-            <button className="hidden md:flex items-center justify-center w-10 h-10 rounded-full hover:bg-red-50 text-slate-600 hover:text-red-700 transition-colors relative">
+            <Link
+              to={ROUTER_URL.CART}
+              className="hidden md:flex items-center justify-center w-10 h-10 rounded-full hover:bg-red-50 text-slate-600 hover:text-red-700 transition-colors relative"
+              aria-label="Giỏ hàng"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
               <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
-                0
+                {cartCount}
               </span>
-            </button>
+            </Link>
 
             {!user ? (
               <button

@@ -1,14 +1,16 @@
 import { useEffect } from "react";
 import { Toaster } from "sonner";
 import AppRoutes from "./routes";
-import { useAuthStore } from "./store";
+import { useAuthStore, useCartStore } from "./store";
 
 export default function App() {
   const hydrate = useAuthStore((s) => s.hydrate);
+  const hydrateCart = useCartStore((s) => s.hydrate);
 
   useEffect(() => {
     hydrate();
-  }, [hydrate]);
+    hydrateCart();
+  }, [hydrate, hydrateCart]);
 
   return (
     <>

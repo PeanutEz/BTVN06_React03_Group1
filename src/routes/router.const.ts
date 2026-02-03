@@ -12,6 +12,7 @@ export const ROUTER_URL = {
 	CATEGORIES: "/categories",
 	PRODUCTS: "/products",
 	PRODUCT_DETAIL: "/products/:id",
+	CART: "/cart",
 
 	ADMIN: "/admin",
 	ADMIN_LOGIN: "/admin/login",

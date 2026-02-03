@@ -40,6 +40,13 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: true,
 	},
 	{
+		label: "Giỏ hàng",
+		path: ROUTER_URL.CART,
+		component: React.lazy(() => import("@/modules/product/pages/Cart")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
 		label: "Chi tiết sản phẩm",
 		path: ROUTER_URL.PRODUCT_DETAIL,
 		component: React.lazy(() => import("@/modules/product/pages/ProductDetail")),
