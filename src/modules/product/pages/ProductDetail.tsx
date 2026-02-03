@@ -25,8 +25,6 @@ export default function ProductDetail() {
         clearSelectedProduct
     } = useProductStore();
 
-    const addToCart = useCartStore((s) => s.addToCart);
-
     useEffect(() => {
         if (id) {
             fetchProductById(Number(id));
