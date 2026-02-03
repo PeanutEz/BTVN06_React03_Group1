@@ -25,5 +25,9 @@ export const ROUTER_URL = {
 		PAYMENTS: "payments",
 		PAYMENT_DETAIL: "payments/:id",
 		LOYALTY: "loyalty",
+		FRANCHISE_LIST: "franchises",
+		FRANCHISE_DETAIL: "franchises/:id",
+		FRANCHISE_CREATE: "franchises/create",
+		INVENTORY_BY_FRANCHISE: "franchises/:id/inventory",
 	},
 } as const;
