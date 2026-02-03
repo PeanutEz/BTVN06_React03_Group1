@@ -59,4 +59,25 @@ export const ADMIN_MENU: AdminMenuItem[] = [
 		path: ROUTER_URL.ADMIN_ROUTES.LOYALTY,
 		component: React.lazy(() => import("../../pages/admin/loyalty/LoyaltyManagement.page.tsx")),
 	},
+	{
+		label: "Franchises",
+		path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST,
+		component: React.lazy(() => import("../../pages/admin/franchise/FranchiseList.page.tsx")),
+		isEnd: true,
+	},
+	{
+		label: "Franchise Detail",
+		path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_DETAIL,
+		component: React.lazy(() => import("../../pages/admin/franchise/FranchiseDetail.page.tsx")),
+	},
+	{
+		label: "Franchise Create",
+		path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_CREATE,
+		component: React.lazy(() => import("../../pages/admin/franchise/FranchiseCreateEdit.page.tsx")),
+	},
+	{
+		label: "Franchise Inventory",
+		path: ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE,
+		component: React.lazy(() => import("../../pages/admin/inventory/InventoryByFranchise.page.tsx")),
+	},
 ];
