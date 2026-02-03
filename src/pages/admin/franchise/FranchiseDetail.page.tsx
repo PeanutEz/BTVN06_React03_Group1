@@ -36,7 +36,7 @@ const FranchiseDetailPage = () => {
       <div className="space-y-4">
         <p className="text-sm text-slate-500">Không tìm thấy franchise.</p>
         <Link
-          to={`/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`}
+          to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`}
           className="text-sm font-semibold text-primary-600 hover:text-primary-700"
         >
           ← Quay lại danh sách
@@ -116,7 +116,7 @@ const FranchiseDetailPage = () => {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tồn kho</p>
                 <Link
-                  to={`/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE.replace(":id", store.id)}`}
+                  to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE.replace(":id", store.id)}`}
                   className="text-xs font-semibold text-primary-600 hover:text-primary-700"
                 >
                   Xem chi tiết

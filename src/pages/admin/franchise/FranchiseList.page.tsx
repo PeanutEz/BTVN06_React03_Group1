@@ -36,7 +36,7 @@ const FranchiseListPage = () => {
           <Button variant="outline" onClick={load} loading={loading}>
             Làm mới
           </Button>
-          <Button onClick={() => navigate(`/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_CREATE}`)}>
+          <Button onClick={() => navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_CREATE}`)}>
             Tạo franchise
           </Button>
         </div>
@@ -80,13 +80,13 @@ const FranchiseListPage = () => {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      to={`/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_DETAIL.replace(":id", s.id)}`}
+                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_DETAIL.replace(":id", s.id)}`}
                       className="text-xs font-semibold text-primary-600 hover:text-primary-700"
                     >
                       Chi tiết
                     </Link>
                     <Link
-                      to={`/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE.replace(":id", s.id)}`}
+                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE.replace(":id", s.id)}`}
                       className="text-xs font-semibold text-amber-600 hover:text-amber-700"
                     >
                       Tồn kho
