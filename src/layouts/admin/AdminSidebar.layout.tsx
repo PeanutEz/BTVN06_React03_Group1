@@ -56,6 +56,15 @@ const adminNav = [
       </svg>
     )
   },
+  { 
+    label: "Franchises", 
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
+    icon: (
+      <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18M6 4v3M6 17v3M12 4v3M12 17v3M18 4v3M18 17v3" />
+      </svg>
+    )
+  },
 ];
 
 const AdminSidebar = () => {
