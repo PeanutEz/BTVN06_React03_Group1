@@ -39,7 +39,7 @@ const ClientHeader = () => {
 
     document.addEventListener("mousedown", handleClickOutside);
     window.addEventListener("scroll", handleScroll);
-    
+
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("scroll", handleScroll);
@@ -53,39 +53,13 @@ const ClientHeader = () => {
   };
 
   return (
-    <header 
-      className={`sticky top-0 z-50 transition-all duration-300 ${
-        scrolled 
-          ? "bg-white/95 backdrop-blur-xl shadow-lg border-b border-red-100" 
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${scrolled
+          ? "bg-white/95 backdrop-blur-xl shadow-lg border-b border-red-100"
           : "bg-white border-b border-red-50"
-      }`}
+        }`}
       style={{ opacity: scrollOpacity }}
     >
-      {/* Top Bar - Premium Touch */}
-      <div className="bg-gradient-to-r from-red-900 via-red-800 to-red-900 text-white py-2">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between text-xs sm:text-sm">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1.5">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                </svg>
-                Hotline: 1900-xxxx
-              </span>
-              <span className="hidden sm:flex items-center gap-1.5">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                </svg>
-                support@hylux.com
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="hidden md:inline text-amber-200">✨ Miễn phí vận chuyển đơn từ 200k</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Main Header */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -93,9 +67,9 @@ const ClientHeader = () => {
           {/* Logo & Brand */}
           <Link to={ROUTER_URL.HOME} className="flex items-center gap-3 group">
             <div className="relative w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center">
-              <img 
+              <img
                 src={logoHylux}
-                alt="Hylux Coffee Logo" 
+                alt="Hylux Coffee Logo"
                 className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-110 drop-shadow-lg"
               />
             </div>
@@ -116,10 +90,9 @@ const ClientHeader = () => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `relative text-sm font-semibold transition-colors duration-200 py-2 group ${
-                    isActive 
-                      ? "text-red-800" 
-                      : "text-slate-700 hover:text-red-700"
+                  `relative text-sm font-semibold transition-colors duration-200 py-2 group ${isActive
+                    ? "text-red-800"
+                    : "text-slate-700 hover:text-red-700"
                   }`
                 }
                 end
@@ -192,7 +165,7 @@ const ClientHeader = () => {
                         <p className="text-xs text-slate-500 mt-0.5">{user.email}</p>
                       </div>
                     </div>
-                    
+
                     <div className="py-2 px-2">
                       <button
                         type="button"
@@ -250,7 +223,7 @@ const ClientHeader = () => {
             </Link>
 
             {/* Mobile Menu Toggle */}
-            <button 
+            <button
               className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-red-50 text-slate-700 hover:text-red-700 transition-colors"
               onClick={() => setMenuOpen(!menuOpen)}
             >
@@ -269,10 +242,9 @@ const ClientHeader = () => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `block px-4 py-3 text-sm font-semibold rounded-lg transition-colors ${
-                    isActive 
-                      ? "bg-red-50 text-red-800" 
-                      : "text-slate-700 hover:bg-red-50 hover:text-red-700"
+                  `block px-4 py-3 text-sm font-semibold rounded-lg transition-colors ${isActive
+                    ? "bg-red-50 text-red-800"
+                    : "text-slate-700 hover:bg-red-50 hover:text-red-700"
                   }`
                 }
                 end
