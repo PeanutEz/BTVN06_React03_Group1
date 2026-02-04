@@ -2,7 +2,10 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
+const accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
+if (accessToken) {
+  mapboxgl.accessToken = accessToken;
+}
 
 interface MapboxMapProps {
   center?: { lat: number; lng: number };
