@@ -13,12 +13,12 @@ export interface Product {
     name: string;
     description: string;
     content: string;
-    price: number;
+    price?: number;
     originalPrice?: number;
-    image: string;
+    image?: string;
     images?: string[];
     categoryId: number;
-    stock: number;
+    stock?: number;
     isActive: boolean;
     isFeatured?: boolean;
     rating?: number;

@@ -13,9 +13,9 @@ export default function ProductCard({ product }: ProductCardProps) {
         }).format(price);
     };
 
-    const hasDiscount = product.originalPrice && product.originalPrice > product.price;
+    const hasDiscount = product.originalPrice && product.price && product.originalPrice > product.price;
     const discountPercent = hasDiscount
-        ? Math.round(((product.originalPrice! - product.price) / product.originalPrice!) * 100)
+        ? Math.round(((product.originalPrice! - product.price!) / product.originalPrice!) * 100)
         : 0;
 
     return (
@@ -26,7 +26,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             {/* Image Container */}
             <div className="relative aspect-square overflow-hidden">
                 <img
-                    src={product.image}
+                    src={product.image ?? '/placeholder.jpg'}
                     alt={product.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
@@ -76,7 +76,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
                 {/* Price */}
                 <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-amber-600">{formatPrice(product.price)}</span>
+                    <span className="text-lg font-bold text-amber-600">{formatPrice(product.price ?? 0)}</span>
                     {hasDiscount && (
                         <span className="text-sm text-gray-400 line-through">
                             {formatPrice(product.originalPrice!)}
@@ -85,7 +85,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                 </div>
 
                 {/* Stock Status */}
-                {product.stock < 10 && (
+                {product.stock !== undefined && product.stock < 10 && (
                     <p className="text-xs text-red-500 mt-2">Chỉ còn {product.stock} sản phẩm</p>
                 )}
             </div>

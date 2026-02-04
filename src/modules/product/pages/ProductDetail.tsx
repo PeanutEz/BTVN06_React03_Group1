@@ -44,9 +44,9 @@ export default function ProductDetail() {
         .filter((p) => p.categoryId === selectedProduct?.categoryId && p.id !== selectedProduct?.id)
         .slice(0, 4);
 
-    const hasDiscount = selectedProduct?.originalPrice && selectedProduct.originalPrice > selectedProduct.price;
+    const hasDiscount = selectedProduct?.originalPrice && selectedProduct.price && selectedProduct.originalPrice > selectedProduct.price;
     const discountPercent = hasDiscount
-        ? Math.round(((selectedProduct!.originalPrice! - selectedProduct!.price) / selectedProduct!.originalPrice!) * 100)
+        ? Math.round(((selectedProduct!.originalPrice! - selectedProduct!.price!) / selectedProduct!.originalPrice!) * 100)
         : 0;
 
     if (isLoading) {
@@ -197,7 +197,7 @@ export default function ProductDetail() {
                     {/* Price */}
                     <div className="flex items-center gap-4 mb-8">
                         <span className="text-4xl font-bold text-amber-600">
-                            {formatPrice(selectedProduct.price)}
+                            {formatPrice(selectedProduct.price ?? 0)}
                         </span>
                         {hasDiscount && (
                             <span className="text-xl text-gray-400 line-through">
@@ -218,14 +218,14 @@ export default function ProductDetail() {
                             </button>
                             <span className="px-6 py-2 font-medium">{quantity}</span>
                             <button
-                                onClick={() => setQuantity(Math.min(selectedProduct.stock, quantity + 1))}
+                                onClick={() => setQuantity(Math.min(selectedProduct.stock ?? 999, quantity + 1))}
                                 className="px-4 py-2 hover:bg-gray-100 transition-colors"
                             >
                                 +
                             </button>
                         </div>
                         <span className="text-sm text-gray-500">
-                            Còn {selectedProduct.stock} sản phẩm
+                            Còn {selectedProduct.stock ?? 0} sản phẩm
                         </span>
                     </div>
 
