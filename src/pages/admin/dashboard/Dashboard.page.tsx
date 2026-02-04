@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { fetchOrders } from "../../../services/order.service";
 import { fetchPayments } from "../../../services/payment.service";
@@ -8,6 +8,34 @@ import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
 import type { Order } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
+
+const topProducts = [
+  {
+    id: 1,
+    name: "Cà phê sữa đá",
+    sold: 320,
+    revenue: 12800000,
+  },
+  {
+    id: 2,
+    name: "Trà đào cam sả",
+    sold: 280,
+    revenue: 11200000,
+  },
+  {
+    id: 3,
+    name: "Bạc xỉu",
+    sold: 210,
+    revenue: 9450000,
+  },
+  {
+    id: 4,
+    name: "Latte nóng",
+    sold: 180,
+    revenue: 8100000,
+  },
+];
 
 const DashboardPage = () => {
   const [loading, setLoading] = useState(false);
@@ -59,6 +87,8 @@ const DashboardPage = () => {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  const revenueChartData = useMemo(() => [{ date: "01/01", revenue: 12000000 }, { date: "02/01", revenue: 18000000 }, { date: "03/01", revenue: 15000000 }, { date: "04/01", revenue: 22000000 }, { date: "05/01", revenue: 26000000 }, { date: "06/01", revenue: 21000000 },], []);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -225,6 +255,65 @@ const DashboardPage = () => {
         </div>
       )}
 
+      {/* ================= CHART + TOP PRODUCT ================= */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Revenue Chart */}
+        <div className="lg:col-span-2 rounded-2xl border bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">
+            Doanh thu theo ngày
+          </h3>
+
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={revenueChartData}>
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#2563eb"
+                strokeWidth={3}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Top Products */}
+        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-lg font-semibold text-slate-900">
+            Top sản phẩm bán chạy
+          </h3>
+
+          <div className="space-y-4">
+            {topProducts.map((product, index) => (
+              <div
+                key={product.id}
+                className="flex items-center justify-between rounded-lg bg-slate-50 p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex size-8 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <p className="font-semibold text-slate-800">
+                      {product.name}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Đã bán: {product.sold} ly
+                    </p>
+                  </div>
+                </div>
+
+                <p className="font-semibold text-green-700">
+                  {formatCurrency(product.revenue)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+
       {/* Recent Orders */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
@@ -275,13 +364,12 @@ const DashboardPage = () => {
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        order.status === "COMPLETED"
-                          ? "bg-green-100 text-green-700"
-                          : order.status === "PAID"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-yellow-100 text-yellow-700"
-                      }`}
+                      className={`rounded-full px-2 py-1 text-xs font-semibold ${order.status === "COMPLETED"
+                        ? "bg-green-100 text-green-700"
+                        : order.status === "PAID"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                        }`}
                     >
                       {order.status}
                     </span>
