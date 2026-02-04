@@ -8,14 +8,7 @@ import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
 import type { Order } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
 
 const topProducts = [
   {
@@ -43,8 +36,6 @@ const topProducts = [
     revenue: 8100000,
   },
 ];
-
-
 
 const DashboardPage = () => {
   const [loading, setLoading] = useState(false);
@@ -97,32 +88,7 @@ const DashboardPage = () => {
     loadDashboard();
   }, []);
 
-
-  const orderStatusData = [
-    {
-      label: "Chờ xử lý",
-      value: stats.pendingOrders,
-      color: "bg-yellow-500",
-    },
-    {
-      label: "Hoàn thành",
-      value: stats.completedOrders,
-      color: "bg-green-500",
-    },
-  ];
-
-  // Dummy chart theo ngày (prototype – chưa call API)
-  const revenueChartData = useMemo(
-    () => [
-      { date: "01/01", revenue: 12000000 },
-      { date: "02/01", revenue: 18000000 },
-      { date: "03/01", revenue: 15000000 },
-      { date: "04/01", revenue: 22000000 },
-      { date: "05/01", revenue: 26000000 },
-      { date: "06/01", revenue: 21000000 },
-    ],
-    []
-  );
+  const revenueChartData = useMemo(() => [{ date: "01/01", revenue: 12000000 }, { date: "02/01", revenue: 18000000 }, { date: "03/01", revenue: 15000000 }, { date: "04/01", revenue: 22000000 }, { date: "05/01", revenue: 26000000 }, { date: "06/01", revenue: 21000000 },], []);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -288,6 +254,7 @@ const DashboardPage = () => {
           </div>
         </div>
       )}
+
       {/* ================= CHART + TOP PRODUCT ================= */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Revenue Chart */}
@@ -413,7 +380,6 @@ const DashboardPage = () => {
           </table>
         </div>
       </div>
-
     </div>
   );
 };
