@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useProductStore } from "@/store/product.store";
-import ProductCard from "../components/ProductCard";
-import ProductFilter from "../components/ProductFilter";
+import ProductCard from "@/components/product/ProductCard";
+import ProductFilter from "@/components/product/ProductFilter";
 
 export default function ProductList() {
     const [searchParams, setSearchParams] = useSearchParams();

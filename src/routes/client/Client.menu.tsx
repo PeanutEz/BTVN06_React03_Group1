@@ -28,21 +28,21 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 	{
 		label: "Danh mục",
 		path: ROUTER_URL.CATEGORIES,
-		component: React.lazy(() => import("@/modules/product/pages/CategoryList")),
+		component: React.lazy(() => import("@/pages/client/product/CategoryList.page")),
 		isEnd: true,
 		showInNav: true,
 	},
 	{
 		label: "Sản phẩm",
 		path: ROUTER_URL.PRODUCTS,
-		component: React.lazy(() => import("@/modules/product/pages/ProductList")),
+		component: React.lazy(() => import("@/pages/client/product/ProductList.page")),
 		isEnd: true,
 		showInNav: true,
 	},
 	{
 		label: "Chi tiết sản phẩm",
 		path: ROUTER_URL.PRODUCT_DETAIL,
-		component: React.lazy(() => import("@/modules/product/pages/ProductDetail")),
+		component: React.lazy(() => import("@/pages/client/product/ProductDetail.page")),
 		isEnd: false,
 		showInNav: false, // Hidden from nav
 	},
@@ -63,7 +63,7 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 	{
 		label: "Hồ sơ",
 		path: ROUTER_URL.PROFILE,
-		component: React.lazy(() => import("@/modules/product/pages/Profile")),
+		component: React.lazy(() => import("@/pages/client/product/Profile.page")),
 		isEnd: true,
 		showInNav: true,
 	},
