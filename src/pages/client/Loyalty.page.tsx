@@ -42,9 +42,9 @@ const LoyaltyPage = () => {
               <div
                 className={`w-32 h-32 rounded-full flex items-center justify-center text-4xl font-bold ${LOYALTY_TIER_COLORS[customerFranchise.loyalty_tier]}`}
               >
+                {customerFranchise.loyalty_tier === "BRONZE" && "🥉"}
                 {customerFranchise.loyalty_tier === "SILVER" && "🥈"}
                 {customerFranchise.loyalty_tier === "GOLD" && "🥇"}
-                {customerFranchise.loyalty_tier === "PLATINUM" && "💎"}
               </div>
             </div>
             <div className="flex-1 text-center md:text-left">
@@ -75,13 +75,13 @@ const LoyaltyPage = () => {
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <div
             className={`rounded-2xl border-2 p-6 ${
-              customerFranchise.loyalty_tier === "SILVER"
+              customerFranchise.loyalty_tier === "BRONZE"
                 ? "border-primary-300 bg-primary-50"
                 : "border-slate-200 bg-white"
             }`}
           >
-            <div className="text-4xl mb-4">🥈</div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Hạng Bạc</h3>
+            <div className="text-4xl mb-4">🥉</div>
+            <h3 className="text-xl font-bold text-slate-900 mb-2">Hạng Đồng</h3>
             <ul className="space-y-2 text-sm text-slate-600">
               <li className="flex items-start gap-2">
                 <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -135,39 +135,6 @@ const LoyaltyPage = () => {
                   />
                 </svg>
                 <span>Giảm giá 5% mọi đơn</span>
-              </li>
-            </ul>
-          </div>
-
-          <div
-            className={`rounded-2xl border-2 p-6 ${
-              customerFranchise.loyalty_tier === "PLATINUM"
-                ? "border-primary-300 bg-primary-50"
-                : "border-slate-200 bg-white"
-            }`}
-          >
-            <div className="text-4xl mb-4">💎</div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Hạng Bạch Kim</h3>
-            <ul className="space-y-2 text-sm text-slate-600">
-              <li className="flex items-start gap-2">
-                <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span>Tích điểm x2</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span>Giảm giá 10% mọi đơn</span>
               </li>
             </ul>
           </div>

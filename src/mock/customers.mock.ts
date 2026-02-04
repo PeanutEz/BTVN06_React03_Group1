@@ -12,7 +12,7 @@ export interface CustomerFranchiseMock {
   customer_id: string;
   franchise_id: string;
   loyalty_point: number;
-  loyalty_tier: "SILVER" | "GOLD" | "PLATINUM";
+  loyalty_tier: "BRONZE" | "SILVER" | "GOLD";
   first_order_at?: string;
   last_order_at?: string;
 }
@@ -47,7 +47,7 @@ export const mockCustomerFranchises: CustomerFranchiseMock[] = [
     customer_id: "CUSTOMER-001",
     franchise_id: "FRANCHISE-001",
     loyalty_point: 520,
-    loyalty_tier: "PLATINUM",
+    loyalty_tier: "GOLD",
     first_order_at: "2023-12-01T10:00:00Z",
     last_order_at: "2024-01-17T08:45:00Z",
   },
@@ -65,7 +65,7 @@ export const mockCustomerFranchises: CustomerFranchiseMock[] = [
     customer_id: "CUSTOMER-003",
     franchise_id: "FRANCHISE-001",
     loyalty_point: 45,
-    loyalty_tier: "SILVER",
+    loyalty_tier: "BRONZE",
     first_order_at: "2024-01-10T09:00:00Z",
     last_order_at: "2024-01-17T15:00:00Z",
   },
