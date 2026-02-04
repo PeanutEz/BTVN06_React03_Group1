@@ -35,7 +35,7 @@ const LandingHeader = () => {
                 Về Hylux
                 </button>
                 <Link 
-                to={ROUTER_URL.ORDER}
+                to={ROUTER_URL.STORE_LOCATOR}
                 className="text-white hover:text-amber-200 font-bold text-sm uppercase tracking-wide transition-colors"
                 >
                 Cửa Hàng
@@ -68,7 +68,7 @@ const LandingHeader = () => {
                 </Link>
                 
                 <Link 
-                to={ROUTER_URL.CONTACT}
+                to={ROUTER_URL.STORE_LOCATOR}
                 className="text-white hover:text-amber-200 font-bold text-sm uppercase tracking-wide transition-colors"
                 >
                 Tìm Kiếm Cửa Hàng
@@ -126,7 +126,7 @@ const LandingHeader = () => {
                 Về Hylux
                 </button>
                 <Link 
-                to={ROUTER_URL.ORDER}
+                to={ROUTER_URL.STORE_LOCATOR}
                 className="block px-4 py-2 text-white hover:bg-red-800 rounded transition-colors"
                 onClick={() => setMenuOpen(false)}
                 >
