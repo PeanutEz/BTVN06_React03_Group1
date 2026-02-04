@@ -5,3 +5,4 @@ export * from "./customer.model";
 export * from "./payment.model";
 export * from "./loyalty.model";
 export * from "./store.model";
+export * from "./product.model";

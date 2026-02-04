@@ -1,6 +1,6 @@
-import type { Product, Category, Banner, Voucher } from "../types/product.type";
+import type { Product, Category, Banner, Voucher } from "@/models/product.model";
 // @ts-ignore
-import apiClient from "../../../services/api.client";
+import apiClient from "./api.client";
 
 // Toggle this to true to use real API
 // @ts-ignore

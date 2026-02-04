@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useProductStore } from "@/store/product.store";
-import ProductCard from "../components/ProductCard";
+import ProductCard from "@/components/product/ProductCard";
 
 export default function ProductDetail() {
     const { id } = useParams<{ id: string }>();
