@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { Product, Category, Banner, Voucher } from "@/modules/product/types/product.type";
-import { productService } from "@/modules/product/services/product.service";
+import type { Product, Category, Banner, Voucher } from "@/models/product.model";
+import { productService } from "@/services/product.service";
 
 interface ProductState {
     // State
