@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
-import type { Customer } from "../../../models/customer.model";
+import type { CustomerDisplay } from "../../../models/customer.model";
 import {
   LOYALTY_TIER_LABELS,
   LOYALTY_TIER_COLORS,
-  CUSTOMER_STATUS_LABELS,
-  CUSTOMER_STATUS_COLORS,
 } from "../../../models/customer.model";
 import { fetchCustomerById } from "../../../services/customer.service";
 import { fetchOrders } from "../../../services/order.service";
-import type { Order } from "../../../models/order.model";
+import type { OrderDisplay } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "../../../models/order.model";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showError } from "../../../utils";
@@ -18,15 +16,15 @@ import { showError } from "../../../utils";
 const CustomerDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [customer, setCustomer] = useState<CustomerDisplay | null>(null);
+  const [orders, setOrders] = useState<OrderDisplay[]>([]);
   const [loading, setLoading] = useState(false);
 
   const loadCustomer = async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await fetchCustomerById(id);
+      const data = await fetchCustomerById(Number(id));
       if (!data) {
         showError("Không tìm thấy khách hàng");
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`);
@@ -36,7 +34,7 @@ const CustomerDetailPage = () => {
 
       // Load customer orders
       const allOrders = await fetchOrders();
-      const customerOrders = allOrders.filter((order) => order.customerId === id);
+      const customerOrders = allOrders.filter((order) => order.customer_id === data.id);
       setOrders(customerOrders);
     } finally {
       setLoading(false);
@@ -101,7 +99,7 @@ const CustomerDetailPage = () => {
             <div className="space-y-3 text-sm">
               <div>
                 <p className="text-slate-600">Email</p>
-                <p className="font-semibold text-slate-900">{customer.email}</p>
+                <p className="font-semibold text-slate-900">{customer.email || 'N/A'}</p>
               </div>
               <div>
                 <p className="text-slate-600">Số điện thoại</p>
@@ -109,12 +107,12 @@ const CustomerDetailPage = () => {
               </div>
               <div>
                 <p className="text-slate-600">Mã khách hàng</p>
-                <p className="font-semibold text-slate-900">{customer.id}</p>
+                <p className="font-semibold text-primary-600">KH-{String(customer.id).padStart(4, '0')}</p>
               </div>
               <div>
                 <p className="text-slate-600">Ngày tham gia</p>
                 <p className="font-semibold text-slate-900">
-                  {new Date(customer.createDate).toLocaleDateString("vi-VN")}
+                  {new Date(customer.created_at).toLocaleDateString("vi-VN")}
                 </p>
               </div>
             </div>
@@ -123,27 +121,46 @@ const CustomerDetailPage = () => {
           {/* Loyalty Info */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-slate-900">Thông tin thành viên</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Hạng:</span>
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${LOYALTY_TIER_COLORS[customer.tier]}`}
-                >
-                  {LOYALTY_TIER_LABELS[customer.tier]}
-                </span>
+            {customer.franchises && customer.franchises.length > 0 ? (
+              <div className="space-y-4">
+                {customer.franchises.map((cf) => (
+                  <div key={cf.id} className="border-b border-slate-100 pb-3 last:border-b-0">
+                    <p className="text-sm font-semibold text-slate-700 mb-2">
+                      {cf.franchise?.name || 'Cửa hàng'}
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">Hạng:</span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold ${LOYALTY_TIER_COLORS[cf.loyalty_tier]}`}
+                        >
+                          {LOYALTY_TIER_LABELS[cf.loyalty_tier]}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">Điểm thưởng:</span>
+                        <span className="text-lg font-bold text-primary-600">
+                          {cf.loyalty_point.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-600">Điểm thưởng:</span>
-                <span className="text-lg font-bold text-primary-600">
-                  {customer.loyaltyPoints.toLocaleString()}
-                </span>
-              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Chưa có thông tin thành viên</p>
+            )}
+            <div className="mt-4 pt-4 border-t border-slate-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-600">Trạng thái:</span>
                 <span
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${CUSTOMER_STATUS_COLORS[customer.status]}`}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    customer.is_active
+                      ? 'bg-green-50 text-green-700 border-green-200'
+                      : 'bg-gray-50 text-gray-700 border-gray-200'
+                  }`}
                 >
-                  {CUSTOMER_STATUS_LABELS[customer.status]}
+                  {customer.is_active ? 'Hoạt động' : 'Ngưng hoạt động'}
                 </span>
               </div>
             </div>
@@ -160,7 +177,7 @@ const CustomerDetailPage = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-600">Tổng chi tiêu:</span>
                 <span className="text-lg font-bold text-green-600">
-                  {formatCurrency(customer.totalSpent || 0)}
+                  {formatCurrency(orders.reduce((sum, order) => sum + order.total_amount, 0))}
                 </span>
               </div>
             </div>
@@ -186,13 +203,13 @@ const CustomerDetailPage = () => {
                   {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3">
-                        <span className="font-semibold text-primary-600">{order.id}</span>
+                        <span className="font-semibold text-primary-600">{order.code}</span>
                       </td>
                       <td className="px-4 py-3 text-slate-700">
-                        {new Date(order.createDate).toLocaleDateString("vi-VN")}
+                        {new Date(order.created_at).toLocaleDateString("vi-VN")}
                       </td>
                       <td className="px-4 py-3 font-semibold text-slate-900">
-                        {formatCurrency(order.total)}
+                        {formatCurrency(order.total_amount)}
                       </td>
                       <td className="px-4 py-3">
                         <span

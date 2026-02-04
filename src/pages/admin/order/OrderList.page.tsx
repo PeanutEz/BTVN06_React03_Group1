@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
-import type { Order, OrderStatus } from "../../../models/order.model";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, PAYMENT_METHOD_LABELS } from "../../../models/order.model";
+import type { OrderDisplay, OrderStatus, OrderType } from "../../../models/order.model";
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_TYPE_LABELS } from "../../../models/order.model";
 import { fetchOrders, filterOrders, searchOrders } from "../../../services/order.service";
 import { fetchActiveStores } from "../../../services/store.service";
 import type { Store } from "../../../models/store.model";
 import { ROUTER_URL } from "../../../routes/router.const";
 
 const OrderListPage = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderDisplay[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,7 +66,7 @@ const OrderListPage = () => {
       );
       // Client-side filter by store
       if (storeFilter) {
-        data = data.filter((order) => order.storeId === storeFilter);
+        data = data.filter((order) => order.franchise_id === Number(storeFilter));
       }
       setOrders(data);
     } finally {
@@ -141,8 +141,9 @@ const OrderListPage = () => {
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
               <option value="">Tất cả</option>
-              <option value="CREATED">Đã tạo</option>
-              <option value="PAID">Đã thanh toán</option>
+              <option value="DRAFT">Nháp</option>
+              <option value="CONFIRMED">Đã xác nhận</option>
+              <option value="PREPARING">Đang chuẩn bị</option>
               <option value="COMPLETED">Hoàn thành</option>
               <option value="CANCELLED">Đã hủy</option>
             </select>
@@ -202,26 +203,26 @@ const OrderListPage = () => {
               {orders.map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
-                    <span className="font-semibold text-primary-600">{order.id}</span>
+                    <span className="font-semibold text-primary-600">{order.code}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="leading-tight">
-                      <p className="font-semibold text-slate-900">{order.storeCode}</p>
-                      <p className="text-xs text-slate-500">{order.storeName}</p>
+                      <p className="font-semibold text-slate-900">{order.franchise?.code || 'N/A'}</p>
+                      <p className="text-xs text-slate-500">{order.franchise?.name || 'N/A'}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="leading-tight">
-                      <p className="font-semibold text-slate-900">{order.customerName}</p>
-                      <p className="text-xs text-slate-500">{order.customerEmail}</p>
-                      <p className="text-xs text-slate-500">{order.customerPhone}</p>
+                      <p className="font-semibold text-slate-900">{order.customer?.name || 'N/A'}</p>
+                      <p className="text-xs text-slate-500">{order.customer?.email || 'N/A'}</p>
+                      <p className="text-xs text-slate-500">{order.customer?.phone || 'N/A'}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3 font-semibold text-slate-900">
-                    {formatCurrency(order.total)}
+                    {formatCurrency(order.total_amount)}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
-                    {PAYMENT_METHOD_LABELS[order.paymentMethod]}
+                    {ORDER_TYPE_LABELS[order.type]}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -231,7 +232,7 @@ const OrderListPage = () => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
-                    {new Date(order.createDate).toLocaleString("vi-VN")}
+                    {new Date(order.created_at).toLocaleString("vi-VN")}
                   </td>
                   <td className="px-4 py-3">
                     <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${order.id}`}>
