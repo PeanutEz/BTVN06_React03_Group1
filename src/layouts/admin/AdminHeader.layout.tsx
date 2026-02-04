@@ -52,13 +52,20 @@ const AdminHeader = () => {
         {menuOpen && (
           <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl py-2 shadow-2xl shadow-primary-500/20 animate-fade-in">
             {user && (
-              <div className="flex items-center gap-3 px-4 pb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  navigate(ROUTER_URL.HOME);
+                  setMenuOpen(false);
+                }}
+                className="flex items-center gap-3 px-4 pb-2 w-full hover:bg-slate-800/50 transition-colors"
+              >
                 <img src={user.avatar} alt={user.name} className="size-10 rounded-full object-cover" />
-                <div className="leading-tight">
+                <div className="leading-tight text-left">
                   <p className="text-sm font-semibold text-primary-50">{user.name}</p>
                   <p className="text-xs text-primary-100/70">{user.role}</p>
                 </div>
-              </div>
+              </button>
             )}
             <div className="my-2 border-t border-slate-700" />
             <div className="px-2">
@@ -68,15 +75,37 @@ const AdminHeader = () => {
                   navigate(ROUTER_URL.PROFILE);
                   setMenuOpen(false);
                 }}
-                className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg"
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg"
               >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
                 <span>Hồ sơ</span>
               </button>
               <button
                 type="button"
-                onClick={handleLogout}
-                className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-red-600 hover:text-white rounded-lg mt-2"
+                onClick={() => {
+                  navigate(ROUTER_URL.ORDER);
+                  setMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg mt-1"
               >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Trang chủ khách hàng</span>
+              </button>
+            </div>
+            <div className="my-2 border-t border-slate-700" />
+            <div className="px-2">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-red-600 hover:text-white rounded-lg"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
                 <span>Đăng xuất</span>
               </button>
             </div>

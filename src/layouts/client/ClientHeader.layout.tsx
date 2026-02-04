@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store";
+import { ROLE } from "../../models/role.model";
 import logoHylux from "../../assets/logo-hylux.png";
 
 const navItems = [
@@ -179,14 +180,21 @@ const ClientHeader = () => {
 
                 {menuOpen && (
                   <div className="absolute right-0 mt-3 w-64 z-50 rounded-2xl border border-red-100 bg-white shadow-2xl shadow-red-900/10 py-2 animate-fade-in">
-                    <div className="flex items-center gap-3 px-4 py-3 border-b border-red-50">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigate(ROUTER_URL.HOME);
+                        setMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 px-4 py-3 border-b border-red-50 w-full hover:bg-red-50 transition-colors"
+                    >
                       <img src={user.avatar} alt={user.name} className="size-12 rounded-full object-cover ring-2 ring-red-100" />
-                      <div className="leading-tight flex-1">
+                      <div className="leading-tight flex-1 text-left">
                         <p className="text-sm font-bold text-slate-900">{user.name}</p>
                         <p className="text-xs text-red-700 font-medium">{user.role}</p>
                         <p className="text-xs text-slate-500 mt-0.5">{user.email}</p>
                       </div>
-                    </div>
+                    </button>
                     
                     <div className="py-2 px-2">
                       <button
@@ -211,6 +219,23 @@ const ClientHeader = () => {
                         </svg>
                         <span>Đơn hàng của tôi</span>
                       </button>
+                      
+                      {user.role === ROLE.ADMIN && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`);
+                            setMenuOpen(false);
+                          }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-amber-50 hover:text-amber-700 rounded-lg transition-colors border border-transparent hover:border-amber-200"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span className="font-semibold">Trang quản trị</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="border-t border-red-50 mt-2 pt-2 px-2">

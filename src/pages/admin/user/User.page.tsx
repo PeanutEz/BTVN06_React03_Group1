@@ -8,6 +8,8 @@ const UserPage = () => {
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [memberFilter, setMemberFilter] = useState("all");
 
   const load = async () => {
     setLoading(true);
@@ -29,6 +31,22 @@ const UserPage = () => {
     await load();
   };
 
+  // Filter users based on search query and member filter
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch = 
+      u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesMember = memberFilter === "all" || u.role.toLowerCase() === memberFilter.toLowerCase();
+    
+    return matchesSearch && matchesMember;
+  });
+
+  const handleReset = () => {
+    setSearchQuery("");
+    setMemberFilter("all");
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -39,6 +57,54 @@ const UserPage = () => {
         <Button variant="outline" onClick={load} loading={loading}>
           Làm mới
         </Button>
+      </div>
+
+      {/* Filter Section */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Search Input */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Tìm kiếm
+            </label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tên, email hoặc số điện thoại"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+            />
+          </div>
+
+          {/* Member Type Filter */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Hạng thành viên
+            </label>
+            <select
+              value={memberFilter}
+              onChange={(e) => setMemberFilter(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+            >
+              <option value="all">Tất cả</option>
+              <option value="admin">Admin</option>
+              <option value="user">User</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3 mt-4">
+          <Button 
+            variant="primary" 
+            onClick={() => {/* Filter is automatically applied */}}
+          >
+            Tìm kiếm
+          </Button>
+          <Button variant="outline" onClick={handleReset}>
+            Đặt lại
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -53,7 +119,7 @@ const UserPage = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr key={u.id} className="hover:bg-slate-50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -81,10 +147,10 @@ const UserPage = () => {
                 </td>
               </tr>
             ))}
-            {users.length === 0 && !loading && (
+            {filteredUsers.length === 0 && !loading && (
               <tr>
                 <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-500">
-                  Không có người dùng
+                  Không tìm thấy người dùng phù hợp
                 </td>
               </tr>
             )}
