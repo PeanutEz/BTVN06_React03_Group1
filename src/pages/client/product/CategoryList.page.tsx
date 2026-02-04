@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useProductStore } from "@/store/product.store";
-import CategoryCard from "../components/CategoryCard";
+import CategoryCard from "@/components/product/CategoryCard";
 
 export default function CategoryList() {
     const { categories, isLoading, fetchCategories } = useProductStore();
