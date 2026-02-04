@@ -67,4 +67,25 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		isEnd: true,
 		showInNav: true,
 	},
+	{
+		label: "Đơn hàng",
+		path: ROUTER_URL.ORDERS,
+		component: React.lazy(() => import("../../pages/client/OrderList.page")),
+		isEnd: true,
+		showInNav: false,
+	},
+	{
+		label: "Chi tiết đơn hàng",
+		path: ROUTER_URL.ORDER_DETAIL,
+		component: React.lazy(() => import("../../pages/client/OrderDetail.page")),
+		isEnd: false,
+		showInNav: false,
+	},
+	{
+		label: "Tích điểm",
+		path: ROUTER_URL.LOYALTY,
+		component: React.lazy(() => import("../../pages/client/Loyalty.page")),
+		isEnd: true,
+		showInNav: false,
+	},
 ];

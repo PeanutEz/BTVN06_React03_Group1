@@ -1,6 +1,11 @@
 export const ROUTER_URL = {
 	HOME: "/",
-	ORDER: "/order",
+	ORDERS: "/orders",
+	ORDER_DETAIL: "/orders/:id",
+	CUSTOMERS: "/customers",
+	CUSTOMER_DETAIL: "/customers/:id",
+	PRODUCTS: "/products",
+	LOYALTY: "/loyalty",
 	ABOUT: "/about",
 	CONTACT: "/contact",
 	LOGIN: "/login",
@@ -8,9 +13,11 @@ export const ROUTER_URL = {
 	RESET_PASSWORD: "/reset-password",
 	PROFILE: "/profile",
 
+	// Legacy routes
+	ORDER: "/order",
+
 	// Browse & Product
 	CATEGORIES: "/categories",
-	PRODUCTS: "/products",
 	PRODUCT_DETAIL: "/products/:id",
 
 	ADMIN: "/admin",

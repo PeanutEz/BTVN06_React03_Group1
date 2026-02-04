@@ -1,4 +1,4 @@
-export type LoyaltyTier = "BRONZE" | "SILVER" | "GOLD";
+export type LoyaltyTier = "SILVER" | "GOLD" | "PLATINUM";
 
 export type CustomerStatus = "ACTIVE" | "INACTIVE";
 
@@ -18,15 +18,15 @@ export interface Customer {
 }
 
 export const LOYALTY_TIER_LABELS: Record<LoyaltyTier, string> = {
-  BRONZE: "Đồng",
   SILVER: "Bạc",
   GOLD: "Vàng",
+  PLATINUM: "Bạch Kim",
 };
 
 export const LOYALTY_TIER_COLORS: Record<LoyaltyTier, string> = {
-  BRONZE: "bg-orange-50 text-orange-700 border-orange-200",
   SILVER: "bg-gray-50 text-gray-700 border-gray-300",
   GOLD: "bg-yellow-50 text-yellow-700 border-yellow-200",
+  PLATINUM: "bg-purple-50 text-purple-700 border-purple-200",
 };
 
 export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
