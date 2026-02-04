@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { useAuthStore } from "../../../store/auth.store";
-import { updateUserProfile } from "../../../services/user.service";
-import { showSuccess, showError } from "../../../utils/toast.util";
-import type { User } from "../../../models";
-import { ROLE } from "../../../models/role.model";
+import { useAuthStore } from "@/store/auth.store";
+import { updateUserProfile } from "@/services/user.service";
+import { showSuccess, showError } from "@/utils/toast.util";
+import type { User } from "@/models";
+import { ROLE } from "@/models/role.model";
 
 export default function ProfilePage() {
 	const { user, login } = useAuthStore();

@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useProductStore } from "@/store/product.store";
-import ProductCard from "@/modules/product/components/ProductCard";
-import CategoryCard from "@/modules/product/components/CategoryCard";
-import VoucherCard from "@/modules/product/components/VoucherCard";
+import ProductCard from "@/components/product/ProductCard";
+import CategoryCard from "@/components/product/CategoryCard";
+import VoucherCard from "@/components/product/VoucherCard";
 
 const OrderPage = () => {
     const {

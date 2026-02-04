@@ -1,4 +1,4 @@
-import type { Voucher } from "../types/product.type";
+import type { Voucher } from "@/models/product.model";
 
 interface VoucherCardProps {
     voucher: Voucher;
