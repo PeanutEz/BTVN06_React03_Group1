@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
-import type { Customer, LoyaltyTier, CustomerStatus } from "../../../models/customer.model";
+import type { CustomerDisplay, LoyaltyTier } from "../../../models/customer.model";
 import {
   LOYALTY_TIER_LABELS,
   LOYALTY_TIER_COLORS,
-  CUSTOMER_STATUS_LABELS,
-  CUSTOMER_STATUS_COLORS,
 } from "../../../models/customer.model";
 import {
   fetchCustomers,
   searchCustomers,
-  filterCustomersByTier,
   createCustomer,
   updateCustomer,
 } from "../../../services/customer.service";
@@ -19,19 +16,19 @@ import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 
 const CustomerListPage = () => {
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<CustomerDisplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [tierFilter, setTierFilter] = useState<LoyaltyTier | "">("");
   const [showModal, setShowModal] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<CustomerDisplay | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     phone: "",
-    tier: "BRONZE" as LoyaltyTier,
-    loyaltyPoints: 0,
-    status: "ACTIVE" as CustomerStatus,
+    password_hash: "$2b$10$...", // default hash
+    is_active: true,
+    is_deleted: false,
   });
 
   const loadCustomers = async () => {
@@ -69,23 +66,27 @@ const CustomerListPage = () => {
     }
     setLoading(true);
     try {
-      const data = await filterCustomersByTier(tierFilter);
-      setCustomers(data);
+      // Filter customers by tier from franchise relations
+      const allCustomers = await fetchCustomers();
+      const filtered = allCustomers.filter(c => 
+        c.franchises?.some(cf => cf.loyalty_tier === tierFilter)
+      );
+      setCustomers(filtered);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenModal = (customer?: Customer) => {
+  const handleOpenModal = (customer?: CustomerDisplay) => {
     if (customer) {
       setEditingCustomer(customer);
       setFormData({
         name: customer.name,
-        email: customer.email,
+        email: customer.email || "",
         phone: customer.phone,
-        tier: customer.tier,
-        loyaltyPoints: customer.loyaltyPoints,
-        status: customer.status,
+        password_hash: "$2b$10$...",
+        is_active: customer.is_active,
+        is_deleted: false,
       });
     } else {
       setEditingCustomer(null);
@@ -93,9 +94,9 @@ const CustomerListPage = () => {
         name: "",
         email: "",
         phone: "",
-        tier: "BRONZE",
-        loyaltyPoints: 0,
-        status: "ACTIVE",
+        password_hash: "$2b$10$...",
+        is_active: true,
+        is_deleted: false,
       });
     }
     setShowModal(true);
@@ -159,9 +160,9 @@ const CustomerListPage = () => {
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
               <option value="">Tất cả</option>
-              <option value="BRONZE">Đồng</option>
               <option value="SILVER">Bạc</option>
               <option value="GOLD">Vàng</option>
+              <option value="PLATINUM">Bạch kim</option>
             </select>
           </div>
         </div>
@@ -207,36 +208,49 @@ const CustomerListPage = () => {
                 <tr key={customer.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {customer.avatar && (
+                      {customer.avatar_url && (
                         <img
-                          src={customer.avatar}
+                          src={customer.avatar_url}
                           alt={customer.name}
                           className="size-10 rounded-full object-cover"
                         />
                       )}
                       <div className="leading-tight">
                         <p className="font-semibold text-slate-900">{customer.name}</p>
-                        <p className="text-xs text-slate-500">{customer.id}</p>
+                        <p className="text-xs text-primary-600">KH-{String(customer.id).padStart(4, '0')}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{customer.email}</td>
+                  <td className="px-4 py-3 text-slate-700">{customer.email || 'N/A'}</td>
                   <td className="px-4 py-3 text-slate-700">{customer.phone}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${LOYALTY_TIER_COLORS[customer.tier]}`}
-                    >
-                      {LOYALTY_TIER_LABELS[customer.tier]}
-                    </span>
+                    {customer.franchises && customer.franchises.length > 0 ? (
+                      customer.franchises.map((cf) => (
+                        <span
+                          key={cf.id}
+                          className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold mr-1 mb-1 ${LOYALTY_TIER_COLORS[cf.loyalty_tier]}`}
+                        >
+                          {LOYALTY_TIER_LABELS[cf.loyalty_tier]}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-500">Chưa có</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 font-semibold text-primary-600">
-                    {customer.loyaltyPoints.toLocaleString()}
+                    {customer.franchises && customer.franchises.length > 0
+                      ? customer.franchises.reduce((sum, cf) => sum + cf.loyalty_point, 0).toLocaleString()
+                      : '0'}
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${CUSTOMER_STATUS_COLORS[customer.status]}`}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                        customer.is_active
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : 'bg-gray-50 text-gray-700 border-gray-200'
+                      }`}
                     >
-                      {CUSTOMER_STATUS_LABELS[customer.status]}
+                      {customer.is_active ? 'Hoạt động' : 'Ngưng hoạt động'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -317,44 +331,16 @@ const CustomerListPage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Hạng thành viên</label>
-                  <select
-                    value={formData.tier}
-                    onChange={(e) =>
-                      setFormData({ ...formData, tier: e.target.value as LoyaltyTier })
-                    }
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  >
-                    <option value="BRONZE">Đồng</option>
-                    <option value="SILVER">Bạc</option>
-                    <option value="GOLD">Vàng</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Điểm thưởng</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.loyaltyPoints}
-                    onChange={(e) =>
-                      setFormData({ ...formData, loyaltyPoints: Number(e.target.value) })
-                    }
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-
-                <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700">Trạng thái</label>
                   <select
-                    value={formData.status}
+                    value={formData.is_active ? "active" : "inactive"}
                     onChange={(e) =>
-                      setFormData({ ...formData, status: e.target.value as CustomerStatus })
+                      setFormData({ ...formData, is_active: e.target.value === "active" })
                     }
                     className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   >
-                    <option value="ACTIVE">Hoạt động</option>
-                    <option value="INACTIVE">Ngưng hoạt động</option>
+                    <option value="active">Hoạt động</option>
+                    <option value="inactive">Ngưng hoạt động</option>
                   </select>
                 </div>
               </div>
