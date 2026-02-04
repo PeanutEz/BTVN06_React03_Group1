@@ -5,7 +5,7 @@ import { fetchPayments } from "../../../services/payment.service";
 import { fetchCustomers } from "../../../services/customer.service";
 import { fetchStores } from "../../../services/store.service";
 import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
-import type { Order } from "../../../models/order.model";
+import type { OrderDisplay } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
@@ -47,7 +47,7 @@ const DashboardPage = () => {
     pendingOrders: 0,
     completedOrders: 0,
   });
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [recentOrders, setRecentOrders] = useState<OrderDisplay[]>([]);
   const [loyaltyOverview, setLoyaltyOverview] = useState<LoyaltyOverview | null>(null);
 
   const loadDashboard = async () => {
@@ -62,10 +62,10 @@ const DashboardPage = () => {
       ]);
 
       const totalRevenue = payments
-        .filter((p) => p.status === "SUCCESS")
+        .filter((p) => p.status === "COMPLETED")
         .reduce((sum, p) => sum + p.amount, 0);
 
-      const pendingOrders = orders.filter((o) => o.status === "CREATED").length;
+      const pendingOrders = orders.filter((o) => o.status === "DRAFT" || o.status === "CONFIRMED").length;
       const completedOrders = orders.filter((o) => o.status === "COMPLETED").length;
 
       setStats({
@@ -230,25 +230,25 @@ const DashboardPage = () => {
             <div className="rounded-lg bg-slate-50 p-4 text-center">
               <p className="text-sm text-slate-600">Tổng thành viên</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">
-                {loyaltyOverview.totalCustomers}
-              </p>
-            </div>
-            <div className="rounded-lg bg-orange-50 p-4 text-center">
-              <p className="text-sm text-orange-700">Hạng Đồng</p>
-              <p className="mt-1 text-2xl font-bold text-orange-900">
-                {loyaltyOverview.customersByTier.BRONZE}
+                {loyaltyOverview.total_customers}
               </p>
             </div>
             <div className="rounded-lg bg-gray-50 p-4 text-center">
               <p className="text-sm text-gray-700">Hạng Bạc</p>
               <p className="mt-1 text-2xl font-bold text-gray-900">
-                {loyaltyOverview.customersByTier.SILVER}
+                {loyaltyOverview.customers_by_tier.SILVER}
               </p>
             </div>
             <div className="rounded-lg bg-yellow-50 p-4 text-center">
               <p className="text-sm text-yellow-700">Hạng Vàng</p>
               <p className="mt-1 text-2xl font-bold text-yellow-900">
-                {loyaltyOverview.customersByTier.GOLD}
+                {loyaltyOverview.customers_by_tier.GOLD}
+              </p>
+            </div>
+            <div className="rounded-lg bg-purple-50 p-4 text-center">
+              <p className="text-sm text-purple-700">Hạng Bạch Kim</p>
+              <p className="mt-1 text-2xl font-bold text-purple-900">
+                {loyaltyOverview.customers_by_tier.PLATINUM}
               </p>
             </div>
           </div>
@@ -354,22 +354,27 @@ const DashboardPage = () => {
                       to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${order.id}`}
                       className="font-semibold text-primary-600 hover:underline"
                     >
-                      {order.id}
+                      {order.code}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{order.storeCode}</td>
-                  <td className="px-4 py-3 text-slate-700">{order.customerName}</td>
+                  <td className="px-4 py-3 text-slate-700">{order.franchise?.code || 'N/A'}</td>
+                  <td className="px-4 py-3 text-slate-700">{order.customer?.name || 'N/A'}</td>
                   <td className="px-4 py-3 font-semibold text-slate-900">
-                    {formatCurrency(order.total)}
+                    {formatCurrency(order.total_amount)}
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${order.status === "COMPLETED"
-                        ? "bg-green-100 text-green-700"
-                        : order.status === "PAID"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-yellow-100 text-yellow-700"
-                        }`}
+                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                        order.status === "COMPLETED"
+                          ? "bg-green-100 text-green-700"
+                          : order.status === "CONFIRMED"
+                            ? "bg-blue-100 text-blue-700"
+                            : order.status === "PREPARING"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : order.status === "CANCELLED"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-700"
+                      }`}
                     >
                       {order.status}
                     </span>

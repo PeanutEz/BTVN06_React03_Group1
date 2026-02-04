@@ -1,72 +1,72 @@
-import type { LoyaltyRule, LoyaltyHistory, LoyaltyOverview } from "../models/loyalty.model";
+import type { 
+  LoyaltyRule, 
+  LoyaltyTransaction, 
+  LoyaltyTransactionType,
+  LoyaltyOverview 
+} from "../models/loyalty.model";
 import { DEFAULT_LOYALTY_RULE } from "../models/loyalty.model";
 
 // Mock data
 let currentRule: LoyaltyRule = { ...DEFAULT_LOYALTY_RULE };
 
-const mockLoyaltyHistory: LoyaltyHistory[] = [
+const mockLoyaltyTransactions: LoyaltyTransaction[] = [
   {
-    id: "LH001",
-    customerId: "CUST001",
-    customerName: "Nguyễn Văn A",
-    orderId: "ORD001",
-    pointsChange: 180,
+    id: 1,
+    customer_franchise_id: 1,
+    order_id: 1,
+    type: "EARN",
+    point_change: 180,
     reason: "Tích điểm từ đơn hàng ORD001 (2x Cà phê Phin + Croissant + Trà Sữa)",
-    createDate: "2026-02-01T11:00:00Z",
-    previousPoints: 5020,
-    newPoints: 5200,
-    previousTier: "GOLD",
-    newTier: "GOLD",
+    created_by: 5,
+    is_deleted: false,
+    created_at: "2026-02-01T11:00:00Z",
+    updated_at: "2026-02-01T11:00:00Z",
   },
   {
-    id: "LH002",
-    customerId: "CUST002",
-    customerName: "Trần Thị B",
-    orderId: "ORD002",
-    pointsChange: 275,
+    id: 2,
+    customer_franchise_id: 2,
+    order_id: 2,
+    type: "EARN",
+    point_change: 275,
     reason: "Tích điểm từ đơn hàng ORD002 (2x Caramel Macchiato + 2x Tiramisu + Freeze Socola)",
-    createDate: "2026-01-31T09:15:00Z",
-    previousPoints: 1225,
-    newPoints: 1500,
-    previousTier: "SILVER",
-    newTier: "SILVER",
+    created_by: 1,
+    is_deleted: false,
+    created_at: "2026-01-31T09:15:00Z",
+    updated_at: "2026-01-31T09:15:00Z",
   },
   {
-    id: "LH003",
-    customerId: "CUST003",
-    customerName: "Lê Văn C",
-    orderId: "ORD003",
-    pointsChange: 60,
+    id: 3,
+    customer_franchise_id: 3,
+    order_id: 3,
+    type: "EARN",
+    point_change: 60,
     reason: "Tích điểm từ đơn hàng ORD003 (Cà phê Đen Đá + Bánh Mì)",
-    createDate: "2026-02-02T08:45:00Z",
-    previousPoints: 390,
-    newPoints: 450,
-    previousTier: "BRONZE",
-    newTier: "BRONZE",
+    created_by: 6,
+    is_deleted: false,
+    created_at: "2026-02-02T08:45:00Z",
+    updated_at: "2026-02-02T08:45:00Z",
   },
   {
-    id: "LH004",
-    customerId: "CUST001",
-    customerName: "Nguyễn Văn A",
-    pointsChange: -150,
+    id: 4,
+    customer_franchise_id: 1,
+    type: "REDEEM",
+    point_change: -150,
     reason: "Đổi điểm lấy voucher giảm giá 50.000đ",
-    createDate: "2026-01-25T14:30:00Z",
-    previousPoints: 5170,
-    newPoints: 5020,
-    previousTier: "GOLD",
-    newTier: "GOLD",
+    created_by: 5,
+    is_deleted: false,
+    created_at: "2026-01-25T14:30:00Z",
+    updated_at: "2026-01-25T14:30:00Z",
   },
   {
-    id: "LH005",
-    customerId: "CUST002",
-    customerName: "Trần Thị B",
-    pointsChange: 95,
+    id: 5,
+    customer_franchise_id: 2,
+    type: "ADJUST",
+    point_change: 95,
     reason: "Tích điểm sinh nhật x2",
-    createDate: "2026-01-20T10:00:00Z",
-    previousPoints: 1130,
-    newPoints: 1225,
-    previousTier: "SILVER",
-    newTier: "SILVER",
+    created_by: 1,
+    is_deleted: false,
+    created_at: "2026-01-20T10:00:00Z",
+    updated_at: "2026-01-20T10:00:00Z",
   },
 ];
 
@@ -81,44 +81,92 @@ export const updateLoyaltyRule = async (rule: LoyaltyRule): Promise<LoyaltyRule>
   return currentRule;
 };
 
-export const fetchLoyaltyHistory = async (): Promise<LoyaltyHistory[]> => {
+export const fetchLoyaltyTransactions = async (): Promise<LoyaltyTransaction[]> => {
   await new Promise((resolve) => setTimeout(resolve, 500));
-  return mockLoyaltyHistory;
+  return mockLoyaltyTransactions.filter(t => !t.is_deleted);
+};
+
+// Helper function to add franchise and order info
+const mapTransactionToDisplay = async (transaction: LoyaltyTransaction): Promise<any> => {
+  // Map franchise info based on customer_franchise_id
+  const franchiseMap: Record<number, { name: string, code: string }> = {
+    1: { name: "WBS Coffee Hoàn Kiếm", code: "WBS-HN-01" },
+    2: { name: "WBS Coffee Quận 1", code: "WBS-HCM-01" },
+    3: { name: "WBS Coffee Hải Châu", code: "WBS-DN-01" },
+  };
+  
+  const franchise = franchiseMap[transaction.customer_franchise_id] || { name: "N/A", code: "N/A" };
+  
+  // Map order code
+  const orderCodeMap: Record<number, string> = {
+    1: "ORD001",
+    2: "ORD002",
+    3: "ORD003",
+  };
+  
+  return {
+    ...transaction,
+    franchise_name: franchise.name,
+    franchise_code: franchise.code,
+    order_code: transaction.order_id ? orderCodeMap[transaction.order_id] : undefined,
+  };
+};
+
+export const fetchLoyaltyTransactionsWithDetails = async (): Promise<any[]> => {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  const transactions = mockLoyaltyTransactions.filter(t => !t.is_deleted);
+  return Promise.all(transactions.map(mapTransactionToDisplay));
+};
+
+export const fetchLoyaltyTransactionsByCustomerFranchise = async (
+  customerFranchiseId: number
+): Promise<LoyaltyTransaction[]> => {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  return mockLoyaltyTransactions.filter(
+    t => t.customer_franchise_id === customerFranchiseId && !t.is_deleted
+  );
+};
+
+export const createLoyaltyTransaction = async (
+  data: Omit<LoyaltyTransaction, "id" | "created_at" | "updated_at">
+): Promise<LoyaltyTransaction> => {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  const newTransaction: LoyaltyTransaction = {
+    ...data,
+    id: mockLoyaltyTransactions.length + 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  mockLoyaltyTransactions.push(newTransaction);
+  return newTransaction;
 };
 
 export const fetchLoyaltyOverview = async (): Promise<LoyaltyOverview> => {
   await new Promise((resolve) => setTimeout(resolve, 300));
   return {
-    totalCustomers: 156,
-    customersByTier: {
-      BRONZE: 98,
-      SILVER: 42,
-      GOLD: 16,
+    total_customers: 156,
+    customers_by_tier: {
+      SILVER: 98,
+      GOLD: 42,
+      PLATINUM: 16,
     },
-    totalPointsIssued: 285430,
-    averagePointsPerCustomer: 1830,
+    total_points_issued: 285430,
+    average_points_per_customer: 1830,
   };
 };
 
-export const addLoyaltyHistory = async (
-  customerId: string,
-  customerName: string,
-  pointsChange: number,
-  reason: string,
-  orderId?: string
-): Promise<LoyaltyHistory> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  const newHistory: LoyaltyHistory = {
-    id: `LH${String(mockLoyaltyHistory.length + 1).padStart(3, "0")}`,
-    customerId,
-    customerName,
-    orderId,
-    pointsChange,
-    reason,
-    createDate: new Date().toISOString(),
-    previousPoints: 0, // Would be calculated from customer data
-    newPoints: pointsChange, // Would be calculated from customer data
-  };
-  mockLoyaltyHistory.push(newHistory);
-  return newHistory;
+export const filterLoyaltyTransactions = async (
+  type?: LoyaltyTransactionType,
+  _franchiseId?: number,
+  startDate?: string,
+  endDate?: string
+): Promise<LoyaltyTransaction[]> => {
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  return mockLoyaltyTransactions.filter((transaction) => {
+    if (transaction.is_deleted) return false;
+    if (type && transaction.type !== type) return false;
+    if (startDate && new Date(transaction.created_at) < new Date(startDate)) return false;
+    if (endDate && new Date(transaction.created_at) > new Date(endDate)) return false;
+    return true;
+  });
 };

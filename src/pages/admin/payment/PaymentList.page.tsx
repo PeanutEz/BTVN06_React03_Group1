@@ -79,7 +79,7 @@ const PaymentListPage = () => {
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
               <option value="">Tất cả</option>
-              <option value="COD">COD</option>
+              <option value="POS">Tại quầy (POS)</option>
               <option value="ONLINE">Online</option>
             </select>
           </div>
@@ -92,10 +92,11 @@ const PaymentListPage = () => {
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
               <option value="">Tất cả</option>
-              <option value="PENDING">Đang chờ</option>
-              <option value="SUCCESS">Thành công</option>
-              <option value="FAILED">Thất bại</option>
-              <option value="REFUNDED">Đã hoàn tiền</option>
+              <option value="DRAFT">Chưa thanh toán</option>
+              <option value="CONFIRMED">Đã xác nhận</option>
+              <option value="PREPARING">Đang xử lý</option>
+              <option value="COMPLETED">Thành công</option>
+              <option value="CANCELLED">Đã hủy</option>
             </select>
           </div>
         </div>
@@ -131,24 +132,24 @@ const PaymentListPage = () => {
               {payments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
-                    <span className="font-semibold text-primary-600">{payment.id}</span>
+                    <span className="font-semibold text-primary-600">PT-{String(payment.id).padStart(4, '0')}</span>
                   </td>
                   <td className="px-4 py-3">
                     <Link
-                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${payment.orderId}`}
+                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${payment.order_id}`}
                       className="font-semibold text-blue-600 hover:underline"
                     >
-                      {payment.orderId}
+                      {payment.order_code}
                     </Link>
                   </td>
                   <td className="px-4 py-3">
                     <div className="leading-tight">
-                      <p className="font-semibold text-slate-900">{payment.storeCode}</p>
-                      <p className="text-xs text-slate-500">{payment.storeName}</p>
+                      <p className="font-semibold text-slate-900">{payment.franchise_code || 'N/A'}</p>
+                      <p className="text-xs text-slate-500">{payment.franchise_name || 'N/A'}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-900">{payment.customerName}</p>
+                    <p className="font-semibold text-slate-900">{payment.customer_name || 'N/A'}</p>
                   </td>
                   <td className="px-4 py-3">
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
@@ -166,7 +167,7 @@ const PaymentListPage = () => {
                     {formatCurrency(payment.amount)}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
-                    {new Date(payment.createDate).toLocaleString("vi-VN")}
+                    {new Date(payment.created_at).toLocaleString("vi-VN")}
                   </td>
                   <td className="px-4 py-3">
                     <Link
