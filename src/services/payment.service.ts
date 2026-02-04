@@ -1,4 +1,4 @@
-import type { Payment, PaymentStatus, PaymentMethodType, PaymentLog } from "../models/payment.model";
+import type { Payment, PaymentStatus, PaymentMethodType } from "../models/payment.model";
 import { fetchOrders } from "./order.service";
 
 // Payment mapping từ Order

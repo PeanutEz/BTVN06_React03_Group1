@@ -1,12 +1,10 @@
 import type { 
   LoyaltyRule, 
   LoyaltyTransaction, 
-  LoyaltyTransactionDisplay, 
   LoyaltyTransactionType,
   LoyaltyOverview 
 } from "../models/loyalty.model";
 import { DEFAULT_LOYALTY_RULE } from "../models/loyalty.model";
-import type { LoyaltyTier } from "../models/customer.model";
 
 // Mock data
 let currentRule: LoyaltyRule = { ...DEFAULT_LOYALTY_RULE };
@@ -159,7 +157,7 @@ export const fetchLoyaltyOverview = async (): Promise<LoyaltyOverview> => {
 
 export const filterLoyaltyTransactions = async (
   type?: LoyaltyTransactionType,
-  franchiseId?: number,
+  _franchiseId?: number,
   startDate?: string,
   endDate?: string
 ): Promise<LoyaltyTransaction[]> => {

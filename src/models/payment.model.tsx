@@ -3,7 +3,7 @@
 // và status của Order để theo dõi trạng thái thanh toán
 
 // Import Order types để tham chiếu
-import type { Order, OrderType, OrderStatus } from "./order.model";
+import type { OrderType, OrderStatus } from "./order.model";
 
 // Nếu cần tracking payment riêng, có thể dùng Order với các trường:
 // - type: POS/ONLINE (phương thức thanh toán)

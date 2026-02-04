@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
-import type { OrderDisplay, OrderStatus, OrderType } from "../../../models/order.model";
+import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_TYPE_LABELS } from "../../../models/order.model";
 import { fetchOrders, filterOrders, searchOrders } from "../../../services/order.service";
 import { fetchActiveStores } from "../../../services/store.service";
@@ -61,13 +61,11 @@ const OrderListPage = () => {
     try {
       let data = await filterOrders(
         statusFilter || undefined,
+        undefined, // type filter
+        storeFilter ? Number(storeFilter) : undefined,
         startDate || undefined,
         endDate || undefined
       );
-      // Client-side filter by store
-      if (storeFilter) {
-        data = data.filter((order) => order.franchise_id === Number(storeFilter));
-      }
       setOrders(data);
     } finally {
       setLoading(false);

@@ -87,9 +87,9 @@ const CustomerDetailPage = () => {
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-center">
-              {customer.avatar && (
+              {customer.avatar_url && (
                 <img
-                  src={customer.avatar}
+                  src={customer.avatar_url}
                   alt={customer.name}
                   className="size-24 rounded-full object-cover"
                 />
