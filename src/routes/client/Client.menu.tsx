@@ -26,6 +26,13 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: true,
 	},
 	{
+		label: "Cửa hàng",
+		path: ROUTER_URL.STORE_LOCATOR,
+		component: React.lazy(() => import("../../pages/client/StoreLocator.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
 		label: "Danh mục",
 		path: ROUTER_URL.CATEGORIES,
 		component: React.lazy(() => import("@/pages/client/product/CategoryList.page")),
