@@ -26,11 +26,11 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: true,
 	},
 	{
-		label: "Cửa hàng",
-		path: ROUTER_URL.STORE_LOCATOR,
-		component: React.lazy(() => import("../../pages/client/StoreLocator.page")),
+		label: "Giỏ hàng",
+		path: ROUTER_URL.CART,
+		component: React.lazy(() => import("../../pages/client/Cart.page")),
 		isEnd: true,
-		showInNav: true,
+		showInNav: false,
 	},
 	{
 		label: "Danh mục",
