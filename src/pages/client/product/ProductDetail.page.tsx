@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
 import { useProductStore } from "@/store/product.store";
+import { useCartStore } from "@/store";
+import { useAuthStore } from "@/store/auth.store";
+import { ROUTER_URL } from "@/routes/router.const";
 import ProductCard from "@/components/product/ProductCard";
 
 export default function ProductDetail() {
@@ -8,6 +12,9 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
+
+  const addToCart = useCartStore((s) => s.addToCart);
+  const { user } = useAuthStore();
 
   const {
     selectedProduct,
@@ -126,10 +133,10 @@ export default function ProductDetail() {
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm mb-8 flex-wrap">
         <Link
-          to="/"
+          to="/order"
           className="text-gray-500 hover:text-amber-600 transition-colors"
         >
-          Trang chủ
+          Đặt hàng
         </Link>
         <svg
           className="w-4 h-4 text-gray-400"
@@ -320,7 +327,18 @@ export default function ProductDetail() {
 
           {/* Actions */}
           <div className="flex gap-4 mb-8">
-            <button className="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-2">
+            <button
+              onClick={() => {
+                if (!user) {
+                  toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
+                  navigate(ROUTER_URL.LOGIN);
+                  return;
+                }
+                addToCart(selectedProduct, quantity);
+                toast.success("Đã thêm vào giỏ hàng");
+              }}
+              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all transform hover:scale-[1.02] shadow-lg flex items-center justify-center gap-2"
+            >
               <svg
                 className="w-6 h-6"
                 fill="none"

@@ -1,13 +1,14 @@
 export const ROUTER_URL = {
   HOME: "/",
   ORDER: "/order",
-  STORE_LOCATOR: "/he-thong-cua-hang",
-  ABOUT: "/about",
+  STORE_LOCATOR: "/he-thong-khong-gian",
   CONTACT: "/contact",
   LOGIN: "/login",
   REGISTER: "/register",
   RESET_PASSWORD: "/reset-password",
   PROFILE: "/profile",
+  ACCOUNT: "/account",
+  CART: "/cart",
 
   // Browse & Product
   CATEGORIES: "/categories",
