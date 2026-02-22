@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { toast } from "sonner";
+import { toast } from "react-toastify";
+
 import { useProductStore } from "@/store/product.store";
 import { useCartStore } from "@/store";
 import { useAuthStore } from "@/store/auth.store";
@@ -10,6 +11,7 @@ import ProductCard from "@/components/product/ProductCard";
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
@@ -34,6 +36,7 @@ export default function ProductDetail() {
       fetchProducts();
       fetchCategories();
     }
+
     return () => {
       clearSelectedProduct();
     };
@@ -63,11 +66,14 @@ export default function ProductDetail() {
     );
   }
 
-  const images = selectedProduct.images?.length
-    ? selectedProduct.images
-    : [selectedProduct.image];
+  const images =
+    selectedProduct.images?.length
+      ? selectedProduct.images
+      : [selectedProduct.image];
 
-  const category = categories.find((c) => c.id === selectedProduct.categoryId);
+  const category = categories.find(
+    (c) => c.id === selectedProduct.categoryId,
+  );
 
   const relatedProducts = products
     .filter(
@@ -85,7 +91,10 @@ export default function ProductDetail() {
           Đặt hàng
         </Link>
         <span>/</span>
-        <Link to={ROUTER_URL.PRODUCTS} className="text-gray-500 hover:text-amber-600">
+        <Link
+          to={ROUTER_URL.PRODUCTS}
+          className="text-gray-500 hover:text-amber-600"
+        >
           Sản phẩm
         </Link>
         {category && (
@@ -100,7 +109,9 @@ export default function ProductDetail() {
           </>
         )}
         <span>/</span>
-        <span className="font-medium">{selectedProduct.name}</span>
+        <span className="font-medium">
+          {selectedProduct.name}
+        </span>
       </nav>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
@@ -111,6 +122,25 @@ export default function ProductDetail() {
             alt={selectedProduct.name}
             className="w-full rounded-2xl"
           />
+
+          {/* Thumbnail */}
+          {images.length > 1 && (
+            <div className="flex gap-3 mt-4">
+              {images.map((img, index) => (
+                <img
+                  key={index}
+                  src={img}
+                  alt="thumbnail"
+                  onClick={() => setSelectedImage(index)}
+                  className={`w-20 h-20 object-cover rounded-lg cursor-pointer border ${
+                    selectedImage === index
+                      ? "border-amber-500"
+                      : "border-transparent"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Info */}
@@ -123,22 +153,35 @@ export default function ProductDetail() {
             {formatPrice(selectedProduct.price || 0)}
           </p>
 
-          <p className="mb-6">{selectedProduct.description}</p>
+          <p className="mb-6">
+            {selectedProduct.description}
+          </p>
 
           {/* Quantity */}
           <div className="flex items-center gap-4 mb-6">
             <button
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+              onClick={() =>
+                setQuantity(Math.max(1, quantity - 1))
+              }
+              className="px-4 py-2 border rounded-lg"
             >
               -
             </button>
-            <span>{quantity}</span>
+
+            <span className="text-lg font-semibold">
+              {quantity}
+            </span>
+
             <button
               onClick={() =>
                 setQuantity(
-                  Math.min(selectedProduct.stock || 999, quantity + 1),
+                  Math.min(
+                    selectedProduct.stock || 999,
+                    quantity + 1,
+                  ),
                 )
               }
+              className="px-4 py-2 border rounded-lg"
             >
               +
             </button>
@@ -148,7 +191,9 @@ export default function ProductDetail() {
           <button
             onClick={() => {
               if (!user) {
-                toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
+                toast.error(
+                  "Vui lòng đăng nhập để thêm vào giỏ hàng",
+                );
                 navigate(ROUTER_URL.LOGIN);
                 return;
               }
@@ -163,15 +208,19 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Related */}
+      {/* Related Products */}
       {relatedProducts.length > 0 && (
         <section>
           <h2 className="text-2xl font-bold mb-6">
             Sản Phẩm Liên Quan
           </h2>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {relatedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard
+                key={product.id}
+                product={product}
+              />
             ))}
           </div>
         </section>
