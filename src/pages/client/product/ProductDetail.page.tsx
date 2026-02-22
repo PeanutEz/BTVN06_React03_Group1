@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { toast } from "react-toastify";
+// import { toast } from "react-toastify";
 
 import { useProductStore } from "@/store/product.store";
 import { useCartStore } from "@/store";
@@ -123,7 +123,6 @@ export default function ProductDetail() {
             className="w-full rounded-2xl"
           />
 
-          {/* Thumbnail */}
           {images.length > 1 && (
             <div className="flex gap-3 mt-4">
               {images.map((img, index) => (
@@ -191,15 +190,13 @@ export default function ProductDetail() {
           <button
             onClick={() => {
               if (!user) {
-                toast.error(
-                  "Vui lòng đăng nhập để thêm vào giỏ hàng",
-                );
+                // toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
                 navigate(ROUTER_URL.LOGIN);
                 return;
               }
 
               addToCart(selectedProduct, quantity);
-              toast.success("Đã thêm vào giỏ hàng");
+              // toast.success("Đã thêm vào giỏ hàng");
             }}
             className="bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-xl font-semibold"
           >
