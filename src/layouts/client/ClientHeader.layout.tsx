@@ -6,7 +6,7 @@ import { useCartStore } from "../../store/cart.store";
 
 const ClientHeader = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  // const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { user } = useAuthStore();
