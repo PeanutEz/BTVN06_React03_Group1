@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
@@ -6,22 +6,9 @@ import { useCartStore } from "../../store/cart.store";
 
 const ClientHeader = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  // const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { user } = useAuthStore();
   const { items } = useCartStore();
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-md">
