@@ -15,6 +15,21 @@ export const ROUTER_URL = {
   PRODUCTS: "/products",
   PRODUCT_DETAIL: "/products/:id",
 
+  // Orders
+  ORDERS_LIST: "/orders",
+  ORDERS_STAFF: "/staff/orders", // KAN-86: Staff POS list
+  ORDER_DETAIL: "/orders/:id",
+  CUSTOMER_ORDERS: "/my-orders",
+
+  // Loyalty
+  LOYALTY_DASHBOARD: "/loyalty",
+  LOYALTY_POINTS: "/loyalty/points",
+  LOYALTY_TIER: "/loyalty/tier",
+  LOYALTY_HISTORY: "/loyalty/history",
+
+  // Static Pages
+  STATIC_PAGE: "/page/:slug",
+
   ADMIN: "/admin",
   ADMIN_LOGIN: "/admin/login",
   ADMIN_ROUTES: {

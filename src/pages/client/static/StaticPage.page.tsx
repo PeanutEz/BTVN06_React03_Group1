@@ -1,12 +1,16 @@
-// KAN-94: About
+// KAN-93: Page phụ (static content page)
 import { useQuery } from "@tanstack/react-query";
+import { useParams } from "react-router-dom";
 import { Card, Spin } from "antd";
-import { getAboutPage } from "../../services/mockApi";
+import { getStaticPage } from "../../../services/mockApi";
 
-const AboutPage = () => {
+export default function StaticPage() {
+  const { slug } = useParams<{ slug: string }>();
+
   const { data: page, isLoading } = useQuery({
-    queryKey: ["about-page"],
-    queryFn: getAboutPage,
+    queryKey: ["static-page", slug],
+    queryFn: () => getStaticPage(slug || ""),
+    enabled: !!slug,
   });
 
   if (isLoading) {
@@ -18,7 +22,13 @@ const AboutPage = () => {
   }
 
   if (!page) {
-    return <div className="p-6">Không tìm thấy nội dung</div>;
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <p className="text-gray-500">Không tìm thấy trang</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -32,6 +42,4 @@ const AboutPage = () => {
       </Card>
     </div>
   );
-};
-
-export default AboutPage;
+}

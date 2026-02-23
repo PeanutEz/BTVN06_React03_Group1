@@ -15,6 +15,7 @@ import AdminLoginPage from "../pages/admin/auth/Login.page";
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
 const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
+const StaffOrdersPage = React.lazy(() => import("../pages/orders/OrdersList.page"));
 
 function AppRoutes() {
   return (
@@ -24,6 +25,11 @@ function AppRoutes() {
           {/* Landing page with its own header */}
           <Route element={<LandingLayout />}>
             <Route path={ROUTER_URL.HOME} element={<LandingPage />} />
+          </Route>
+
+          {/* Staff Orders (KAN-86) */}
+          <Route element={<ClientLayout />}>
+            <Route path={ROUTER_URL.ORDERS_STAFF} element={<StaffOrdersPage />} />
           </Route>
 
           {/* Public client pages with standard header */}
