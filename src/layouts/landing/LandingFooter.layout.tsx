@@ -36,7 +36,7 @@ const LandingFooter = () => {
                 </Link>
               </li>
               <li>
-                <Link to={ROUTER_URL.ABOUT} className="text-slate-400 hover:text-white transition-colors">
+                <Link to={ROUTER_URL.HOME} className="text-slate-400 hover:text-white transition-colors">
                   Về Chúng Tôi
                 </Link>
               </li>

@@ -37,7 +37,7 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		path: ROUTER_URL.CATEGORIES,
 		component: React.lazy(() => import("@/pages/client/product/CategoryList.page")),
 		isEnd: true,
-		showInNav: true,
+		showInNav: false,
 	},
 	{
 		label: "Sản phẩm",
@@ -54,23 +54,23 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: false, // Hidden from nav
 	},
 	{
-		label: "Giới thiệu",
-		path: ROUTER_URL.ABOUT,
-		component: React.lazy(() => import("../../pages/client/About.page.tsx")),
-		isEnd: true,
-		showInNav: true,
-	},
-	{
 		label: "Liên hệ",
 		path: ROUTER_URL.CONTACT,
-		component: React.lazy(() => import("../../pages/client/Contact.page.tsx")),
+		component: React.lazy(() => import("../../pages/client/Contact.page")),
 		isEnd: true,
 		showInNav: true,
 	},
 	{
-		label: "Hồ sơ",
-		path: ROUTER_URL.PROFILE,
-		component: React.lazy(() => import("@/pages/client/product/Profile.page")),
+		label: "Hệ thống không gian",
+		path: ROUTER_URL.STORE_LOCATOR,
+		component: React.lazy(() => import("../../pages/client/StoreLocator.page")),
+		isEnd: true,
+		showInNav: false,
+	},
+	{
+		label: "Tài khoản",
+		path: ROUTER_URL.ACCOUNT,
+		component: React.lazy(() => import("../../pages/client/Account.page")),
 		isEnd: true,
 		showInNav: true,
 	},
