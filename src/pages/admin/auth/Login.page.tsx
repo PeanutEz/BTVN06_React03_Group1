@@ -13,7 +13,7 @@ import bgAdminLogin from "../../../assets/bg-admin-login.jpg";
 const AdminLoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, login } = useAuthStore();
+  const { user, login, loginWithTokens } = useAuthStore();
 
   const {
     register,
@@ -48,16 +48,23 @@ const AdminLoginPage = () => {
   };
 
   const onSubmit = async (values: AuthCredentials) => {
-    const found = await loginUser(values);
-    if (!found || !isAdminRole(found.role)) {
-      showError("Bạn không có quyền truy cập admin hoặc thông tin đăng nhập sai");
-      return;
+    try {
+      const tokens = await loginUser(values);
+      loginWithTokens(tokens);
+      showSuccess("Đăng nhập thành công");
+      const redirectTo = (location.state as { from?: Location })?.from?.pathname;
+      navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string }; status?: number } };
+      const status = axiosError?.response?.status;
+      if (status === 400 || status === 401) {
+        showError("Sai email hoặc mật khẩu");
+      } else if (status === 403) {
+        showError("Tài khoản không có quyền truy cập admin");
+      } else {
+        showError(axiosError?.response?.data?.message ?? "Đăng nhập thất bại. Vui lòng thử lại");
+      }
     }
-
-    login(found);
-    showSuccess("Đăng nhập thành công");
-    const redirectTo = (location.state as { from?: Location })?.from?.pathname;
-    navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
   };
 
   return (
