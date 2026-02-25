@@ -4,21 +4,6 @@ import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
 import logoHylux from "../../assets/logo-hylux.png";
 
-const CATEGORIES = [
-  { id: "ca-phe", name: "Cà Phê", emoji: "☕" },
-  { id: "tra", name: "Trà", emoji: "🥤" },
-  { id: "freeze", name: "Freeze", emoji: "🧊" },
-  { id: "phindi", name: "Phindi", emoji: "🥛" },
-  { id: "banh-mi-que", name: "Bánh Mì Que", emoji: "🍞" },
-  { id: "banh-ngot", name: "Bánh Ngọt", emoji: "🍰" },
-  { id: "thuc-uong-khac", name: "Thức Uống Khác", emoji: "🥤" },
-  { id: "binh-giu-nhiet", name: "Bình Giữ Nhiệt", emoji: "🍶" },
-  { id: "ly-giu-nhiet", name: "Ly Giữ Nhiệt", emoji: "🥤" },
-  { id: "ca-phe-dong-goi", name: "Cà Phê Đóng Gói", emoji: "📦" },
-  { id: "the-qua-tang", name: "Thẻ Quà Tặng", emoji: "🎁" },
-  { id: "tra-sua-hylux", name: "Trà Sữa Hylux", emoji: "🧋" },
-];
-
 const NAV_LINKS = [
   { label: "Trang chủ", path: ROUTER_URL.HOME },
   { label: "Menu", path: ROUTER_URL.MENU },
@@ -39,7 +24,6 @@ const STORES = [
 
 const ClientHeader = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [deliveryTab, setDeliveryTab] = useState<"delivery" | "pickup">("delivery");
@@ -49,7 +33,6 @@ const ClientHeader = () => {
   });
   const [storeSearch, setStoreSearch] = useState("");
   const [selectedDelivery, setSelectedDelivery] = useState<{ type: "delivery" | "pickup"; label: string } | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
   const deliveryRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuthStore();
@@ -57,9 +40,6 @@ const ClientHeader = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
       if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
         setAccountOpen(false);
       }
@@ -391,58 +371,16 @@ const ClientHeader = () => {
         </div>
 
         {/* ── ROW 2: Category Dropdown · Nav Links ── */}
-        <div className="hidden lg:flex items-center gap-2 px-4 sm:px-6 lg:px-8 py-2">
-
-          {/* Category Dropdown */}
-          <div className="relative w-56 shrink-0" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded transition-colors text-sm font-medium border ${
-                dropdownOpen
-                  ? "border-red-400 bg-red-50 text-red-700"
-                  : "border-gray-300 hover:border-red-400 hover:bg-red-50 hover:text-red-700 text-gray-700 bg-white"
-              }`}
-              aria-expanded={dropdownOpen}
-              aria-haspopup="listbox"
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              <span className="flex-1 text-left whitespace-nowrap">Danh mục sản phẩm</span>
-              <svg className={`w-4 h-4 shrink-0 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            <div className={`absolute top-[calc(100%+6px)] left-0 w-full bg-white rounded-lg shadow-xl z-50 overflow-hidden border border-gray-100 transition-all duration-200 ease-in-out origin-top ${
-              dropdownOpen ? "opacity-100 scale-y-100 visible" : "opacity-0 scale-y-95 invisible"
-            }`}>
-              <div className="py-1 max-h-72 overflow-y-auto">
-                {CATEGORIES.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    to={`${ROUTER_URL.MENU}?category=${cat.id}`}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 hover:text-red-700 transition-colors"
-                    onClick={() => setDropdownOpen(false)}
-                  >
-                    <span className="w-6 h-6 flex items-center justify-center text-base shrink-0">{cat.emoji}</span>
-                    <span className="text-sm font-medium">{cat.name}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Separator */}
-          <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
+        <div className="hidden lg:flex items-center justify-center gap-2 px-4 sm:px-6 lg:px-8 py-2">
 
           {/* Nav Links */}
-          <nav className="flex items-center gap-1 flex-1">
+          <nav className="flex items-center gap-1">
             {NAV_LINKS.map((link) => (
               <NavLink
                 key={link.path}
                 to={link.path}
                 end={link.path === ROUTER_URL.HOME}
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                 className={({ isActive }) =>
                   `px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive
@@ -467,7 +405,7 @@ const ClientHeader = () => {
                 key={link.path}
                 to={link.path}
                 className="block px-4 py-2.5 text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors text-sm font-medium"
-                onClick={() => setMenuOpen(false)}
+                onClick={() => { setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               >
                 {link.label}
               </Link>

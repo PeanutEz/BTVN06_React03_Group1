@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import LandingHeader from "./LandingHeader.layout";
 import LandingFooter from "./LandingFooter.layout";
+import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
 
 const LandingLayout = () => {
   return (
@@ -10,6 +11,7 @@ const LandingLayout = () => {
         <Outlet />
       </main>
       <LandingFooter />
+      <ScrollToTopButton />
     </div>
   );
 };

@@ -12,6 +12,16 @@ import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
+function ProductGrid({ products, onAdd }: { products: MenuProduct[]; onAdd: (p: MenuProduct) => void }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
+      {products.map((product) => (
+        <MenuProductCard key={product.id} product={product} onAdd={onAdd} />
+      ))}
+    </div>
+  );
+}
+
 export default function MenuPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
@@ -44,6 +54,17 @@ export default function MenuPage() {
         p.description.toLowerCase().includes(q),
     );
   }, [activeCategoryId, search]);
+
+  // Group products by category (used when "Tất cả" is selected)
+  const groupedProducts = useMemo(() => {
+    if (activeCategoryId !== 0) return null;
+    return menuCategories
+      .map((cat) => ({
+        category: cat,
+        items: products.filter((p) => p.categoryId === cat.id),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [activeCategoryId, products]);
 
   const activeCategory = menuCategories.find((c) => c.id === activeCategoryId);
   const activeCategoryLabel = activeCategoryId === 0
@@ -148,7 +169,7 @@ export default function MenuPage() {
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex gap-8">
             {/* Sidebar — desktop only */}
-            <div className="hidden md:block">
+            <div className="hidden md:block self-start sticky top-40">
               <MenuSidebar
                 categories={menuCategories}
                 activeId={activeCategoryId}
@@ -175,21 +196,36 @@ export default function MenuPage() {
                     Xóa tìm kiếm
                   </button>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
-                  {products.map((product) => (
-                    <MenuProductCard
-                      key={product.id}
-                      product={product}
-                      onAdd={setSelectedProduct}
-                    />
+              ) : groupedProducts ? (
+                /* ── Grouped by category (Tất cả) ── */
+                <div className="space-y-10">
+                  {groupedProducts.map(({ category, items }) => (
+                    <section key={category.id}>
+                      {/* Category header */}
+                      <div className="flex items-center gap-3 mb-5">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-2xl">{category.icon}</span>
+                          <h2 className="text-lg font-bold text-emerald-700 tracking-tight">
+                            {category.name}
+                          </h2>
+                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                            {items.length} món
+                          </span>
+                        </div>
+                        <div className="flex-1 h-px bg-emerald-100" />
+                      </div>
+                      <ProductGrid products={items} onAdd={setSelectedProduct} />
+                    </section>
                   ))}
                 </div>
+              ) : (
+                /* ── Single category view ── */
+                <ProductGrid products={products} onAdd={setSelectedProduct} />
               )}
             </div>
 
             {/* ── Order Panel (desktop sticky right) ── */}
-            <aside className="hidden lg:flex w-[340px] xl:w-[360px] shrink-0 sticky top-24 self-start h-[calc(100vh-6rem)] flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <aside className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm">
               <MenuOrderPanel />
             </aside>
           </div>

@@ -18,7 +18,7 @@ export default function MenuSidebar({
 
   return (
     <aside className="w-60 shrink-0">
-      <div className="sticky top-24">
+      <div>
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3 px-3">
           Danh mục
         </p>

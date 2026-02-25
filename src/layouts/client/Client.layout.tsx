@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import ClientHeader from "./ClientHeader.layout";
 import ClientFooter from "./ClientFooter.layout";
+import ScrollToTopButton from "@/components/ui/ScrollToTopButton";
 
 const ClientLayout = () => {
   return (
@@ -14,6 +15,7 @@ const ClientLayout = () => {
       </main>
 
       <ClientFooter />
+      <ScrollToTopButton />
     </div>
   );
 };
