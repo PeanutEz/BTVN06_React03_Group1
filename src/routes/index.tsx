@@ -25,6 +25,8 @@ const LoyaltyDashboardPage = React.lazy(() => import("../pages/client/loyalty/Lo
 const LoyaltyPointsPage = React.lazy(() => import("../pages/client/loyalty/LoyaltyPoints.page"));
 const CartPage = React.lazy(() => import("../pages/client/Cart.page"));
 const ContactPage = React.lazy(() => import("../pages/client/Contact.page"));
+const MenuPage = React.lazy(() => import("../pages/client/menu/Menu.page"));
+const CheckoutPage = React.lazy(() => import("../pages/client/Checkout.page"));
 
 function AppRoutes() {
   return (
@@ -39,6 +41,12 @@ function AppRoutes() {
           {/* Staff Orders (KAN-86) */}
           <Route element={<ClientLayout />}>
             <Route path={ROUTER_URL.ORDERS_STAFF} element={<StaffOrdersPage />} />
+          </Route>
+
+          {/* Menu */}
+          <Route element={<ClientLayout />}>
+            <Route path={ROUTER_URL.MENU} element={<MenuPage />} />
+            <Route path={ROUTER_URL.CHECKOUT} element={<CheckoutPage />} />
           </Route>
 
           {/* Public client pages with standard header */}

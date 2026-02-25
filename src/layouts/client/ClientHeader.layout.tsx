@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
-import { useCartStore } from "../../store/cart.store";
 import logoHylux from "../../assets/logo-hylux.png";
 
 const CATEGORIES = [
@@ -22,11 +21,9 @@ const CATEGORIES = [
 
 const NAV_LINKS = [
   { label: "Trang chủ", path: ROUTER_URL.HOME },
-  { label: "Đặt hàng", path: ROUTER_URL.ORDER },
-  { label: "Sản phẩm", path: ROUTER_URL.PRODUCTS },
+  { label: "Menu", path: ROUTER_URL.MENU },
   { label: "Hệ thống cửa hàng", path: ROUTER_URL.STORE_LOCATOR },
   { label: "Liên hệ", path: ROUTER_URL.CONTACT },
-  { label: "Khuyến mãi", path: ROUTER_URL.PRODUCTS + "?sale=true", highlight: true },
   { label: "Hội viên", path: ROUTER_URL.LOYALTY_DASHBOARD, highlight: true },
 ];
 
@@ -56,7 +53,6 @@ const ClientHeader = () => {
   const accountRef = useRef<HTMLDivElement>(null);
   const deliveryRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuthStore();
-  const { items } = useCartStore();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -74,8 +70,6 @@ const ClientHeader = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const cartCount = items?.length || 0;
 
   const handleLogout = () => {
     logout();
@@ -333,7 +327,7 @@ const ClientHeader = () => {
                         { icon: "⭐", label: "Khách hàng thành viên", path: ROUTER_URL.CUSTOMER_MEMBERSHIP },
                         { icon: "🎁", label: "Ưu đãi của tôi", path: ROUTER_URL.CUSTOMER_VOUCHERS },
                         { icon: "📦", label: "Đơn hàng", path: ROUTER_URL.CUSTOMER_ORDER_HISTORY },
-                        { icon: "🛒", label: "Giỏ hàng", path: ROUTER_URL.CUSTOMER_CART, badge: cartCount },
+                        { icon: "🛒", label: "Giỏ hàng", path: ROUTER_URL.CUSTOMER_CART },
                         { icon: "❤️", label: "Sản phẩm yêu thích", path: ROUTER_URL.CUSTOMER_FAVORITES },
                         { icon: "🔐", label: "Sản phẩm đã đặt", path: ROUTER_URL.CUSTOMER_ORDERED },
                         { icon: "💬", label: "Trung tâm trợ giúp", path: ROUTER_URL.CUSTOMER_SUPPORT },
@@ -346,11 +340,6 @@ const ClientHeader = () => {
                         >
                           <span className="w-6 text-base text-center shrink-0">{item.icon}</span>
                           <span className="text-sm text-gray-700 group-hover:text-gray-900 flex-1">{item.label}</span>
-                          {item.badge != null && item.badge > 0 && (
-                            <span className="bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                              {item.badge}
-                            </span>
-                          )}
                         </Link>
                       ))}
 
@@ -432,7 +421,7 @@ const ClientHeader = () => {
                 {CATEGORIES.map((cat) => (
                   <Link
                     key={cat.id}
-                    to={`${ROUTER_URL.PRODUCTS}?category=${cat.id}`}
+                    to={`${ROUTER_URL.MENU}?category=${cat.id}`}
                     className="flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 hover:text-red-700 transition-colors"
                     onClick={() => setDropdownOpen(false)}
                   >

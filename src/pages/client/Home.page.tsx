@@ -101,7 +101,7 @@ export default function ClientHome() {
                     subtitle="Những món được yêu thích nhất"
                     action={
                         <Link
-                            to="/products"
+                            to="/menu"
                             className="text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1 text-sm"
                         >
                             Xem tất cả

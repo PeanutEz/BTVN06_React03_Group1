@@ -34,7 +34,7 @@ const LandingPage = () => {
 
 							{/* CTA Buttons */}
 							<div className="flex flex-col sm:flex-row gap-4 lg:gap-6 mb-8 lg:mb-12 justify-center lg:justify-start">
-								<Link to={ROUTER_URL.ORDER} className="w-full sm:w-auto">
+								<Link to={ROUTER_URL.MENU} className="w-full sm:w-auto">
 									<Button 
 										size="lg" 
 										className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl font-bold shadow-2xl shadow-red-900/50 hover:scale-105 transition-all duration-300"
@@ -209,7 +209,7 @@ const LandingPage = () => {
 					</div>
 
 					<div className="text-center mt-12">
-						<Link to={ROUTER_URL.ORDER}>
+							<Link to={ROUTER_URL.MENU}>
 							<Button size="lg" className="bg-red-900 hover:bg-red-800 text-white px-12">
 								Xem Tất Cả Sản Phẩm
 							</Button>

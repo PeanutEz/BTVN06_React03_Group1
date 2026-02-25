@@ -41,7 +41,7 @@ export default function CartPage() {
           </p>
           <button
             className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-full font-semibold transition-colors"
-            onClick={() => navigate(ROUTER_URL.PRODUCTS)}
+            onClick={() => navigate(ROUTER_URL.MENU)}
           >
             Tiếp tục mua sắm
           </button>
@@ -56,10 +56,10 @@ export default function CartPage() {
       {/* Breadcrumb (theo egg) */}
       <nav className="flex items-center gap-2 text-sm">
         <Link
-          to="/order"
+          to={ROUTER_URL.MENU}
           className="text-gray-500 hover:text-amber-600 transition-colors"
         >
-          Đặt hàng
+          Menu
         </Link>
         <span className="text-gray-400">/</span>
         <span className="text-gray-900 font-medium">Giỏ hàng</span>
@@ -76,7 +76,7 @@ export default function CartPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            to={ROUTER_URL.PRODUCTS}
+            to={ROUTER_URL.MENU}
             className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 font-semibold text-slate-700"
           >
             + Thêm sản phẩm
@@ -211,7 +211,7 @@ export default function CartPage() {
             onClick={() => {
               toast.success(`Đặt hàng thành công với phương thức ${paymentMethod}`);
               clearCart();
-              navigate(ROUTER_URL.ORDER);
+              navigate(ROUTER_URL.MENU);
             }}
           >
             Tiến hành thanh toán

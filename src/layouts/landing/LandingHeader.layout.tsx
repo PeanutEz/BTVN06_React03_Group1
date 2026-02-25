@@ -69,7 +69,7 @@ const LandingHeader = () => {
 
             {/* Right Menu */}
             <div className="hidden lg:flex items-center gap-6 flex-1 justify-end">
-                <Link to={ROUTER_URL.ORDER}>
+                <Link to={ROUTER_URL.MENU}>
                 <Button 
                     className="bg-white text-red-900 hover:bg-amber-100 font-extrabold uppercase text-sm px-6 py-2.5 shadow-lg"
                 >
@@ -150,7 +150,7 @@ const LandingHeader = () => {
                 Tin Tức
                 </Link>
                 <Link 
-                to={ROUTER_URL.ORDER}
+                to={ROUTER_URL.MENU}
                 className="block px-4 py-2"
                 onClick={() => setMenuOpen(false)}
                 >

@@ -1,6 +1,5 @@
 export const ROUTER_URL = {
   HOME: "/",
-  ORDER: "/order",
   STORE_LOCATOR: "/he-thong-khong-gian",
   CONTACT: "/contact",
   LOGIN: "/login",
@@ -23,8 +22,13 @@ export const ROUTER_URL = {
 
   // Browse & Product
   CATEGORIES: "/categories",
-  PRODUCTS: "/products",
   PRODUCT_DETAIL: "/products/:id",
+
+  // Menu (new ecommerce menu flow)
+  MENU: "/menu",
+  MENU_DETAIL: "/menu/:id",
+  MENU_CHECKOUT: "/menu/checkout",
+  CHECKOUT: "/checkout",
 
   // Orders
   ORDERS_LIST: "/orders",
