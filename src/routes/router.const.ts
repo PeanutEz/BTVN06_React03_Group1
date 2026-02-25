@@ -21,13 +21,16 @@ export const ROUTER_URL = {
   CUSTOMER_SUPPORT: "/customer/support",
 
   // Browse & Product
-  CATEGORIES: "/categories",
   PRODUCT_DETAIL: "/products/:id",
+
+  // Receiving setup (mandatory before browsing menu)
+  RECEIVING_SETUP: "/receiving-setup",
 
   // Menu (new ecommerce menu flow)
   MENU: "/menu",
   MENU_DETAIL: "/menu/:id",
   MENU_CHECKOUT: "/menu/checkout",
+  MENU_ORDER_STATUS: "/menu/orders/:orderId",
   CHECKOUT: "/checkout",
 
   // Orders

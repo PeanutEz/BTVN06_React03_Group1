@@ -1,7 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
+import { useDeliveryStore } from "../../store/delivery.store";
+import { isBranchOpen } from "../../services/branch.service";
+import BranchPickerModal from "../../components/menu/BranchPickerModal";
 import logoHylux from "../../assets/logo-hylux.png";
 
 const NAV_LINKS = [
@@ -12,39 +16,31 @@ const NAV_LINKS = [
   { label: "Hội viên", path: ROUTER_URL.LOYALTY_DASHBOARD, highlight: true },
 ];
 
-const STORES = [
-  { id: "1", name: "Hylux - 44 Nguyễn Trãi", address: "44 Nguyễn Trãi, P. Bến Thành, Q.1, TP. Hồ Chí Minh", phone: "(028) 3823 4400", hours: "07:00 - 22:30", status: "Mở cửa" },
-  { id: "2", name: "Hylux - Vincom Đồng Khởi", address: "72 Lê Thánh Tôn, P. Bến Nghé, Q.1, TP. Hồ Chí Minh", phone: "(028) 3821 5500", hours: "08:00 - 22:00", status: "Mở cửa" },
-  { id: "3", name: "Hylux - Gò Vấp", address: "210 Nguyễn Oanh, P.7, Q. Gò Vấp, TP. Hồ Chí Minh", phone: "(028) 3894 6600", hours: "07:00 - 22:00", status: "Mở cửa" },
-  { id: "4", name: "Hylux - Bình Thạnh", address: "58 Đinh Tiên Hoàng, P.3, Q. Bình Thạnh, TP. Hồ Chí Minh", phone: "(028) 3515 7700", hours: "07:30 - 22:30", status: "Mở cửa" },
-  { id: "5", name: "Hylux - Phú Nhuận", address: "116 Phan Xích Long, P.7, Q. Phú Nhuận, TP. Hồ Chí Minh", phone: "(028) 3845 8800", hours: "07:00 - 22:00", status: "Mở cửa" },
-  { id: "6", name: "Hylux - Tân Bình", address: "330 Cộng Hòa, P.13, Q. Tân Bình, TP. Hồ Chí Minh", phone: "(028) 3812 9900", hours: "07:00 - 22:30", status: "Đóng cửa" },
-  { id: "7", name: "Hylux - Thủ Đức", address: "150 Võ Văn Ngân, P. Bình Thọ, TP. Thủ Đức, TP. Hồ Chí Minh", phone: "(028) 3722 1010", hours: "07:30 - 21:30", status: "Mở cửa" },
-];
-
 const ClientHeader = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [deliveryOpen, setDeliveryOpen] = useState(false);
-  const [deliveryTab, setDeliveryTab] = useState<"delivery" | "pickup">("delivery");
-  const [savedAddresses, setSavedAddresses] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("hylux_addresses") || "[]"); }
-    catch { return []; }
-  });
-  const [storeSearch, setStoreSearch] = useState("");
-  const [selectedDelivery, setSelectedDelivery] = useState<{ type: "delivery" | "pickup"; label: string } | null>(null);
+  const [showBranchPicker, setShowBranchPicker] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
-  const deliveryRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+
+  // ── Delivery / receiving store ────────────────────────────────────────
+  const { orderMode, selectedBranch, deliveryAddress, hydrate } = useDeliveryStore();
+  useEffect(() => { hydrate(); }, [hydrate]);
+
+  const branchOpen = selectedBranch ? isBranchOpen(selectedBranch) : false;
+
+  // Label shown in the header pill
+  const receivingLabel = !selectedBranch
+    ? null
+    : orderMode === "PICKUP"
+    ? selectedBranch.name
+    : deliveryAddress.rawAddress || selectedBranch.name;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (accountRef.current && !accountRef.current.contains(event.target as Node)) {
         setAccountOpen(false);
-      }
-      if (deliveryRef.current && !deliveryRef.current.contains(event.target as Node)) {
-        setDeliveryOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -56,6 +52,20 @@ const ClientHeader = () => {
     setAccountOpen(false);
     navigate(ROUTER_URL.HOME);
   };
+
+  // Auth-gated — guests must log in before configuring receiving
+  const openPicker = useCallback(() => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để chọn phương thức nhận hàng", {
+        action: {
+          label: "Đăng nhập",
+          onClick: () => navigate(ROUTER_URL.LOGIN, { state: { from: { pathname: ROUTER_URL.RECEIVING_SETUP } } }),
+        },
+      });
+      return;
+    }
+    setShowBranchPicker(true);
+  }, [user, navigate]);
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-md">
@@ -94,169 +104,47 @@ const ClientHeader = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            {/* Delivery Method Button + Panel */}
-            <div className="relative hidden lg:block" ref={deliveryRef}>
+            {/* ── Receiving Method Pill ───────────────────────────────── */}
+            <div className="hidden lg:flex items-center gap-2">
               <button
-                onClick={() => setDeliveryOpen(!deliveryOpen)}
-                aria-label="Chọn phương thức nhận hàng"
-                className="flex items-center gap-2 border-2 border-red-500 hover:bg-red-50 text-red-700 font-semibold text-sm px-3 py-2 rounded-full transition-all duration-200 hover:shadow-md whitespace-nowrap"
+                onClick={openPicker}
+                aria-label="Phương thức nhận hàng"
+                className={`flex items-center gap-2 border-2 font-semibold text-sm px-3 py-2 rounded-full transition-all duration-200 hover:shadow-md whitespace-nowrap ${
+                  !selectedBranch
+                    ? "border-amber-400 bg-amber-50 text-amber-700 animate-pulse"
+                    : !branchOpen
+                    ? "border-red-400 bg-red-50 text-red-700"
+                    : orderMode === "PICKUP"
+                    ? "border-blue-400 bg-blue-50 text-blue-700"
+                    : "border-emerald-400 bg-emerald-50 text-emerald-700"
+                }`}
               >
-                <span className="text-xl">{selectedDelivery?.type === "pickup" ? "🏪" : "🛵"}</span>
-                <span className="max-w-[180px] truncate">
-                  {selectedDelivery ? selectedDelivery.label : "Chọn Phương Thức Nhận Hàng"}
+                <span className="text-base">
+                  {!selectedBranch ? "🛵" : orderMode === "PICKUP" ? "🏪" : "🛵"}
                 </span>
-                <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${deliveryOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <span className="max-w-[180px] truncate">
+                  {!selectedBranch
+                    ? "Chọn phương thức nhận hàng"
+                    : orderMode === "PICKUP"
+                    ? `Lấy tại quán – ${receivingLabel}`
+                    : `Giao hàng – ${receivingLabel}`}
+                </span>
+                {selectedBranch && !branchOpen && (
+                  <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">Đóng</span>
+                )}
               </button>
-
-              {/* Delivery Panel */}
-              <div className={`absolute left-0 top-[calc(100%+8px)] w-[420px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden transition-all duration-200 origin-top-left ${
-                deliveryOpen ? "opacity-100 scale-100 visible" : "opacity-0 scale-95 invisible"
-              }`}>
-                {/* Tabs */}
-                <div className="flex border-b border-gray-200">
-                  <button
-                    onClick={() => setDeliveryTab("delivery")}
-                    className={`flex-1 py-3.5 text-sm font-bold tracking-wide transition-colors ${
-                      deliveryTab === "delivery"
-                        ? "text-red-700 border-b-2 border-red-600 bg-white"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    GIAO HÀNG
-                  </button>
-                  <button
-                    onClick={() => setDeliveryTab("pickup")}
-                    className={`flex-1 py-3.5 text-sm font-bold tracking-wide transition-colors ${
-                      deliveryTab === "pickup"
-                        ? "text-red-700 border-b-2 border-red-600 bg-white"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    ĐẾN LẤY
-                  </button>
-                </div>
-
-                {/* GIAO HÀNG Tab */}
-                {deliveryTab === "delivery" && (
-                  <div className="p-4 space-y-3">
-                    {/* Saved addresses */}
-                    {savedAddresses.length > 0 ? (
-                      <div className="space-y-2 max-h-52 overflow-y-auto">
-                        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Địa chỉ của bạn</p>
-                        {savedAddresses.map((addr, idx) => (
-                            <div key={idx} className="flex items-center gap-2 group">
-                              <button
-                                onClick={() => {
-                                  setSelectedDelivery({ type: "delivery", label: addr });
-                                  setDeliveryOpen(false);
-                                }}
-                                className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 border border-gray-100 hover:border-red-200 transition-colors text-left"
-                              >
-                                <svg className="w-4 h-4 text-red-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                                </svg>
-                                <span className="text-sm text-gray-700 flex-1 truncate">{addr}</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  const updated = savedAddresses.filter((_, i) => i !== idx);
-                                  setSavedAddresses(updated);
-                                  localStorage.setItem("hylux_addresses", JSON.stringify(updated));
-                                }}
-                                className="p-1.5 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                aria-label="Xóa địa chỉ"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-400 text-center py-2">Bạn chưa có địa chỉ nào</p>
-                    )}
-
-                    {/* Link to address book */}
-                    <Link
-                      to={ROUTER_URL.CUSTOMER_ADDRESS_BOOK}
-                      onClick={() => setDeliveryOpen(false)}
-                      className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl border border-dashed border-red-400 hover:bg-red-50 text-red-700 font-semibold text-sm transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                      Thêm địa chỉ mới
-                    </Link>
-                  </div>
-                )}
-
-                {/* ĐẾN LẤY Tab */}
-                {deliveryTab === "pickup" && (
-                  <div className="p-4 space-y-3">
-                    <div className="relative">
-                      <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                      <input
-                        type="text"
-                        value={storeSearch}
-                        onChange={(e) => setStoreSearch(e.target.value)}
-                        placeholder="Vui lòng nhập địa điểm, tên cửa hàng"
-                        className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-red-400 transition"
-                      />
-                    </div>
-                    <p className="text-red-700 font-bold text-sm">Danh sách cửa hàng</p>
-                    <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-                      {STORES.filter((s) =>
-                        storeSearch === "" ||
-                        s.name.toLowerCase().includes(storeSearch.toLowerCase()) ||
-                        s.address.toLowerCase().includes(storeSearch.toLowerCase())
-                      ).map((store) => (
-                        <div key={store.id} className="flex items-start gap-3 pb-3 border-b border-gray-100 last:border-0">
-                          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0 text-red-700 text-lg">
-                            🏪
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-red-700 font-semibold text-sm truncate">{store.name}</p>
-                            <p className="text-gray-500 text-xs mt-0.5"><span className="font-medium text-gray-700">Địa chỉ: </span>{store.address}</p>
-                            <p className="text-gray-500 text-xs"><span className="font-medium text-gray-700">Số điện thoại: </span>{store.phone}</p>
-                            <p className="text-gray-500 text-xs"><span className="font-medium text-gray-700">Giờ hoạt động: </span>{store.hours}</p>
-                            <p className="text-gray-500 text-xs"><span className="font-medium text-gray-700">Trạng thái: </span>
-                              <span className={store.status === "Mở cửa" ? "text-red-600 font-semibold" : "text-red-500 font-semibold"}>{store.status}</span>
-                            </p>
-                          </div>
-                          <div className="flex flex-col gap-1.5 shrink-0">
-                            <button
-                              onClick={() => {
-                                setSelectedDelivery({ type: "pickup", label: store.name });
-                                setDeliveryOpen(false);
-                              }}
-                              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-                            >
-                              Chọn cửa hàng
-                            </button>
-                            <a
-                              href={`https://www.google.com/maps/search/${encodeURIComponent(store.address)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap"
-                            >
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                              </svg>
-                              Chỉ đường
-                            </a>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
+
+            {/* ── BranchPickerModal (desktop) ─────────────────────── */}
+            {showBranchPicker && (
+              <BranchPickerModal
+                onClose={() => {
+                  const { selectedBranch: b } = useDeliveryStore.getState();
+                  if (b) toast.success(`Đã chọn: ${b.name}`, { description: "Phương thức nhận hàng đã được cập nhật." });
+                  setShowBranchPicker(false);
+                }}
+              />
+            )}
 
             {/* Mail Icon */}
             <button
@@ -410,6 +298,27 @@ const ClientHeader = () => {
                 {link.label}
               </Link>
             ))}
+            <div className="h-px bg-gray-200 my-1" />
+            {/* Mobile receiving method */}
+            <button
+              onClick={() => { setMenuOpen(false); openPicker(); }}
+              className={`flex items-center gap-2 w-full px-4 py-2.5 rounded text-sm font-medium transition-colors ${
+                !selectedBranch
+                  ? "text-amber-700 bg-amber-50"
+                  : orderMode === "PICKUP"
+                  ? "text-blue-700 bg-blue-50"
+                  : "text-emerald-700 bg-emerald-50"
+              }`}
+            >
+              <span>{!selectedBranch ? "🛵" : orderMode === "PICKUP" ? "🏪" : "🛵"}</span>
+              <span className="truncate">
+                {!selectedBranch
+                  ? "Chọn phương thức nhận hàng"
+                  : orderMode === "PICKUP"
+                  ? `Lấy tại quán – ${receivingLabel}`
+                  : `Giao hàng – ${receivingLabel}`}
+              </span>
+            </button>
             <div className="h-px bg-gray-200 my-1" />
             <Link
               to={user ? ROUTER_URL.CUSTOMER_PROFILE : ROUTER_URL.LOGIN}
