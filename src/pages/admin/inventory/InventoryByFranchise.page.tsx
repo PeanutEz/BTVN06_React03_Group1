@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Button } from "../../../components";
+import { Button, Pagination } from "../../../components";
+
+const PAGE_SIZE = 10;
 import type { InventoryItem } from "../../../models/inventory.model";
 import { isLowStock } from "../../../models/inventory.model";
 import { fetchInventoryByStore, updateInventoryStock } from "../../../services/inventory.service";
@@ -12,6 +14,7 @@ const InventoryByFranchisePage = () => {
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const load = async () => {
     if (!id) return;
@@ -50,6 +53,7 @@ const InventoryByFranchisePage = () => {
   };
 
   const lowStockItems = items.filter(isLowStock);
+  const pagedItems = items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -87,9 +91,8 @@ const InventoryByFranchisePage = () => {
               <th className="px-4 py-3 text-right">Tồn tối thiểu</th>
               <th className="px-4 py-3">Cập nhật</th>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {items.map((item) => {
+          </thead>          <tbody className="divide-y divide-slate-200">
+            {pagedItems.map((item) => {
               const low = isLowStock(item);
               return (
                 <tr key={item.id} className={low ? "bg-amber-50/60 hover:bg-amber-50" : "hover:bg-slate-50"}>
@@ -124,8 +127,7 @@ const InventoryByFranchisePage = () => {
                   </td>
                 </tr>
               );
-            })}
-            {items.length === 0 && !loading && (
+            })}            {items.length === 0 && !loading && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
                   Không có dữ liệu tồn kho cho chi nhánh này.
@@ -141,6 +143,12 @@ const InventoryByFranchisePage = () => {
             )}
           </tbody>
         </table>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={items.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );

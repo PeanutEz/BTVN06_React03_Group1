@@ -32,6 +32,19 @@ export async function deleteUser(id: string): Promise<void> {
 	}
 }
 
+export async function createUser(data: Partial<User>): Promise<User> {
+	try {
+		const response = await api.post<User>("/users", data);
+		return response.data ?? {};
+	} catch (error) {
+		if (getErrorStatus(error) === 404) {
+			const response = await api.post<User>("/user", data);
+			return response.data ?? {};
+		}
+		throw error;
+	}
+}
+
 export async function updateUserProfile(
 	id: string,
 	data: Partial<User>

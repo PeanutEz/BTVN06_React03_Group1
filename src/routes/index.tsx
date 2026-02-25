@@ -17,6 +17,7 @@ import AdminLoginPage from "../pages/admin/auth/Login.page";
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
 const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
 const StaffOrdersPage = React.lazy(() => import("../pages/orders/OrdersList.page"));
+
 const CustomerProfilePage = React.lazy(() => import("../pages/client/customer/CustomerProfile.page"));
 const CustomerAddressBookPage = React.lazy(() => import("../pages/client/customer/CustomerAddressBook.page"));
 const CustomerOrdersPage = React.lazy(() => import("../pages/client/customer/CustomerOrders.page"));
@@ -51,8 +52,16 @@ function AppRoutes() {
 
           {/* Public client pages with standard header */}
           <Route element={<ClientLayout />}>
-            {CLIENT_MENU.filter((item) => item.path !== ROUTER_URL.HOME && item.path !== ROUTER_URL.ACCOUNT).map((item) => (
-              <Route key={item.path} path={item.path} element={<item.component />} />
+            {CLIENT_MENU.filter(
+              (item) =>
+                item.path !== ROUTER_URL.HOME &&
+                item.path !== ROUTER_URL.ACCOUNT
+            ).map((item) => (
+              <Route
+                key={item.path}
+                path={item.path}
+                element={<item.component />}
+              />
             ))}
 
             <Route path="customer" element={<CustomerAccountLayout />}>
@@ -80,7 +89,11 @@ function AppRoutes() {
           <Route element={<AdminGuard />}>
             <Route path={ROUTER_URL.ADMIN} element={<AdminLayout />}>
               {ADMIN_MENU.map((item) => (
-                <Route key={item.path} path={item.path} element={<item.component />} />
+                <Route
+                  key={item.path}
+                  path={item.path}
+                  element={<item.component />}
+                />
               ))}
             </Route>
           </Route>

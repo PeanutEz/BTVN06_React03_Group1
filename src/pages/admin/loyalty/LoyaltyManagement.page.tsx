@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { Button } from "../../../components";
+import { Button, Pagination } from "../../../components";
+
+const PAGE_SIZE = 10;
 import type { LoyaltyRule, LoyaltyOverview } from "../../../models/loyalty.model";
 import { LOYALTY_TIER_LABELS } from "../../../models/customer.model";
 import {
@@ -15,6 +17,7 @@ const LoyaltyManagementPage = () => {
   const [overview, setOverview] = useState<LoyaltyOverview | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRule, setEditingRule] = useState<LoyaltyRule | null>(null);
 
@@ -79,6 +82,8 @@ const LoyaltyManagementPage = () => {
   };
 
   const formatNumber = (num: number) => num.toLocaleString("vi-VN");
+
+  const pagedHistory = history.slice((historyPage - 1) * PAGE_SIZE, historyPage * PAGE_SIZE);
 
   if (loading && !rule) {
     return (
@@ -188,9 +193,8 @@ const LoyaltyManagementPage = () => {
                 <th className="px-4 py-3">Lý do</th>
                 <th className="px-4 py-3">Ngày</th>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {history.map((item) => (
+            </thead>            <tbody className="divide-y divide-slate-200">
+              {pagedHistory.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <span className="font-semibold text-slate-900">{item.id}</span>
@@ -234,8 +238,7 @@ const LoyaltyManagementPage = () => {
                     {new Date(item.created_at).toLocaleString("vi-VN")}
                   </td>
                 </tr>
-              ))}
-              {history.length === 0 && (
+              ))}              {history.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                     Chưa có lịch sử tích điểm
@@ -244,6 +247,12 @@ const LoyaltyManagementPage = () => {
               )}
             </tbody>
           </table>
+          <Pagination
+            currentPage={historyPage}
+            totalItems={history.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setHistoryPage}
+          />
         </div>
       </div>
 

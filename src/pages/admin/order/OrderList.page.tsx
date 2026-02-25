@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "../../../components";
+import { Button, Pagination } from "../../../components";
+
+const PAGE_SIZE = 10;
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_TYPE_LABELS } from "../../../models/order.model";
 import { fetchOrders, filterOrders, searchOrders } from "../../../services/order.service";
@@ -12,6 +14,7 @@ const OrderListPage = () => {
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "">("");
   const [storeFilter, setStoreFilter] = useState("");
@@ -80,13 +83,14 @@ const OrderListPage = () => {
     setSearchQuery("");
     loadOrders();
   };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
     }).format(amount);
   };
+
+  const pagedOrders = orders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -196,9 +200,8 @@ const OrderListPage = () => {
                 <th className="px-4 py-3">Ngày tạo</th>
                 <th className="px-4 py-3">Thao tác</th>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {orders.map((order) => (
+            </thead>            <tbody className="divide-y divide-slate-200">
+              {pagedOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <span className="font-semibold text-primary-600">{order.code}</span>
@@ -240,8 +243,7 @@ const OrderListPage = () => {
                     </Link>
                   </td>
                 </tr>
-              ))}
-              {orders.length === 0 && !loading && (
+              ))}              {orders.length === 0 && !loading && (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
                     Không có đơn hàng
@@ -258,6 +260,12 @@ const OrderListPage = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={orders.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );
