@@ -1,13 +1,18 @@
-import { useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { menuCategories, menuProducts, getProductsByCategory } from "@/services/menu.service";
-import { useMenuCartTotals } from "@/store/menu-cart.store";
+import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
+import { useDeliveryStore } from "@/store/delivery.store";
+import { useAuthStore } from "@/store/auth.store";
 import type { MenuProduct } from "@/types/menu.types";
+import { ROUTER_URL } from "@/routes/router.const";
 import MenuSidebar from "@/components/menu/MenuSidebar";
 import MenuProductCard from "@/components/menu/MenuProductCard";
 import MenuProductModal from "@/components/menu/MenuProductModal";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
+import BranchPickerModal from "@/components/menu/BranchPickerModal";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -24,14 +29,27 @@ function ProductGrid({ products, onAdd }: { products: MenuProduct[]; onAdd: (p: 
 
 export default function MenuPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<MenuProduct | null>(null);
   const [showOrderPanel, setShowOrderPanel] = useState(false);
+  const [showBranchPicker, setShowBranchPicker] = useState(false);
+
+  const { user } = useAuthStore();
 
   const initialCategoryId = Number(searchParams.get("category")) || 0;
   const [activeCategoryId, setActiveCategoryId] = useState(initialCategoryId);
 
   const { itemCount, total } = useMenuCartTotals();
+
+  // Hydrate stores on mount
+  const hydrateCart = useMenuCartStore((s) => s.hydrate);
+  const hydrateDelivery = useDeliveryStore((s) => s.hydrate);
+
+  useEffect(() => {
+    hydrateCart();
+    hydrateDelivery();
+  }, [hydrateCart, hydrateDelivery]);
 
   const productCounts = useMemo(() => {
     const map: Record<number, number> = {};
@@ -75,6 +93,20 @@ export default function MenuPage() {
     setActiveCategoryId(id);
     setSearchParams(id !== 0 ? { category: String(id) } : {});
   }
+
+  // Auth-gated product selection: guests see a login prompt
+  const handleAddProduct = useCallback((product: MenuProduct) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng", {
+        action: {
+          label: "Đăng nhập",
+          onClick: () => navigate(ROUTER_URL.LOGIN, { state: { from: { pathname: ROUTER_URL.MENU } } }),
+        },
+      });
+      return;
+    }
+    setSelectedProduct(product);
+  }, [user, navigate]);
 
   return (
     <>
@@ -214,19 +246,19 @@ export default function MenuPage() {
                         </div>
                         <div className="flex-1 h-px bg-emerald-100" />
                       </div>
-                      <ProductGrid products={items} onAdd={setSelectedProduct} />
+                      <ProductGrid products={items} onAdd={handleAddProduct} />
                     </section>
                   ))}
                 </div>
               ) : (
                 /* ── Single category view ── */
-                <ProductGrid products={products} onAdd={setSelectedProduct} />
+                <ProductGrid products={products} onAdd={handleAddProduct} />
               )}
             </div>
 
             {/* ── Order Panel (desktop sticky right) ── */}
             <aside className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <MenuOrderPanel />
+              <MenuOrderPanel onOpenBranchPicker={() => setShowBranchPicker(true)} />
             </aside>
           </div>
         </div>
@@ -237,6 +269,11 @@ export default function MenuPage() {
         product={selectedProduct}
         onClose={() => setSelectedProduct(null)}
       />
+
+      {/* Branch picker modal */}
+      {showBranchPicker && (
+        <BranchPickerModal onClose={() => setShowBranchPicker(false)} />
+      )}
 
       {/* Mobile: sticky bottom cart button */}
       {itemCount > 0 && (
@@ -261,7 +298,10 @@ export default function MenuPage() {
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowOrderPanel(false)} />
           <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden">
-            <MenuOrderPanel onRequestClose={() => setShowOrderPanel(false)} />
+            <MenuOrderPanel
+              onRequestClose={() => setShowOrderPanel(false)}
+              onOpenBranchPicker={() => { setShowOrderPanel(false); setShowBranchPicker(true); }}
+            />
           </div>
         </div>
       )}
