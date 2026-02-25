@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
@@ -14,7 +14,6 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, login } = useAuthStore();
-  const [quickLogging, setQuickLogging] = useState(false);
 
   const {
     register,
@@ -111,16 +110,14 @@ const LoginPage = () => {
               <button
                 type="button"
                 onClick={() => handleQuickLogin("client")}
-                disabled={quickLogging}
-                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 disabled:opacity-50"
+                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
               >
                 🏠 Client
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickLogin("admin")}
-                disabled={quickLogging}
-                className="flex-1 rounded-lg border border-primary-500 bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/30 transition hover:from-primary-600 hover:to-primary-700 disabled:opacity-50"
+                className="flex-1 rounded-lg border border-primary-500 bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/30 transition hover:from-primary-600 hover:to-primary-700"
               >
                 🛡️ Admin
               </button>
