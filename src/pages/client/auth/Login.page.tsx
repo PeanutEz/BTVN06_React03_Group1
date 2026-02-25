@@ -24,12 +24,15 @@ const LoginPage = () => {
   useEffect(() => {
     if (user) {
       if (user.role === ROLE.ADMIN) {
-        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+        navigate(
+          `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`,
+          { replace: true }
+        );
       } else {
-        navigate(ROUTER_URL.HOME, { replace: true });
+        navigate(ROUTER_URL.MENU, { replace: true });
       }
     } else if (token) {
-      navigate(ROUTER_URL.HOME, { replace: true });
+      navigate(ROUTER_URL.MENU, { replace: true });
     }
   }, [user, token, navigate]);
 
@@ -44,12 +47,17 @@ const LoginPage = () => {
       createDate: new Date().toISOString(),
       updateDate: new Date().toISOString(),
     };
+
     login(mockUser);
     showSuccess(`Đăng nhập nhanh với quyền ${role}`);
+
     if (role === ROLE.ADMIN) {
-      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+      navigate(
+        `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`,
+        { replace: true }
+      );
     } else {
-      navigate(ROUTER_URL.HOME, { replace: true });
+      navigate(ROUTER_URL.MENU, { replace: true });
     }
   };
 
@@ -58,56 +66,93 @@ const LoginPage = () => {
       const tokens = await loginUser(values);
       loginWithTokens(tokens);
       showSuccess("Đăng nhập thành công");
-      const redirectTo = (location.state as { from?: Location })?.from?.pathname;
+
+      const redirectTo = (location.state as { from?: Location })?.from
+        ?.pathname;
+
       if (redirectTo) {
         navigate(redirectTo, { replace: true });
         return;
       }
+
       navigate(ROUTER_URL.ORDER, { replace: true });
     } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string }; status?: number } };
+      const axiosError = error as {
+        response?: { data?: { message?: string }; status?: number };
+      };
+
       const status = axiosError?.response?.status;
+
       if (status === 400 || status === 401) {
         showError("Sai email hoặc mật khẩu");
       } else if (status === 403) {
         showError("Tài khoản đã bị khóa hoặc xóa");
       } else {
-        showError(axiosError?.response?.data?.message ?? "Đăng nhập thất bại. Vui lòng thử lại");
+        showError(
+          axiosError?.response?.data?.message ??
+            "Đăng nhập thất bại. Vui lòng thử lại"
+        );
       }
     }
   };
 
   return (
-    <div className="relative min-h-screen bg-cover bg-center bg-no-repeat overflow-hidden" style={{ backgroundImage: `url(${bgUserLogin})` }}>
+    <div
+      className="relative min-h-screen bg-cover bg-center bg-no-repeat overflow-hidden"
+      style={{ backgroundImage: `url(${bgUserLogin})` }}
+    >
       <div className="absolute inset-0 bg-black/20" />
-      
+
       <div className="absolute right-0 top-0 h-full w-full lg:w-1/2 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-6 py-12 animate-slide-in-right">
         <div className="w-full max-w-md space-y-8 animate-fade-in">
-          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">Đăng nhập</h1>
+          <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
+            Đăng nhập
+          </h1>
+
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Email</label>
+              <label className="text-sm font-semibold text-slate-700">
+                Email
+              </label>
               <input
                 type="email"
                 className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 outline-none ring-primary-200 transition focus:ring placeholder:text-slate-600 placeholder:font-normal"
                 placeholder="Email của bạn"
-                {...register("email", { required: "Email không được để trống" })}
+                {...register("email", {
+                  required: "Email không được để trống",
+                })}
               />
-              {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+              {errors.email && (
+                <p className="text-xs text-red-500">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Mật khẩu</label>
+              <label className="text-sm font-semibold text-slate-700">
+                Mật khẩu
+              </label>
               <input
                 type="password"
                 className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 outline-none ring-primary-200 transition focus:ring placeholder:text-slate-600 placeholder:font-normal"
                 placeholder="Mật khẩu của bạn"
-                {...register("password", { required: "Mật khẩu không được để trống" })}
+                {...register("password", {
+                  required: "Mật khẩu không được để trống",
+                })}
               />
-              {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+              {errors.password && (
+                <p className="text-xs text-red-500">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
-            <Button type="submit" className="w-full" loading={isSubmitting}>
+            <Button
+              type="submit"
+              className="w-full"
+              loading={isSubmitting}
+            >
               {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </form>
@@ -115,9 +160,12 @@ const LoginPage = () => {
           <div className="mt-4 space-y-3">
             <div className="relative flex items-center">
               <div className="flex-grow border-t border-slate-200" />
-              <span className="mx-3 shrink text-xs text-slate-400">Đăng nhập nhanh (API chưa hoạt động)</span>
+              <span className="mx-3 shrink text-xs text-slate-400">
+                Đăng nhập nhanh (API chưa hoạt động)
+              </span>
               <div className="flex-grow border-t border-slate-200" />
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -126,6 +174,7 @@ const LoginPage = () => {
               >
                 Client
               </button>
+
               <button
                 type="button"
                 onClick={() => handleMockLogin(ROLE.ADMIN)}
@@ -147,6 +196,7 @@ const LoginPage = () => {
                 Đăng ký ngay
               </button>
             </p>
+
             <button
               type="button"
               onClick={() => navigate(ROUTER_URL.RESET_PASSWORD)}

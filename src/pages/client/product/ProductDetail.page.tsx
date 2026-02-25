@@ -57,7 +57,7 @@ export default function ProductDetail() {
           {error || "Không tìm thấy sản phẩm"}
         </h3>
         <button
-          onClick={() => navigate(ROUTER_URL.PRODUCTS)}
+          onClick={() => navigate(ROUTER_URL.MENU)}
           className="bg-amber-500 text-white px-6 py-3 rounded-full"
         >
           Quay lại danh sách
@@ -87,15 +87,8 @@ export default function ProductDetail() {
     <div>
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm mb-8 flex-wrap">
-        <Link to="/order" className="text-gray-500 hover:text-amber-600">
-          Đặt hàng
-        </Link>
-        <span>/</span>
-        <Link
-          to={ROUTER_URL.PRODUCTS}
-          className="text-gray-500 hover:text-amber-600"
-        >
-          Sản phẩm
+        <Link to={ROUTER_URL.MENU} className="text-gray-500 hover:text-amber-600">
+          Menu
         </Link>
         {category && (
           <>

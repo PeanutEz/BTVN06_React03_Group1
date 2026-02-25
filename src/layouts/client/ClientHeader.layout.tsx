@@ -1,106 +1,134 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ROUTER_URL } from "../../routes/router.const";
-import { useAuthStore } from "../../store/auth.store";
-import { useCartStore } from "../../store/cart.store";
-import { showSuccess } from "../../utils";
+import { useNavigate, Link } from "react-router-dom";
+import { ROUTER_URL } from "@/constants/router-url";
+import { useAuthStore } from "@/store/auth.store";
+
+import logoHylux from "@/assets/logo-hylux.png";
+import {
+  ShoppingCart,
+  User,
+  Menu,
+  X,
+  ChevronDown,
+  LogOut,
+} from "lucide-react";
 
 const ClientHeader = () => {
-  const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
-
   const { user, logout } = useAuthStore();
-  const { items } = useCartStore();
 
-  const handleLogout = async () => {
-    await logout();
-    showSuccess("Đã đăng xuất");
-    navigate(ROUTER_URL.LOGIN, { replace: true });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  const handleLogout = () => {
+    logout();
+    setAccountOpen(false);
+    navigate(ROUTER_URL.HOME);
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white shadow-md">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex items-center gap-4 py-3 px-4 sm:px-6 lg:px-8">
+    <header className="w-full shadow-sm bg-white">
+      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+        {/* Logo */}
+        <Link to={ROUTER_URL.HOME} className="flex items-center gap-2">
+          <img src={logoHylux} alt="Hylux" className="h-8" />
+        </Link>
+
+        {/* Desktop Menu */}
+        <nav className="hidden md:flex items-center gap-6">
+          <Link to={ROUTER_URL.HOME} className="hover:text-primary">
+            Trang chủ
+          </Link>
+          <Link to={ROUTER_URL.SHOP} className="hover:text-primary">
+            Sản phẩm
+          </Link>
+          <Link to={ROUTER_URL.CONTACT} className="hover:text-primary">
+            Liên hệ
+          </Link>
+        </nav>
+
+        {/* Right Section */}
+        <div className="flex items-center gap-4">
+          {/* Cart */}
+          <button
+            onClick={() => navigate(ROUTER_URL.CART)}
+            className="relative"
+          >
+            <ShoppingCart size={22} />
+          </button>
 
           {/* Account */}
-          <Link
-            to={user ? ROUTER_URL.ACCOUNT : ROUTER_URL.LOGIN}
-            className="hidden lg:flex items-center gap-2 hover:bg-gray-50 px-2 py-1 rounded transition-colors"
-          >
-            <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                clipRule="evenodd"
-              />
-            </svg>
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => setAccountOpen(!accountOpen)}
+                className="flex items-center gap-1"
+              >
+                <User size={20} />
+                <ChevronDown size={16} />
+              </button>
 
-            <div className="text-xs">
-              <div className="text-gray-600">Tài khoản</div>
-              <div className="font-bold text-gray-900">
-                {user ? user.name : "Đăng nhập"}
-              </div>
-            </div>
-          </Link>
-
-          {/* Logout */}
-          {user && (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="hidden lg:flex items-center gap-2 hover:bg-red-50 px-2 py-1 rounded transition-colors text-red-500 hover:text-red-600"
-              title="Đăng xuất"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              <div className="text-xs">
-                <div className="font-semibold">Đăng xuất</div>
-              </div>
-            </button>
-          )}
-
-          {/* Cart */}
-          {user && (
-            <Link
-              to={ROUTER_URL.CART}
-              className="flex items-center gap-2 border border-orange-400 hover:bg-orange-50 px-3 py-2 rounded transition-colors"
-            >
-              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5"
-                />
-              </svg>
-
-              <div className="text-xs">
-                <div className="text-gray-600">Giỏ hàng</div>
-                <div className="font-bold text-orange-600">
-                  {items?.length || 0}
+              {accountOpen && (
+                <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow">
+                  <Link
+                    to={ROUTER_URL.PROFILE}
+                    className="block px-4 py-2 hover:bg-gray-100"
+                    onClick={() => setAccountOpen(false)}
+                  >
+                    Tài khoản
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    Đăng xuất
+                  </button>
                 </div>
-              </div>
+              )}
+            </div>
+          ) : (
+            <Link to={ROUTER_URL.LOGIN}>
+              <User size={22} />
             </Link>
           )}
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Toggle */}
           <button
-            className="lg:hidden text-gray-600 p-2"
+            className="md:hidden"
             onClick={() => setMenuOpen(!menuOpen)}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {menuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
+            {menuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
-
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {menuOpen && (
+        <div className="md:hidden px-4 pb-4 space-y-2">
+          <Link
+            to={ROUTER_URL.HOME}
+            className="block"
+            onClick={() => setMenuOpen(false)}
+          >
+            Trang chủ
+          </Link>
+          <Link
+            to={ROUTER_URL.SHOP}
+            className="block"
+            onClick={() => setMenuOpen(false)}
+          >
+            Sản phẩm
+          </Link>
+          <Link
+            to={ROUTER_URL.CONTACT}
+            className="block"
+            onClick={() => setMenuOpen(false)}
+          >
+            Liên hệ
+          </Link>
+        </div>
+      )}
     </header>
   );
 };

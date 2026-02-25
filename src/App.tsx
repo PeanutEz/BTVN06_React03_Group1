@@ -2,15 +2,18 @@ import { useEffect } from "react";
 import { Toaster } from "sonner";
 import AppRoutes from "./routes";
 import { useAuthStore, useCartStore } from "./store";
+import { useMenuCartStore } from "./store/menu-cart.store";
 
 export default function App() {
   const hydrate = useAuthStore((s) => s.hydrate);
   const hydrateCart = useCartStore((s) => s.hydrate);
+  const hydrateMenuCart = useMenuCartStore((s) => s.hydrate);
 
   useEffect(() => {
     hydrate();
     hydrateCart();
-  }, [hydrate, hydrateCart]);
+    hydrateMenuCart();
+  }, [hydrate, hydrateCart, hydrateMenuCart]);
 
   return (
     <>
