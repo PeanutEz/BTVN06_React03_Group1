@@ -1,0 +1,119 @@
+import type { JSX } from "react";
+import React from "react";
+import { ROUTER_URL } from "../router.const";
+
+export type ClientMenuItem = {
+	label: string;
+	path: string;
+	component: React.LazyExoticComponent<() => JSX.Element>;
+	isEnd?: boolean;
+	showInNav?: boolean;
+};
+
+export const CLIENT_MENU: ClientMenuItem[] = [
+	{
+		label: "Trang chủ",
+		path: ROUTER_URL.HOME,
+		component: React.lazy(() => import("../../pages/client/Landing.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
+		label: "Giỏ hàng",
+		path: ROUTER_URL.CART,
+		component: React.lazy(() => import("../../pages/client/Cart.page")),
+		isEnd: true,
+		showInNav: false,
+	},
+	{
+		label: "Danh mục",
+		path: ROUTER_URL.CATEGORIES,
+		component: React.lazy(() => import("@/pages/client/product/CategoryList.page")),
+		isEnd: true,
+		showInNav: false,
+	},
+	{
+		label: "Menu",
+		path: ROUTER_URL.MENU,
+		component: React.lazy(() => import("@/pages/client/menu/Menu.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
+		label: "Chi tiết sản phẩm",
+		path: ROUTER_URL.PRODUCT_DETAIL,
+		component: React.lazy(() => import("@/pages/client/product/ProductDetail.page")),
+		isEnd: false,
+		showInNav: false, // Hidden from nav
+	},
+	{
+		label: "Liên hệ",
+		path: ROUTER_URL.CONTACT,
+		component: React.lazy(() => import("../../pages/client/Contact.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
+		label: "Hệ thống không gian",
+		path: ROUTER_URL.STORE_LOCATOR,
+		component: React.lazy(() => import("../../pages/client/StoreLocator.page")),
+		isEnd: true,
+		showInNav: false,
+	},
+	{
+		label: "Tài khoản",
+		path: ROUTER_URL.ACCOUNT,
+		component: React.lazy(() => import("../../pages/client/customer/CustomerProfile.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
+		label: "Đơn hàng của tôi",
+		path: ROUTER_URL.CUSTOMER_ORDERS,
+		component: React.lazy(() => import("../../pages/client/orders/CustomerOrdersList.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
+		label: "Chi tiết đơn hàng",
+		path: ROUTER_URL.ORDER_DETAIL,
+		component: React.lazy(() => import("../../pages/client/orders/OrderDetail.page")),
+		isEnd: false,
+		showInNav: false,
+	},
+	{
+		label: "Điểm thưởng",
+		path: ROUTER_URL.LOYALTY_DASHBOARD,
+		component: React.lazy(() => import("../../pages/client/loyalty/LoyaltyDashboard.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
+		label: "Điểm tích lũy",
+		path: ROUTER_URL.LOYALTY_POINTS,
+		component: React.lazy(() => import("../../pages/client/loyalty/LoyaltyPoints.page")),
+		isEnd: true,
+		showInNav: false,
+	},
+	{
+		label: "Hệ thống hạng",
+		path: ROUTER_URL.LOYALTY_TIER,
+		component: React.lazy(() => import("../../pages/client/loyalty/Tier.page")),
+		isEnd: true,
+		showInNav: false,
+	},
+	{
+		label: "Lịch sử điểm",
+		path: ROUTER_URL.LOYALTY_HISTORY,
+		component: React.lazy(() => import("../../pages/client/loyalty/History.page")),
+		isEnd: true,
+		showInNav: false,
+	},
+	{
+		label: "Trang tĩnh",
+		path: ROUTER_URL.STATIC_PAGE,
+		component: React.lazy(() => import("../../pages/client/static/StaticPage.page")),
+		isEnd: false,
+		showInNav: false,
+	},
+];
