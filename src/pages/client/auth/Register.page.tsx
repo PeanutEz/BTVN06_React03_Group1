@@ -44,14 +44,12 @@ const RegisterPage = () => {
       });
       showSuccess("Đăng ký thành công. Vui lòng đăng nhập");
       navigate(ROUTER_URL.LOGIN, { replace: true });
-    } catch (error: unknown) {
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      const msg = axiosError?.response?.data?.message;
-      if (msg) {
-        showError(msg);
-      } else {
-        showError("Đăng ký thất bại. Vui lòng thử lại sau");
+    } catch (error) {
+      if (error instanceof Error && error.message === "EMAIL_EXISTS") {
+        showError("Email đã tồn tại. Vui lòng dùng email khác");
+        return;
       }
+      showError("Đăng ký thất bại. Vui lòng thử lại sau");
     }
   };
 

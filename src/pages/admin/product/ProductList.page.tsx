@@ -3,7 +3,6 @@ import { adminProductService, categories } from "@/services/product.service";
 import type { Product, ProductQueryParams } from "@/models/product.model";
 import { toast } from "sonner";
 import { ProductModal } from "@/components/product";
-import { Pagination } from "@/components";
 
 export default function ProductListPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -119,6 +118,9 @@ export default function ProductListPage() {
   const getCategoryName = (categoryId: number) => {
     return categories.find((c) => c.id === categoryId)?.name || "Unknown";
   };
+
+  // Calculate total pages
+  const totalPages = Math.ceil(pagination.total / pagination.limit);
 
   return (
     <div className="p-6">
@@ -321,13 +323,68 @@ export default function ProductListPage() {
                   ))}
                 </tbody>
               </table>
-            </div>            {/* Pagination */}
-            <Pagination
-              currentPage={pagination.page}
-              totalItems={pagination.total}
-              pageSize={pagination.limit}
-              onPageChange={(page) => setPagination((prev) => ({ ...prev, page }))}
-            />
+            </div>
+
+            {/* Pagination */}
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                Showing{" "}
+                <span className="font-medium">
+                  {(pagination.page - 1) * pagination.limit + 1}
+                </span>{" "}
+                to{" "}
+                <span className="font-medium">
+                  {Math.min(
+                    pagination.page * pagination.limit,
+                    pagination.total,
+                  )}
+                </span>{" "}
+                of <span className="font-medium">{pagination.total}</span>{" "}
+                results
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                  }
+                  disabled={pagination.page === 1}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <button
+                        key={page}
+                        onClick={() =>
+                          setPagination((prev) => ({ ...prev, page }))
+                        }
+                        className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                          pagination.page === page
+                            ? "bg-blue-600 text-white"
+                            : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ),
+                  )}
+                </div>
+
+                <button
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
+                  disabled={pagination.page === totalPages}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </>
         )}
       </div>

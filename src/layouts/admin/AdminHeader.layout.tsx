@@ -20,8 +20,8 @@ const AdminHeader = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = () => {
+    logout();
     setMenuOpen(false);
   };
 

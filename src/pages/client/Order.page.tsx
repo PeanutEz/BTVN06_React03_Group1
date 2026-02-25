@@ -55,7 +55,7 @@ const OrderPage = () => {
                             Thưởng thức hương vị tuyệt hảo từ Hylux Coffee
                         </p>
                         <Link
-                            to="/products"
+                            to="/menu"
                             className="inline-flex items-center gap-2 bg-white text-red-900 px-8 py-3.5 rounded-lg font-bold shadow-2xl hover:shadow-xl hover:scale-105 transition-all"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
