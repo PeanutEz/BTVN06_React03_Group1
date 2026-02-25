@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../../store/auth.store";
 import { ROUTER_URL } from "../../routes/router.const";
+import { changePassword } from "../../services/auth.service";
+import { showError, showSuccess } from "../../utils";
 
 type TabType = "profile" | "orders" | "security" | "address";
 
@@ -125,6 +127,41 @@ export default function AccountPage() {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [isChangingPw, setIsChangingPw] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!currentPw || !newPw || !confirmPw) {
+      showError("Vui lòng nhập đầy đủ các trường mật khẩu");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      showError("Mật khẩu xác nhận không khớp");
+      return;
+    }
+    setIsChangingPw(true);
+    try {
+      await changePassword(currentPw, newPw);
+      showSuccess("Đổi mật khẩu thành công");
+      setCurrentPw("");
+      setNewPw("");
+      setConfirmPw("");
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string }; status?: number } };
+      const status = axiosError?.response?.status;
+      if (status === 401) {
+        showError("Mật khẩu hiện tại không đúng");
+      } else if (status === 403) {
+        showError("Không thể đổi mật khẩu cho tài khoản này");
+      } else {
+        showError(axiosError?.response?.data?.message ?? "Đổi mật khẩu thất bại. Vui lòng thử lại");
+      }
+    } finally {
+      setIsChangingPw(false);
+    }
+  };
 
   // --- Address state ---
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -418,6 +455,8 @@ export default function AccountPage() {
                       <input
                         id="current-password"
                         type={showCurrentPw ? "text" : "password"}
+                        value={currentPw}
+                        onChange={(e) => setCurrentPw(e.target.value)}
                         placeholder="••••••••"
                         className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pr-12 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
@@ -433,6 +472,8 @@ export default function AccountPage() {
                       <input
                         id="new-password"
                         type={showNewPw ? "text" : "password"}
+                        value={newPw}
+                        onChange={(e) => setNewPw(e.target.value)}
                         placeholder="••••••••"
                         className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pr-12 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
@@ -448,6 +489,8 @@ export default function AccountPage() {
                       <input
                         id="confirm-password"
                         type={showConfirmPw ? "text" : "password"}
+                        value={confirmPw}
+                        onChange={(e) => setConfirmPw(e.target.value)}
                         placeholder="••••••••"
                         className="block w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 pr-12 text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       />
@@ -455,8 +498,12 @@ export default function AccountPage() {
                     </div>
                   </div>
 
-                  <button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
-                    Cập nhật mật khẩu
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={isChangingPw}
+                    className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isChangingPw ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
                   </button>
                 </div>
               </div>

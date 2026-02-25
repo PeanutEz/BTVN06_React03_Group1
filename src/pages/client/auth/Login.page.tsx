@@ -5,7 +5,7 @@ import { Button } from "../../../components";
 import { loginUser } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
-import { isAdminRole } from "../../../models";
+import { ROLE } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 import bgUserLogin from "../../../assets/bg-user-login.jpg";
@@ -13,7 +13,7 @@ import bgUserLogin from "../../../assets/bg-user-login.jpg";
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, login } = useAuthStore();
+  const { user, token, loginWithTokens, login } = useAuthStore();
 
   const {
     register,
@@ -23,33 +23,57 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (user) {
-      if (isAdminRole(user.role)) {
+      if (user.role === ROLE.ADMIN) {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
-        navigate(ROUTER_URL.ORDER, { replace: true });
+        navigate(ROUTER_URL.HOME, { replace: true });
       }
+    } else if (token) {
+      navigate(ROUTER_URL.HOME, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, token, navigate]);
 
-  const onSubmit = async (values: AuthCredentials) => {
-    const found = await loginUser(values);
-    if (!found) {
-      showError("Sai email hoặc mật khẩu");
-      return;
-    }
-
-    login(found);
-    showSuccess("Đăng nhập thành công");
-    const redirectTo = (location.state as { from?: Location })?.from?.pathname;
-    if (redirectTo) {
-      navigate(redirectTo, { replace: true });
-      return;
-    }
-
-    if (isAdminRole(found.role)) {
+  const handleMockLogin = (role: typeof ROLE[keyof typeof ROLE]) => {
+    const mockUser = {
+      id: `mock-${role.toLowerCase()}-id`,
+      name: role === ROLE.ADMIN ? "Admin Demo" : "Client Demo",
+      email: role === ROLE.ADMIN ? "admin@demo.com" : "client@demo.com",
+      password: "",
+      role,
+      avatar: "",
+      createDate: new Date().toISOString(),
+      updateDate: new Date().toISOString(),
+    };
+    login(mockUser);
+    showSuccess(`Đăng nhập nhanh với quyền ${role}`);
+    if (role === ROLE.ADMIN) {
       navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
     } else {
+      navigate(ROUTER_URL.HOME, { replace: true });
+    }
+  };
+
+  const onSubmit = async (values: AuthCredentials) => {
+    try {
+      const tokens = await loginUser(values);
+      loginWithTokens(tokens);
+      showSuccess("Đăng nhập thành công");
+      const redirectTo = (location.state as { from?: Location })?.from?.pathname;
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+        return;
+      }
       navigate(ROUTER_URL.ORDER, { replace: true });
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string }; status?: number } };
+      const status = axiosError?.response?.status;
+      if (status === 400 || status === 401) {
+        showError("Sai email hoặc mật khẩu");
+      } else if (status === 403) {
+        showError("Tài khoản đã bị khóa hoặc xóa");
+      } else {
+        showError(axiosError?.response?.data?.message ?? "Đăng nhập thất bại. Vui lòng thử lại");
+      }
     }
   };
 
@@ -87,6 +111,30 @@ const LoginPage = () => {
               {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </form>
+
+          <div className="mt-4 space-y-3">
+            <div className="relative flex items-center">
+              <div className="flex-grow border-t border-slate-200" />
+              <span className="mx-3 shrink text-xs text-slate-400">Đăng nhập nhanh (API chưa hoạt động)</span>
+              <div className="flex-grow border-t border-slate-200" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => handleMockLogin(ROLE.USER)}
+                className="w-full rounded-lg border border-primary-300 bg-primary-50 px-4 py-2.5 text-sm font-semibold text-primary-700 transition hover:bg-primary-100 active:scale-95"
+              >
+                Client
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMockLogin(ROLE.ADMIN)}
+                className="w-full rounded-lg border border-slate-300 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200 active:scale-95"
+              >
+                Admin
+              </button>
+            </div>
+          </div>
 
           <div className="text-center space-y-2">
             <p className="text-sm text-slate-600">
