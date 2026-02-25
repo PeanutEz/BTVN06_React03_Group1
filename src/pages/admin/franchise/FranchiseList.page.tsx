@@ -5,10 +5,14 @@ import { STORE_STATUS_COLORS, STORE_STATUS_LABELS } from "../../../models/store.
 import { fetchStores } from "../../../services/store.service";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../../routes/router.const";
+import Pagination from "../../../components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 const FranchiseListPage = () => {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
 
   const load = async () => {
@@ -24,6 +28,12 @@ const FranchiseListPage = () => {
   useEffect(() => {
     load();
   }, []);
+
+  const totalPages = Math.ceil(stores.length / ITEMS_PER_PAGE);
+  const paginatedStores = stores.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   return (
     <div className="space-y-6">
@@ -57,7 +67,7 @@ const FranchiseListPage = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {stores.map((s) => (
+            {paginatedStores.map((s) => (
               <tr key={s.id} className="hover:bg-slate-50">
                 <td className="px-4 py-3 font-mono text-xs text-slate-500">{s.code}</td>
                 <td className="px-4 py-3">
@@ -111,6 +121,15 @@ const FranchiseListPage = () => {
             )}
           </tbody>
         </table>
+        <div className="px-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={stores.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </div>
       </div>
     </div>
   );
