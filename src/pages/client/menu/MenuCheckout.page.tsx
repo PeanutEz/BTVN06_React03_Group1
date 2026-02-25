@@ -300,7 +300,7 @@ export default function MenuCheckoutPage() {
                 onClick={handleOrder}
                 disabled={isOrdering}
                 className={cn(
-                  "mt-6 w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm transition-all duration-150",
+                  "mt-3 w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl font-semibold text-sm transition-all duration-150",
                   isOrdering
                     ? "bg-amber-300 cursor-not-allowed text-white"
                     : "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200",

@@ -60,7 +60,7 @@ export default function MenuOrderPanel({ visible = true, onRequestClose }: MenuO
         )}
       </div>
 
-      {/* Scrollable content */}
+      {/* Scrollable content: items + summary + button all flow together */}
       <div className="flex-1 overflow-y-auto">
         {/* Cart items */}
         <div className="divide-y divide-gray-50">
@@ -130,19 +130,19 @@ export default function MenuOrderPanel({ visible = true, onRequestClose }: MenuO
             <span className="text-amber-600">{fmt(total)}</span>
           </div>
         </div>
-      </div>
 
-      {/* CTA — navigate to /checkout */}
-      <div className="shrink-0 border-t border-gray-100 bg-white p-4">
-        <button
-          onClick={() => navigate(ROUTER_URL.CHECKOUT)}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-150 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          Xác nhận đặt hàng · {fmt(total)}
-        </button>
+        {/* CTA — sticky at bottom of scroll area */}
+        <div className="sticky bottom-0 border-t border-gray-100 bg-white p-4">
+          <button
+            onClick={() => navigate(ROUTER_URL.CHECKOUT)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-150 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Xác nhận đặt hàng · {fmt(total)}
+          </button>
+        </div>
       </div>
     </div>
   );
