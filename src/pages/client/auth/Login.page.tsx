@@ -3,7 +3,6 @@ import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
 import { loginUser } from "../../../services/auth.service";
-import { fetchUsers } from "../../../services/user.service";
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { isAdminRole } from "../../../models";
@@ -55,31 +54,19 @@ const LoginPage = () => {
     }
   };
 
-  const handleQuickLogin = async (role: "admin" | "client") => {
-    setQuickLogging(true);
-    try {
-      const users = await fetchUsers();
-      const target = role === "admin"
-        ? users.find((u) => isAdminRole(u.role))
-        : users.find((u) => !isAdminRole(u.role));
+  const handleQuickLogin = (role: "admin" | "client") => {
+    const now = new Date().toISOString();
+    const mockUser = role === "admin"
+      ? { id: "1", name: "Admin", email: "admin@gmail.com", password: "", role: "Admin" as const, avatar: "https://i.pravatar.cc/150?img=1", createDate: now, updateDate: now }
+      : { id: "2", name: "User", email: "user@gmail.com", password: "", role: "User" as const, avatar: "https://i.pravatar.cc/150?img=4", createDate: now, updateDate: now };
 
-      if (!target) {
-        showError(`Không tìm thấy tài khoản ${role}`);
-        return;
-      }
+    login(mockUser);
+    showSuccess(`Đăng nhập nhanh (${mockUser.email})`);
 
-      login(target);
-      showSuccess(`Đăng nhập nhanh (${target.email})`);
-
-      if (role === "admin") {
-        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
-      } else {
-        navigate(ROUTER_URL.HOME, { replace: true });
-      }
-    } catch {
-      showError("Đăng nhập nhanh thất bại");
-    } finally {
-      setQuickLogging(false);
+    if (role === "admin") {
+      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+    } else {
+      navigate(ROUTER_URL.HOME, { replace: true });
     }
   };
 
