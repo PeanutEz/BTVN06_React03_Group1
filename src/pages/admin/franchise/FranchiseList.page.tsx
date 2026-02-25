@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Pagination } from "../../../components";
-
-const PAGE_SIZE = 10;
+import { Button } from "../../../components";
 import type { Store } from "../../../models/store.model";
 import { STORE_STATUS_COLORS, STORE_STATUS_LABELS } from "../../../models/store.model";
 import { fetchStores } from "../../../services/store.service";
@@ -11,7 +9,6 @@ import { ROUTER_URL } from "../../../routes/router.const";
 const FranchiseListPage = () => {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
 
   const load = async () => {
@@ -23,11 +20,10 @@ const FranchiseListPage = () => {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     load();
   }, []);
-
-  const pagedStores = stores.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -59,8 +55,9 @@ const FranchiseListPage = () => {
               <th className="px-4 py-3 text-right">Doanh thu</th>
               <th className="px-4 py-3">Thao tác</th>
             </tr>
-          </thead>          <tbody className="divide-y divide-slate-200">
-            {pagedStores.map((s) => (
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {stores.map((s) => (
               <tr key={s.id} className="hover:bg-slate-50">
                 <td className="px-4 py-3 font-mono text-xs text-slate-500">{s.code}</td>
                 <td className="px-4 py-3">
@@ -97,7 +94,8 @@ const FranchiseListPage = () => {
                   </div>
                 </td>
               </tr>
-            ))}            {stores.length === 0 && !loading && (
+            ))}
+            {stores.length === 0 && !loading && (
               <tr>
                 <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
                   Không có chi nhánh
@@ -113,12 +111,6 @@ const FranchiseListPage = () => {
             )}
           </tbody>
         </table>
-        <Pagination
-          currentPage={currentPage}
-          totalItems={stores.length}
-          pageSize={PAGE_SIZE}
-          onPageChange={setCurrentPage}
-        />
       </div>
     </div>
   );
