@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import { ROUTER_URL } from "@/routes/router.const";
 import { useCartStore } from "@/store";
 import { useAuthStore } from "@/store/auth.store";
@@ -15,7 +15,6 @@ export default function CartPage() {
   const navigate = useNavigate();
   const { items, updateQuantity, removeFromCart, clearCart } = useCartStore();
   const { user } = useAuthStore();
-  const [paymentMethod, setPaymentMethod] = useState<"COD" | "MOMO" | "VNPAY">("COD");
 
   // 🔐 Check đăng nhập (theo egg)
   useEffect(() => {
@@ -27,9 +26,6 @@ export default function CartPage() {
 
   const totalQuantity = items.reduce((sum, x) => sum + x.quantity, 0);
   const subtotal = items.reduce((sum, x) => sum + x.price * x.quantity, 0);
-  const shippingFee = useMemo(() => (subtotal > 300000 ? 0 : 15000), [subtotal]);
-  const discount = useMemo(() => (subtotal >= 500000 ? Math.floor(subtotal * 0.05) : 0), [subtotal]);
-  const finalTotal = subtotal + shippingFee - discount;
 
   if (items.length === 0) {
     return (
@@ -41,7 +37,7 @@ export default function CartPage() {
           </p>
           <button
             className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-full font-semibold transition-colors"
-            onClick={() => navigate(ROUTER_URL.MENU)}
+            onClick={() => navigate(ROUTER_URL.PRODUCTS)}
           >
             Tiếp tục mua sắm
           </button>
@@ -56,10 +52,10 @@ export default function CartPage() {
       {/* Breadcrumb (theo egg) */}
       <nav className="flex items-center gap-2 text-sm">
         <Link
-          to={ROUTER_URL.MENU}
+          to="/order"
           className="text-gray-500 hover:text-amber-600 transition-colors"
         >
-          Menu
+          Đặt hàng
         </Link>
         <span className="text-gray-400">/</span>
         <span className="text-gray-900 font-medium">Giỏ hàng</span>
@@ -76,7 +72,7 @@ export default function CartPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            to={ROUTER_URL.MENU}
+            to={ROUTER_URL.PRODUCTS}
             className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 font-semibold text-slate-700"
           >
             + Thêm sản phẩm
@@ -145,79 +141,6 @@ export default function CartPage() {
           </div>
         ))}
       </div>
-
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-md p-5">
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Checkout thanh toán</h2>
-
-          <p className="text-sm text-slate-600 mb-3">Chọn phương thức thanh toán</p>
-          <div className="space-y-2">
-            {[
-              { key: "COD", label: "Thanh toán khi nhận hàng (COD)", note: "Thanh toán tiền mặt khi nhận đơn" },
-              { key: "MOMO", label: "Ví MoMo", note: "Quét QR hoặc thanh toán qua ứng dụng MoMo" },
-              { key: "VNPAY", label: "VNPay", note: "Thanh toán qua thẻ ATM / Visa / Mastercard" },
-            ].map((method) => (
-              <label
-                key={method.key}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
-                  paymentMethod === method.key
-                    ? "border-amber-500 bg-amber-50"
-                    : "border-slate-200 hover:border-amber-300"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="payment-method"
-                  checked={paymentMethod === method.key}
-                  onChange={() => setPaymentMethod(method.key as "COD" | "MOMO" | "VNPAY")}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block font-semibold text-slate-900">{method.label}</span>
-                  <span className="block text-sm text-slate-500">{method.note}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <aside className="bg-white rounded-2xl shadow-md p-5 h-fit">
-          <h3 className="text-lg font-bold text-slate-900 mb-4">Tóm tắt đơn hàng</h3>
-
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between text-slate-600">
-              <span>Tạm tính</span>
-              <span>{formatPrice(subtotal)}</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-600">
-              <span>Phí vận chuyển</span>
-              <span>{shippingFee === 0 ? "Miễn phí" : formatPrice(shippingFee)}</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-600">
-              <span>Giảm giá</span>
-              <span>{discount > 0 ? `- ${formatPrice(discount)}` : formatPrice(0)}</span>
-            </div>
-          </div>
-
-          <div className="my-4 h-px bg-slate-200" />
-
-          <div className="flex items-center justify-between mb-4">
-            <span className="font-semibold text-slate-900">Tổng thanh toán</span>
-            <span className="text-xl font-bold text-amber-600">{formatPrice(finalTotal)}</span>
-          </div>
-
-          <button
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white rounded-xl py-3 font-semibold transition-colors"
-            onClick={() => {
-              toast.success(`Đặt hàng thành công với phương thức ${paymentMethod}`);
-              clearCart();
-              navigate(ROUTER_URL.MENU);
-            }}
-          >
-            Tiến hành thanh toán
-          </button>
-        </aside>
-      </section>
     </div>
   );
 }

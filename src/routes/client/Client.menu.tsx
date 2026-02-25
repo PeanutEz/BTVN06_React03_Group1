@@ -19,6 +19,13 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: true,
 	},
 	{
+		label: "Đặt hàng",
+		path: ROUTER_URL.ORDER,
+		component: React.lazy(() => import("../../pages/client/Order.page")),
+		isEnd: true,
+		showInNav: true,
+	},
+	{
 		label: "Giỏ hàng",
 		path: ROUTER_URL.CART,
 		component: React.lazy(() => import("../../pages/client/Cart.page")),
@@ -33,9 +40,9 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: false,
 	},
 	{
-		label: "Menu",
-		path: ROUTER_URL.MENU,
-		component: React.lazy(() => import("@/pages/client/menu/Menu.page")),
+		label: "Sản phẩm",
+		path: ROUTER_URL.PRODUCTS,
+		component: React.lazy(() => import("@/pages/client/product/ProductList.page")),
 		isEnd: true,
 		showInNav: true,
 	},
@@ -63,7 +70,7 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 	{
 		label: "Tài khoản",
 		path: ROUTER_URL.ACCOUNT,
-		component: React.lazy(() => import("../../pages/client/customer/CustomerProfile.page")),
+		component: React.lazy(() => import("../../pages/client/Account.page")),
 		isEnd: true,
 		showInNav: true,
 	},

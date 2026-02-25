@@ -9,7 +9,7 @@ const AdminLayout = () => {
       <AdminHeader />
       <div className="flex flex-1">
         <AdminSidebar />
-        <div className="ml-20 flex flex-1 flex-col transition-all duration-300 peer-hover:ml-60">
+        <div className="ml-60 flex flex-1 flex-col">
           <main className="flex-1 px-6 py-6">
             <Outlet />
           </main>

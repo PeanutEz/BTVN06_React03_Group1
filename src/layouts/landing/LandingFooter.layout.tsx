@@ -31,7 +31,7 @@ const LandingFooter = () => {
             <h4 className="font-bold text-lg mb-4 text-amber-200">Liên Kết</h4>
             <ul className="space-y-2">
               <li>
-                <Link to={ROUTER_URL.MENU} className="text-slate-400 hover:text-white transition-colors">
+                <Link to={ROUTER_URL.ORDER} className="text-slate-400 hover:text-white transition-colors">
                   Đặt Hàng
                 </Link>
               </li>
