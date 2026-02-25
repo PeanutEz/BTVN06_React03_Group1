@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "../../../components";
+import { Button, Pagination } from "../../../components";
+
+const PAGE_SIZE = 10;
 import type { CustomerDisplay, LoyaltyTier } from "../../../models/customer.model";
 import {
   LOYALTY_TIER_LABELS,
@@ -18,6 +20,7 @@ import { showSuccess, showError } from "../../../utils";
 const CustomerListPage = () => {
   const [customers, setCustomers] = useState<CustomerDisplay[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [tierFilter, setTierFilter] = useState<LoyaltyTier | "">("");
   const [showModal, setShowModal] = useState(false);
@@ -101,7 +104,6 @@ const CustomerListPage = () => {
     }
     setShowModal(true);
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -121,6 +123,8 @@ const CustomerListPage = () => {
       setLoading(false);
     }
   };
+
+  const pagedCustomers = customers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -202,9 +206,8 @@ const CustomerListPage = () => {
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Thao tác</th>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {customers.map((customer) => (
+            </thead>          <tbody className="divide-y divide-slate-200">
+              {pagedCustomers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -268,8 +271,7 @@ const CustomerListPage = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
-              {customers.length === 0 && !loading && (
+              ))}              {customers.length === 0 && !loading && (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
                     Không có khách hàng
@@ -285,6 +287,12 @@ const CustomerListPage = () => {
               )}
             </tbody>
           </table>
+          <Pagination
+            currentPage={currentPage}
+            totalItems={customers.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </div>
 
