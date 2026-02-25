@@ -101,7 +101,7 @@ export default function Home() {
                         <p className="text-gray-600 mt-1">Những món được yêu thích nhất</p>
                     </div>
                     <Link
-                        to="/products"
+                        to="/menu"
                         className="text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1"
                     >
                         Xem tất cả

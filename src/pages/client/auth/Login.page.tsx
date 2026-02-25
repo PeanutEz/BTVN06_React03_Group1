@@ -26,7 +26,7 @@ const LoginPage = () => {
       if (isAdminRole(user.role)) {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
-        navigate(ROUTER_URL.ORDER, { replace: true });
+        navigate(ROUTER_URL.MENU, { replace: true });
       }
     }
   }, [user, navigate]);
@@ -49,7 +49,7 @@ const LoginPage = () => {
     if (isAdminRole(found.role)) {
       navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
     } else {
-      navigate(ROUTER_URL.ORDER, { replace: true });
+      navigate(ROUTER_URL.MENU, { replace: true });
     }
   };
 

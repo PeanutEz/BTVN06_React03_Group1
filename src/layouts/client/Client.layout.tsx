@@ -4,11 +4,15 @@ import ClientFooter from "./ClientFooter.layout";
 
 const ClientLayout = () => {
   return (
-    <div className="min-h-screen bg-[#f8f1ea] text-[#2f1a12] flex flex-col">
+    <div className="min-h-screen bg-white text-gray-900 flex flex-col antialiased">
       <ClientHeader />
-      <main className="mx-auto max-w-6xl px-4 py-8 flex-1">
-        <Outlet />
+
+      <main className="flex-1 w-full">
+        <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
+          <Outlet />
+        </div>
       </main>
+
       <ClientFooter />
     </div>
   );

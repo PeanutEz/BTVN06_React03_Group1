@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button, Pagination } from "../../../components";
-
-const PAGE_SIZE = 10;
+import { Button } from "../../../components";
 import type { Payment, PaymentStatus, PaymentMethodType } from "../../../models/payment.model";
 import {
   PAYMENT_STATUS_LABELS,
@@ -15,7 +13,6 @@ import { ROUTER_URL } from "../../../routes/router.const";
 const PaymentListPage = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [methodFilter, setMethodFilter] = useState<PaymentMethodType | "">("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | "">("");
 
@@ -51,14 +48,13 @@ const PaymentListPage = () => {
     setStatusFilter("");
     loadPayments();
   };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
     }).format(amount);
   };
-
-  const pagedPayments = payments.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -131,8 +127,9 @@ const PaymentListPage = () => {
                 <th className="px-4 py-3">Ngày tạo</th>
                 <th className="px-4 py-3">Thao tác</th>
               </tr>
-            </thead>            <tbody className="divide-y divide-slate-200">
-              {pagedPayments.map((payment) => (
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {payments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <span className="font-semibold text-primary-600">PT-{String(payment.id).padStart(4, '0')}</span>
@@ -182,7 +179,8 @@ const PaymentListPage = () => {
                     </Link>
                   </td>
                 </tr>
-              ))}              {payments.length === 0 && !loading && (
+              ))}
+              {payments.length === 0 && !loading && (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">
                     Không có thanh toán
@@ -199,12 +197,6 @@ const PaymentListPage = () => {
             </tbody>
           </table>
         </div>
-        <Pagination
-          currentPage={currentPage}
-          totalItems={payments.length}
-          pageSize={PAGE_SIZE}
-          onPageChange={setCurrentPage}
-        />
       </div>
     </div>
   );

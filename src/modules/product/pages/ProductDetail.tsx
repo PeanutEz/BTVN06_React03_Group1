@@ -77,7 +77,7 @@ export default function ProductDetail() {
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{error || "Không tìm thấy sản phẩm"}</h3>
                 <p className="text-gray-600 mb-6">Sản phẩm bạn tìm kiếm không tồn tại hoặc đã bị xóa</p>
                 <button
-                    onClick={() => navigate("/products")}
+                    onClick={() => navigate("/menu")}
                     className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-full font-medium transition-colors"
                 >
                     Quay lại danh sách
@@ -100,8 +100,8 @@ export default function ProductDetail() {
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
-                <Link to="/products" className="text-gray-500 hover:text-amber-600 transition-colors">
-                    Sản phẩm
+                <Link to="/menu" className="text-gray-500 hover:text-amber-600 transition-colors">
+                    Menu
                 </Link>
                 {category && (
                     <>
