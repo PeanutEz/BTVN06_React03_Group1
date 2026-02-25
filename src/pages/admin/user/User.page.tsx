@@ -63,12 +63,6 @@ const UserPage = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc muốn xóa user này?")) return;
-    await deleteUser(id);
-    await load();
-  };
-
   const handleOpenEdit = (u: User) => {
     setEditingUser(u);
     setEditRole(u.role);
