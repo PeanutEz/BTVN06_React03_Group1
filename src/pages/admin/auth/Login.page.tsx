@@ -40,6 +40,22 @@ const AdminLoginPage = () => {
     navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
   };
 
+  const handleQuickLogin = (role: "admin" | "client") => {
+    const now = new Date().toISOString();
+    const mockUser = role === "admin"
+      ? { id: "1", name: "Admin", email: "admin@gmail.com", password: "", role: "Admin" as const, avatar: "https://i.pravatar.cc/150?img=1", createDate: now, updateDate: now }
+      : { id: "2", name: "User", email: "user@gmail.com", password: "", role: "User" as const, avatar: "https://i.pravatar.cc/150?img=4", createDate: now, updateDate: now };
+
+    login(mockUser);
+    showSuccess(`Đăng nhập nhanh (${mockUser.email})`);
+
+    if (role === "admin") {
+      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+    } else {
+      navigate(ROUTER_URL.HOME, { replace: true });
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-cover bg-center bg-no-repeat px-4" style={{ backgroundImage: `url(${bgAdminLogin})` }}>
       <div className="absolute inset-0 bg-black/20" />
@@ -72,6 +88,26 @@ const AdminLoginPage = () => {
             {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
           </Button>
         </form>
+
+        <div className="mt-6 space-y-3">
+          <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Đăng nhập nhanh</p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => handleQuickLogin("client")}
+              className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
+            >
+              🏠 Client
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin("admin")}
+              className="flex-1 rounded-lg border border-primary-500 bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/30 transition hover:from-primary-600 hover:to-primary-700"
+            >
+              🛡️ Admin
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

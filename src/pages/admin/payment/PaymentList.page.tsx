@@ -9,15 +9,20 @@ import {
 } from "../../../models/payment.model";
 import { fetchPayments, filterPayments } from "../../../services/payment.service";
 import { ROUTER_URL } from "../../../routes/router.const";
+import Pagination from "../../../components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 const PaymentListPage = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [methodFilter, setMethodFilter] = useState<PaymentMethodType | "">("");
-  const [statusFilter, setStatusFilter] = useState<PaymentStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<PaymentStatus | "">("")
+  const [currentPage, setCurrentPage] = useState(1);;
 
   const loadPayments = async () => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       const data = await fetchPayments();
       setPayments(data);
@@ -55,6 +60,12 @@ const PaymentListPage = () => {
       currency: "VND",
     }).format(amount);
   };
+
+  const totalPages = Math.ceil(payments.length / ITEMS_PER_PAGE);
+  const paginatedPayments = payments.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   return (
     <div className="space-y-6">
@@ -129,7 +140,7 @@ const PaymentListPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {payments.map((payment) => (
+              {paginatedPayments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <span className="font-semibold text-primary-600">PT-{String(payment.id).padStart(4, '0')}</span>
@@ -196,6 +207,15 @@ const PaymentListPage = () => {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={payments.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
         </div>
       </div>
     </div>

@@ -156,10 +156,35 @@ const adminNav = [
   },
 ];
 
-const AdminSidebar = () => {
+interface AdminSidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+const AdminSidebar = ({ isOpen, onToggle }: AdminSidebarProps) => {
   return (
-    <aside className="peer group fixed left-0 z-40 h-[calc(100vh-72px)] w-60 border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/30 backdrop-blur-xl">
+    <aside
+      className="fixed left-0 z-40 h-[calc(100vh-72px)] border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 backdrop-blur-xl transition-all duration-300"
+      style={{ width: isOpen ? 240 : 80 }}
+    >
       <div className="flex h-full flex-col py-6">
+        {/* Toggle button */}
+        <div className={`mb-4 flex px-3 ${isOpen ? "justify-end" : "justify-center"}`}>
+          <button
+            onClick={onToggle}
+            className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white"
+            title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {isOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              )}
+            </svg>
+          </button>
+        </div>
+
         <nav className="flex-1 space-y-2 px-3">
           {adminNav.map((item) => (
             <NavLink
@@ -171,9 +196,11 @@ const AdminSidebar = () => {
               end
             >
               <span className="flex-shrink-0">{item.icon}</span>
-              <span className="whitespace-nowrap text-sm font-medium">
-                {item.label}
-              </span>
+              {isOpen && (
+                <span className="whitespace-nowrap text-sm font-medium">
+                  {item.label}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

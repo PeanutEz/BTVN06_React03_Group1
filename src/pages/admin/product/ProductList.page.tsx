@@ -326,21 +326,21 @@ export default function ProductListPage() {
             </div>
 
             {/* Pagination */}
-            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Showing{" "}
-                <span className="font-medium">
+            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+              <div className="text-sm text-slate-500">
+                Hiển thị{" "}
+                <span className="font-semibold text-slate-700">
                   {(pagination.page - 1) * pagination.limit + 1}
                 </span>{" "}
-                to{" "}
-                <span className="font-medium">
+                –{" "}
+                <span className="font-semibold text-slate-700">
                   {Math.min(
                     pagination.page * pagination.limit,
                     pagination.total,
                   )}
                 </span>{" "}
-                of <span className="font-medium">{pagination.total}</span>{" "}
-                results
+                trong <span className="font-semibold text-slate-700">{pagination.total}</span>{" "}
+                kết quả
               </div>
 
               <div className="flex gap-2">
@@ -349,9 +349,9 @@ export default function ProductListPage() {
                     setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
                   }
                   disabled={pagination.page === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Previous
+                  Trước
                 </button>
 
                 <div className="flex gap-1">
@@ -362,10 +362,10 @@ export default function ProductListPage() {
                         onClick={() =>
                           setPagination((prev) => ({ ...prev, page }))
                         }
-                        className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                        className={`min-w-[38px] rounded-lg border px-3 py-2 text-sm font-medium transition ${
                           pagination.page === page
-                            ? "bg-blue-600 text-white"
-                            : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+                            ? "border-primary-500 bg-gradient-to-b from-primary-500 to-primary-600 text-white shadow-sm shadow-primary-500/40"
+                            : "border-slate-200 bg-white text-slate-600 hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
                         }`}
                       >
                         {page}
@@ -379,9 +379,9 @@ export default function ProductListPage() {
                     setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
                   }
                   disabled={pagination.page === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Next
+                  Sau
                 </button>
               </div>
             </div>
