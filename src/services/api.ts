@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://696ee319a06046ce6184c729.mockapi.io/btvn05",
+  // baseURL: "https://696ee319a06046ce6184c729.mockapi.io/btvn05",
+  baseURL: "https://ecommerce-franchise-training-nodejs.vercel.app/api",
   timeout: 20000,
   headers: {
     "Content-Type": "application/json",
