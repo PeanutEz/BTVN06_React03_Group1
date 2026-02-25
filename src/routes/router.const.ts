@@ -7,13 +7,39 @@ export const ROUTER_URL = {
   REGISTER: "/register",
   RESET_PASSWORD: "/reset-password",
   PROFILE: "/profile",
-  ACCOUNT: "/account",
+  ACCOUNT: "/customer/account",
   CART: "/cart",
+
+  // Customer account sub-pages
+  CUSTOMER_PROFILE: "/customer/account",
+  CUSTOMER_ADDRESS_BOOK: "/customer/address-book",
+  CUSTOMER_MEMBERSHIP: "/customer/membership",
+  CUSTOMER_VOUCHERS: "/customer/vouchers",
+  CUSTOMER_ORDER_HISTORY: "/customer/order",
+  CUSTOMER_CART: "/customer/cart",
+  CUSTOMER_FAVORITES: "/customer/product-favorite",
+  CUSTOMER_ORDERED: "/customer/ordered",
+  CUSTOMER_SUPPORT: "/customer/support",
 
   // Browse & Product
   CATEGORIES: "/categories",
   PRODUCTS: "/products",
   PRODUCT_DETAIL: "/products/:id",
+
+  // Orders
+  ORDERS_LIST: "/orders",
+  ORDERS_STAFF: "/staff/orders", // KAN-86: Staff POS list
+  ORDER_DETAIL: "/orders/:id",
+  CUSTOMER_ORDERS: "/my-orders",
+
+  // Loyalty
+  LOYALTY_DASHBOARD: "/loyalty",
+  LOYALTY_POINTS: "/loyalty/points",
+  LOYALTY_TIER: "/loyalty/tier",
+  LOYALTY_HISTORY: "/loyalty/history",
+
+  // Static Pages
+  STATIC_PAGE: "/page/:slug",
 
   ADMIN: "/admin",
   ADMIN_LOGIN: "/admin/login",

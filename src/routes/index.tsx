@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import LoadingLayout from "../layouts/Loading.layout";
 import ClientLayout from "../layouts/client/Client.layout";
+import CustomerAccountLayout from "../layouts/client/CustomerAccount.layout";
 import LandingLayout from "../layouts/landing/Landing.layout";
 import AdminLayout from "../layouts/admin/Admin.layout";
 import AdminGuard from "./guard/AdminGuard";
@@ -15,6 +16,15 @@ import AdminLoginPage from "../pages/admin/auth/Login.page";
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
 const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
+const StaffOrdersPage = React.lazy(() => import("../pages/orders/OrdersList.page"));
+const CustomerProfilePage = React.lazy(() => import("../pages/client/customer/CustomerProfile.page"));
+const CustomerAddressBookPage = React.lazy(() => import("../pages/client/customer/CustomerAddressBook.page"));
+const CustomerOrdersPage = React.lazy(() => import("../pages/client/customer/CustomerOrders.page"));
+const CustomerFavoritesPage = React.lazy(() => import("../pages/client/customer/CustomerFavorites.page"));
+const LoyaltyDashboardPage = React.lazy(() => import("../pages/client/loyalty/LoyaltyDashboard.page"));
+const LoyaltyPointsPage = React.lazy(() => import("../pages/client/loyalty/LoyaltyPoints.page"));
+const CartPage = React.lazy(() => import("../pages/client/Cart.page"));
+const ContactPage = React.lazy(() => import("../pages/client/Contact.page"));
 
 function AppRoutes() {
   return (
@@ -26,11 +36,28 @@ function AppRoutes() {
             <Route path={ROUTER_URL.HOME} element={<LandingPage />} />
           </Route>
 
+          {/* Staff Orders (KAN-86) */}
+          <Route element={<ClientLayout />}>
+            <Route path={ROUTER_URL.ORDERS_STAFF} element={<StaffOrdersPage />} />
+          </Route>
+
           {/* Public client pages with standard header */}
           <Route element={<ClientLayout />}>
-            {CLIENT_MENU.filter(item => item.path !== ROUTER_URL.HOME).map((item) => (
+            {CLIENT_MENU.filter((item) => item.path !== ROUTER_URL.HOME && item.path !== ROUTER_URL.ACCOUNT).map((item) => (
               <Route key={item.path} path={item.path} element={<item.component />} />
             ))}
+
+            <Route path="customer" element={<CustomerAccountLayout />}>
+              <Route path="account" element={<CustomerProfilePage />} />
+              <Route path="address-book" element={<CustomerAddressBookPage />} />
+              <Route path="membership" element={<LoyaltyDashboardPage />} />
+              <Route path="vouchers" element={<LoyaltyPointsPage />} />
+              <Route path="order" element={<CustomerOrdersPage />} />
+              <Route path="cart" element={<CartPage />} />
+              <Route path="product-favorite" element={<CustomerFavoritesPage />} />
+              <Route path="ordered" element={<CustomerOrdersPage />} />
+              <Route path="support" element={<ContactPage />} />
+            </Route>
           </Route>
 
           {/* Client auth */}
