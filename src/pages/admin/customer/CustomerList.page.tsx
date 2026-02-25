@@ -14,12 +14,16 @@ import {
 } from "../../../services/customer.service";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
+import Pagination from "../../../components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 const CustomerListPage = () => {
   const [customers, setCustomers] = useState<CustomerDisplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [tierFilter, setTierFilter] = useState<LoyaltyTier | "">("");
+  const [tierFilter, setTierFilter] = useState<LoyaltyTier | "">("")
+  const [currentPage, setCurrentPage] = useState(1);;
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDisplay | null>(null);
   const [formData, setFormData] = useState({
@@ -33,6 +37,7 @@ const CustomerListPage = () => {
 
   const loadCustomers = async () => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       const data = await fetchCustomers();
       setCustomers(data);
@@ -122,6 +127,12 @@ const CustomerListPage = () => {
     }
   };
 
+  const totalPages = Math.ceil(customers.length / ITEMS_PER_PAGE);
+  const paginatedCustomers = customers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -204,7 +215,7 @@ const CustomerListPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {customers.map((customer) => (
+              {paginatedCustomers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -285,6 +296,15 @@ const CustomerListPage = () => {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={customers.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
         </div>
       </div>
 

@@ -7,6 +7,9 @@ import { fetchOrders, filterOrders, searchOrders } from "../../../services/order
 import { fetchActiveStores } from "../../../services/store.service";
 import type { Store } from "../../../models/store.model";
 import { ROUTER_URL } from "../../../routes/router.const";
+import Pagination from "../../../components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 const OrderListPage = () => {
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
@@ -17,9 +20,11 @@ const OrderListPage = () => {
   const [storeFilter, setStoreFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadOrders = async () => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       const data = await fetchOrders();
       setOrders(data);
@@ -87,6 +92,12 @@ const OrderListPage = () => {
       currency: "VND",
     }).format(amount);
   };
+
+  const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+  const paginatedOrders = orders.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   return (
     <div className="space-y-6">
@@ -198,7 +209,7 @@ const OrderListPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {orders.map((order) => (
+              {paginatedOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <span className="font-semibold text-primary-600">{order.code}</span>
@@ -257,6 +268,15 @@ const OrderListPage = () => {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={orders.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
         </div>
       </div>
     </div>

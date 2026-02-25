@@ -20,6 +20,21 @@ export async function fetchUsers(): Promise<User[]> {
 	}
 }
 
+export async function createUser(
+	data: Omit<User, "id" | "createDate" | "updateDate">
+): Promise<User> {
+	try {
+		const response = await api.post<User>("/users", data);
+		return response.data ?? {};
+	} catch (error) {
+		if (getErrorStatus(error) === 404) {
+			const response = await api.post<User>("/user", data);
+			return response.data ?? {};
+		}
+		throw error;
+	}
+}
+
 export async function deleteUser(id: string): Promise<void> {
 	try {
 		await api.delete(`/users/${id}`);
