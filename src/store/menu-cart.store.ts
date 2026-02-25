@@ -3,6 +3,11 @@ import type { MenuCartItem, MenuItemOptions, MenuProduct } from "@/types/menu.ty
 import { MENU_SIZES } from "@/types/menu.types";
 import { getItem, setItem } from "@/utils/localstorage.util";
 
+// Branch id bound to this cart session (cleared when branch changes)
+let _boundBranchId: string | null = null;
+export function getCartBranchId() { return _boundBranchId; }
+export function setCartBranchId(id: string | null) { _boundBranchId = id; }
+
 const STORAGE_KEY = "hylux_menu_cart";
 
 function buildCartKey(productId: number, options: MenuItemOptions): string {
@@ -56,6 +61,7 @@ export const useMenuCartStore = create<MenuCartState>((set, get) => ({
             options,
             quantity,
             unitPrice,
+            note: options.note,
           } satisfies MenuCartItem,
         ];
 
@@ -84,11 +90,18 @@ export const useMenuCartStore = create<MenuCartState>((set, get) => ({
   },
 }));
 
-export function useMenuCartTotals() {
+export function useMenuCartTotals(deliveryFeeOverride?: number) {
   const items = useMenuCartStore((s) => s.items);
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-  const deliveryFee = subtotal > 0 && subtotal < 150000 ? 25000 : 0;
+  // deliveryFee is now driven by the delivery store (branch-based)
+  // fallback to legacy logic only when no override provided (e.g. cart page without delivery context)
+  const deliveryFee =
+    deliveryFeeOverride !== undefined
+      ? deliveryFeeOverride
+      : subtotal > 0 && subtotal < 150000
+      ? 25000
+      : 0;
   const total = subtotal + deliveryFee;
   return { itemCount, subtotal, deliveryFee, total };
 }

@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import type { MenuProduct } from "@/types/menu.types";
 
@@ -18,7 +17,7 @@ export default function MenuProductCard({ product, onAdd }: MenuProductCardProps
 
   return (
     <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200">
-      <Link to={`/menu/${product.id}`} className="block">
+      <button type="button" onClick={() => onAdd(product)} className="block w-full text-left">
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
           <img
             src={product.image}
@@ -75,7 +74,7 @@ export default function MenuProductCard({ product, onAdd }: MenuProductCardProps
             )}
           </div>
         </div>
-      </Link>
+      </button>
 
       <div className="px-3.5 pb-3.5">
         <button

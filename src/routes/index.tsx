@@ -1,11 +1,14 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import ScrollToTopOnNavigate from "../components/ui/ScrollToTopOnNavigate";
 import LoadingLayout from "../layouts/Loading.layout";
 import ClientLayout from "../layouts/client/Client.layout";
 import CustomerAccountLayout from "../layouts/client/CustomerAccount.layout";
 import LandingLayout from "../layouts/landing/Landing.layout";
 import AdminLayout from "../layouts/admin/Admin.layout";
 import AdminGuard from "./guard/AdminGuard";
+import AuthGuard from "./guard/AuthGuard";
+import ReceivingGuard from "./guard/ReceivingGuard";
 import { ROUTER_URL } from "./router.const";
 import { CLIENT_MENU } from "./client/Client.menu";
 import { ADMIN_MENU } from "./admin/Admin.menu";
@@ -26,11 +29,15 @@ const LoyaltyPointsPage = React.lazy(() => import("../pages/client/loyalty/Loyal
 const CartPage = React.lazy(() => import("../pages/client/Cart.page"));
 const ContactPage = React.lazy(() => import("../pages/client/Contact.page"));
 const MenuPage = React.lazy(() => import("../pages/client/menu/Menu.page"));
+const MenuCheckoutPage = React.lazy(() => import("../pages/client/menu/MenuCheckout.page"));
+const OrderStatusPage = React.lazy(() => import("../pages/client/menu/OrderStatus.page"));
+const ReceivingSetupPage = React.lazy(() => import("../pages/client/ReceivingSetup.page"));
 const CheckoutPage = React.lazy(() => import("../pages/client/Checkout.page"));
 
 function AppRoutes() {
   return (
     <BrowserRouter>
+      <ScrollToTopOnNavigate />
       <React.Suspense fallback={<LoadingLayout />}>
         <Routes>
           {/* Landing page with its own header */}
@@ -45,8 +52,20 @@ function AppRoutes() {
 
           {/* Menu */}
           <Route element={<ClientLayout />}>
-            <Route path={ROUTER_URL.MENU} element={<MenuPage />} />
-            <Route path={ROUTER_URL.CHECKOUT} element={<CheckoutPage />} />
+            {/* Receiving setup – auth required, no branch required */}
+          <Route element={<AuthGuard />}>
+            <Route path={ROUTER_URL.RECEIVING_SETUP} element={<ReceivingSetupPage />} />
+          </Route>
+
+          {/* Menu – auth + receiving method both required */}
+          <Route element={<AuthGuard />}>
+            <Route element={<ReceivingGuard />}>
+              <Route path={ROUTER_URL.MENU} element={<MenuPage />} />
+              <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPage />} />
+              <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
+            </Route>
+          </Route>
+          <Route path={ROUTER_URL.CHECKOUT} element={<CheckoutPage />} />
           </Route>
 
           {/* Public client pages with standard header */}

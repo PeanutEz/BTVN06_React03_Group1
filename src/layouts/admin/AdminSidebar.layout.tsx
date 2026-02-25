@@ -158,7 +158,7 @@ const adminNav = [
 
 const AdminSidebar = () => {
   return (
-    <aside className="peer group fixed left-0 z-40 h-[calc(100vh-72px)] w-20 border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 transition-all duration-300 hover:w-60 hover:shadow-primary-500/30 backdrop-blur-xl">
+    <aside className="peer group fixed left-0 z-40 h-[calc(100vh-72px)] w-60 border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/30 backdrop-blur-xl">
       <div className="flex h-full flex-col py-6">
         <nav className="flex-1 space-y-2 px-3">
           {adminNav.map((item) => (
@@ -171,7 +171,7 @@ const AdminSidebar = () => {
               end
             >
               <span className="flex-shrink-0">{item.icon}</span>
-              <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+              <span className="whitespace-nowrap text-sm font-medium">
                 {item.label}
               </span>
             </NavLink>

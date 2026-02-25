@@ -39,6 +39,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
   const [ice, setIce] = useState<IceLevel>("Đá vừa");
   const [selectedToppings, setSelectedToppings] = useState<Topping[]>([]);
   const [quantity, setQuantity] = useState(1);
+  const [note, setNote] = useState("");
 
   // Reset state when product changes
   useEffect(() => {
@@ -48,6 +49,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
       setIce("Đá vừa");
       setSelectedToppings([]);
       setQuantity(1);
+      setNote("");
     }
   }, [product?.id]);
 
@@ -78,11 +80,11 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
     );
   }
 
-  function handleAddToCart() {    if (!product) return;    addItem(product, { size, sugar, ice, toppings: selectedToppings }, quantity);
+  function handleAddToCart() {    if (!product) return;    addItem(product, { size, sugar, ice, toppings: selectedToppings, note: note.trim() || undefined }, quantity);
     toast.success(`Đã thêm "${product.name}" vào giỏ!`, {
       description: `Size ${size} • ${sugar} đường • ${ice}${
         selectedToppings.length ? ` • ${selectedToppings.map((t) => t.name).join(", ")}` : ""
-      }`,
+      }${note.trim() ? ` • "${note.trim()}"` : ""}`,
     });
     onClose();
   }
@@ -227,6 +229,19 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Note */}
+          <div>
+            <SectionLabel>Ghi chú</SectionLabel>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="VD: ít đường hơn, không hành, dị ứng..."
+              rows={2}
+              maxLength={200}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white resize-none focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-400 transition-all"
+            />
           </div>
 
           {/* Toppings */}

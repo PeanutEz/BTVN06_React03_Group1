@@ -116,7 +116,7 @@ const LandingPage = () => {
 								</p>
 							</div>
 							<div className="mt-8">
-								<Link to={ROUTER_URL.HOME}>
+								<Link to={ROUTER_URL.STORE_LOCATOR}>
 									<Button variant="outline" size="lg" className="border-red-900 text-red-900 hover:bg-red-50">
 										Tìm Hiểu Thêm
 									</Button>
