@@ -1,11 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
-import { loginUser } from "../../../services/auth.service";
+import { customerLoginAndGetProfile, resendToken } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
-import { isAdminRole } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 import bgUserLogin from "../../../assets/bg-user-login.jpg";
@@ -14,53 +13,66 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, login } = useAuthStore();
+  const [notVerifiedEmail, setNotVerifiedEmail] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
 
-  const {
-    register,
+  const {    register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<AuthCredentials>();
-
   useEffect(() => {
     if (user) {
-      if (isAdminRole(user.role)) {
+      const role = (user.role ?? "").toString().toLowerCase();
+      if (role === "admin" || role === "system") {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
       }
     }
-  }, [user, navigate]);
+  }, [user, navigate]);  const onSubmit = async (values: AuthCredentials) => {
+    try {
+      // Client login page — dùng CUSTOMER-AUTH-01: POST /api/customer-auth
+      const profile = await customerLoginAndGetProfile(values);
 
-  const onSubmit = async (values: AuthCredentials) => {
-    const found = await loginUser(values);
-    if (!found) {
-      showError("Sai email hoặc mật khẩu");
-      return;
+      login(profile);
+      showSuccess("Đăng nhập thành công");
+      const redirectTo = (location.state as { from?: Location })?.from?.pathname;
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+        return;
+      }
+
+      const role = (profile.role ?? "").toString().toLowerCase();
+      if (role === "admin" || role === "system") {
+        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+      } else {
+        navigate(ROUTER_URL.MENU, { replace: true });
+      }    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Sai email hoặc mật khẩu";
+      if (msg.toLowerCase().includes("not verified") || msg.toLowerCase().includes("chưa xác thực")) {
+        setNotVerifiedEmail(values.email);
+      }
+      showError(msg);
     }
-
-    login(found);
-    showSuccess("Đăng nhập thành công");
-    const redirectTo = (location.state as { from?: Location })?.from?.pathname;
-    if (redirectTo) {
-      navigate(redirectTo, { replace: true });
-      return;
+  };  const handleResendVerification = async () => {
+    if (!notVerifiedEmail) return;
+    setIsResending(true);
+    try {
+      await resendToken(notVerifiedEmail);
+      showSuccess("Email xác thực đã được gửi lại. Vui lòng kiểm tra hộp thư.");
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Gửi lại email thất bại";
+      showError(msg);
+    } finally {
+      setIsResending(false);
     }
+  };  const handleQuickLogin = (role: "admin" | "client") => {
+    const mockProfile = role === "admin"
+      ? { id: "mock-admin", name: "Admin", email: "admin@gmail.com", role: "admin", avatar: "" }
+      : { id: "mock-client", name: "Client User", email: "user@gmail.com", role: "user", avatar: "" };
 
-    if (isAdminRole(found.role)) {
-      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
-    } else {
-      navigate(ROUTER_URL.MENU, { replace: true });
-    }
-  };
-
-  const handleQuickLogin = (role: "admin" | "client") => {
-    const now = new Date().toISOString();
-    const mockUser = role === "admin"
-      ? { id: "1", name: "Admin", email: "admin@gmail.com", password: "", role: "Admin" as const, avatar: "https://i.pravatar.cc/150?img=1", createDate: now, updateDate: now }
-      : { id: "2", name: "User", email: "user@gmail.com", password: "", role: "User" as const, avatar: "https://i.pravatar.cc/150?img=4", createDate: now, updateDate: now };
-
-    login(mockUser);
-    showSuccess(`Đăng nhập nhanh (${mockUser.email})`);
+    login(mockProfile);
+    showSuccess(`Đăng nhập nhanh (${mockProfile.email})`);
 
     if (role === "admin") {
       navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
@@ -97,12 +109,27 @@ const LoginPage = () => {
                 {...register("password", { required: "Mật khẩu không được để trống" })}
               />
               {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
-            </div>
-
-            <Button type="submit" className="w-full" loading={isSubmitting}>
+            </div>            <Button type="submit" className="w-full" loading={isSubmitting}>
               {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </form>
+
+          {/* Not verified banner */}
+          {notVerifiedEmail && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-2">
+              <p className="text-sm text-amber-800 font-medium">
+                ⚠️ Tài khoản chưa được xác thực. Vui lòng kiểm tra email để xác thực.
+              </p>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={isResending}
+                className="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors disabled:opacity-50"
+              >
+                {isResending ? "Đang gửi..." : "Gửi lại email xác thực →"}
+              </button>
+            </div>
+          )}
 
           <div className="space-y-3">
             <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Đăng nhập nhanh</p>
