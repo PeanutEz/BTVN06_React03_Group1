@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
-import { customerLoginAndGetProfile, loginAndGetProfile, resendToken } from "../../../services/auth.service";
+import { customerLoginAndGetProfile, resendToken } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -66,28 +66,18 @@ const LoginPage = () => {
     } finally {
       setIsResending(false);
     }
-  };  const handleQuickLogin= async (role: "admin" | "client") => {
-    const credentials = role === "admin"
-      ? { email: "admin@gmail.com", password: "123456" }
-      : { email: "user@gmail.com", password: "123456" };
+  };  const handleQuickLogin = (role: "admin" | "client") => {
+    const mockProfile = role === "admin"
+      ? { id: "mock-admin", name: "Admin", email: "admin@gmail.com", role: "admin", avatar: "" }
+      : { id: "mock-client", name: "Client User", email: "user@gmail.com", role: "user", avatar: "" };
 
-    try {
-      // Admin dùng AUTH-01 (/api/auth), Client dùng CUSTOMER-AUTH-01 (/api/customer-auth)
-      const profile = role === "admin"
-        ? await loginAndGetProfile(credentials)
-        : await customerLoginAndGetProfile(credentials);
-      login(profile);
-      showSuccess(`Đăng nhập nhanh (${credentials.email})`);
+    login(mockProfile);
+    showSuccess(`Đăng nhập nhanh (${mockProfile.email})`);
 
-      const userRole = (profile.role ?? "").toString().toLowerCase();
-      if (userRole === "admin" || userRole === "system") {
-        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
-      } else {
-        navigate(ROUTER_URL.HOME, { replace: true });
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Đăng nhập nhanh thất bại";
-      showError(msg);
+    if (role === "admin") {
+      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+    } else {
+      navigate(ROUTER_URL.HOME, { replace: true });
     }
   };
 

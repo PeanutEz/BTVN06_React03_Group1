@@ -44,33 +44,18 @@ const AdminLoginPage = () => {
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Đăng nhập thất bại";
       showError(msg);
-    }
-  };  const handleQuickLogin = async (role: "admin" | "client") => {
-    const credentials = role === "admin"
-      ? { email: "admin@gmail.com", password: "123456" }
-      : { email: "user@gmail.com", password: "123456" };
+    }  };  const handleQuickLogin = (role: "admin" | "client") => {
+    const mockProfile = role === "admin"
+      ? { id: "mock-admin", name: "Admin", email: "admin@gmail.com", role: "admin", avatar: "" }
+      : { id: "mock-client", name: "Client User", email: "user@gmail.com", role: "user", avatar: "" };
 
-    try {
-      const profile = await loginAndGetProfile(credentials);
+    login(mockProfile);
+    showSuccess(`Đăng nhập nhanh (${mockProfile.email})`);
 
-      // Admin login page — chỉ cho admin/system vào
-      const userRole = (profile.role ?? "").toString().toLowerCase();
-      if (role === "admin" && userRole !== "admin" && userRole !== "system") {
-        showError("Tài khoản này không có quyền admin");
-        return;
-      }
-
-      login(profile);
-      showSuccess(`Đăng nhập nhanh (${credentials.email})`);
-
-      if (userRole === "admin" || userRole === "system") {
-        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
-      } else {
-        navigate(ROUTER_URL.HOME, { replace: true });
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Đăng nhập nhanh thất bại";
-      showError(msg);
+    if (role === "admin") {
+      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+    } else {
+      navigate(ROUTER_URL.HOME, { replace: true });
     }
   };
 
