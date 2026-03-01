@@ -45,6 +45,9 @@ export const ROUTER_URL = {
   LOYALTY_TIER: "/loyalty/tier",
   LOYALTY_HISTORY: "/loyalty/history",
 
+  // Inbox / Notifications
+  INBOX: "/inbox",
+
   // Static Pages
   STATIC_PAGE: "/page/:slug",
 

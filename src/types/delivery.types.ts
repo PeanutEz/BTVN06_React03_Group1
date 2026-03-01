@@ -54,6 +54,14 @@ export interface DeliveryAddress {
   coord: GeoCoord | null;
 }
 
+export type PaymentMethod = "CASH" | "BANK" | "MOMO" | "ZALOPAY" | "SHOPEEPAY";
+
+export interface AppliedPromo {
+  code: string;
+  label: string;
+  discountAmount: number;
+}
+
 export interface PlacedOrder {
   id: string;
   code: string;
@@ -64,7 +72,9 @@ export interface PlacedOrder {
   customerName: string;
   customerPhone: string;
   deliveryAddress?: string;
-  paymentMethod: "CASH" | "BANK";
+  paymentMethod: PaymentMethod;
+  promo?: AppliedPromo;
+  vatAmount: number;
   items: OrderLineItem[];
   subtotal: number;
   deliveryFee: number;
