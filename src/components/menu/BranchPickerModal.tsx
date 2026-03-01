@@ -4,6 +4,7 @@ import type { Branch, OrderMode } from "@/types/delivery.types";
 import { branches, isBranchOpen } from "@/services/branch.service";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useMenuCartStore } from "@/store/menu-cart.store";
+import { useAddressStore } from "@/store/address.store";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -26,18 +27,29 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
   } = useDeliveryStore();
 
   const clearCart = useMenuCartStore((s) => s.clearCart);
+  const { addresses, add: addAddress } = useAddressStore();
 
   const [activeTab, setActiveTab] = useState<OrderMode>(orderMode);
   const [addressInput, setAddressInput] = useState(deliveryAddress.rawAddress);
   const [cityFilter, setCityFilter] = useState("all");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const pendingConfirm = useRef(false);
+  const [loadingAddrId, setLoadingAddrId] = useState<number | null>(null);
 
-  // Focus address input when switching to delivery tab
+  // Add-new-address form state
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+  const [newAddrForm, setNewAddrForm] = useState({ name: "", phone: "", address: "" });
+
+  // Auto-confirm after validation when triggered by address selection
   useEffect(() => {
-    if (activeTab === "DELIVERY") {
-      setTimeout(() => inputRef.current?.focus(), 100);
+    if (!isValidating && pendingConfirm.current) {
+      pendingConfirm.current = false;
+      setLoadingAddrId(null);
+      if (validationResult?.isValid && validationResult.nearestBranch) {
+        setSelectedBranch(validationResult.nearestBranch, clearCart);
+        onClose();
+      }
     }
-  }, [activeTab]);
+  }, [isValidating, validationResult]);
 
   const cities = Array.from(new Set(branches.map((b) => b.city)));
   const filteredBranches = branches.filter(
@@ -49,8 +61,11 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
     setOrderMode(tab);
   }
 
-  function handleValidate() {
-    setDeliveryAddress(addressInput);
+  function handleSelectDeliveryAddr(address: string, addrId?: number) {
+    setAddressInput(address);
+    setDeliveryAddress(address);
+    if (addrId !== undefined) setLoadingAddrId(addrId);
+    pendingConfirm.current = true;
     setTimeout(() => validateAddress(), 0);
   }
 
@@ -58,13 +73,6 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
     setSelectedBranch(branch, clearCart);
     setOrderMode(activeTab);
     onClose();
-  }
-
-  function handleConfirmDelivery() {
-    if (validationResult?.isValid && validationResult.nearestBranch) {
-      setSelectedBranch(validationResult.nearestBranch, clearCart);
-      onClose();
-    }
   }
 
   const isOpen = isBranchOpen;
@@ -126,131 +134,119 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
           {/* ── DELIVERY TAB ── */}
           {activeTab === "DELIVERY" && (
             <div className="p-5 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  📍 Địa chỉ giao hàng
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={addressInput}
-                    onChange={(e) => setAddressInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleValidate()}
-                    placeholder="VD: 45 Nguyễn Huệ, Quận 1, TP.HCM"
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-400 transition-all"
-                  />
-                  <button
-                    onClick={handleValidate}
-                    disabled={isValidating || !addressInput.trim()}
-                    className={cn(
-                      "shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all",
-                      isValidating || !addressInput.trim()
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                        : "bg-amber-500 hover:bg-amber-600 text-white active:scale-95",
-                    )}
-                  >
-                    {isValidating ? (
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    ) : (
-                      "Kiểm tra"
-                    )}
-                  </button>
+
+              {/* Saved addresses */}
+              {addresses.length > 0 ? (
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">📋 Địa chỉ của tôi</p>
+                  <div className="space-y-2">
+                    {addresses.map((addr) => {
+                      const isLoading = loadingAddrId === addr.id;
+                      const isSelected = addressInput === addr.address && orderMode === "DELIVERY" && selectedBranch !== null;
+                      return (
+                        <button
+                          key={addr.id}
+                          disabled={isLoading}
+                          onClick={() => handleSelectDeliveryAddr(addr.address, addr.id)}
+                          className={cn(
+                            "w-full text-left rounded-xl border px-4 py-3 transition-all",
+                            isSelected
+                              ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
+                              : "border-gray-200 hover:border-amber-300 hover:bg-amber-50/40 bg-white",
+                            isLoading && "opacity-70 cursor-not-allowed",
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate">{addr.name}</p>
+                              <p className="text-xs text-gray-500 mt-0.5 truncate">{addr.address}</p>
+                              <p className="text-xs text-gray-400">{addr.phone}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              {addr.isDefault && (
+                                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Mặc định</span>
+                              )}
+                              {isLoading && (
+                                <svg className="w-4 h-4 animate-spin text-amber-500" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                              )}
+                              {isSelected && !isLoading && (
+                                <span className="text-xs font-semibold text-amber-600">✓ Đã chọn</span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <span className="text-3xl mb-2">📍</span>
+                  <p className="text-sm text-gray-500">Bạn chưa có địa chỉ nào</p>
+                  <p className="text-xs text-gray-400 mt-1">Thêm địa chỉ bên dưới để đặt hàng</p>
+                </div>
+              )}
 
-                {/* Address hint */}
-                <p className="text-xs text-gray-400 mt-1.5">
-                  Hỗ trợ: Hà Nội · TP. Hồ Chí Minh · Đà Nẵng
-                </p>
-              </div>
-
-              {/* Validation result */}
-              {validationResult && (
-                <div
-                  className={cn(
-                    "rounded-2xl border p-4 transition-all",
-                    validationResult.isValid
-                      ? "bg-emerald-50 border-emerald-200"
-                      : "bg-red-50 border-red-200",
-                  )}
+              {/* Add new address form */}
+              {!showNewAddressForm ? (
+                <button
+                  onClick={() => setShowNewAddressForm(true)}
+                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-gray-300 text-sm text-gray-500 hover:border-amber-400 hover:text-amber-600 transition-all"
                 >
-                  {validationResult.isValid && validationResult.nearestBranch ? (
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl shrink-0">✅</span>
-                        <div>
-                          <p className="font-semibold text-emerald-800 text-sm">Có thể giao hàng!</p>
-                          <p className="text-xs text-emerald-700 mt-0.5">
-                            Chi nhánh sẽ phục vụ: <strong>{validationResult.nearestBranch.name}</strong>
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Branch info card */}
-                      <div className="bg-white rounded-xl p-3 border border-emerald-100 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <img
-                            src={validationResult.nearestBranch.imageUrl}
-                            alt=""
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">{validationResult.nearestBranch.name}</p>
-                            <p className="text-xs text-gray-500">{validationResult.nearestBranch.address}</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-gray-50 rounded-lg p-2">
-                            <p className="text-xs text-gray-500">Khoảng cách</p>
-                            <p className="text-sm font-bold text-gray-900">{validationResult.distanceKm?.toFixed(1)} km</p>
-                          </div>
-                          <div className="bg-gray-50 rounded-lg p-2">
-                            <p className="text-xs text-gray-500">Phí giao hàng</p>
-                            <p className="text-sm font-bold text-amber-600">
-                              {validationResult.estimatedDeliveryFee === 0
-                                ? "Miễn phí"
-                                : fmt(validationResult.estimatedDeliveryFee ?? 0)}
-                            </p>
-                          </div>
-                          <div className="bg-gray-50 rounded-lg p-2">
-                            <p className="text-xs text-gray-500">Thời gian</p>
-                            <p className="text-sm font-bold text-gray-900">
-                              ~{validationResult.nearestBranch.prepTimeMins + validationResult.nearestBranch.deliveryTimeMins} phút
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={handleConfirmDelivery}
-                        className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-all active:scale-[0.98]"
-                      >
-                        Xác nhận địa chỉ này →
-                      </button>
+                  + Thêm địa chỉ mới
+                </button>
+              ) : (
+                <div className="rounded-xl border-2 border-amber-200 bg-amber-50/30 p-4 space-y-3">
+                  <p className="text-sm font-semibold text-gray-800">Thêm địa chỉ mới</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Họ tên</label>
+                      <input
+                        value={newAddrForm.name}
+                        onChange={(e) => setNewAddrForm({ ...newAddrForm, name: e.target.value })}
+                        placeholder="Nguyễn Văn A"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      />
                     </div>
-                  ) : (
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl shrink-0">🚫</span>
-                      <div>
-                        <p className="font-semibold text-red-800 text-sm">Ngoài vùng giao hàng</p>
-                        <p className="text-xs text-red-600 mt-0.5">{validationResult.message}</p>
-                        {validationResult.nearestBranch && (
-                          <p className="text-xs text-red-500 mt-1">
-                            Bạn có thể chọn lấy tại cửa hàng tại{" "}
-                            <button
-                              onClick={() => handleTabChange("PICKUP")}
-                              className="font-semibold underline"
-                            >
-                              {validationResult.nearestBranch.name}
-                            </button>
-                          </p>
-                        )}
-                      </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Số điện thoại</label>
+                      <input
+                        value={newAddrForm.phone}
+                        onChange={(e) => setNewAddrForm({ ...newAddrForm, phone: e.target.value })}
+                        placeholder="0901234567"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                      />
                     </div>
-                  )}
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Địa chỉ</label>
+                    <input
+                      value={newAddrForm.address}
+                      onChange={(e) => setNewAddrForm({ ...newAddrForm, address: e.target.value })}
+                      placeholder="123 Đường ABC, Quận 1, TP. HCM"
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => { setShowNewAddressForm(false); setNewAddrForm({ name: "", phone: "", address: "" }); }}
+                      className="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+                    >Hủy</button>
+                    <button
+                      disabled={!newAddrForm.name || !newAddrForm.phone || !newAddrForm.address}
+                      onClick={() => {
+                        addAddress(newAddrForm);
+                        const saved = { ...newAddrForm };
+                        setShowNewAddressForm(false);
+                        setNewAddrForm({ name: "", phone: "", address: "" });
+                        handleSelectDeliveryAddr(saved.address);
+                      }}
+                      className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >Lưu &amp; Chọn</button>
+                  </div>
                 </div>
               )}
 
@@ -268,6 +264,30 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
           {/* ── PICKUP TAB ── */}
           {activeTab === "PICKUP" && (
             <div className="p-5 space-y-4">
+              {/* Selected branch address banner */}
+              {selectedBranch && (
+                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <img
+                    src={selectedBranch.imageUrl}
+                    alt={selectedBranch.name}
+                    className="w-12 h-12 rounded-xl object-cover shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">🏪 Cửa hàng đã chọn</p>
+                    <p className="text-sm font-bold text-gray-900 leading-tight">{selectedBranch.name}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      {selectedBranch.address}, {selectedBranch.district}, {selectedBranch.city}
+                    </p>
+                    <p className="text-xs text-amber-600 font-medium mt-1">
+                      {selectedBranch.openingHours.days} · {selectedBranch.openingHours.open}–{selectedBranch.openingHours.close}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                    ✓ Đã chọn
+                  </span>
+                </div>
+              )}
+
               {/* City filter */}
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                 <button

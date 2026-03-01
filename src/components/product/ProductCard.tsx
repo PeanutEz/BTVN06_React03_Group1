@@ -1,113 +1,88 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import type { Product } from "@/models/product.model";
 
 interface ProductCardProps {
   product: Product;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(price);
-  };
+const fmt = (n: number) =>
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
-  const hasDiscount =
-    product.originalPrice &&
-    product.price &&
-    product.originalPrice > product.price;
-  const discountPercent = hasDiscount
-    ? Math.round(
-        ((product.originalPrice! - product.price!) / product.originalPrice!) *
-          100,
-      )
-    : 0;
+export default function ProductCard({ product }: ProductCardProps) {
+  const navigate = useNavigate();
+  const imageUrl = product.image_url || product.image || "/placeholder-product.png";
+  const displayPrice = product.price ?? product.min_price;
+  const originalPrice = product.originalPrice;
+  const hasDiscount = originalPrice && originalPrice > displayPrice;
 
   return (
-    <Link
-      to={`/products/${product.id}`}
-      className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+    <div
+      className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden cursor-pointer border border-gray-100 hover:-translate-y-1"
+      onClick={() => navigate(`/products/${product.id}`)}
     >
-      {/* Image Container */}
-      <div className="relative aspect-square overflow-hidden">
+      {/* Image */}
+      <div className="relative overflow-hidden aspect-[4/3] bg-gray-50">
         <img
-          src={product.image}
+          src={imageUrl}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = "/placeholder-product.png";
+          }}
         />
-
-        {/* Discount Badge */}
-        {hasDiscount && (
-          <div className="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-            -{discountPercent}%
-          </div>
-        )}
-
-        {/* Featured Badge */}
         {product.isFeatured && (
-          <div className="absolute top-3 right-3 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+          <span className="absolute top-3 left-3 bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow">
             Nổi bật
-          </div>
-        )}
-
-        {/* Quick View Overlay */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <span className="bg-white text-gray-900 px-4 py-2 rounded-full font-medium text-sm transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-            Xem chi tiết
           </span>
-        </div>
+        )}
+        {hasDiscount && (
+          <span className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow">
+            -{Math.round(((originalPrice - displayPrice) / originalPrice) * 100)}%
+          </span>
+        )}
       </div>
 
       {/* Content */}
       <div className="p-4">
+        <h3 className="font-semibold text-gray-900 text-base leading-snug line-clamp-2 mb-1 group-hover:text-amber-600 transition-colors">
+          {product.name}
+        </h3>
+        {product.description && (
+          <p className="text-gray-500 text-sm line-clamp-2 mb-3">{product.description}</p>
+        )}
+
         {/* Rating */}
-        {product.rating && (
-          <div className="flex items-center gap-1 mb-2">
-            <svg
-              className="w-4 h-4 text-yellow-400 fill-current"
-              viewBox="0 0 20 20"
-            >
-              <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+        {product.rating !== undefined && (
+          <div className="flex items-center gap-1 mb-3">
+            <svg className="w-4 h-4 text-amber-400 fill-current" viewBox="0 0 20 20">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
-            <span className="text-sm font-medium text-gray-700">
-              {product.rating}
-            </span>
-            <span className="text-xs text-gray-400">
-              ({product.reviewCount})
-            </span>
+            <span className="text-sm font-medium text-gray-700">{product.rating.toFixed(1)}</span>
+            {product.reviewCount !== undefined && (
+              <span className="text-xs text-gray-400">({product.reviewCount})</span>
+            )}
           </div>
         )}
 
-        {/* Product Name */}
-        <h3 className="font-semibold text-gray-900 mb-1 line-clamp-1 group-hover:text-amber-600 transition-colors">
-          {product.name}
-        </h3>
-
-        {/* Description */}
-        <p className="text-sm text-gray-500 mb-3 line-clamp-2">
-          {product.description}
-        </p>
-
         {/* Price */}
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-amber-600">
-            {formatPrice(product.price || 0)}
-          </span>
-          {hasDiscount && (
-            <span className="text-sm text-gray-400 line-through">
-              {formatPrice(product.originalPrice!)}
-            </span>
-          )}
+        <div className="flex items-end justify-between mt-auto">
+          <div>
+            <span className="text-lg font-bold text-amber-600">{fmt(displayPrice)}</span>
+            {hasDiscount && (
+              <span className="text-sm text-gray-400 line-through ml-2">{fmt(originalPrice)}</span>
+            )}
+          </div>
+          <button
+            className="bg-amber-500 hover:bg-amber-600 active:scale-95 text-white text-sm font-semibold px-3 py-1.5 rounded-full transition-all duration-200 shadow-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/products/${product.id}`);
+            }}
+          >
+            Chọn mua
+          </button>
         </div>
-
-        {/* Stock Status */}
-        {product.stock && product.stock < 10 && (
-          <p className="text-xs text-red-500 mt-2">
-            Chỉ còn {product.stock} sản phẩm
-          </p>
-        )}
       </div>
-    </Link>
+    </div>
   );
 }
