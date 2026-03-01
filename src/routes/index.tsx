@@ -33,6 +33,7 @@ const MenuCheckoutPage = React.lazy(() => import("../pages/client/menu/MenuCheck
 const OrderStatusPage = React.lazy(() => import("../pages/client/menu/OrderStatus.page"));
 const ReceivingSetupPage = React.lazy(() => import("../pages/client/ReceivingSetup.page"));
 const CheckoutPage = React.lazy(() => import("../pages/client/Checkout.page"));
+const InboxPage = React.lazy(() => import("../pages/client/inbox/Inbox.page"));
 
 function AppRoutes() {
   return (
@@ -65,6 +66,12 @@ function AppRoutes() {
               <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
             </Route>
           </Route>
+
+          {/* Inbox – auth required */}
+          <Route element={<AuthGuard />}>
+            <Route path={ROUTER_URL.INBOX} element={<InboxPage />} />
+          </Route>
+
           <Route path={ROUTER_URL.CHECKOUT} element={<CheckoutPage />} />
           </Route>
 

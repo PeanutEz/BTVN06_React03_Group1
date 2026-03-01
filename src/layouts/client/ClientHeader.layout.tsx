@@ -6,6 +6,7 @@ import { useAuthStore } from "../../store/auth.store";
 import { useDeliveryStore } from "../../store/delivery.store";
 import { isBranchOpen } from "../../services/branch.service";
 import BranchPickerModal from "../../components/menu/BranchPickerModal";
+import NotificationBell from "../../components/notification/NotificationBell";
 import logoHylux from "../../assets/logo-hylux.png";
 
 const NAV_LINKS = [
@@ -146,20 +147,8 @@ const ClientHeader = () => {
               />
             )}
 
-            {/* Mail Icon */}
-            <button
-              className="hidden lg:flex items-center justify-center relative"
-              aria-label="Hộp thư"
-            >
-              <div className="w-10 h-10 rounded-full border-2 border-red-600 flex items-center justify-center hover:bg-red-50 text-red-700 transition-all duration-200">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <span className="absolute -top-0.5 -right-0.5 bg-red-600 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">
-                2
-              </span>
-            </button>
+            {/* Mail / Notification Bell */}
+            <NotificationBell />
 
             {/* Account Dropdown */}
             <div className="relative" ref={accountRef}>

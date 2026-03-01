@@ -1,15 +1,9 @@
 import { useState } from "react";
-
-interface Address {
-  id: number;
-  name: string;
-  phone: string;
-  address: string;
-  isDefault: boolean;
-}
+import { useAddressStore } from "@/store/address.store";
+import type { SavedAddress } from "@/store/address.store";
 
 export default function CustomerAddressBookPage() {
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  const { addresses, add, update, remove, setDefault } = useAddressStore();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", address: "" });
@@ -23,34 +17,22 @@ export default function CustomerAddressBookPage() {
   const handleSave = () => {
     if (!form.name || !form.phone || !form.address) return;
     if (editingId !== null) {
-      setAddresses((prev) =>
-        prev.map((a) => (a.id === editingId ? { ...a, ...form } : a))
-      );
+      update(editingId, form);
     } else {
-      setAddresses((prev) => [
-        ...prev,
-        { id: Date.now(), ...form, isDefault: prev.length === 0 },
-      ]);
+      add(form);
     }
     resetForm();
   };
 
-  const handleEdit = (addr: Address) => {
+  const handleEdit = (addr: SavedAddress) => {
     setForm({ name: addr.name, phone: addr.phone, address: addr.address });
     setEditingId(addr.id);
     setShowForm(true);
   };
 
-  const handleDelete = (id: number) => {
-    setAddresses((prev) => {
-      const rest = prev.filter((a) => a.id !== id);
-      if (rest.length > 0 && !rest.some((a) => a.isDefault)) rest[0].isDefault = true;
-      return rest;
-    });
-  };
+  const handleDelete = (id: number) => remove(id);
 
-  const handleSetDefault = (id: number) =>
-    setAddresses((prev) => prev.map((a) => ({ ...a, isDefault: a.id === id })));
+  const handleSetDefault = (id: number) => setDefault(id);
 
   return (
     <div>
