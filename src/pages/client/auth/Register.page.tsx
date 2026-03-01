@@ -10,6 +10,7 @@ import bgUserLogin from "../../../assets/bg-user-login.jpg";
 type RegisterFormValues = {
   name: string;
   email: string;
+  phone: string;
   password: string;
   confirmPassword: string;
   acceptPolicy: boolean;
@@ -36,20 +37,15 @@ const RegisterPage = () => {
       return;
     }
 
-    try {
-      await registerUser({
+    try {      await registerUser({
         name: values.name,
         email: values.email,
+        phone: values.phone,
         password: values.password,
-      });
-      showSuccess("Đăng ký thành công. Vui lòng đăng nhập");
-      navigate(ROUTER_URL.LOGIN, { replace: true });
-    } catch (error) {
-      if (error instanceof Error && error.message === "EMAIL_EXISTS") {
-        showError("Email đã tồn tại. Vui lòng dùng email khác");
-        return;
-      }
-      showError("Đăng ký thất bại. Vui lòng thử lại sau");
+      });      showSuccess("Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản trước khi đăng nhập.");
+      navigate(ROUTER_URL.LOGIN, { replace: true });    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Đăng ký thất bại. Vui lòng thử lại sau";
+      showError(msg);
     }
   };
 
@@ -89,8 +85,24 @@ const RegisterPage = () => {
                     message: "Email không hợp lệ",
                   },
                 })}
+              />              {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Số điện thoại</label>
+              <input
+                type="tel"
+                className="w-full rounded-lg border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900 outline-none ring-primary-200 transition focus:ring placeholder:text-slate-600 placeholder:font-normal"
+                placeholder="Nhập số điện thoại"
+                {...register("phone", {
+                  required: "Số điện thoại không được để trống",
+                  pattern: {
+                    value: /^[0-9]{9,11}$/,
+                    message: "Số điện thoại không hợp lệ (9-11 chữ số)",
+                  },
+                })}
               />
-              {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+              {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
             </div>
 
             <div className="space-y-2">

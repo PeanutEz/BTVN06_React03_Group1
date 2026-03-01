@@ -15,6 +15,7 @@ import { ADMIN_MENU } from "./admin/Admin.menu";
 import LoginPage from "../pages/client/auth/Login.page";
 import RegisterPage from "../pages/client/auth/Register.page";
 import ResetPasswordPage from "../pages/client/auth/ResetPassword.page";
+import VerifyEmailPage from "../pages/client/auth/VerifyEmail.page";
 import AdminLoginPage from "../pages/admin/auth/Login.page";
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
@@ -94,10 +95,10 @@ function AppRoutes() {
             </Route>
           </Route>
 
-          {/* Client auth */}
-          <Route path={ROUTER_URL.LOGIN} element={<LoginPage />} />
+          {/* Client auth */}          <Route path={ROUTER_URL.LOGIN} element={<LoginPage />} />
           <Route path={ROUTER_URL.REGISTER} element={<RegisterPage />} />
           <Route path={ROUTER_URL.RESET_PASSWORD} element={<ResetPasswordPage />} />
+          <Route path={ROUTER_URL.VERIFY_EMAIL} element={<VerifyEmailPage />} />
 
           {/* Admin auth */}
           <Route path={ROUTER_URL.ADMIN_LOGIN} element={<AdminLoginPage />} />

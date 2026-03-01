@@ -2,10 +2,9 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
-import { loginUser } from "../../../services/auth.service";
+import { loginAndGetProfile } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
-import { isAdminRole } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 import bgAdminLogin from "../../../assets/bg-admin-login.jpg";
@@ -22,37 +21,56 @@ const AdminLoginPage = () => {
   } = useForm<AuthCredentials>();
 
   useEffect(() => {
-    if (user && isAdminRole(user.role)) {
+    if (user && (user.role ?? "").toString().toLowerCase() === "admin") {
       navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
     }
   }, [user, navigate]);
 
   const onSubmit = async (values: AuthCredentials) => {
-    const found = await loginUser(values);
-    if (!found || !isAdminRole(found.role)) {
-      showError("Bạn không có quyền truy cập admin hoặc thông tin đăng nhập sai");
-      return;
+    try {
+      const profile = await loginAndGetProfile(values);
+
+      // Kiểm tra role admin (so sánh linh hoạt vì chưa biết API trả role như nào)
+      const role = (profile.role ?? "").toString().toLowerCase();
+      if (role !== "admin" && role !== "system") {
+        showError("Bạn không có quyền truy cập admin");
+        return;
+      }
+
+      login(profile);
+      showSuccess("Đăng nhập thành công");
+      const redirectTo = (location.state as { from?: Location })?.from?.pathname;
+      navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Đăng nhập thất bại";
+      showError(msg);
     }
+  };  const handleQuickLogin = async (role: "admin" | "client") => {
+    const credentials = role === "admin"
+      ? { email: "admin@gmail.com", password: "123456" }
+      : { email: "user@gmail.com", password: "123456" };
 
-    login(found);
-    showSuccess("Đăng nhập thành công");
-    const redirectTo = (location.state as { from?: Location })?.from?.pathname;
-    navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
-  };
+    try {
+      const profile = await loginAndGetProfile(credentials);
 
-  const handleQuickLogin = (role: "admin" | "client") => {
-    const now = new Date().toISOString();
-    const mockUser = role === "admin"
-      ? { id: "1", name: "Admin", email: "admin@gmail.com", password: "", role: "Admin" as const, avatar: "https://i.pravatar.cc/150?img=1", createDate: now, updateDate: now }
-      : { id: "2", name: "User", email: "user@gmail.com", password: "", role: "User" as const, avatar: "https://i.pravatar.cc/150?img=4", createDate: now, updateDate: now };
+      // Admin login page — chỉ cho admin/system vào
+      const userRole = (profile.role ?? "").toString().toLowerCase();
+      if (role === "admin" && userRole !== "admin" && userRole !== "system") {
+        showError("Tài khoản này không có quyền admin");
+        return;
+      }
 
-    login(mockUser);
-    showSuccess(`Đăng nhập nhanh (${mockUser.email})`);
+      login(profile);
+      showSuccess(`Đăng nhập nhanh (${credentials.email})`);
 
-    if (role === "admin") {
-      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
-    } else {
-      navigate(ROUTER_URL.HOME, { replace: true });
+      if (userRole === "admin" || userRole === "system") {
+        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+      } else {
+        navigate(ROUTER_URL.HOME, { replace: true });
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Đăng nhập nhanh thất bại";
+      showError(msg);
     }
   };
 
