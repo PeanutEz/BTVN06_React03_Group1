@@ -53,10 +53,10 @@ const InventoryByFranchisePage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tồn kho chi nhánh</h1>
-          <p className="text-sm text-slate-600">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Tồn kho chi nhánh</h1>
+          <p className="text-xs sm:text-sm text-slate-600">
             {storeName ? `Franchise: ${storeName}` : "Danh sách tồn kho theo franchise"}
           </p>
         </div>
@@ -77,6 +77,7 @@ const InventoryByFranchisePage = () => {
       )}
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
             <tr>
@@ -141,6 +142,7 @@ const InventoryByFranchisePage = () => {
             )}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

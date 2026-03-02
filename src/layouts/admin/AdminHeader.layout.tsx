@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
-import { useAuthStore } from "../../store";
+import { useAuthStore, useFranchiseStore } from "../../store";
 import { logoutUser } from "../../services/auth.service";
 
-const AdminHeader = () => {
+interface AdminHeaderProps {
+  onMenuToggle?: () => void;
+  isMobile?: boolean;
+}
+
+const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { clear: clearFranchises } = useFranchiseStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -23,12 +29,28 @@ const AdminHeader = () => {
   const handleLogout = async () => {
     await logoutUser().catch(() => {});
     logout();
+    clearFranchises();
     setMenuOpen(false);
   };
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between border-b border-primary-500/20 bg-slate-900/80 backdrop-blur-xl px-6 py-4 text-white shadow-lg shadow-primary-500/10">
-      <h1 className="text-xl font-bold">Admin</h1>
+    <header className="sticky top-0 z-50 flex items-center justify-between border-b border-primary-500/20 bg-slate-900/80 backdrop-blur-xl px-4 sm:px-6 py-4 text-white shadow-lg shadow-primary-500/10">
+      <div className="flex items-center gap-3">
+        {/* Hamburger menu for mobile */}
+        {isMobile && (
+          <button
+            type="button"
+            onClick={onMenuToggle}
+            className="flex items-center justify-center rounded-lg p-2 text-slate-300 transition-colors hover:bg-slate-700/50 hover:text-white"
+            aria-label="Toggle menu"
+          >
+            <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
+        <h1 className="text-lg sm:text-xl font-bold">Admin</h1>
+      </div>
       <div className="relative" ref={menuRef}>
         <button
           type="button"
@@ -39,7 +61,7 @@ const AdminHeader = () => {
           {user && (
             <>
               <img src={user.avatar} alt={user.name} className="size-8 rounded-full object-cover" />
-              <div className="text-left leading-tight">
+              <div className="hidden sm:block text-left leading-tight">
                 <p className="text-sm font-semibold">{user.name}</p>
                 <p className="text-xs text-primary-100/80">{user.role}</p>
               </div>

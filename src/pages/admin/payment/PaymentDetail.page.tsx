@@ -102,16 +102,16 @@ const PaymentDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PAYMENTS}`}>
             <Button variant="outline" size="sm">
               ← Quay lại
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Chi tiết thanh toán PT-{String(payment.id).padStart(4, '0')}</h1>
-            <p className="text-sm text-slate-600">
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">Chi tiết thanh toán PT-{String(payment.id).padStart(4, '0')}</h1>
+            <p className="text-xs sm:text-sm text-slate-600">
               Tạo ngày {new Date(payment.created_at).toLocaleString("vi-VN")}
             </p>
           </div>

@@ -105,6 +105,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
+    label: "Franchise Edit",
+    path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_EDIT,
+    component: React.lazy(
+      () => import("../../pages/admin/franchise/FranchiseCreateEdit.page.tsx"),
+    ),
+  },
+  {
     label: "Franchise Inventory",
     path: ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE,
     component: React.lazy(

@@ -121,7 +121,7 @@ export interface SearchFranchisePayload {
 		opened_at?: string;
 		closed_at?: string;
 		is_active?: string | boolean;
-		is_deleted?: boolean;
+		is_deleted?: string | boolean;
 	};
 	pageInfo: {
 		pageNum: number;

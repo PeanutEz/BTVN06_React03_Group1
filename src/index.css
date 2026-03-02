@@ -30,6 +30,17 @@ body {
   color: #fef2f2;
 }
 
+/* Hide browser default password reveal button (Edge, Chrome) */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none;
+}
+
 * {
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
