@@ -226,12 +226,12 @@ export async function logoutUser(): Promise<void> {
 	localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
 }
 
-// ==================== AUTH-08: Verify Token ====================
-// POST /api/auth/verify-token — Token: NO — Role: ADMIN PUBLIC
+// ==================== CUSTOMER-AUTH-07: Verify Token ====================
+// POST /api/customer-auth/verify-token — Token: NO — Role: CUSTOMER PUBLIC
 // Input: { token: string } — Link domain kèm token được gửi qua email
 // Output: { success: true, data: null }
 export async function verifyToken(token: string): Promise<void> {
-	const response = await apiClient.post<ApiResponse<null>>("/auth/verify-token", { token });
+	const response = await apiClient.post<ApiResponse<null>>("/customer-auth/verify-token", { token });
 
 	const result = response.data;
 	if (!result.success) {
@@ -240,12 +240,12 @@ export async function verifyToken(token: string): Promise<void> {
 	}
 }
 
-// ==================== AUTH-09: Resend Token ====================
-// POST /api/auth/resend-token — Token: NO — Role: ADMIN PUBLIC
+// ==================== CUSTOMER-AUTH-08: Resend Token ====================
+// POST /api/customer-auth/resend-token — Token: NO — Role: CUSTOMER PUBLIC
 // Input: { email: string } — Link domain kèm token sẽ được gửi qua email
 // Output: { success: true, data: null }
 export async function resendToken(email: string): Promise<void> {
-	const response = await apiClient.post<ApiResponse<null>>("/auth/resend-token", { email });
+	const response = await apiClient.post<ApiResponse<null>>("/customer-auth/resend-token", { email });
 
 	const result = response.data;
 	if (!result.success) {
@@ -269,14 +269,41 @@ export async function loginAndGetProfile(credentials: { email: string; password:
 	return profile;
 }
 
+// ==================== CUSTOMER-AUTH-03: Get Customer Profile ====================
+// GET /api/customer-auth — Token: YES (cookie) — Role: CUSTOMER
+export async function getCustomerProfile(): Promise<UserProfile> {
+	const response = await apiClient.get<ApiResponse<UserProfile>>("/customer-auth");
+
+	const result = response.data;
+	if (!result.success) {
+		const errorMsg = result.message || "Lấy thông tin profile thất bại";
+		throw new Error(errorMsg);
+	}
+
+	// Normalize profile: thêm computed fields để backward compatible
+	const profileData = result.data;
+	if (profileData.user) {
+		profileData.id = profileData.user.id;
+		profileData.name = profileData.user.name;
+		profileData.email = profileData.user.email;
+		profileData.avatar = profileData.user.avatar_url;
+	}
+	if (profileData.roles && profileData.roles.length > 0) {
+		const primaryRole = profileData.roles.find(r => r.scope === 'GLOBAL') || profileData.roles[0];
+		profileData.role = primaryRole.role;
+	}
+
+	return profileData;
+}
+
 // ==================== Helper: Customer Login + Get Profile ====================
-// Flow: Customer Login (cookie) → Get Profile → Lưu profile local
+// Flow: Customer Login (cookie) → Get Customer Profile → Lưu profile local
 export async function customerLoginAndGetProfile(credentials: { email: string; password: string }): Promise<UserProfile> {
 	// Step 1: Customer Login — server set token vào cookie
 	await loginCustomer(credentials);
 
-	// Step 2: Gọi GET /api/auth để lấy profile (cookie tự gửi kèm)
-	const profile = await getProfile();
+	// Step 2: Gọi GET /api/customer-auth để lấy profile (cookie tự gửi kèm)
+	const profile = await getCustomerProfile();
 
 	// Lưu profile vào localStorage để hydrate store
 	localStorage.setItem(LOCAL_STORAGE_KEY.AUTH_USER, JSON.stringify(profile));
