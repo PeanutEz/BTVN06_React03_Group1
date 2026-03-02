@@ -22,8 +22,13 @@ const LoginPage = () => {
   } = useForm<AuthCredentials>();
   useEffect(() => {
     if (user) {
-      const role = (user.role ?? "").toString().toLowerCase();
-      if (role === "admin" || role === "system") {
+      // Kiểm tra role từ roles array hoặc computed field role
+      const hasAdminRole = user.roles?.some(r => {
+        const role = (r.role ?? "").toString().toLowerCase();
+        return role === "admin" || role === "system";
+      }) || ["admin", "system"].includes((user.role ?? "").toString().toLowerCase());
+      
+      if (hasAdminRole) {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
@@ -42,8 +47,13 @@ const LoginPage = () => {
         return;
       }
 
-      const role = (profile.role ?? "").toString().toLowerCase();
-      if (role === "admin" || role === "system") {
+      // Kiểm tra role từ roles array hoặc computed field role
+      const hasAdminRole = profile.roles?.some(r => {
+        const role = (r.role ?? "").toString().toLowerCase();
+        return role === "admin" || role === "system";
+      }) || ["admin", "system"].includes((profile.role ?? "").toString().toLowerCase());
+      
+      if (hasAdminRole) {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });

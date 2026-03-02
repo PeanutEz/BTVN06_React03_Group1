@@ -21,7 +21,13 @@ const AdminLoginPage = () => {
   } = useForm<AuthCredentials>();
 
   useEffect(() => {
-    if (user && (user.role ?? "").toString().toLowerCase() === "admin") {
+    // Kiểm tra user có role admin/system không
+    const hasAdminRole = user?.roles?.some(r => {
+      const role = (r.role ?? "").toString().toLowerCase();
+      return role === "admin" || role === "system";
+    }) || (user?.role ?? "").toString().toLowerCase() === "admin";
+    
+    if (user && hasAdminRole) {
       navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
     }
   }, [user, navigate]);
@@ -30,10 +36,15 @@ const AdminLoginPage = () => {
     try {
       const profile = await loginAndGetProfile(values);
 
-      // Kiểm tra role admin (so sánh linh hoạt vì chưa biết API trả role như nào)
-      const role = (profile.role ?? "").toString().toLowerCase();
-      if (role !== "admin" && role !== "system") {
-        showError("Bạn không có quyền truy cập admin");
+      // Kiểm tra xem user có role admin/system không (từ roles array)
+      const hasAdminRole = profile.roles?.some(r => {
+        const role = (r.role ?? "").toString().toLowerCase();
+        return role === "admin" || role === "system";
+      });
+      
+      if (!hasAdminRole) {
+        const rolesList = profile.roles?.map(r => r.role).join(", ") || "không có";
+        showError(`Bạn không có quyền truy cập admin. Role hiện tại: ${rolesList}`);
         return;
       }
 
