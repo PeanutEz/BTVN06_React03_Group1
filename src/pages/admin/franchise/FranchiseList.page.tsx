@@ -7,10 +7,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../../routes/router.const";
 
 const FranchiseListPage = () => {
+
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
+  console.log("STORES:", stores);
+  console.log(ROUTER_URL.ADMIN_ROUTES);
   const load = async () => {
     setLoading(true);
     try {
@@ -91,6 +93,12 @@ const FranchiseListPage = () => {
                     >
                       Tồn kho
                     </Link>
+                    <Link
+                      to={`/admin/franchises/${s.id}/edit`}
+                      className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      Sửa
+                    </Link>
                   </div>
                 </td>
               </tr>
@@ -115,6 +123,5 @@ const FranchiseListPage = () => {
     </div>
   );
 };
-
 export default FranchiseListPage;
 
