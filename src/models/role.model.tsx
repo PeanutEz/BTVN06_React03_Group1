@@ -4,6 +4,8 @@ export const ROLE = {
 	STAFF: "Staff",
 	SHIPPER: "Shipper",
 	USER: "User",
+	SYSTEM: "System",
+	MANAGER: "Manager",
 } as const;
 
 export const ROLE_CODE = {
