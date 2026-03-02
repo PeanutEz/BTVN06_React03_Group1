@@ -15,6 +15,7 @@ import { ADMIN_MENU } from "./admin/Admin.menu";
 import LoginPage from "../pages/client/auth/Login.page";
 import RegisterPage from "../pages/client/auth/Register.page";
 import ResetPasswordPage from "../pages/client/auth/ResetPassword.page";
+import VerifyEmailPage from "../pages/client/auth/VerifyEmail.page";
 import AdminLoginPage from "../pages/admin/auth/Login.page";
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
@@ -58,10 +59,12 @@ function AppRoutes() {
             <Route path={ROUTER_URL.RECEIVING_SETUP} element={<ReceivingSetupPage />} />
           </Route>
 
-          {/* Menu – auth + receiving method both required */}
+          {/* Menu – public: guests can browse; auth required to add to cart (handled in-page) */}
+          <Route path={ROUTER_URL.MENU} element={<MenuPage />} />
+
+          {/* Menu checkout & order status – auth + receiving method both required */}
           <Route element={<AuthGuard />}>
             <Route element={<ReceivingGuard />}>
-              <Route path={ROUTER_URL.MENU} element={<MenuPage />} />
               <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPage />} />
               <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
             </Route>
@@ -77,7 +80,7 @@ function AppRoutes() {
 
           {/* Public client pages with standard header */}
           <Route element={<ClientLayout />}>
-            {CLIENT_MENU.filter((item) => item.path !== ROUTER_URL.HOME && item.path !== ROUTER_URL.ACCOUNT).map((item) => (
+            {CLIENT_MENU.filter((item) => item.path !== ROUTER_URL.HOME && item.path !== ROUTER_URL.ACCOUNT && item.path !== ROUTER_URL.MENU).map((item) => (
               <Route key={item.path} path={item.path} element={<item.component />} />
             ))}
 
@@ -94,10 +97,10 @@ function AppRoutes() {
             </Route>
           </Route>
 
-          {/* Client auth */}
-          <Route path={ROUTER_URL.LOGIN} element={<LoginPage />} />
+          {/* Client auth */}          <Route path={ROUTER_URL.LOGIN} element={<LoginPage />} />
           <Route path={ROUTER_URL.REGISTER} element={<RegisterPage />} />
           <Route path={ROUTER_URL.RESET_PASSWORD} element={<ResetPasswordPage />} />
+          <Route path={ROUTER_URL.VERIFY_EMAIL} element={<VerifyEmailPage />} />
 
           {/* Admin auth */}
           <Route path={ROUTER_URL.ADMIN_LOGIN} element={<AdminLoginPage />} />

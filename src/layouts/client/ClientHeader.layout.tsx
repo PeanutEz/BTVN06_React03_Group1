@@ -5,6 +5,7 @@ import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
 import { useDeliveryStore } from "../../store/delivery.store";
 import { isBranchOpen } from "../../services/branch.service";
+import { logoutUser } from "../../services/auth.service";
 import BranchPickerModal from "../../components/menu/BranchPickerModal";
 import NotificationBell from "../../components/notification/NotificationBell";
 import logoHylux from "../../assets/logo-hylux.png";
@@ -46,9 +47,8 @@ const ClientHeader = () => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleLogout = () => {
+  }, []);  const handleLogout = async () => {
+    await logoutUser().catch(() => {});
     logout();
     setAccountOpen(false);
     navigate(ROUTER_URL.HOME);

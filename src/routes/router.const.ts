@@ -1,10 +1,10 @@
 export const ROUTER_URL = {
   HOME: "/",
   STORE_LOCATOR: "/he-thong-khong-gian",
-  CONTACT: "/contact",
-  LOGIN: "/login",
+  CONTACT: "/contact",  LOGIN: "/login",
   REGISTER: "/register",
   RESET_PASSWORD: "/reset-password",
+  VERIFY_EMAIL: "/verify-customer-email/:token",
   PROFILE: "/profile",
   ACCOUNT: "/customer/account",
   CART: "/cart",

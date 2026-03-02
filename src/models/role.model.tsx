@@ -5,4 +5,4 @@ export const ROLE = {
 
 export type Role = (typeof ROLE)[keyof typeof ROLE];
 
-export const isAdminRole = (role?: Role | null) => role === ROLE.ADMIN;
+export const isAdminRole = (role?: string | null) => role?.toLowerCase() === ROLE.ADMIN.toLowerCase();

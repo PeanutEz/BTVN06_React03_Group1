@@ -1,34 +1,28 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { LOCAL_STORAGE_KEY } from "../const/data.const";
 
-// Get API URL from environment variables or default to localhost
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+// Base URL trỏ đến API thật, thêm /api vào cuối
+const baseURL = (import.meta.env.VITE_API_URL || "https://ecommerce-franchise-training-nodejs.vercel.app/") + "api";
 
 const apiClient = axios.create({
     baseURL,
     headers: {
         "Content-Type": "application/json",
     },
-    timeout: 10000,
+    timeout: 15000,
+    withCredentials: true, // Gửi/nhận cookie tự động (token nằm trong cookie)
 });
 
-// Request Interceptor
+// Request Interceptor — log request (token tự gửi qua cookie)
 apiClient.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
-        // Get token from localStorage
-        // Assuming auth store saves to "auth-storage" key
-        const authStorage = localStorage.getItem("auth-storage");
-        if (authStorage) {
-            try {
-                const parsed = JSON.parse(authStorage);
-                const token = parsed.state?.token;
+        console.log(
+            "[API REQUEST]",
+            config.method?.toUpperCase(),
+            config.url,
+            config.data ?? ""
+        );
 
-                if (token && config.headers) {
-                    config.headers.Authorization = `Bearer ${token}`;
-                }
-            } catch (error) {
-                // Ignore JSON parse error
-            }
-        }
         return config;
     },
     (error: AxiosError) => {
@@ -39,34 +33,41 @@ apiClient.interceptors.request.use(
 // Response Interceptor
 apiClient.interceptors.response.use(
     (response) => {
-        // Return data directly if needed, or full response
-        return response.data;
+        console.log(
+            "[API RESPONSE]",
+            response.status,
+            response.config.url
+        );
+        // API trả về { success: true, data: ... }
+        // Trả về toàn bộ response để service tự xử lý
+        return response;
     },
     (error: AxiosError) => {
-        // Global Error Handling
         if (error.response) {
             const { status } = error.response;
 
             switch (status) {
                 case 401:
-                    // Unauthorized - Clear token and redirect to login
-                    // Note: Using window.location for hard redirect or event bus is preferred
-                    // as we can't use useNavigate outside React components easily
-                    console.warn("Unauthorized: Logging out...");
-                    // localStorage.removeItem("auth-storage");
-                    // window.location.href = "/login";
+                    console.warn("Unauthorized: Token hết hạn hoặc không hợp lệ");
+                    localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
+                    if (!window.location.pathname.includes("/login")) {
+                        window.location.href = "/login";
+                    }
                     break;
                 case 403:
-                    console.warn("Forbidden: You don't have permission to access this resource.");
+                    console.warn("Forbidden: Bạn không có quyền truy cập.");
+                    break;
+                case 429:
+                    console.warn("Too many requests: Vui lòng thử lại sau.");
                     break;
                 case 500:
-                    console.error("Server Error: Please try again later.");
+                    console.error("Server Error: Lỗi máy chủ, vui lòng thử lại sau.");
                     break;
                 default:
                     console.error(`API Error: ${status}`, error.response.data);
             }
         } else if (error.request) {
-            console.error("Network Error: No response received.");
+            console.error("Network Error: Không nhận được phản hồi từ máy chủ.");
         } else {
             console.error("Request Error:", error.message);
         }

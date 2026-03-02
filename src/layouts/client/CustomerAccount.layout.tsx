@@ -1,13 +1,15 @@
 ﻿import { Link, Outlet, useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
+import { logoutUser } from "../../services/auth.service";
 import AccountSidebar from "./AccountSidebar.layout";
 
 export default function CustomerAccountLayout() {
   const { logout } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutUser().catch(() => {});
     logout();
     navigate(ROUTER_URL.LOGIN);
   };

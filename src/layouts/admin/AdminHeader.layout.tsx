@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store";
+import { logoutUser } from "../../services/auth.service";
 
 const AdminHeader = () => {
   const navigate = useNavigate();
@@ -19,8 +20,8 @@ const AdminHeader = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutUser().catch(() => {});
     logout();
     setMenuOpen(false);
   };
