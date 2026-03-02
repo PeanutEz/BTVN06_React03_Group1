@@ -57,12 +57,12 @@ const FranchiseListPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý Franchise</h1>
-          <p className="text-sm text-slate-600">Danh sách chi nhánh</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý Franchise</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Danh sách chi nhánh</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <input
             type="text"
             placeholder="Tìm kiếm theo tên, mã..."
@@ -84,6 +84,7 @@ const FranchiseListPage = () => {
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
             <tr>
@@ -150,6 +151,7 @@ const FranchiseListPage = () => {
             )}
           </tbody>
         </table>
+        </div>
         <div className="px-4">
           <Pagination
             currentPage={currentPage}

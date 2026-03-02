@@ -93,16 +93,16 @@ const OrderDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`}>
             <Button variant="outline" size="sm">
               ← Quay lại
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Chi tiết đơn hàng {order.code}</h1>
-            <div className="flex gap-4 text-sm text-slate-600">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Chi tiết đơn hàng {order.code}</h1>
+            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-slate-600">
               <span>Tạo ngày {new Date(order.created_at).toLocaleString("vi-VN")}</span>
               <span>•</span>
               <span className="font-semibold">{ORDER_TYPE_LABELS[order.type]}</span>

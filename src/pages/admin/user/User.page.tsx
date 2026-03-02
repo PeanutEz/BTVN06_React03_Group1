@@ -41,14 +41,19 @@ const UserPage = () => {
   };
 
   const load = async (keyword = searchQuery, page = currentPage) => {
+    console.log("[User.page] load() called with keyword:", keyword, "page:", page);
     setLoading(true);
     try {
       const result = await fetchUsers(keyword, page, ITEMS_PER_PAGE);
+      console.log("[User.page] fetchUsers result:", result);
+      console.log("[User.page] pageData length:", result.pageData?.length);
+      console.log("[User.page] pageInfo:", result.pageInfo);
       setUsers(result.pageData);
       setTotalPages(result.pageInfo.totalPages);
       setTotalItems(result.pageInfo.totalItems);
       setCurrentPage(result.pageInfo.pageNum);
-    } catch {
+    } catch (err) {
+      console.error("[User.page] load() ERROR:", err);
       showError("Lấy danh sách người dùng thất bại");
     } finally {
       setLoading(false);
@@ -123,35 +128,42 @@ const UserPage = () => {
   };
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
-          <p className="text-sm text-slate-600">Quản lý người dùng hệ thống</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">User Management</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Quản lý người dùng hệ thống</p>
         </div>
         <Button onClick={handleOpenModal}>+ Tạo người dùng</Button>
       </div>
 
       {/* Search bar */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="relative">
-          <svg
-            className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"            placeholder="Tìm kiếm theo tên hoặc email..."
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            onKeyDown={(e) => { if (e.key === "Enter") load(searchQuery, 1); }}
-            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <svg
+              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên hoặc email..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              onKeyDown={(e) => { if (e.key === "Enter") load(searchQuery, 1); }}
+              className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+            />
+          </div>
+          <Button onClick={() => load(searchQuery, 1)} loading={loading}>
+            Tìm kiếm
+          </Button>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
             <tr>
@@ -223,6 +235,7 @@ const UserPage = () => {
             )}
           </tbody>
         </table>
+        </div>
         <div className="px-4">          <Pagination
             currentPage={currentPage}
             totalPages={totalPages}

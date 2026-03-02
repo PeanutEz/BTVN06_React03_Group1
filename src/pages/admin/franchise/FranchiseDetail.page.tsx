@@ -54,12 +54,12 @@ const FranchiseDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Chi tiết Franchise</h1>
-          <p className="text-sm text-slate-600">Thông tin chi nhánh & tóm tắt tồn kho</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Chi tiết Franchise</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Thông tin chi nhánh & tóm tắt tồn kho</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => navigate(`/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_EDIT.replace(":id", id!)}`)}>
             Chỉnh sửa
           </Button>

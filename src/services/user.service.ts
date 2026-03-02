@@ -102,14 +102,26 @@ export async function fetchRoles(): Promise<RoleSelectItem[]> {
 // Input: { email, password, name?, phone?, avatar_url?, role_id? }
 // Output: { success: true, data: ApiUser }
 export async function createUser(data: CreateUserPayload): Promise<ApiUser> {
-	const response = await apiClient.post<ApiResponse<ApiUser>>("/users", {
-		email: data.email,
-		password: data.password,
-		...(data.name && { name: data.name }),
-		...(data.phone && { phone: data.phone }),
-		...(data.avatar_url && { avatar_url: data.avatar_url }),
-		...(data.role_id && { role_id: data.role_id }),
-	});
+	let response;
+	try {
+		response = await apiClient.post<ApiResponse<ApiUser>>("/users", {
+			email: data.email,
+			password: data.password,
+			...(data.name && { name: data.name }),
+			...(data.phone && { phone: data.phone }),
+			...(data.avatar_url && { avatar_url: data.avatar_url }),
+			...(data.role_id && { role_id: data.role_id }),
+		});
+	} catch (err: unknown) {
+		console.log("[createUser] ERROR caught:", err);
+		if (err && typeof err === "object" && "response" in err) {
+			console.log("[createUser] error.response:", (err as { response: unknown }).response);
+			console.log("[createUser] error.response.data:", (err as { response: { data: unknown } }).response.data);
+		}
+		throw err;
+	}
+	console.log("[createUser] response:", response);
+	console.log("[createUser] response.data:", response.data);
 	const result = response.data;
 	if (!result.success) {
 		const errorMsg = result.message || "Tạo user thất bại";
@@ -123,6 +135,18 @@ export async function createUser(data: CreateUserPayload): Promise<ApiUser> {
 // Input: { searchCondition: { keyword?, is_active?, is_deleted? }, pageInfo: { pageNum, pageSize } }
 // Output: { success: true, data: ApiUser[], pageInfo: { pageNum, pageSize, totalItems, totalPages } }
 export async function searchUsers(payload: SearchUsersPayload): Promise<SearchUsersResult> {
+	console.log("[searchUsers] REQUEST payload:", JSON.stringify({
+		searchCondition: {
+			keyword: payload.searchCondition.keyword ?? "",
+			is_active: payload.searchCondition.is_active ?? "",
+			is_deleted: payload.searchCondition.is_deleted ?? false,
+		},
+		pageInfo: {
+			pageNum: payload.pageInfo.pageNum,
+			pageSize: payload.pageInfo.pageSize,
+		},
+	}, null, 2));
+
 	const response = await apiClient.post<SearchUsersResponse>("/users/search", {
 		searchCondition: {
 			keyword: payload.searchCondition.keyword ?? "",
@@ -134,6 +158,10 @@ export async function searchUsers(payload: SearchUsersPayload): Promise<SearchUs
 			pageSize: payload.pageInfo.pageSize,
 		},
 	});
+
+	console.log("[searchUsers] RAW response.status:", response.status);
+	console.log("[searchUsers] RAW response.headers:", response.headers);
+	console.log("[searchUsers] RAW response.data:", response.data);
 
 	const result = response.data;
 	if (!result.success) {
