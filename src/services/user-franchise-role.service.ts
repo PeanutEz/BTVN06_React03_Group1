@@ -79,3 +79,43 @@ export async function getUserFranchiseRoleById(id: string): Promise<UserFranchis
 	}
 	return (result as { data: UserFranchiseRole }).data;
 }
+
+// ==================== USER-FRANCHISE-ROLE-04: Update Item ====================
+// PUT /api/user-franchise-roles/:id — Token: YES — Role: SYSTEM & FRANCHISE
+// Input: { role_id: string (required), note?: string (default: "") }
+// Output: { success: true, data: UserFranchiseRole }
+
+export interface UpdateUserFranchiseRolePayload {
+	role_id: string;
+	note?: string;
+}
+
+export interface UpdateUserFranchiseRoleResponse {
+	success: boolean;
+	data: {
+		id: string;
+		is_active: boolean;
+		is_deleted: boolean;
+		created_at: string;
+		updated_at: string;
+		franchise_id: string;
+		role_id: string;
+		user_id: string;
+		note: string;
+	};
+}
+
+export async function updateUserFranchiseRole(
+	id: string,
+	payload: UpdateUserFranchiseRolePayload,
+): Promise<UpdateUserFranchiseRoleResponse["data"]> {
+	const response = await apiClient.put<UpdateUserFranchiseRoleResponse>(
+		`/user-franchise-roles/${id}`,
+		payload,
+	);
+	const result = response.data;
+	if (!result.success) {
+		throw new Error("Cập nhật user-franchise-role thất bại");
+	}
+	return result.data;
+}
