@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { Store } from "../../../models/store.model";
 import { ROUTER_URL } from "../../../routes/router.const";
-
+import { fetchStoreById } from "../../../services/store.service";
 const emptyStore: Store = {
   id: "",
   name: "",
@@ -19,6 +19,9 @@ const emptyStore: Store = {
 };
 
 const FranchiseCreateEditPage = () => {
+  const { id } = useParams();
+  const isEdit = Boolean(id);
+  const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<Store>(emptyStore);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
@@ -26,6 +29,25 @@ const FranchiseCreateEditPage = () => {
   const handleChange = (field: keyof Store, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
+
+  useEffect(() => {
+    const loadDetail = async () => {
+      if (!id) return;
+      setLoading(true);
+      try {
+        const data = await fetchStoreById(id);
+        if (data) {
+  setForm(data);
+}
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (isEdit) {
+      loadDetail();
+    }
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,12 +60,16 @@ const FranchiseCreateEditPage = () => {
       setSaving(false);
     }
   };
-
+  if (loading) {
+    return <div className="text-sm text-slate-500">Đang tải dữ liệu...</div>;
+  }
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tạo Franchise</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {isEdit ? "Chỉnh sửa Franchise" : "Tạo Franchise"}
+          </h1>
           <p className="text-sm text-slate-600">Form demo mock, chưa lưu vào backend.</p>
         </div>
       </div>
@@ -147,7 +173,7 @@ const FranchiseCreateEditPage = () => {
             Hủy
           </Button>
           <Button type="submit" loading={saving}>
-            Lưu (demo)
+            {isEdit ? "Cập nhật" : "Lưu"}
           </Button>
         </div>
       </form>
