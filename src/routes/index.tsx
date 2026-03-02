@@ -12,6 +12,7 @@ import LoginPage from "../pages/client/auth/Login.page";
 import RegisterPage from "../pages/client/auth/Register.page";
 import ResetPasswordPage from "../pages/client/auth/ResetPassword.page";
 import AdminLoginPage from "../pages/admin/auth/Login.page";
+import FranchiseCreateEditPage from "@/pages/admin/franchise/FranchiseCreateEdit.page";
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
 const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
@@ -47,6 +48,10 @@ function AppRoutes() {
               {ADMIN_MENU.map((item) => (
                 <Route key={item.path} path={item.path} element={<item.component />} />
               ))}
+              <Route
+                path="franchises/:id/edit"
+                element={<FranchiseCreateEditPage />}
+              />
             </Route>
           </Route>
 
