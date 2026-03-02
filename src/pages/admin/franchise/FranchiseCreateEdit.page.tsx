@@ -73,8 +73,8 @@ const FranchiseCreateEditPage = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{isEdit ? "Chỉnh sửa Franchise" : "Tạo Franchise"}</h1>
-          <p className="text-sm text-slate-600">{isEdit ? "Cập nhật thông tin chi nhánh" : "Tạo chi nhánh mới"}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">{isEdit ? "Chỉnh sửa Franchise" : "Tạo Franchise"}</h1>
+          <p className="text-xs sm:text-sm text-slate-600">{isEdit ? "Cập nhật thông tin chi nhánh" : "Tạo chi nhánh mới"}</p>
         </div>
       </div>
 

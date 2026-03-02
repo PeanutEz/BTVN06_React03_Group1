@@ -111,12 +111,12 @@ const DashboardPage = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">WBS Coffee - Dashboard</h1>
-        <p className="text-sm text-slate-600">Tổng quan hệ thống quản lý chuỗi cửa hàng</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">WBS Coffee - Dashboard</h1>
+        <p className="text-xs sm:text-sm text-slate-600">Tổng quan hệ thống quản lý chuỗi cửa hàng</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-blue-100 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -137,7 +137,7 @@ const DashboardPage = () => {
               />
             </svg>
           </div>
-          <div className="mt-4 flex gap-4 text-xs">
+          <div className="mt-2 sm:mt-4 flex flex-wrap gap-2 sm:gap-4 text-xs">
             <span className="text-yellow-700">
               ⏳ Chờ xử lý: <strong>{stats.pendingOrders}</strong>
             </span>
@@ -147,16 +147,16 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-green-50 to-green-100 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-green-50 to-green-100 p-4 sm:p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-green-700">Doanh thu</p>
-              <p className="mt-2 text-2xl font-bold text-green-900">
+              <p className="text-xs sm:text-sm font-semibold text-green-700">Doanh thu</p>
+              <p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-bold text-green-900">
                 {formatCurrency(stats.totalRevenue)}
               </p>
             </div>
             <svg
-              className="size-12 text-green-400"
+              className="size-8 sm:size-12 text-green-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -171,14 +171,14 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-purple-50 to-purple-100 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-purple-50 to-purple-100 p-4 sm:p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-purple-700">Khách hàng</p>
-              <p className="mt-2 text-3xl font-bold text-purple-900">{stats.totalCustomers}</p>
+              <p className="text-xs sm:text-sm font-semibold text-purple-700">Khách hàng</p>
+              <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-purple-900">{stats.totalCustomers}</p>
             </div>
             <svg
-              className="size-12 text-purple-400"
+              className="size-8 sm:size-12 text-purple-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -193,14 +193,14 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100 p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100 p-4 sm:p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-orange-700">Cửa hàng</p>
-              <p className="mt-2 text-3xl font-bold text-orange-900">{stats.totalStores}</p>
+              <p className="text-xs sm:text-sm font-semibold text-orange-700">Cửa hàng</p>
+              <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-orange-900">{stats.totalStores}</p>
             </div>
             <svg
-              className="size-12 text-orange-400"
+              className="size-8 sm:size-12 text-orange-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -228,7 +228,7 @@ const DashboardPage = () => {
               Xem chi tiết →
             </Link>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-lg bg-slate-50 p-4 text-center">
               <p className="text-sm text-slate-600">Tổng thành viên</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">
@@ -317,8 +317,8 @@ const DashboardPage = () => {
 
 
       {/* Recent Orders */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Đơn hàng gần đây</h2>
           <Link
             to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`}

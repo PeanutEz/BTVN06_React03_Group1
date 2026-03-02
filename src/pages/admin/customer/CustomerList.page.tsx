@@ -141,10 +141,10 @@ const CustomerListPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý khách hàng</h1>
-          <p className="text-sm text-slate-600">Quản lý thông tin khách hàng và điểm thưởng</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý khách hàng</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Quản lý thông tin khách hàng và điểm thưởng</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadCustomers} loading={loading}>
@@ -155,7 +155,7 @@ const CustomerListPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="space-y-2 md:col-span-2">
             <label className="text-sm font-semibold text-slate-700">Tìm kiếm</label>
@@ -184,7 +184,7 @@ const CustomerListPage = () => {
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={handleSearch} size="sm">
             Tìm kiếm
           </Button>
