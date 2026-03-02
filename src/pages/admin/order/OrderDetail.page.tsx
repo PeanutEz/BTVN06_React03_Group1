@@ -32,6 +32,8 @@ const OrderDetailPage = () => {
       }
       setOrder(data);
       setNewStatus(data.status);
+    } catch (error) {
+      console.error("Lỗi tải chi tiết đơn hàng:", error);
     } finally {
       setLoading(false);
     }

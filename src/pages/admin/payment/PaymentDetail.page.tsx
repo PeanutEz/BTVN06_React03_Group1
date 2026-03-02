@@ -40,6 +40,8 @@ const PaymentDetailPage = () => {
       // Load related order
       const orderData = await fetchOrderById(data.order_id);
       setOrder(orderData);
+    } catch (error) {
+      console.error("Lỗi tải chi tiết thanh toán:", error);
     } finally {
       setLoading(false);
     }

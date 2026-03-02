@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "../../../components";
-import type { Store } from "../../../models/store.model";
-import { STORE_STATUS_COLORS, STORE_STATUS_LABELS } from "../../../models/store.model";
-import { fetchStores } from "../../../services/store.service";
+import type { ApiFranchise } from "../../../services/store.service";
+import { searchFranchises } from "../../../services/store.service";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../../routes/router.const";
 import Pagination from "../../../components/ui/Pagination";
@@ -10,40 +9,72 @@ import Pagination from "../../../components/ui/Pagination";
 const ITEMS_PER_PAGE = 10;
 
 const FranchiseListPage = () => {
-  const [stores, setStores] = useState<Store[]>([]);
+  const [franchises, setFranchises] = useState<ApiFranchise[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [keyword, setKeyword] = useState("");
   const navigate = useNavigate();
 
-  const load = async () => {
+  const load = useCallback(async (page = currentPage) => {
     setLoading(true);
     try {
-      const data = await fetchStores();
-      setStores(data);
+      const result = await searchFranchises({
+        searchCondition: {
+          keyword,
+          is_active: "",
+          is_deleted: false,
+        },
+        pageInfo: {
+          pageNum: page,
+          pageSize: ITEMS_PER_PAGE,
+        },
+      });
+      setFranchises(result.data);
+      setTotalPages(result.pageInfo.totalPages);
+      setTotalItems(result.pageInfo.totalItems);
+      setCurrentPage(result.pageInfo.pageNum);
+    } catch (error) {
+      console.error("Lỗi tải danh sách franchise:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, keyword]);
 
   useEffect(() => {
-    load();
+    load(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const totalPages = Math.ceil(stores.length / ITEMS_PER_PAGE);
-  const paginatedStores = stores.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
+  const handlePageChange = (page: number) => {
+    load(page);
+  };
+
+  const handleSearch = () => {
+    load(1);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Quản lý Franchise</h1>
-          <p className="text-sm text-slate-600">Danh sách chi nhánh (mock từ Store service)</p>
+          <p className="text-sm text-slate-600">Danh sách chi nhánh</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={load} loading={loading}>
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo tên, mã..."
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          />
+          <Button variant="outline" onClick={handleSearch} loading={loading}>
+            Tìm kiếm
+          </Button>
+          <Button variant="outline" onClick={() => load(currentPage)} loading={loading}>
             Làm mới
           </Button>
           <Button onClick={() => navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_CREATE}`)}>
@@ -58,45 +89,43 @@ const FranchiseListPage = () => {
             <tr>
               <th className="px-4 py-3">Mã</th>
               <th className="px-4 py-3">Tên chi nhánh</th>
-              <th className="px-4 py-3">Thành phố</th>
-              <th className="px-4 py-3">Quản lý</th>
+              <th className="px-4 py-3">Hotline</th>
+              <th className="px-4 py-3">Giờ mở cửa</th>
               <th className="px-4 py-3">Trạng thái</th>
-              <th className="px-4 py-3 text-right">Đơn hàng</th>
-              <th className="px-4 py-3 text-right">Doanh thu</th>
               <th className="px-4 py-3">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
-            {paginatedStores.map((s) => (
-              <tr key={s.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-mono text-xs text-slate-500">{s.code}</td>
+            {franchises.map((f) => (
+              <tr key={f.id} className="hover:bg-slate-50">
+                <td className="px-4 py-3 font-mono text-xs text-slate-500">{f.code}</td>
                 <td className="px-4 py-3">
                   <div className="leading-tight">
-                    <p className="font-semibold text-slate-900">{s.name}</p>
-                    <p className="text-xs text-slate-500">{s.address}</p>
+                    <p className="font-semibold text-slate-900">{f.name}</p>
+                    <p className="text-xs text-slate-500">{f.address}</p>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-slate-700">{s.city}</td>
-                <td className="px-4 py-3 text-slate-700">{s.manager}</td>
+                <td className="px-4 py-3 text-slate-700">{f.hotline || "-"}</td>
+                <td className="px-4 py-3 text-slate-700">{f.opened_at} - {f.closed_at}</td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${STORE_STATUS_COLORS[s.status]}`}>
-                    {STORE_STATUS_LABELS[s.status]}
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                    f.is_active
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-slate-200 bg-slate-50 text-slate-600"
+                  }`}>
+                    {f.is_active ? "Hoạt động" : "Ngừng"}
                   </span>
-                </td>
-                <td className="px-4 py-3 text-right text-slate-700">{s.totalOrders?.toLocaleString() ?? "-"}</td>
-                <td className="px-4 py-3 text-right text-emerald-700">
-                  {s.totalRevenue ? s.totalRevenue.toLocaleString("vi-VN", { style: "currency", currency: "VND" }) : "-"}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_DETAIL.replace(":id", s.id)}`}
+                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_DETAIL.replace(":id", f.id)}`}
                       className="text-xs font-semibold text-primary-600 hover:text-primary-700"
                     >
                       Chi tiết
                     </Link>
                     <Link
-                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE.replace(":id", s.id)}`}
+                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE.replace(":id", f.id)}`}
                       className="text-xs font-semibold text-amber-600 hover:text-amber-700"
                     >
                       Tồn kho
@@ -105,16 +134,16 @@ const FranchiseListPage = () => {
                 </td>
               </tr>
             ))}
-            {stores.length === 0 && !loading && (
+            {franchises.length === 0 && !loading && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
                   Không có chi nhánh
                 </td>
               </tr>
             )}
             {loading && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
                   Đang tải...
                 </td>
               </tr>
@@ -125,8 +154,8 @@ const FranchiseListPage = () => {
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={stores.length}
+            onPageChange={handlePageChange}
+            totalItems={totalItems}
             itemsPerPage={ITEMS_PER_PAGE}
           />
         </div>

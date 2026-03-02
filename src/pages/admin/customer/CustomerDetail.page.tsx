@@ -36,6 +36,8 @@ const CustomerDetailPage = () => {
       const allOrders = await fetchOrders();
       const customerOrders = allOrders.filter((order) => order.customer_id === data.id);
       setOrders(customerOrders);
+    } catch (error) {
+      console.error("Lỗi tải chi tiết khách hàng:", error);
     } finally {
       setLoading(false);
     }

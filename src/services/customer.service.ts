@@ -1,4 +1,6 @@
 import type { Customer, CustomerFranchise, CustomerDisplay } from "../models/customer.model";
+import apiClient from "./api.client";
+import type { ApiResponse } from "./auth.service";
 
 // Mock data
 const mockCustomers: Customer[] = [
@@ -204,3 +206,28 @@ export const updateCustomerLoyalty = async (
   }
   return null;
 };
+
+// ==================== CUSTOMER-07: Restore Item ====================
+// PATCH /api/customers/:id/restore — Token: YES — Role: ADMIN
+// Output: { success: true, data: null }
+export async function restoreCustomer(id: string | number): Promise<void> {
+  const response = await apiClient.patch<ApiResponse<null>>(`/customers/${id}/restore`);
+  const result = response.data;
+  if (!result.success) {
+    throw new Error(result.message || "Khôi phục khách hàng thất bại");
+  }
+}
+
+// ==================== CUSTOMER-08: Change Status Item ====================
+// PATCH /api/customers/:id/status — Token: YES — Role: ADMIN
+// Input: { is_active: boolean }
+// Output: { success: true, data: null }
+export async function changeCustomerStatus(id: string | number, isActive: boolean): Promise<void> {
+  const response = await apiClient.patch<ApiResponse<null>>(`/customers/${id}/status`, {
+    is_active: isActive,
+  });
+  const result = response.data;
+  if (!result.success) {
+    throw new Error(result.message || "Thay đổi trạng thái khách hàng thất bại");
+  }
+}
