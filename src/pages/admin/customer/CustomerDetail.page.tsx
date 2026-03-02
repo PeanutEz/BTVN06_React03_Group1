@@ -72,15 +72,15 @@ const CustomerDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`}>
           <Button variant="outline" size="sm">
             ← Quay lại
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Chi tiết khách hàng</h1>
-          <p className="text-sm text-slate-600">Thông tin chi tiết và lịch sử mua hàng</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Chi tiết khách hàng</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Thông tin chi tiết và lịch sử mua hàng</p>
         </div>
       </div>
 

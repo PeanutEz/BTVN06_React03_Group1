@@ -3,7 +3,8 @@ import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
 import { loginAndGetProfile, type UserProfile } from "../../../services/auth.service";
-import { useAuthStore } from "../../../store";
+import { fetchFranchiseSelect } from "../../../services/store.service";
+import { useAuthStore, useFranchiseStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
@@ -13,6 +14,7 @@ const AdminLoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, login } = useAuthStore();
+  const { setFranchises } = useFranchiseStore();
 
   const {
     register,
@@ -49,13 +51,23 @@ const AdminLoginPage = () => {
       }
 
       login(profile);
+
+      // Fetch và lưu danh sách franchise sau khi đăng nhập thành công
+      try {
+        const franchises = await fetchFranchiseSelect();
+        setFranchises(franchises);
+      } catch (err) {
+        console.warn("[Admin Login] Không thể tải danh sách franchise:", err);
+      }
+
       showSuccess("Đăng nhập thành công");
       const redirectTo = (location.state as { from?: Location })?.from?.pathname;
       navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Đăng nhập thất bại";
       showError(msg);
-    }  };  const handleQuickLogin = (role: "admin" | "client") => {
+    }
+  };  const handleQuickLogin = (role: "admin" | "client") => {
     const mockProfile: UserProfile = role === "admin"
       ? {
           user: { id: "mock-admin", email: "admin@gmail.com", name: "Admin", phone: "", avatar_url: "" },

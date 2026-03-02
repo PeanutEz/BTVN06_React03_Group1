@@ -125,12 +125,12 @@ export default function ProductListPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
             Product Management
           </h1>
-          <p className="text-gray-600 mt-1">
+          <p className="text-gray-600 mt-1 text-sm">
             Manage global product catalog (HQ)
           </p>
         </div>
@@ -326,7 +326,7 @@ export default function ProductListPage() {
             </div>
 
             {/* Pagination */}
-            <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="text-sm text-slate-500">
                 Hiển thị{" "}
                 <span className="font-semibold text-slate-700">
@@ -343,7 +343,7 @@ export default function ProductListPage() {
                 kết quả
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() =>
                     setPagination((prev) => ({ ...prev, page: prev.page - 1 }))

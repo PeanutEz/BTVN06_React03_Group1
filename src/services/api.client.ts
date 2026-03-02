@@ -1,7 +1,9 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 
-// Base URL trỏ đến API thật, thêm /api vào cuối
-const baseURL = (import.meta.env.VITE_API_URL || "https://ecommerce-franchise-training-nodejs.vercel.app/") + "api";
+// Base URL: dùng proxy trong dev (same-origin để cookie hoạt động), direct URL khi production
+const baseURL = import.meta.env.DEV
+    ? "/api"  // Vite proxy → tránh cross-origin cookie bị chặn
+    : (import.meta.env.VITE_API_URL || "https://ecommerce-franchise-training-nodejs.vercel.app/") + "api";
 
 const apiClient = axios.create({
     baseURL,
@@ -54,6 +56,8 @@ apiClient.interceptors.response.use(
                     break;
                 case 403:
                     console.warn("Forbidden: Bạn không có quyền truy cập.");
+                    console.log("[403 DETAIL] url:", error.config?.url);
+                    console.log("[403 DETAIL] response.data:", error.response.data);
                     break;
                 case 429:
                     console.warn("Too many requests: Vui lòng thử lại sau.");
