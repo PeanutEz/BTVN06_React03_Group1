@@ -56,6 +56,15 @@ export default function ProfilePage() {
 
 			// Map ApiUser → UserProfile để lưu vào store
 			const updatedProfile: UserProfile = {
+				user: {
+					id: updatedUser.id,
+					email: updatedUser.email,
+					name: updatedUser.name,
+					phone: updatedUser.phone || "",
+					avatar_url: updatedUser.avatar_url,
+				},
+				roles: user.roles || [],
+				active_context: user.active_context,
 				id: updatedUser.id,
 				name: updatedUser.name,
 				email: updatedUser.email,

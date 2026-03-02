@@ -55,6 +55,7 @@ export interface UserProfile {
 	email?: string;
 	role?: string;
 	avatar?: string;
+	[key: string]: unknown;
 }
 
 // ==================== AUTH-01: Login ====================
