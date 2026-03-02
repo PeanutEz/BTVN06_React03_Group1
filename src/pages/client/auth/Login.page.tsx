@@ -22,13 +22,8 @@ const LoginPage = () => {
   } = useForm<AuthCredentials>();
   useEffect(() => {
     if (user) {
-      // Kiểm tra role từ roles array hoặc computed field role
-      const hasAdminRole = user.roles?.some(r => {
-        const role = (r.role ?? "").toString().toLowerCase();
-        return role === "admin" || role === "system";
-      }) || ["admin", "system"].includes((user.role ?? "").toString().toLowerCase());
-      
-      if (hasAdminRole) {
+      const role = (user.role ?? "").toString().toLowerCase();
+      if (role === "admin") {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
@@ -47,13 +42,8 @@ const LoginPage = () => {
         return;
       }
 
-      // Kiểm tra role từ roles array hoặc computed field role
-      const hasAdminRole = profile.roles?.some(r => {
-        const role = (r.role ?? "").toString().toLowerCase();
-        return role === "admin" || role === "system";
-      }) || ["admin", "system"].includes((profile.role ?? "").toString().toLowerCase());
-      
-      if (hasAdminRole) {
+      const role = (profile.role ?? "").toString().toLowerCase();
+      if (role === "admin") {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
@@ -82,21 +72,13 @@ const LoginPage = () => {
           user: { id: "mock-admin", email: "admin@gmail.com", name: "Admin", phone: "", avatar_url: "" },
           roles: [{ role: "ADMIN", scope: "GLOBAL", franchise_id: null, franchise_name: null }],
           active_context: null,
-          id: "mock-admin",
-          name: "Admin",
-          email: "admin@gmail.com",
-          role: "admin",
-          avatar: ""
+          id: "mock-admin", name: "Admin", email: "admin@gmail.com", role: "admin", avatar: "",
         }
       : {
           user: { id: "mock-client", email: "user@gmail.com", name: "Client User", phone: "", avatar_url: "" },
           roles: [{ role: "USER", scope: "GLOBAL", franchise_id: null, franchise_name: null }],
           active_context: null,
-          id: "mock-client",
-          name: "Client User",
-          email: "user@gmail.com",
-          role: "user",
-          avatar: ""
+          id: "mock-client", name: "Client User", email: "user@gmail.com", role: "user", avatar: "",
         };
 
     login(mockProfile);

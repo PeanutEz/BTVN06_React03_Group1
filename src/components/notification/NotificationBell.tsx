@@ -8,13 +8,17 @@ import { NOTIFICATION_TYPE_CONFIG } from "@/types/notification.types";
 import { ROUTER_URL } from "@/routes/router.const";
 import { formatTimeAgo } from "@/utils/index";
 
+const NEWS_TYPES = ["NEWS", "PROMOTION", "SYSTEM", "SUPPORT"] as const;
+const ORDER_TYPES = ["ORDER", "PAYMENT", "SHIPPING"] as const;
+
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"news" | "orders">("news");
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  const { hydrate, unreadCount, recentFive, markAsRead, markAllAsRead, isInitialized } =
+  const { hydrate, unreadCount, notifications, markAsRead, markAllAsRead, isInitialized } =
     useNotificationStore();
 
   useEffect(() => {
@@ -31,7 +35,34 @@ export default function NotificationBell() {
   }, []);
 
   const count = unreadCount();
-  const recent = recentFive();
+
+  const allVisible = notifications.filter((n) => !n.isDeleted);
+
+  const newsItems = allVisible
+    .filter((n) => (NEWS_TYPES as readonly string[]).includes(n.type))
+    .sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    })
+    .slice(0, 5);
+
+  const orderItems = allVisible
+    .filter((n) => (ORDER_TYPES as readonly string[]).includes(n.type))
+    .sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    })
+    .slice(0, 5);
+
+  const newsUnread = allVisible.filter(
+    (n) => !n.isRead && (NEWS_TYPES as readonly string[]).includes(n.type),
+  ).length;
+
+  const orderUnread = allVisible.filter(
+    (n) => !n.isRead && (ORDER_TYPES as readonly string[]).includes(n.type),
+  ).length;
+
+  const recent = activeTab === "news" ? newsItems : orderItems;
 
   function handleBellClick() {
     if (!user) {
@@ -85,6 +116,38 @@ export default function NotificationBell() {
               className="text-red-200 hover:text-white text-xs font-medium transition-colors"
             >
               Đọc tất cả ✓
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex border-b border-gray-100">
+            <button
+              onClick={() => setActiveTab("news")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition-colors relative",
+                activeTab === "news"
+                  ? "text-green-700 border-b-2 border-green-600"
+                  : "text-gray-500 hover:text-gray-700",
+              )}
+            >
+              TIN TỨC
+              {newsUnread > 0 && (
+                <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("orders")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition-colors relative",
+                activeTab === "orders"
+                  ? "text-green-700 border-b-2 border-green-600"
+                  : "text-gray-500 hover:text-gray-700",
+              )}
+            >
+              ĐƠN HÀNG
+              {orderUnread > 0 && (
+                <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+              )}
             </button>
           </div>
 
