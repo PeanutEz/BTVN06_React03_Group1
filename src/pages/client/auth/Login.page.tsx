@@ -23,7 +23,7 @@ const LoginPage = () => {
   useEffect(() => {
     if (user) {
       const role = (user.role ?? "").toString().toLowerCase();
-      if (role === "admin" || role === "system") {
+      if (role === "admin") {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
@@ -43,7 +43,7 @@ const LoginPage = () => {
       }
 
       const role = (profile.role ?? "").toString().toLowerCase();
-      if (role === "admin" || role === "system") {
+      if (role === "admin") {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
