@@ -79,6 +79,8 @@ const DashboardPage = () => {
 
       setRecentOrders(orders.slice(0, 5));
       setLoyaltyOverview(loyalty);
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu dashboard:", error);
     } finally {
       setLoading(false);
     }

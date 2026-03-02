@@ -28,6 +28,8 @@ const OrderListPage = () => {
     try {
       const data = await fetchOrders();
       setOrders(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách đơn hàng:", error);
     } finally {
       setLoading(false);
     }
@@ -56,6 +58,8 @@ const OrderListPage = () => {
     try {
       const data = await searchOrders(searchQuery);
       setOrders(data);
+    } catch (error) {
+      console.error("Lỗi tìm kiếm đơn hàng:", error);
     } finally {
       setLoading(false);
     }
@@ -72,6 +76,8 @@ const OrderListPage = () => {
         endDate || undefined
       );
       setOrders(data);
+    } catch (error) {
+      console.error("Lỗi lọc đơn hàng:", error);
     } finally {
       setLoading(false);
     }

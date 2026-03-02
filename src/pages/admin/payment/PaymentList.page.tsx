@@ -26,6 +26,8 @@ const PaymentListPage = () => {
     try {
       const data = await fetchPayments();
       setPayments(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách thanh toán:", error);
     } finally {
       setLoading(false);
     }
@@ -43,6 +45,8 @@ const PaymentListPage = () => {
         statusFilter || undefined
       );
       setPayments(data);
+    } catch (error) {
+      console.error("Lỗi lọc thanh toán:", error);
     } finally {
       setLoading(false);
     }
