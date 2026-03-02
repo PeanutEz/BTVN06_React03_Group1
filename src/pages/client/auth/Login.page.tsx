@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
-import { customerLoginAndGetProfile, resendToken } from "../../../services/auth.service";
+import { customerLoginAndGetProfile, resendToken, type UserProfile } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -67,9 +67,19 @@ const LoginPage = () => {
       setIsResending(false);
     }
   };  const handleQuickLogin = (role: "admin" | "client") => {
-    const mockProfile = role === "admin"
-      ? { id: "mock-admin", name: "Admin", email: "admin@gmail.com", role: "admin", avatar: "" }
-      : { id: "mock-client", name: "Client User", email: "user@gmail.com", role: "user", avatar: "" };
+    const mockProfile: UserProfile = role === "admin"
+      ? {
+          user: { id: "mock-admin", email: "admin@gmail.com", name: "Admin", phone: "", avatar_url: "" },
+          roles: [{ role: "ADMIN", scope: "GLOBAL", franchise_id: null, franchise_name: null }],
+          active_context: null,
+          id: "mock-admin", name: "Admin", email: "admin@gmail.com", role: "admin", avatar: "",
+        }
+      : {
+          user: { id: "mock-client", email: "user@gmail.com", name: "Client User", phone: "", avatar_url: "" },
+          roles: [{ role: "USER", scope: "GLOBAL", franchise_id: null, franchise_name: null }],
+          active_context: null,
+          id: "mock-client", name: "Client User", email: "user@gmail.com", role: "user", avatar: "",
+        };
 
     login(mockProfile);
     showSuccess(`Đăng nhập nhanh (${mockProfile.email})`);
