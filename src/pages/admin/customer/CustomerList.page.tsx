@@ -41,6 +41,8 @@ const CustomerListPage = () => {
     try {
       const data = await fetchCustomers();
       setCustomers(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách khách hàng:", error);
     } finally {
       setLoading(false);
     }
@@ -59,6 +61,8 @@ const CustomerListPage = () => {
     try {
       const data = await searchCustomers(searchQuery);
       setCustomers(data);
+    } catch (error) {
+      console.error("Lỗi tìm kiếm khách hàng:", error);
     } finally {
       setLoading(false);
     }
@@ -77,6 +81,8 @@ const CustomerListPage = () => {
         c.franchises?.some(cf => cf.loyalty_tier === tierFilter)
       );
       setCustomers(filtered);
+    } catch (error) {
+      console.error("Lỗi lọc khách hàng:", error);
     } finally {
       setLoading(false);
     }

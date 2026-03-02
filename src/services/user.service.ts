@@ -19,6 +19,14 @@ export interface ApiUser {
 	[key: string]: unknown;
 }
 
+/** Role item từ API ROLE-01: GET /api/roles/select */
+export interface RoleSelectItem {
+	value: string;   // role id
+	code: string;    // e.g. "ADMIN", "MANAGER", "STAFF", "SHIPPER", "USER"
+	name: string;    // e.g. "Admin", "Manager", "Staff", "Shipper", "User"
+	scope: string;   // "GLOBAL" | "FRANCHISE"
+}
+
 /** Payload tạo user — USER-01: POST /api/users */
 export interface CreateUserPayload {
 	email: string;        // required
@@ -26,6 +34,7 @@ export interface CreateUserPayload {
 	name?: string;        // optional, default ""
 	phone?: string;       // optional, default ""
 	avatar_url?: string;  // optional, default ""
+	role_id?: string;     // optional, role id from ROLE-01
 }
 
 /** Điều kiện tìm kiếm — USER-02: POST /api/users/search */
@@ -75,9 +84,22 @@ export interface SearchUsersResult {
 	};
 }
 
+// ==================== ROLE-01: Get Select Items ====================
+// GET /api/roles/select — Token: YES — Role: SYSTEM & FRANCHISE
+// Output: { success: true, data: RoleSelectItem[] }
+export async function fetchRoles(): Promise<RoleSelectItem[]> {
+	const response = await apiClient.get<ApiResponse<RoleSelectItem[]>>("/roles/select");
+	const result = response.data;
+	if (!result.success) {
+		const errorMsg = result.message || "Lấy danh sách role thất bại";
+		throw new Error(errorMsg);
+	}
+	return (result as { data: RoleSelectItem[] }).data;
+}
+
 // ==================== USER-01: Create Item ====================
 // POST /api/users — Token: YES — Role: ADMIN
-// Input: { email, password, name?, phone?, avatar_url? }
+// Input: { email, password, name?, phone?, avatar_url?, role_id? }
 // Output: { success: true, data: ApiUser }
 export async function createUser(data: CreateUserPayload): Promise<ApiUser> {
 	const response = await apiClient.post<ApiResponse<ApiUser>>("/users", {
@@ -86,6 +108,7 @@ export async function createUser(data: CreateUserPayload): Promise<ApiUser> {
 		...(data.name && { name: data.name }),
 		...(data.phone && { phone: data.phone }),
 		...(data.avatar_url && { avatar_url: data.avatar_url }),
+		...(data.role_id && { role_id: data.role_id }),
 	});
 	const result = response.data;
 	if (!result.success) {
@@ -137,7 +160,22 @@ export async function fetchUsers(
 	});
 }
 
-// ==================== Delete User (chưa có API doc, giữ tạm) ====================
+// ==================== USER-03: Get Item ====================
+// GET /api/users/:id — Token: YES — Role: SYSTEM & FRANCHISE
+// Output: { success: true, data: ApiUser }
+export async function fetchUserById(id: string): Promise<ApiUser> {
+	const response = await apiClient.get<ApiResponse<ApiUser>>(`/users/${id}`);
+	const result = response.data;
+	if (!result.success) {
+		const errorMsg = result.message || "Lấy thông tin user thất bại";
+		throw new Error(errorMsg);
+	}
+	return (result as { data: ApiUser }).data;
+}
+
+// ==================== USER-05: Delete Item ====================
+// DELETE /api/users/:id — Token: YES — Role: ADMIN
+// Output: { success: true, data: null }
 export async function deleteUser(id: string): Promise<void> {
 	const response = await apiClient.delete<ApiResponse>(`/users/${id}`);
 	const result = response.data;

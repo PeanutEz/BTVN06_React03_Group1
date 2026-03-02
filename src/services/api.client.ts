@@ -1,5 +1,4 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { LOCAL_STORAGE_KEY } from "../const/data.const";
 
 // Base URL trỏ đến API thật, thêm /api vào cuối
 const baseURL = (import.meta.env.VITE_API_URL || "https://ecommerce-franchise-training-nodejs.vercel.app/") + "api";
@@ -48,11 +47,10 @@ apiClient.interceptors.response.use(
 
             switch (status) {
                 case 401:
+                    // Chỉ log warning, KHÔNG redirect hoặc xoá localStorage tự động.
+                    // Để từng page/component tự xử lý lỗi 401 (hiển thị trống hoặc thông báo).
+                    // Route guards (AdminGuard, AuthGuard) sẽ lo việc redirect khi cần.
                     console.warn("Unauthorized: Token hết hạn hoặc không hợp lệ");
-                    localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
-                    if (!window.location.pathname.includes("/login")) {
-                        window.location.href = "/login";
-                    }
                     break;
                 case 403:
                     console.warn("Forbidden: Bạn không có quyền truy cập.");

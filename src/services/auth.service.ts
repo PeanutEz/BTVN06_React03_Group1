@@ -32,11 +32,28 @@ export interface LoginResponseData {
 }
 
 /** Data trả về khi get profile */
-export interface UserProfile {
-	id: string | number;
-	name: string;
-	email: string;
+export interface RoleInfo {
 	role: string;
+	scope: string;
+	franchise_id: string | null;
+	franchise_name: string | null;
+}
+
+export interface UserProfile {
+	user: {
+		id: string;
+		email: string;
+		name: string;
+		phone: string;
+		avatar_url: string;
+	};
+	roles: RoleInfo[];
+	active_context: unknown;
+	// Computed fields for backward compatibility
+	id?: string;
+	name?: string;
+	email?: string;
+	role?: string;
 	avatar?: string;
 	[key: string]: unknown;
 }
@@ -128,7 +145,21 @@ export async function getProfile(): Promise<UserProfile> {
 		throw new Error(errorMsg);
 	}
 
-	return result.data;
+	// Normalize profile: thêm computed fields để backward compatible
+	const profileData = result.data;
+	if (profileData.user) {
+		profileData.id = profileData.user.id;
+		profileData.name = profileData.user.name;
+		profileData.email = profileData.user.email;
+		profileData.avatar = profileData.user.avatar_url;
+	}
+	if (profileData.roles && profileData.roles.length > 0) {
+		// Ưu tiên role GLOBAL scope, hoặc role đầu tiên
+		const primaryRole = profileData.roles.find(r => r.scope === 'GLOBAL') || profileData.roles[0];
+		profileData.role = primaryRole.role;
+	}
+
+	return profileData;
 }
 
 // ==================== AUTH-04: Refresh Token ====================

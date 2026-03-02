@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "../../../components";
 import { useAuthStore } from "../../../store";
-import { createUser, deleteUser, fetchUsers, updateUserProfile } from "../../../services/user.service";
-import type { ApiUser, CreateUserPayload } from "../../../services/user.service";
+import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles } from "../../../services/user.service";
+import type { ApiUser, CreateUserPayload, RoleSelectItem } from "../../../services/user.service";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 
@@ -14,6 +14,7 @@ const DEFAULT_FORM: CreateUserPayload = {
   password: "",
   phone: "",
   avatar_url: "",
+  role_id: "",
 };
 
 const UserPage = () => {
@@ -28,6 +29,17 @@ const UserPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
+  const [roles, setRoles] = useState<RoleSelectItem[]>([]);
+
+  const loadRoles = async () => {
+    try {
+      const data = await fetchRoles();
+      setRoles(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách role:", error);
+    }
+  };
+
   const load = async (keyword = searchQuery, page = currentPage) => {
     setLoading(true);
     try {
@@ -44,7 +56,7 @@ const UserPage = () => {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load("", 1); }, []);
+  useEffect(() => { load("", 1); loadRoles(); }, []);
 
   const handleOpenModal = () => {
     setFormData({ ...DEFAULT_FORM });
@@ -65,8 +77,14 @@ const UserPage = () => {
     }
   };
 
-  const handleOpenEdit = (u: ApiUser) => {
-    setEditingUser(u);
+  const handleOpenEdit = async (u: ApiUser) => {
+    try {
+      const detail = await fetchUserById(u.id);
+      setEditingUser(detail);
+    } catch {
+      // Fallback: dùng data từ danh sách nếu API lỗi
+      setEditingUser(u);
+    }
   };
 
   const handleUpdateUser = async () => {
@@ -276,6 +294,22 @@ const UserPage = () => {
                   placeholder="https://picsum.photos/id/237/200/300"
                   className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Vai trò</label>
+                <select
+                  value={formData.role_id || ""}
+                  onChange={(e) => setFormData({ ...formData, role_id: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                >
+                  <option value="">-- Chọn vai trò --</option>
+                  {roles.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.name} ({role.code})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex gap-3 pt-2">

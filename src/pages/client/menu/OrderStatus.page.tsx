@@ -148,10 +148,11 @@ export default function OrderStatusPage() {
   const isCancelled = order.status === "CANCELLED";
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-2xl px-4 sm:px-6 py-8">
+    <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-8 sm:-my-10 lg:-my-12 bg-gray-50">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+        <nav className="flex items-center gap-2 text-sm text-gray-400 mb-5">
           <Link to="/" className="hover:text-gray-600 transition-colors">Trang chủ</Link>
           <span>/</span>
           <Link to="/menu" className="hover:text-gray-600 transition-colors">Menu</Link>
@@ -160,60 +161,51 @@ export default function OrderStatusPage() {
         </nav>
 
         {/* Status hero */}
-        <div
-          className={cn(
-            "rounded-3xl border p-6 mb-6 text-center transition-all duration-500",
-            statusCfg.bg,
-          )}
-        >
-          <div className="text-5xl mb-3 animate-bounce">{statusCfg.icon}</div>
-          <h1 className={cn("text-2xl font-bold mb-1", statusCfg.color)}>{statusCfg.label}</h1>
-          <p className={cn("text-sm", statusCfg.color)}>{statusCfg.description}</p>
-
-          {/* Time estimate for active orders */}
+        <div className={cn("rounded-2xl border px-5 py-4 flex items-center gap-4 transition-all duration-500 mb-6", statusCfg.bg)}>
+          <div className="text-3xl animate-bounce shrink-0">{statusCfg.icon}</div>
+          <div className="flex-1 min-w-0">
+            <h1 className={cn("text-base font-bold leading-tight", statusCfg.color)}>{statusCfg.label}</h1>
+            <p className={cn("text-xs mt-0.5", statusCfg.color)}>{statusCfg.description}</p>
+          </div>
           {!isCompleted && !isCancelled && (
-            <div className="mt-4 inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-white rounded-xl px-4 py-2">
-              <span className="text-xl">⏱</span>
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-white rounded-xl px-3 py-1.5 shrink-0">
+              <span className="text-base">⏱</span>
               <div>
-                <p className="text-xs text-gray-500">Ước tính hoàn thành</p>
-                <p className="text-sm font-bold text-gray-900">
-                  ~{order.prepTimeMins + order.deliveryTimeMins} phút
-                </p>
+                <p className="text-[10px] text-gray-500">Ước tính</p>
+                <p className="text-xs font-bold text-gray-900">~{order.prepTimeMins + order.deliveryTimeMins} phút</p>
               </div>
             </div>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-6">
-          {/* Left col */}
-          <div className="space-y-5">
-            {/* Order timeline */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h2 className="font-semibold text-gray-900 mb-5">Trạng thái đơn hàng</h2>
-              <StatusTimeline steps={steps} currentStatus={order.status} />
+        {/* Main grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_260px] gap-5 items-start">
 
-              {/* Demo control */}
+          {/* ── LEFT ── */}
+          <div className="flex flex-col gap-5">
+            {/* Timeline */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <h2 className="font-semibold text-gray-900 text-sm mb-4">Trạng thái đơn hàng</h2>
+              <StatusTimeline steps={steps} currentStatus={order.status} />
               {!isCompleted && !isCancelled && (
-                <div className="mt-5 pt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-gray-400">
-                      {autoAdvance ? "⚡ Tự động cập nhật (demo)" : "Cập nhật thủ công"}
-                    </p>
-                    <button
-                      onClick={() => { setAutoAdvance(false); advanceOrderStatus(order.id); }}
-                      className="text-xs text-amber-600 hover:text-amber-700 font-semibold border border-amber-200 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all"
-                    >
-                      Tiếp theo →
-                    </button>
-                  </div>
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <p className="text-xs text-gray-400">
+                    {autoAdvance ? "⚡ Tự động cập nhật (demo)" : "Cập nhật thủ công"}
+                  </p>
+                  <button
+                    onClick={() => { setAutoAdvance(false); advanceOrderStatus(order.id); }}
+                    className="text-xs text-amber-600 hover:text-amber-700 font-semibold border border-amber-200 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all"
+                  >
+                    Tiếp theo →
+                  </button>
                 </div>
               )}
             </div>
 
-            {/* Branch info */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h2 className="font-semibold text-gray-900 mb-3">Thông tin đơn hàng</h2>
-              <div className="space-y-2 text-sm">
+            {/* Order info */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <h2 className="font-semibold text-gray-900 text-sm mb-4">Thông tin đơn hàng</h2>
+              <div className="space-y-2.5 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400 w-24 shrink-0">Mã đơn:</span>
                   <span className="font-mono font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg">{order.code}</span>
@@ -252,13 +244,14 @@ export default function OrderStatusPage() {
             </div>
           </div>
 
-          {/* Right col: order items */}
-          <div className="sm:w-64 space-y-4">
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-50">
+          {/* ── RIGHT ── */}
+          <div className="flex flex-col gap-4">
+            {/* Products */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100">
                 <h2 className="font-semibold text-gray-900 text-sm">Sản phẩm</h2>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
                 {order.items.map((item) => (
                   <div key={item.cartKey} className="px-4 py-3 flex gap-3">
                     <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover shrink-0" />
@@ -278,7 +271,6 @@ export default function OrderStatusPage() {
                   </div>
                 ))}
               </div>
-
               {/* Totals */}
               <div className="px-4 py-3 bg-gray-50 space-y-1.5 text-xs border-t border-gray-100">
                 <div className="flex justify-between text-gray-600">
@@ -295,8 +287,18 @@ export default function OrderStatusPage() {
                     )}
                   </div>
                 )}
+                {order.promo && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>Giảm giá ({order.promo.label})</span>
+                    <span>-{fmt(order.promo.discountAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-600">
+                  <span>Thuế VAT (8%)</span>
+                  <span>{fmt(order.vatAmount)}</span>
+                </div>
                 <div className="flex justify-between font-bold text-sm text-gray-900 pt-1 border-t border-gray-200">
-                  <span>Tổng cộng</span>
+                  <span>Tổng cộng <span className="text-xs font-normal text-gray-400">(đã gồm VAT)</span></span>
                   <span className="text-amber-600">{fmt(order.total)}</span>
                 </div>
               </div>
@@ -305,26 +307,26 @@ export default function OrderStatusPage() {
             {/* Actions */}
             <div className="space-y-2">
               {isCompleted && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-center">
-                  <p className="text-2xl mb-2">🎉</p>
-                  <p className="text-sm font-semibold text-emerald-800">Cảm ơn bạn đã đến với Hylux!</p>
-                  <p className="text-xs text-emerald-600 mt-1">Hẹn gặp lại bạn lần sau!</p>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+                  <p className="text-xl mb-1">🎉</p>
+                  <p className="text-xs font-semibold text-emerald-800">Cảm ơn bạn đã đến với Hylux!</p>
                 </div>
               )}
               <Link
                 to="/menu"
-                className="block text-center w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-all"
+                className="block text-center w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm transition-all"
               >
                 Đặt thêm đơn mới
               </Link>
               <Link
                 to="/"
-                className="block text-center w-full py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-semibold text-sm transition-all"
+                className="block text-center w-full py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-semibold text-sm transition-all"
               >
                 Về trang chủ
               </Link>
             </div>
           </div>
+
         </div>
       </div>
     </div>

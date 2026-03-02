@@ -29,6 +29,8 @@ const LoyaltyManagementPage = () => {
       setRule(ruleData);
       setOverview(overviewData);
       setHistory(historyData);
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu loyalty:", error);
     } finally {
       setLoading(false);
     }

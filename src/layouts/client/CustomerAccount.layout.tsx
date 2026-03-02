@@ -15,18 +15,22 @@ export default function CustomerAccountLayout() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="mb-6 text-sm text-gray-500">
-        <Link to={ROUTER_URL.HOME} className="text-green-600 hover:underline">
+    <div>
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-sm text-gray-400 mb-7">
+        <Link to={ROUTER_URL.HOME} className="hover:text-green-600 transition-colors">
           Trang chủ
         </Link>
-        <span> / Tài khoản</span>
-      </div>
+        <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="text-gray-700 font-medium">Tài khoản</span>
+      </nav>
 
-      <div className="flex flex-col md:flex-row gap-6">
+      {/* Layout */}
+      <div className="flex flex-col md:flex-row gap-6 items-start">
         <AccountSidebar onLogout={handleLogout} />
-
-        <div className="flex-1 min-h-[400px]">
+        <div className="flex-1 min-w-0">
           <Outlet />
         </div>
       </div>
