@@ -29,6 +29,7 @@ const LoyaltyDashboardPage = React.lazy(() => import("../pages/client/loyalty/Lo
 const LoyaltyPointsPage = React.lazy(() => import("../pages/client/loyalty/LoyaltyPoints.page"));
 const CartPage = React.lazy(() => import("../pages/client/Cart.page"));
 const ContactPage = React.lazy(() => import("../pages/client/Contact.page"));
+const CustomerChangePasswordPage = React.lazy(() => import("../pages/client/customer/CustomerChangePassword.page"));
 const MenuPage = React.lazy(() => import("../pages/client/menu/Menu.page"));
 const MenuCheckoutPage = React.lazy(() => import("../pages/client/menu/MenuCheckout.page"));
 const OrderStatusPage = React.lazy(() => import("../pages/client/menu/OrderStatus.page"));
@@ -86,6 +87,7 @@ function AppRoutes() {
 
             <Route path="customer" element={<CustomerAccountLayout />}>
               <Route path="account" element={<CustomerProfilePage />} />
+              <Route path="change-password" element={<CustomerChangePasswordPage />} />
               <Route path="address-book" element={<CustomerAddressBookPage />} />
               <Route path="membership" element={<LoyaltyDashboardPage />} />
               <Route path="vouchers" element={<LoyaltyPointsPage />} />
@@ -101,6 +103,7 @@ function AppRoutes() {
           <Route path={ROUTER_URL.REGISTER} element={<RegisterPage />} />
           <Route path={ROUTER_URL.RESET_PASSWORD} element={<ResetPasswordPage />} />
           <Route path={ROUTER_URL.VERIFY_EMAIL} element={<VerifyEmailPage />} />
+          <Route path={ROUTER_URL.VERIFY_EMAIL_ALT} element={<VerifyEmailPage />} />
 
           {/* Admin auth */}
           <Route path={ROUTER_URL.ADMIN_LOGIN} element={<AdminLoginPage />} />

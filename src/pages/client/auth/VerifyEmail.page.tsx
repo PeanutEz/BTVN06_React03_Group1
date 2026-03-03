@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
-import { verifyToken, resendToken } from "../../../services/auth.service";
+import { verifyToken, verifyTokenAuth, resendToken } from "../../../services/auth.service";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showError, showSuccess } from "../../../utils";
 import bgUserLogin from "../../../assets/bg-user-login.jpg";
@@ -11,10 +11,14 @@ type VerifyStatus = "loading" | "success" | "error";
 const VerifyEmailPage = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [status, setStatus] = useState<VerifyStatus>("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [resendEmail, setResendEmail] = useState("");
   const [isResending, setIsResending] = useState(false);
+
+  // Detect if this is admin-created user verify (path: /verify-email/:token)
+  const isAdminVerify = location.pathname.startsWith("/verify-email/");
 
   useEffect(() => {
     const verify = async () => {
@@ -25,7 +29,11 @@ const VerifyEmailPage = () => {
       }
 
       try {
-        await verifyToken(token);
+        if (isAdminVerify) {
+          await verifyTokenAuth(token);
+        } else {
+          await verifyToken(token);
+        }
         setStatus("success");
       } catch (error) {
         setStatus("error");
@@ -36,7 +44,7 @@ const VerifyEmailPage = () => {
     };
 
     verify();
-  }, [token]);
+  }, [token, isAdminVerify]);
 
   const handleResendToken = async () => {
     if (!resendEmail.trim()) {

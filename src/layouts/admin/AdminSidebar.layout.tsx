@@ -41,8 +41,8 @@ const adminNav = [
     ),
   },
   {
-    label: "Orders",
-    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`,
+    label: "Franchises",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
     icon: (
       <svg
         className="size-6"
@@ -54,7 +54,7 @@ const adminNav = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+          d="M3 7h18M3 12h18M3 17h18M6 4v3M6 17v3M12 4v3M12 17v3M18 4v3M18 17v3"
         />
       </svg>
     ),
@@ -98,6 +98,25 @@ const adminNav = [
     ),
   },
   {
+    label: "Orders",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`,
+    icon: (
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+        />
+      </svg>
+    ),
+  },
+  {
     label: "Payments",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PAYMENTS}`,
     icon: (
@@ -131,24 +150,6 @@ const adminNav = [
           strokeLinejoin="round"
           strokeWidth={2}
           d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-        />
-      </svg>
-    ),
-  },  {
-    label: "Franchises",
-    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
-    icon: (
-      <svg
-        className="size-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M3 7h18M3 12h18M3 17h18M6 4v3M6 17v3M12 4v3M12 17v3M18 4v3M18 17v3"
         />
       </svg>
     ),

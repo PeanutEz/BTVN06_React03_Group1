@@ -28,8 +28,9 @@ const UserPage = () => {
   const [formData, setFormData] = useState<CreateUserPayload>({ ...DEFAULT_FORM });
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
-  const [roles, setRoles] = useState<RoleSelectItem[]>([]);
+  const [, setRoles] = useState<RoleSelectItem[]>([]);
 
   const loadRoles = async () => {
     try {
@@ -40,11 +41,12 @@ const UserPage = () => {
     }
   };
 
-  const load = async (keyword = searchQuery, page = currentPage) => {
-    console.log("[User.page] load() called with keyword:", keyword, "page:", page);
+  const load = async (keyword = searchQuery, page = currentPage, status = statusFilter) => {
+    console.log("[User.page] load() called with keyword:", keyword, "page:", page, "status:", status);
     setLoading(true);
     try {
-      const result = await fetchUsers(keyword, page, ITEMS_PER_PAGE);
+      const isActive = status === "true" ? true : status === "false" ? false : "";
+      const result = await fetchUsers(keyword, page, ITEMS_PER_PAGE, isActive);
       console.log("[User.page] fetchUsers result:", result);
       console.log("[User.page] pageData length:", result.pageData?.length);
       console.log("[User.page] pageInfo:", result.pageInfo);
@@ -152,11 +154,20 @@ const UserPage = () => {
               placeholder="Tìm kiếm theo tên hoặc email..."
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              onKeyDown={(e) => { if (e.key === "Enter") load(searchQuery, 1); }}
+              onKeyDown={(e) => { if (e.key === "Enter") load(searchQuery, 1, statusFilter); }}
               className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
-          <Button onClick={() => load(searchQuery, 1)} loading={loading}>
+          <select
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, e.target.value); }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="true">Active</option>
+            <option value="false">Blocked</option>
+          </select>
+          <Button onClick={() => load(searchQuery, 1, statusFilter)} loading={loading}>
             Tìm kiếm
           </Button>
         </div>
@@ -307,22 +318,6 @@ const UserPage = () => {
                   placeholder="https://picsum.photos/id/237/200/300"
                   className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Vai trò</label>
-                <select
-                  value={formData.role_id || ""}
-                  onChange={(e) => setFormData({ ...formData, role_id: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                >
-                  <option value="">-- Chọn vai trò --</option>
-                  {roles.map((role) => (
-                    <option key={role.value} value={role.value}>
-                      {role.name} ({role.code})
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div className="flex gap-3 pt-2">

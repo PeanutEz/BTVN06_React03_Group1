@@ -180,10 +180,11 @@ export async function searchUsers(payload: SearchUsersPayload): Promise<SearchUs
 export async function fetchUsers(
 	keyword = "",
 	pageNum = 1,
-	pageSize = 10
+	pageSize = 10,
+	is_active: string | boolean = ""
 ): Promise<SearchUsersResult> {
 	return searchUsers({
-		searchCondition: { keyword, is_active: "", is_deleted: false },
+		searchCondition: { keyword, is_active, is_deleted: false },
 		pageInfo: { pageNum, pageSize },
 	});
 }

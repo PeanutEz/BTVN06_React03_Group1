@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../../components";
-import { forgotPassword } from "../../../services/auth.service";
+import { customerForgotPassword } from "../../../services/auth.service";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showError, showSuccess } from "../../../utils";
 import bgUserLogin from "../../../assets/bg-user-login.jpg";
@@ -20,7 +20,7 @@ const ResetPasswordPage = () => {
 
   const onSubmit = async (values: ForgotPasswordFormValues) => {
     try {
-      await forgotPassword(values.email);
+      await customerForgotPassword(values.email);
       showSuccess("Mật khẩu mới đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.");
       navigate(ROUTER_URL.LOGIN, { replace: true });
     } catch (error) {

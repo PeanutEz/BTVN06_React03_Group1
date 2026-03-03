@@ -205,6 +205,20 @@ export async function forgotPassword(email: string): Promise<unknown> {
 	return result.data;
 }
 
+// ==================== CUSTOMER-AUTH-04: Customer Forgot Password ====================
+// PUT /api/customer-auth/forgot-password — Token: NO — Role: CUSTOMER PUBLIC
+// Input: { email: string }
+// Note: Password mới sẽ được gửi qua email
+export async function customerForgotPassword(email: string): Promise<void> {
+	const response = await apiClient.put<ApiResponse>("/customer-auth/forgot-password", { email });
+
+	const result = response.data;
+	if (!result.success) {
+		const errorMsg = result.message || "Yêu cầu đặt lại mật khẩu thất bại";
+		throw new Error(errorMsg);
+	}
+}
+
 // ==================== AUTH-06: Change Password ====================
 // PUT /api/auth/change-password — Token: NO — Role: ADMIN PUBLIC
 // Input: { old_password: string, new_password: string }
@@ -222,6 +236,36 @@ export async function changePassword(data: {
 	if (!result.success) {
 		const errorMsg = result.message || "Đổi mật khẩu thất bại";
 		throw new Error(errorMsg);
+	}
+}
+
+// ==================== CUSTOMER-AUTH-05: Customer Change Password ====================
+// PUT /api/customer-auth/change-password — Token: NO — Role: CUSTOMER PUBLIC
+// Input: { old_password: string, new_password: string }
+export async function customerChangePassword(data: {
+	old_password: string;
+	new_password: string;
+}): Promise<void> {
+	try {
+		const response = await apiClient.put<ApiResponse<null>>("/customer-auth/change-password", {
+			old_password: data.old_password,
+			new_password: data.new_password,
+		});
+
+		const result = response.data;
+		if (!result.success) {
+			const errorMsg = result.message || "Đổi mật khẩu thất bại";
+			throw new Error(errorMsg);
+		}
+	} catch (error) {
+		if (error instanceof AxiosError && error.response) {
+			const errorData = error.response.data as ApiErrorSingleResponse | ApiErrorMultiResponse;
+			const errorMsg = errorData.message
+				|| (errorData.errors?.[0] as { message?: string })?.message
+				|| "Đổi mật khẩu thất bại";
+			throw new Error(errorMsg);
+		}
+		throw error;
 	}
 }
 
@@ -246,6 +290,20 @@ export async function logoutUser(): Promise<void> {
 // Output: { success: true, data: null }
 export async function verifyToken(token: string): Promise<void> {
 	const response = await apiClient.post<ApiResponse<null>>("/customer-auth/verify-token", { token });
+
+	const result = response.data;
+	if (!result.success) {
+		const errorMsg = result.message || "Token không hợp lệ";
+		throw new Error(errorMsg);
+	}
+}
+
+// ==================== AUTH-08: Verify Token (Admin Public) ====================
+// POST /api/auth/verify-token — Token: NO — Role: ADMIN PUBLIC
+// Input: { token: string } — Link domain kèm token sẽ được gửi qua email
+// Output: { success: true, data: null }
+export async function verifyTokenAuth(token: string): Promise<void> {
+	const response = await apiClient.post<ApiResponse<null>>("/auth/verify-token", { token });
 
 	const result = response.data;
 	if (!result.success) {
@@ -283,7 +341,54 @@ export async function loginAndGetProfile(credentials: { email: string; password:
 	return profile;
 }
 
-// ==================== CUSTOMER-AUTH-03: Get Customer Profile ====================
+// ==================== CUSTOMER-AUTH-02: Get Customer Profile (flat) ====================
+// GET /api/customer-auth — Token: YES (cookie) — Role: CUSTOMER
+export interface CustomerProfileData {
+	id: string;
+	is_active: boolean;
+	is_deleted: boolean;
+	created_at: string;
+	updated_at: string;
+	email: string;
+	name: string;
+	phone: string;
+	avatar_url: string;
+	address: string;
+	is_verified: boolean;
+}
+
+export async function fetchCustomerProfileData(): Promise<CustomerProfileData> {
+	const response = await apiClient.get<ApiResponse<CustomerProfileData>>("/customer-auth");
+	const result = response.data;
+	if (!result.success) {
+		const errorMsg = result.message || "Lấy thông tin profile thất bại";
+		throw new Error(errorMsg);
+	}
+	return result.data;
+}
+
+// ==================== CUSTOMER-05: Update Customer Profile ====================
+// PUT /api/customers/:id — Token: YES (cookie) — Role: CUSTOMER
+// Input: { email (required), phone (required), name?, address?, avatar_url? }
+export interface UpdateCustomerInput {
+	email: string;
+	phone: string;
+	name?: string;
+	address?: string;
+	avatar_url?: string;
+}
+
+export async function updateCustomerProfile(id: string, data: UpdateCustomerInput): Promise<CustomerProfileData> {
+	const response = await apiClient.put<ApiResponse<CustomerProfileData>>(`/customers/${id}`, data);
+	const result = response.data;
+	if (!result.success) {
+		const errorMsg = result.message || "Cập nhật thông tin thất bại";
+		throw new Error(errorMsg);
+	}
+	return result.data;
+}
+
+// ==================== CUSTOMER-AUTH-03: Get Customer Profile (wrapped) ====================
 // GET /api/customer-auth — Token: YES (cookie) — Role: CUSTOMER
 export async function getCustomerProfile(): Promise<UserProfile> {
 	const response = await apiClient.get<ApiResponse<UserProfile>>("/customer-auth");
