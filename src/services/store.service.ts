@@ -1,6 +1,7 @@
 import type { Store } from "../models/store.model";
 import apiClient from "./api.client";
 import type { ApiResponse } from "./auth.service";
+import { AxiosError } from "axios";
 
 // ==================== Types ====================
 
@@ -154,21 +155,28 @@ export async function searchFranchises(payload: SearchFranchisePayload): Promise
 // Input: { code, name, opened_at, closed_at, hotline, logo_url?, address? }
 // Output: { success: true, data: ApiFranchise }
 export async function createFranchise(data: CreateFranchisePayload): Promise<ApiFranchise> {
-	const response = await apiClient.post<ApiResponse<ApiFranchise>>("/franchises", {
-		code: data.code,
-		name: data.name,
-		opened_at: data.opened_at,
-		closed_at: data.closed_at,
-		hotline: data.hotline,
-		logo_url: data.logo_url ?? "",
-		address: data.address ?? "",
-	});
-	const result = response.data;
-	if (!result.success) {
-		const errorMsg = result.message || "Tạo franchise thất bại";
-		throw new Error(errorMsg);
+	try {
+		const response = await apiClient.post<ApiResponse<ApiFranchise>>("/franchises", {
+			code: data.code,
+			name: data.name,
+			opened_at: data.opened_at,
+			closed_at: data.closed_at,
+			hotline: data.hotline,
+			logo_url: data.logo_url ?? "",
+			address: data.address ?? "",
+		});
+		const result = response.data;
+		if (!result.success) {
+			const errorMsg = result.message || "Tạo franchise thất bại";
+			throw new Error(errorMsg);
+		}
+		return (result as { data: ApiFranchise }).data;
+	} catch (error) {
+		if (error instanceof AxiosError && error.response?.data?.message) {
+			throw new Error(error.response.data.message);
+		}
+		throw error;
 	}
-	return (result as { data: ApiFranchise }).data;
 }
 
 // ==================== FRANCHISE-03: Get Item ====================
@@ -188,21 +196,28 @@ export async function getFranchiseById(id: string): Promise<ApiFranchise> {
 // Input: { code, name, opened_at, closed_at, hotline, logo_url?, address? }
 // Output: { success: true, data: ApiFranchise }
 export async function updateFranchise(id: string, data: CreateFranchisePayload): Promise<ApiFranchise> {
-	const response = await apiClient.put<ApiResponse<ApiFranchise>>(`/franchises/${id}`, {
-		code: data.code,
-		name: data.name,
-		opened_at: data.opened_at,
-		closed_at: data.closed_at,
-		hotline: data.hotline,
-		logo_url: data.logo_url ?? "",
-		address: data.address ?? "",
-	});
-	const result = response.data;
-	if (!result.success) {
-		const errorMsg = result.message || "Cập nhật franchise thất bại";
-		throw new Error(errorMsg);
+	try {
+		const response = await apiClient.put<ApiResponse<ApiFranchise>>(`/franchises/${id}`, {
+			code: data.code,
+			name: data.name,
+			opened_at: data.opened_at,
+			closed_at: data.closed_at,
+			hotline: data.hotline,
+			logo_url: data.logo_url ?? "",
+			address: data.address ?? "",
+		});
+		const result = response.data;
+		if (!result.success) {
+			const errorMsg = result.message || "Cập nhật franchise thất bại";
+			throw new Error(errorMsg);
+		}
+		return (result as { data: ApiFranchise }).data;
+	} catch (error) {
+		if (error instanceof AxiosError && error.response?.data?.message) {
+			throw new Error(error.response.data.message);
+		}
+		throw error;
 	}
-	return (result as { data: ApiFranchise }).data;
 }
 
 // ==================== FRANCHISE-05: Delete Item ====================

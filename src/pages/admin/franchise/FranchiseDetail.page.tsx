@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "../../../components";
 import type { ApiFranchise } from "../../../services/store.service";
-import { getFranchiseById, deleteFranchise } from "../../../services/store.service";
+import { getFranchiseById, deleteFranchise, changeFranchiseStatus } from "../../../services/store.service";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { fetchInventoryByStore } from "../../../services/inventory.service";
 import { isLowStock } from "../../../models/inventory.model";
@@ -12,6 +12,7 @@ const FranchiseDetailPage = () => {
   const { id } = useParams();
   const [franchise, setFranchise] = useState<ApiFranchise | null>(null);
   const [loading, setLoading] = useState(false);
+  const [togglingStatus, setTogglingStatus] = useState(false);
   const [lowStockCount, setLowStockCount] = useState(0);
   const navigate = useNavigate();
 
@@ -80,9 +81,34 @@ const FranchiseDetailPage = () => {
           >
             Xóa
           </Button>
-          <Button variant="outline" onClick={load} loading={loading}>
-            Làm mới
-          </Button>
+          {franchise && (
+            <Button
+              variant="outline"
+              className={franchise.is_active
+                ? "text-amber-600 border-amber-200 hover:bg-amber-50"
+                : "text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+              }
+              loading={togglingStatus}
+              onClick={async () => {
+                if (!id || !franchise) return;
+                const newStatus = !franchise.is_active;
+                const action = newStatus ? "kích hoạt" : "ngừng hoạt động";
+                if (!window.confirm(`Bạn có chắc muốn ${action} franchise này?`)) return;
+                setTogglingStatus(true);
+                try {
+                  await changeFranchiseStatus(id, newStatus);
+                  showSuccess(`Đã ${action} franchise thành công`);
+                  await load();
+                } catch (err) {
+                  showError(err instanceof Error ? err.message : "Thay đổi trạng thái thất bại");
+                } finally {
+                  setTogglingStatus(false);
+                }
+              }}
+            >
+              {franchise.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
+            </Button>
+          )}
         </div>
       </div>
 
