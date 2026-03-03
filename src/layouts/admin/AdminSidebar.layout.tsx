@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
 
 const adminNav = [
@@ -185,6 +185,7 @@ const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
   // On mobile: slide in/out as overlay; on desktop: collapse width
   const sidebarWidth = isMobile ? 240 : isOpen ? 240 : 80;
   const translateX = isMobile && !isOpen ? "-100%" : "0%";
+  const location = useLocation();
 
   return (
     <aside
@@ -214,23 +215,25 @@ const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
         )}
 
         <nav className="flex-1 space-y-2 px-3">
-          {adminNav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-200 ${isActive ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/50" : "text-slate-300 hover:bg-slate-700/50 hover:text-white"}`
-              }
-              end
-            >
-              <span className="flex-shrink-0">{item.icon}</span>
-              {(isOpen || isMobile) && (
-                <span className="whitespace-nowrap text-sm font-medium">
-                  {item.label}
-                </span>
-              )}
-            </NavLink>
-          ))}
+          {adminNav.map((item) => {
+            const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={
+                  `flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-200 ${isActive ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/50" : "text-slate-300 hover:bg-slate-700/50 hover:text-white"}`
+                }
+              >
+                <span className="flex-shrink-0">{item.icon}</span>
+                {(isOpen || isMobile) && (
+                  <span className="whitespace-nowrap text-sm font-medium">
+                    {item.label}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
       </div>
     </aside>

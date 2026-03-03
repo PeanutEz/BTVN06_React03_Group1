@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import AdminHeader from "./AdminHeader.layout";
 import AdminSidebar from "./AdminSidebar.layout";
 import AdminFooter from "./AdminFooter.layout";
+import AdminBreadcrumb from "../../components/ui/AdminBreadcrumb";
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -44,6 +45,7 @@ const AdminLayout = () => {
           style={{ marginLeft: isMobile ? 0 : sidebarOpen ? 240 : 80 }}
         >
           <main className="flex-1 px-3 py-4 sm:px-6 sm:py-6">
+            <AdminBreadcrumb />
             <Outlet />
           </main>
           <AdminFooter />
