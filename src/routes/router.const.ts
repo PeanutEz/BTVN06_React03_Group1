@@ -5,6 +5,7 @@ export const ROUTER_URL = {
   REGISTER: "/register",
   RESET_PASSWORD: "/reset-password",
   VERIFY_EMAIL: "/verify-customer-email/:token",
+  VERIFY_EMAIL_ALT: "/verify-email/:token",
   PROFILE: "/profile",
   ACCOUNT: "/customer/account",
   CART: "/cart",
@@ -19,6 +20,7 @@ export const ROUTER_URL = {
   CUSTOMER_FAVORITES: "/customer/product-favorite",
   CUSTOMER_ORDERED: "/customer/ordered",
   CUSTOMER_SUPPORT: "/customer/support",
+  CUSTOMER_CHANGE_PASSWORD: "/customer/change-password",
 
   // Browse & Product
   PRODUCT_DETAIL: "/products/:id",

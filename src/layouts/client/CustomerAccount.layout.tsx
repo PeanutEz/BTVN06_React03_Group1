@@ -3,6 +3,7 @@ import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
 import { logoutUser } from "../../services/auth.service";
 import AccountSidebar from "./AccountSidebar.layout";
+import { showSuccess } from "../../utils";
 
 export default function CustomerAccountLayout() {
   const { logout } = useAuthStore();
@@ -11,6 +12,7 @@ export default function CustomerAccountLayout() {
   const handleLogout = async () => {
     await logoutUser().catch(() => {});
     logout();
+    showSuccess("Đăng xuất thành công");
     navigate(ROUTER_URL.LOGIN);
   };
 

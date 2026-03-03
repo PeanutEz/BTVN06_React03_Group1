@@ -17,6 +17,15 @@ const MENU_ITEMS = [
     ),
   },
   {
+    label: "Đổi mật khẩu",
+    to: ROUTER_URL.CUSTOMER_CHANGE_PASSWORD,
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+      </svg>
+    ),
+  },
+  {
     label: "Khách hàng thành viên",
     to: ROUTER_URL.CUSTOMER_MEMBERSHIP,
     icon: (
@@ -96,7 +105,7 @@ export default function AccountSidebar({ onLogout }: AccountSidebarProps) {
                 cn(
                   "flex items-center gap-3 px-5 py-3 mx-2 my-0.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
                   isActive
-                    ? "bg-green-50 text-green-700"
+                    ? "bg-primary-50 text-primary-700"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                 )
               }
@@ -104,12 +113,12 @@ export default function AccountSidebar({ onLogout }: AccountSidebarProps) {
               {({ isActive }) => (
                 <>
                   {isActive && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-green-600 rounded-r-full" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-600 rounded-r-full" />
                   )}
                   <span
                     className={cn(
                       "shrink-0 transition-colors",
-                      isActive ? "text-green-600" : "text-gray-400 group-hover:text-gray-600",
+                      isActive ? "text-primary-600" : "text-gray-400 group-hover:text-gray-600",
                     )}
                   >
                     {item.icon}
@@ -118,7 +127,7 @@ export default function AccountSidebar({ onLogout }: AccountSidebarProps) {
                   <svg
                     className={cn(
                       "w-4 h-4 shrink-0 transition-colors",
-                      isActive ? "text-green-400" : "text-gray-300 group-hover:text-gray-400",
+                      isActive ? "text-primary-400" : "text-gray-300 group-hover:text-gray-400",
                     )}
                     fill="none"
                     stroke="currentColor"
