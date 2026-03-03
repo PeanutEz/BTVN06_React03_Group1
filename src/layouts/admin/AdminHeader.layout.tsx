@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore, useFranchiseStore } from "../../store";
 import { logoutUser } from "../../services/auth.service";
+import { showSuccess } from "../../utils";
 
 interface AdminHeaderProps {
   onMenuToggle?: () => void;
@@ -15,6 +16,13 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
   const { clear: clearFranchises } = useFranchiseStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Lấy franchise name và role từ active_context hoặc roles
+  const activeContext = user?.active_context as { franchise_id?: string; franchise_name?: string; role?: string } | null;
+  const currentRole = activeContext?.role || user?.role || "";
+  const currentFranchise = activeContext?.franchise_name
+    || user?.roles?.find(r => r.franchise_id && r.franchise_name)?.franchise_name
+    || null;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -31,6 +39,7 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
     logout();
     clearFranchises();
     setMenuOpen(false);
+    showSuccess("Đăng xuất thành công");
   };
 
   return (
@@ -60,10 +69,12 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
         >
           {user && (
             <>
-              <img src={user.avatar} alt={user.name} className="size-8 rounded-full object-cover" />
+              <img src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt={user.name} className="size-8 rounded-full object-cover" />
               <div className="hidden sm:block text-left leading-tight">
                 <p className="text-sm font-semibold">{user.name}</p>
-                <p className="text-xs text-primary-100/80">{user.role}</p>
+                <p className="text-xs text-primary-100/80">
+                  {currentFranchise ? `${currentFranchise} · ` : ""}{currentRole}
+                </p>
               </div>
             </>
           )}
@@ -76,10 +87,12 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
           <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl py-2 shadow-2xl shadow-primary-500/20 animate-fade-in">
             {user && (
               <div className="flex items-center gap-3 px-4 pb-2">
-                <img src={user.avatar} alt={user.name} className="size-10 rounded-full object-cover" />
+                <img src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt={user.name} className="size-10 rounded-full object-cover" />
                 <div className="leading-tight">
                   <p className="text-sm font-semibold text-primary-50">{user.name}</p>
-                  <p className="text-xs text-primary-100/70">{user.role}</p>
+                  <p className="text-xs text-primary-100/70">
+                    {currentFranchise ? `${currentFranchise} · ` : ""}{currentRole}
+                  </p>
                 </div>
               </div>
             )}

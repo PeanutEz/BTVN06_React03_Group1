@@ -6,6 +6,7 @@ import { useAuthStore } from "../../store/auth.store";
 import { useDeliveryStore } from "../../store/delivery.store";
 import { isBranchOpen } from "../../services/branch.service";
 import { logoutUser } from "../../services/auth.service";
+import { showSuccess } from "../../utils";
 import BranchPickerModal from "../../components/menu/BranchPickerModal";
 import NotificationBell from "../../components/notification/NotificationBell";
 import logoHylux from "../../assets/logo-hylux.png";
@@ -51,6 +52,7 @@ const ClientHeader = () => {
     await logoutUser().catch(() => {});
     logout();
     setAccountOpen(false);
+    showSuccess("Đăng xuất thành công");
     navigate(ROUTER_URL.HOME);
   };
 

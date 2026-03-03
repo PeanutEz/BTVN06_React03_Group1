@@ -242,7 +242,7 @@ export default function ProfilePage() {
 								className={`ml-auto px-3 py-1 rounded-full text-sm font-medium ${
 									user.role?.toLowerCase() === ROLE.ADMIN.toLowerCase()
 										? "bg-red-100 text-red-800"
-										: "bg-green-100 text-green-800"
+										: "bg-primary-100 text-primary-800"
 								}`}
 							>
 								{user.role?.toLowerCase() === ROLE.ADMIN.toLowerCase() ? "Quản trị viên" : "Người dùng"}
@@ -257,7 +257,7 @@ export default function ProfilePage() {
 						<button
 							onClick={handleSaveProfile}
 							disabled={isLoading}
-							className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+							className="flex-1 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							{isLoading ? "Đang lưu..." : "Lưu thay đổi"}
 						</button>
