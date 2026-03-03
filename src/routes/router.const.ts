@@ -63,11 +63,11 @@ export const ROUTER_URL = {
     PAYMENTS: "payments",
     PAYMENT_DETAIL: "payments/:id",
     LOYALTY: "loyalty",
-    PRODUCTS: "products",
-    FRANCHISE_LIST: "franchises",
+    PRODUCTS: "products",    FRANCHISE_LIST: "franchises",
     FRANCHISE_DETAIL: "franchises/:id",
     FRANCHISE_CREATE: "franchises/create",
     FRANCHISE_EDIT: "franchises/:id/edit",
     INVENTORY_BY_FRANCHISE: "franchises/:id/inventory",
+    ROLES: "roles",
   },
 } as const;

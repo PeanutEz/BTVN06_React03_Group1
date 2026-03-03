@@ -1,73 +1,96 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
-import { loginAndGetProfile, type UserProfile } from "../../../services/auth.service";
-import { fetchFranchiseSelect } from "../../../services/store.service";
-import { useAuthStore, useFranchiseStore } from "../../../store";
+import { loginAndGetProfile, switchContextAndGetProfile, type UserProfile, type RoleInfo } from "../../../services/auth.service";
+import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 import bgAdminLogin from "../../../assets/bg-admin-login.jpg";
+import FranchisePickerModal from "../../../components/admin/FranchisePickerModal";
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, login } = useAuthStore();
-  const { setFranchises } = useFranchiseStore();
+
+  // State cho franchise picker modal
+  const [pendingProfile, setPendingProfile] = useState<UserProfile | null>(null);
+  const [showFranchisePicker, setShowFranchisePicker] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<AuthCredentials>();
-
   useEffect(() => {
-    // Kiểm tra user có role admin/system không
+    // Kiểm tra user có role admin/system/manager/staff không
+    const allowedRoles = ["admin", "system", "manager", "staff"];
     const hasAdminRole = user?.roles?.some(r => {
       const role = (r.role ?? "").toString().toLowerCase();
-      return role === "admin" || role === "system";
-    }) || (user?.role ?? "").toString().toLowerCase() === "admin";
+      return allowedRoles.includes(role);
+    });
     
     if (user && hasAdminRole) {
       navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
     }
   }, [user, navigate]);
 
+  const handleSwitchContextAndNavigate = async (_profile: UserProfile, role: RoleInfo) => {
+    try {
+      setIsSwitching(true);
+      // Gọi API Switch Context với franchise_id của role được chọn
+      const updatedProfile = await switchContextAndGetProfile(role.franchise_id);
+      login(updatedProfile);
+
+      setShowFranchisePicker(false);
+      setPendingProfile(null);
+      showSuccess("Đăng nhập thành công");
+
+      const redirectTo = (location.state as { from?: Location })?.from?.pathname;
+      navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Chuyển context thất bại";
+      showError(msg);
+    } finally {
+      setIsSwitching(false);
+    }
+  };
+
   const onSubmit = async (values: AuthCredentials) => {
     try {
-      const profile = await loginAndGetProfile(values);
-
-      // Kiểm tra xem user có role admin/system không (từ roles array)
-      const hasAdminRole = profile.roles?.some(r => {
+      const profile = await loginAndGetProfile(values);      // Kiểm tra xem user có quyền truy cập admin không
+      const allowedRoles = ["admin", "system", "manager", "staff"];
+      const hasAdminAccess = profile.roles?.some(r => {
         const role = (r.role ?? "").toString().toLowerCase();
-        return role === "admin" || role === "system";
+        return allowedRoles.includes(role);
       });
-      
-      if (!hasAdminRole) {
+
+      if (!hasAdminAccess) {
         const rolesList = profile.roles?.map(r => r.role).join(", ") || "không có";
         showError(`Bạn không có quyền truy cập admin. Role hiện tại: ${rolesList}`);
         return;
       }
 
-      login(profile);
+      const allRoles = profile.roles || [];
 
-      // Fetch và lưu danh sách franchise sau khi đăng nhập thành công
-      try {
-        const franchises = await fetchFranchiseSelect();
-        setFranchises(franchises);
-      } catch (err) {
-        console.warn("[Admin Login] Không thể tải danh sách franchise:", err);
+      if (allRoles.length === 1) {
+        // Chỉ có 1 role → tự động switch context
+        await handleSwitchContextAndNavigate(profile, allRoles[0]);
+      } else {
+        // Có 2+ roles → hiện popup cho user chọn franchise
+        setPendingProfile(profile);
+        setShowFranchisePicker(true);
       }
-
-      showSuccess("Đăng nhập thành công");
-      const redirectTo = (location.state as { from?: Location })?.from?.pathname;
-      navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Đăng nhập thất bại";
       showError(msg);
     }
-  };  const handleQuickLogin = (role: "admin" | "client") => {
+  };
+
+  const handleQuickLogin = (role: "admin" | "client") => {
     const mockProfile: UserProfile = role === "admin"
       ? {
           user: { id: "mock-admin", email: "admin@gmail.com", name: "Admin", phone: "", avatar_url: "" },
@@ -153,6 +176,18 @@ const AdminLoginPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Franchise Picker Modal */}      {showFranchisePicker && pendingProfile && (
+        <FranchisePickerModal
+          roles={pendingProfile.roles}
+          loading={isSwitching}
+          onSelect={(role) => handleSwitchContextAndNavigate(pendingProfile, role)}
+          onClose={() => {
+            setShowFranchisePicker(false);
+            setPendingProfile(null);
+          }}
+        />
+      )}
     </div>
   );
 };
