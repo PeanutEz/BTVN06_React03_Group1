@@ -30,7 +30,7 @@ const UserPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
-  const [roles, setRoles] = useState<RoleSelectItem[]>([]);
+  const [, setRoles] = useState<RoleSelectItem[]>([]);
 
   const loadRoles = async () => {
     try {

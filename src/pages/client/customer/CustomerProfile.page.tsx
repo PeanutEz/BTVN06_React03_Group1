@@ -4,8 +4,6 @@ import { fetchCustomerProfileData, updateCustomerProfile } from "../../../servic
 import { showError, showSuccess } from "../../../utils";
 import PersonalInfo from "./components/PersonalInfo";
 
-const PROVINCES = ["Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Cần Thơ", "Hải Phòng"];
-
 export default function CustomerProfilePage() {
   const { user } = useAuthStore();
 
