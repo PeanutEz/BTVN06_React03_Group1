@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../components";
-import { customerLoginAndGetProfile, resendToken, type UserProfile } from "../../../services/auth.service";
+import { customerLoginAndGetProfile, resendToken } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
+import { isAdminRole } from "../../../models/role.model";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 import bgUserLogin from "../../../assets/bg-user-login.jpg";
@@ -22,8 +23,7 @@ const LoginPage = () => {
   } = useForm<AuthCredentials>();
   useEffect(() => {
     if (user) {
-      const role = (user.role ?? "").toString().toLowerCase();
-      if (role === "admin") {
+      if (isAdminRole(user.role) || user.roles?.some(r => isAdminRole(r.role))) {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
@@ -42,8 +42,7 @@ const LoginPage = () => {
         return;
       }
 
-      const role = (profile.role ?? "").toString().toLowerCase();
-      if (role === "admin") {
+      if (isAdminRole(profile.role) || profile.roles?.some(r => isAdminRole(r.role))) {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
@@ -65,29 +64,6 @@ const LoginPage = () => {
       showError(msg);
     } finally {
       setIsResending(false);
-    }
-  };  const handleQuickLogin = (role: "admin" | "client") => {
-    const mockProfile: UserProfile = role === "admin"
-      ? {
-          user: { id: "mock-admin", email: "admin@gmail.com", name: "Admin", phone: "", avatar_url: "" },
-          roles: [{ role: "ADMIN", scope: "GLOBAL", franchise_id: null, franchise_name: null }],
-          active_context: null,
-          id: "mock-admin", name: "Admin", email: "admin@gmail.com", role: "admin", avatar: "",
-        }
-      : {
-          user: { id: "mock-client", email: "user@gmail.com", name: "Client User", phone: "", avatar_url: "" },
-          roles: [{ role: "USER", scope: "GLOBAL", franchise_id: null, franchise_name: null }],
-          active_context: null,
-          id: "mock-client", name: "Client User", email: "user@gmail.com", role: "user", avatar: "",
-        };
-
-    login(mockProfile);
-    showSuccess(`Đăng nhập nhanh (${mockProfile.email})`);
-
-    if (role === "admin") {
-      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
-    } else {
-      navigate(ROUTER_URL.HOME, { replace: true });
     }
   };
 
@@ -140,26 +116,6 @@ const LoginPage = () => {
               </button>
             </div>
           )}
-
-          <div className="space-y-3">
-            <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Đăng nhập nhanh</p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("client")}
-                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
-              >
-                🏠 Client
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("admin")}
-                className="flex-1 rounded-lg border border-primary-500 bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/30 transition hover:from-primary-600 hover:to-primary-700"
-              >
-                🛡️ Admin
-              </button>
-            </div>
-          </div>
 
           <div className="text-center space-y-2">
             <p className="text-sm text-slate-600">

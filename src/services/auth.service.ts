@@ -212,11 +212,11 @@ export async function changePassword(data: {
 }
 
 // ==================== AUTH-07: Logout ====================
-// POST /api/auth/log-out — Token: YES — Role: SYSTEM & FRANCHISE
+// POST /api/auth/logout — Token: YES — Role: SYSTEM & FRANCHISE
 // Server sẽ xóa cookie token
 export async function logoutUser(): Promise<void> {
 	try {
-		await apiClient.post<ApiResponse>("/auth/log-out");
+		await apiClient.post<ApiResponse>("/auth/logout");
 	} catch {
 		// Nếu API logout lỗi vẫn xóa local data
 		console.warn("Logout API failed, clearing local data anyway");

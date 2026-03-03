@@ -1,4 +1,6 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { useAuthStore } from "../store/auth.store";
+import { LOCAL_STORAGE_KEY } from "../const/data.const";
 
 // Base URL: dùng proxy trong dev (same-origin để cookie hoạt động), direct URL khi production
 const baseURL = import.meta.env.DEV
@@ -48,12 +50,24 @@ apiClient.interceptors.response.use(
             const { status } = error.response;
 
             switch (status) {
-                case 401:
-                    // Chỉ log warning, KHÔNG redirect hoặc xoá localStorage tự động.
-                    // Để từng page/component tự xử lý lỗi 401 (hiển thị trống hoặc thông báo).
-                    // Route guards (AdminGuard, AuthGuard) sẽ lo việc redirect khi cần.
-                    console.warn("Unauthorized: Token hết hạn hoặc không hợp lệ");
+                case 401: {
+                    // Token hết hạn — clear session và redirect về login
+                    // Không redirect nếu đang ở trang login (tránh vòng lặp)
+                    const isLoginPage =
+                        window.location.pathname.includes("/login") ||
+                        window.location.pathname.includes("/admin/login");
+                    if (!isLoginPage) {
+                        localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
+                        useAuthStore.getState().logout();
+                        // Giữ lại URL hiện tại để redirect về sau khi đăng nhập lại
+                        const returnTo = window.location.pathname;
+                        const isAdminPath = returnTo.startsWith("/admin");
+                        window.location.href = isAdminPath
+                            ? `/admin/login?returnTo=${encodeURIComponent(returnTo)}`
+                            : `/login?returnTo=${encodeURIComponent(returnTo)}`;
+                    }
                     break;
+                }
                 case 403:
                     console.warn("Forbidden: Bạn không có quyền truy cập.");
                     console.log("[403 DETAIL] url:", error.config?.url);

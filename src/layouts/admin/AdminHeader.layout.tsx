@@ -12,7 +12,7 @@ interface AdminHeaderProps {
 const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const { clear: clearFranchises } = useFranchiseStore();
+  const { clear: clearFranchises, selectedFranchise, setSelectedFranchise } = useFranchiseStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -50,6 +50,26 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
           </button>
         )}
         <h1 className="text-lg sm:text-xl font-bold">Admin</h1>
+        {/* Franchise badge + change button */}
+        {selectedFranchise && (
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedFranchise(null);
+              navigate(ROUTER_URL.ADMIN_SELECT_FRANCHISE, { replace: true });
+            }}
+            className="hidden sm:flex items-center gap-1.5 rounded-full border border-primary-500/40 bg-primary-500/10 px-3 py-1 text-xs font-semibold text-primary-300 transition hover:bg-primary-500/20"
+            title="Đổi cửa hàng"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <span>{selectedFranchise.name}</span>
+            <svg className="h-3 w-3 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        )}
       </div>
       <div className="relative" ref={menuRef}>
         <button
@@ -60,7 +80,13 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
         >
           {user && (
             <>
-              <img src={user.avatar} alt={user.name} className="size-8 rounded-full object-cover" />
+              {user.avatar ? (
+                <img src={user.avatar} alt={user.name} className="size-8 rounded-full object-cover" />
+              ) : (
+                <span className="flex size-8 items-center justify-center rounded-full bg-primary-600 text-sm font-bold text-white">
+                  {user.name?.charAt(0)?.toUpperCase() ?? "A"}
+                </span>
+              )}
               <div className="hidden sm:block text-left leading-tight">
                 <p className="text-sm font-semibold">{user.name}</p>
                 <p className="text-xs text-primary-100/80">{user.role}</p>
@@ -76,7 +102,13 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
           <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl py-2 shadow-2xl shadow-primary-500/20 animate-fade-in">
             {user && (
               <div className="flex items-center gap-3 px-4 pb-2">
-                <img src={user.avatar} alt={user.name} className="size-10 rounded-full object-cover" />
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="size-10 rounded-full object-cover" />
+                ) : (
+                  <span className="flex size-10 items-center justify-center rounded-full bg-primary-600 text-base font-bold text-white">
+                    {user.name?.charAt(0)?.toUpperCase() ?? "A"}
+                  </span>
+                )}
                 <div className="leading-tight">
                   <p className="text-sm font-semibold text-primary-50">{user.name}</p>
                   <p className="text-xs text-primary-100/70">{user.role}</p>
@@ -85,6 +117,17 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
             )}
             <div className="my-2 border-t border-slate-700" />
             <div className="px-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFranchise(null);
+                  navigate(ROUTER_URL.ADMIN_SELECT_FRANCHISE, { replace: true });
+                  setMenuOpen(false);
+                }}
+                className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg"
+              >
+                <span>Đổi cửa hàng</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {

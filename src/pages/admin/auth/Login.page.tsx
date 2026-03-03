@@ -1,20 +1,29 @@
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../../../components";
-import { loginAndGetProfile, type UserProfile } from "../../../services/auth.service";
-import { fetchFranchiseSelect } from "../../../services/store.service";
-import { useAuthStore, useFranchiseStore } from "../../../store";
+import { loginAndGetProfile } from "../../../services/auth.service";
+import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
+import { ROLE_CODE } from "../../../models/role.model";
+
+const STAFF_ROLES = new Set<string>([
+  ROLE_CODE.ADMIN,
+  ROLE_CODE.MANAGER,
+  ROLE_CODE.STAFF,
+  ROLE_CODE.SHIPPER,
+]);
+
+const hasStaffRole = (roles?: { role: string }[], topRole?: string) =>
+  roles?.some(r => STAFF_ROLES.has(r.role?.toUpperCase()))
+  || STAFF_ROLES.has(topRole?.toUpperCase() ?? "");
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 import bgAdminLogin from "../../../assets/bg-admin-login.jpg";
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { user, login } = useAuthStore();
-  const { setFranchises } = useFranchiseStore();
 
   const {
     register,
@@ -23,14 +32,17 @@ const AdminLoginPage = () => {
   } = useForm<AuthCredentials>();
 
   useEffect(() => {
-    // Kiểm tra user có role admin/system không
-    const hasAdminRole = user?.roles?.some(r => {
-      const role = (r.role ?? "").toString().toLowerCase();
-      return role === "admin" || role === "system";
-    }) || (user?.role ?? "").toString().toLowerCase() === "admin";
-    
+    // Kiểm tra user có role admin không
+    const hasAdminRole = hasStaffRole(user?.roles, user?.role);
+
     if (user && hasAdminRole) {
-      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+      const isAdmin = user.roles?.some(
+        r => r.role?.toUpperCase() === ROLE_CODE.ADMIN || r.role?.toUpperCase() === ROLE_CODE.MANAGER
+      );
+      navigate(
+        isAdmin ? ROUTER_URL.ADMIN_SELECT_FRANCHISE : `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`,
+        { replace: true }
+      );
     }
   }, [user, navigate]);
 
@@ -38,13 +50,10 @@ const AdminLoginPage = () => {
     try {
       const profile = await loginAndGetProfile(values);
 
-      // Kiểm tra xem user có role admin/system không (từ roles array)
-      const hasAdminRole = profile.roles?.some(r => {
-        const role = (r.role ?? "").toString().toLowerCase();
-        return role === "admin" || role === "system";
-      });
+      // Kiểm tra xem user có role admin không (từ roles array)
+      const hasAdminAccess = hasStaffRole(profile.roles, profile.role);
       
-      if (!hasAdminRole) {
+      if (!hasAdminAccess) {
         const rolesList = profile.roles?.map(r => r.role).join(", ") || "không có";
         showError(`Bạn không có quyền truy cập admin. Role hiện tại: ${rolesList}`);
         return;
@@ -52,51 +61,17 @@ const AdminLoginPage = () => {
 
       login(profile);
 
-      // Fetch và lưu danh sách franchise sau khi đăng nhập thành công
-      try {
-        const franchises = await fetchFranchiseSelect();
-        setFranchises(franchises);
-      } catch (err) {
-        console.warn("[Admin Login] Không thể tải danh sách franchise:", err);
-      }
-
       showSuccess("Đăng nhập thành công");
-      const redirectTo = (location.state as { from?: Location })?.from?.pathname;
-      navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+      const isAdminRoleUser = profile.roles?.some(
+        r => r.role?.toUpperCase() === ROLE_CODE.ADMIN || r.role?.toUpperCase() === ROLE_CODE.MANAGER
+      );
+      navigate(
+        isAdminRoleUser ? ROUTER_URL.ADMIN_SELECT_FRANCHISE : `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`,
+        { replace: true }
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Đăng nhập thất bại";
       showError(msg);
-    }
-  };  const handleQuickLogin = (role: "admin" | "client") => {
-    const mockProfile: UserProfile = role === "admin"
-      ? {
-          user: { id: "mock-admin", email: "admin@gmail.com", name: "Admin", phone: "", avatar_url: "" },
-          roles: [{ role: "ADMIN", scope: "GLOBAL", franchise_id: null, franchise_name: null }],
-          active_context: null,
-          id: "mock-admin",
-          name: "Admin",
-          email: "admin@gmail.com",
-          role: "admin",
-          avatar: ""
-        }
-      : {
-          user: { id: "mock-client", email: "user@gmail.com", name: "Client User", phone: "", avatar_url: "" },
-          roles: [{ role: "USER", scope: "GLOBAL", franchise_id: null, franchise_name: null }],
-          active_context: null,
-          id: "mock-client",
-          name: "Client User",
-          email: "user@gmail.com",
-          role: "user",
-          avatar: ""
-        };
-
-    login(mockProfile);
-    showSuccess(`Đăng nhập nhanh (${mockProfile.email})`);
-
-    if (role === "admin") {
-      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
-    } else {
-      navigate(ROUTER_URL.HOME, { replace: true });
     }
   };
 
@@ -133,25 +108,6 @@ const AdminLoginPage = () => {
           </Button>
         </form>
 
-        <div className="mt-6 space-y-3">
-          <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-wide">Đăng nhập nhanh</p>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin("client")}
-              className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
-            >
-              🏠 Client
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin("admin")}
-              className="flex-1 rounded-lg border border-primary-500 bg-gradient-to-r from-primary-500 to-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary-500/30 transition hover:from-primary-600 hover:to-primary-700"
-            >
-              🛡️ Admin
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

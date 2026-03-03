@@ -17,6 +17,8 @@ import RegisterPage from "../pages/client/auth/Register.page";
 import ResetPasswordPage from "../pages/client/auth/ResetPassword.page";
 import VerifyEmailPage from "../pages/client/auth/VerifyEmail.page";
 import AdminLoginPage from "../pages/admin/auth/Login.page";
+import FranchiseGuard from "./guard/FranchiseGuard";
+const FranchiseSelectPage = React.lazy(() => import("../pages/admin/franchise/FranchiseSelect.page"));
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
 const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
@@ -107,10 +109,13 @@ function AppRoutes() {
 
           {/* Admin protected */}
           <Route element={<AdminGuard />}>
-            <Route path={ROUTER_URL.ADMIN} element={<AdminLayout />}>
-              {ADMIN_MENU.map((item) => (
-                <Route key={item.path} path={item.path} element={<item.component />} />
-              ))}
+            <Route path={ROUTER_URL.ADMIN_SELECT_FRANCHISE} element={<FranchiseSelectPage />} />
+            <Route element={<FranchiseGuard />}>
+              <Route path={ROUTER_URL.ADMIN} element={<AdminLayout />}>
+                {ADMIN_MENU.map((item) => (
+                  <Route key={item.path} path={item.path} element={<item.component />} />
+                ))}
+              </Route>
             </Route>
           </Route>
 

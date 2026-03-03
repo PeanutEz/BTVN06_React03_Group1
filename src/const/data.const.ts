@@ -4,4 +4,5 @@ export const LOCAL_STORAGE_KEY = {
 	REFRESH_TOKEN: "refresh_token",
 	CART: "cart",
 	FRANCHISES: "franchises",
+	SELECTED_FRANCHISE: "selected_franchise",
 } as const;
