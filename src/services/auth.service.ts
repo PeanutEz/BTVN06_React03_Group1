@@ -122,16 +122,28 @@ export async function loginCustomer(credentials: { email: string; password: stri
 
 // ==================== AUTH-02: Switch Context ====================
 // POST /api/auth/switch-context — Token: YES — Role: SYSTEM & FRANCHISE
-export async function switchContext(contextData: Record<string, unknown>): Promise<unknown> {
-	const response = await apiClient.post<ApiResponse>("/auth/switch-context", contextData);
+// Input: { franchise_id: string | null }
+// Output: { success: true, data: null }
+export async function switchContext(franchiseId: string | null): Promise<void> {
+	console.log("[Auth Service] switchContext request:", { franchise_id: franchiseId });
+	const response = await apiClient.post<ApiResponse<null>>("/auth/switch-context", {
+		franchise_id: franchiseId,
+	});
 
 	const result = response.data;
+	console.log("[Auth Service] switchContext response:", result);
 	if (!result.success) {
 		const errorMsg = result.message || "Chuyển context thất bại";
 		throw new Error(errorMsg);
 	}
+}
 
-	return result.data;
+// Helper: Switch context rồi lấy lại profile mới (profile sẽ có active_context cập nhật)
+export async function switchContextAndGetProfile(franchiseId: string | null): Promise<UserProfile> {
+	await switchContext(franchiseId);
+	const profile = await getProfile();
+	localStorage.setItem(LOCAL_STORAGE_KEY.AUTH_USER, JSON.stringify(profile));
+	return profile;
 }
 
 // ==================== AUTH-03: Get Profile ====================
@@ -147,6 +159,8 @@ export async function getProfile(): Promise<UserProfile> {
 
 	// Normalize profile: thêm computed fields để backward compatible
 	const profileData = result.data;
+	console.log("[Auth Service] getProfile raw data:", JSON.parse(JSON.stringify(profileData)));
+
 	if (profileData.user) {
 		profileData.id = profileData.user.id;
 		profileData.name = profileData.user.name;

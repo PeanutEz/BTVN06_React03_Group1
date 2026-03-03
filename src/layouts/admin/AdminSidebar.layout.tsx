@@ -134,8 +134,7 @@ const adminNav = [
         />
       </svg>
     ),
-  },
-  {
+  },  {
     label: "Franchises",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
     icon: (
@@ -150,6 +149,25 @@ const adminNav = [
           strokeLinejoin="round"
           strokeWidth={2}
           d="M3 7h18M3 12h18M3 17h18M6 4v3M6 17v3M12 4v3M12 17v3M18 4v3M18 17v3"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Roles",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ROLES}`,
+    icon: (
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
         />
       </svg>
     ),
