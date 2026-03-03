@@ -30,6 +30,7 @@ export interface RoleSelectItem {
 /** Payload update user — USER-04: PUT /api/users/:id */
 export interface UpdateUserPayload {
 	name?: string;
+	email?: string;
 	phone?: string;
 	avatar_url?: string;
 	is_active?: boolean;
