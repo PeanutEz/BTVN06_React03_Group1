@@ -15,6 +15,7 @@ const FranchiseListPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [keyword, setKeyword] = useState("");
+  const [isActive, setIsActive] = useState("");
   const navigate = useNavigate();
 
   const load = useCallback(async (page = currentPage) => {
@@ -23,7 +24,7 @@ const FranchiseListPage = () => {
       const result = await searchFranchises({
         searchCondition: {
           keyword,
-          is_active: "",
+          is_active: isActive,
           is_deleted: false,
         },
         pageInfo: {
@@ -40,7 +41,7 @@ const FranchiseListPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, keyword]);
+  }, [currentPage, keyword, isActive]);
 
   useEffect(() => {
     load(1);
@@ -87,6 +88,15 @@ const FranchiseListPage = () => {
               className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
+          <select
+            value={isActive}
+            onChange={(e) => { setIsActive(e.target.value); setCurrentPage(1); }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="true">Hoạt động</option>
+            <option value="false">Ngừng</option>
+          </select>
           <Button onClick={handleSearch} loading={loading}>
             Tìm kiếm
           </Button>

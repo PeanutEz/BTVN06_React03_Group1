@@ -10,6 +10,7 @@ export default function CustomerProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const customerIdRef = useRef<string>("");
+  const hasFetched = useRef(false);
   const [form, setForm] = useState({
     name: user?.name ?? "",
     phone: "",
@@ -19,6 +20,8 @@ export default function CustomerProfilePage() {
 
   // Gọi API CUSTOMER-AUTH-02 để lấy thông tin profile mới nhất
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     const loadProfile = async () => {
       try {
         setLoading(true);
