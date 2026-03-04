@@ -125,8 +125,7 @@ const InventoryByFranchisePage = () => {
                   </td>
                 </tr>
               );
-            })}
-            {items.length === 0 && !loading && (
+            })}            {items.length === 0 && !loading && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
                   Không có dữ liệu tồn kho cho chi nhánh này.
@@ -135,8 +134,10 @@ const InventoryByFranchisePage = () => {
             )}
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
-                  Đang tải...
+                <td colSpan={6}>
+                  <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                  </div>
                 </td>
               </tr>
             )}
