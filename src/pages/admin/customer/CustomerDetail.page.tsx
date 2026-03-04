@@ -6,7 +6,7 @@ import {
   LOYALTY_TIER_LABELS,
   LOYALTY_TIER_COLORS,
 } from "../../../models/customer.model";
-import { fetchCustomerById } from "../../../services/customer.service";
+import { getCustomerByIdFromApi } from "../../../services/customer.service";
 import { fetchOrders } from "../../../services/order.service";
 import type { OrderDisplay } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "../../../models/order.model";
@@ -24,12 +24,19 @@ const CustomerDetailPage = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await fetchCustomerById(Number(id));
-      if (!data) {
-        showError("Không tìm thấy khách hàng");
-        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`);
-        return;
-      }
+      const item = await getCustomerByIdFromApi(id);
+      const data: CustomerDisplay = {
+        id: item.id as unknown as number,
+        phone: item.phone,
+        email: item.email,
+        password_hash: "",
+        name: item.name,
+        avatar_url: item.avatar_url,
+        is_active: item.is_active,
+        is_deleted: item.is_deleted,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      };
       setCustomer(data);
 
       // Load customer orders

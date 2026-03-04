@@ -2,6 +2,67 @@ import type { Customer, CustomerFranchise, CustomerDisplay } from "../models/cus
 import apiClient from "./api.client";
 import type { ApiResponse } from "./auth.service";
 
+// ==================== CUSTOMER-03: Search Items by Conditions ====================
+// POST /api/customers/search — Token: YES — Role: SYSTEM & FRANCHISE
+export interface CustomerApiItem {
+  id: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  email: string;
+  name: string;
+  phone: string;
+  avatar_url: string;
+  address: string;
+  is_verified: boolean;
+}
+
+export interface CustomerSearchResult {
+  data: CustomerApiItem[];
+  pageInfo: {
+    pageNum: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export async function searchCustomersFromApi(
+  keyword = "",
+  isActive: boolean | "" = "",
+  page = 1,
+  pageSize = 10
+): Promise<CustomerSearchResult> {
+  const response = await apiClient.post<{
+    success: boolean;
+    data: CustomerApiItem[];
+    pageInfo: CustomerSearchResult["pageInfo"];
+  }>("/customers/search", {
+    searchCondition: {
+      keyword,
+      is_active: isActive,
+      is_deleted: false,
+    },
+    pageInfo: { pageNum: page, pageSize },
+  });
+  return {
+    data: response.data.data ?? [],
+    pageInfo: response.data.pageInfo,
+  };
+}
+
+// ==================== CUSTOMER-04: Get Item ====================
+// GET /api/customers/:id — Token: YES — Role: SYSTEM & FRANCHISE
+export async function getCustomerByIdFromApi(id: string): Promise<CustomerApiItem> {
+  const response = await apiClient.get<ApiResponse<CustomerApiItem>>(`/customers/${id}`);
+  const result = response.data;
+  if (!result.success || !result.data) {
+    throw new Error(result.message || "Không tìm thấy khách hàng");
+  }
+  return result.data;
+}
+
 // Mock data
 const mockCustomers: Customer[] = [
   {
