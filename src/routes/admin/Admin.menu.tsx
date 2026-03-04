@@ -124,4 +124,11 @@ export const ADMIN_MENU: AdminMenuItem[] = [
       () => import("../../pages/admin/role/RoleList.page.tsx"),
     ),
   },
+  {
+    label: "Profile",
+    path: ROUTER_URL.ADMIN_ROUTES.PROFILE,
+    component: React.lazy(
+      () => import("../../pages/admin/profile/AdminProfile.page.tsx"),
+    ),
+  },
 ];

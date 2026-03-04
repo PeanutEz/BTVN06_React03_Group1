@@ -40,6 +40,7 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
     clearFranchises();
     setMenuOpen(false);
     showSuccess("Đăng xuất thành công");
+    navigate(ROUTER_URL.ADMIN_LOGIN, { replace: true });
   };
 
   return (
@@ -101,7 +102,7 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
               <button
                 type="button"
                 onClick={() => {
-                  navigate(ROUTER_URL.PROFILE);
+                  navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PROFILE}`);
                   setMenuOpen(false);
                 }}
                 className="flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 transition-all hover:bg-primary-600 hover:text-white rounded-lg"
