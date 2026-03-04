@@ -62,10 +62,20 @@ export default function ProductModal({
 
     setLoading(true);
     try {
+      const dto = {
+        SKU: data.sku,
+        name: data.name,
+        description: data.description,
+        content: data.content,
+        image_url: data.image_url,
+        images_url: [],
+        min_price: data.min_price,
+        max_price: data.max_price,
+      };
       if (isEditMode) {
-        await adminProductService.updateProduct(product.id, data);
+        await adminProductService.updateProduct(product.id.toString(), dto);
       } else {
-        await adminProductService.createProduct(data);
+        await adminProductService.createProduct(dto);
       }
       onSave();
     } catch (error) {
