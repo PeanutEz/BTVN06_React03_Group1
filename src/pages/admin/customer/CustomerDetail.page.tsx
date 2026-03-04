@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
@@ -11,11 +11,9 @@ import { fetchOrders } from "../../../services/order.service";
 import type { OrderDisplay } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "../../../models/order.model";
 import { ROUTER_URL } from "../../../routes/router.const";
-import { showError } from "../../../utils";
 
 const CustomerDetailPage = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const [customer, setCustomer] = useState<CustomerDisplay | null>(null);
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
   const [loading, setLoading] = useState(false);

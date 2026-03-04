@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
-import type { CustomerDisplay, LoyaltyTier } from "../../../models/customer.model";
+import type { CustomerDisplay } from "../../../models/customer.model";
 import {
   LOYALTY_TIER_LABELS,
   LOYALTY_TIER_COLORS,

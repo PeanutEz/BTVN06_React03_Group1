@@ -58,7 +58,7 @@ export async function getCustomerByIdFromApi(id: string): Promise<CustomerApiIte
   const response = await apiClient.get<ApiResponse<CustomerApiItem>>(`/customers/${id}`);
   const result = response.data;
   if (!result.success || !result.data) {
-    throw new Error(result.message || "Không tìm thấy khách hàng");
+    throw new Error("Không tìm thấy khách hàng");
   }
   return result.data;
 }
