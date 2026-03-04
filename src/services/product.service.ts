@@ -94,22 +94,48 @@ export const productService = {
   },
 };
 
-// â”€â”€â”€ Admin Product Service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Admin Product Service ────────────────────────────────────────────────────
 export const adminProductService = {
-  // Get products with pagination and filters (for admin list)
+  // Get products with pagination and filters — uses PRODUCT-02: POST /api/products/search
   getProducts: async (params?: ProductQueryParams): Promise<ProductListResponse> => {
-    const response = await apiClient.get<{
+    const response = await apiClient.post<{
       success: boolean;
-      data: Product[];
-      total: number;
-      page: number;
-      limit: number;
-    }>("/products", { params });
+      data: ProductApiResponse[];
+      pageInfo: { pageNum: number; pageSize: number; totalItems: number; totalPages: number };
+    }>("/products/search", {
+      searchCondition: {
+        keyword: params?.search ?? "",
+        is_active: params?.isActive !== undefined ? params.isActive : "",
+        is_deleted: false,
+        min_price: params?.minPrice ?? "",
+        max_price: params?.maxPrice ?? "",
+      },
+      pageInfo: {
+        pageNum: params?.page ?? 1,
+        pageSize: params?.limit ?? 10,
+      },
+    });
+    const items: Product[] = (response.data.data ?? []).map((item) => ({
+      id: item.id as unknown as number,
+      sku: item.SKU,
+      name: item.name,
+      description: item.description,
+      content: item.content,
+      min_price: item.min_price,
+      max_price: item.max_price,
+      image_url: item.image_url,
+      images: item.images_url,
+      categoryId: 0,
+      isActive: item.is_active,
+      isDeleted: item.is_deleted,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+    }));
     return {
-      data: response.data.data,
-      total: response.data.total,
-      page: response.data.page,
-      limit: response.data.limit,
+      data: items,
+      total: response.data.pageInfo?.totalItems ?? 0,
+      page: response.data.pageInfo?.pageNum ?? 1,
+      limit: response.data.pageInfo?.pageSize ?? 10,
     };
   },
 

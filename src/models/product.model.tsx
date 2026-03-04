@@ -220,6 +220,8 @@ export interface ProductQueryParams {
   search?: string; // Search by SKU or Name
   categoryId?: number;
   isActive?: boolean;
+  minPrice?: string;
+  maxPrice?: string;
 }
 
 // Product list response
@@ -239,6 +241,7 @@ export interface ProductFormData {
   min_price: number;
   max_price: number;
   image_url: string;
+  images_url: string[];
   categoryId: number;
   isActive: boolean;
 }
