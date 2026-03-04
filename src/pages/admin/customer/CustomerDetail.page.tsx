@@ -24,7 +24,7 @@ const CustomerDetailPage = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await fetchCustomerById(Number(id));
+      const data = await fetchCustomerById(id);
       if (!data) {
         showError("Không tìm thấy khách hàng");
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`);
@@ -34,7 +34,7 @@ const CustomerDetailPage = () => {
 
       // Load customer orders
       const allOrders = await fetchOrders();
-      const customerOrders = allOrders.filter((order) => order.customer_id === data.id);
+      const customerOrders = allOrders.filter((order) => String(order.customer_id) === String(data.id));
       setOrders(customerOrders);
     } catch (error) {
       console.error("Lỗi tải chi tiết khách hàng:", error);
@@ -109,7 +109,17 @@ const CustomerDetailPage = () => {
               </div>
               <div>
                 <p className="text-slate-600">Mã khách hàng</p>
-                <p className="font-semibold text-primary-600">KH-{String(customer.id).padStart(4, '0')}</p>
+                <p className="font-semibold text-primary-600 font-mono text-xs">{customer.id.slice(-12).toUpperCase()}</p>
+              </div>
+              <div>
+                <p className="text-slate-600">Xác thực</p>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                  customer.is_verified
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}>
+                  {customer.is_verified ? '✓ Đã xác thực' : 'Chưa xác thực'}
+                </span>
               </div>
               <div>
                 <p className="text-slate-600">Ngày tham gia</p>
