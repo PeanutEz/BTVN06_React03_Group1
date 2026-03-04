@@ -203,40 +203,6 @@ const UserPage = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!editingUser) return;
-    if (!confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN user "${editingUser.name}"? Hành động này không thể hoàn tác.`)) return;
-    setSubmitting(true);
-    try {
-      await deleteUser(editingUser.id);
-      showSuccess(`Đã xóa user "${editingUser.name}"`);
-      setEditingUser(null);
-      await load();
-    } catch {
-      showError("Xóa user thất bại");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleBlock = async () => {
-    if (!editingUser) return;
-    const isCurrentlyActive = editingUser.is_active;
-    const action = isCurrentlyActive ? "Block" : "Unblock";
-    if (!confirm(`Bạn có chắc muốn ${action} user "${editingUser.name}"?`)) return;
-    setSubmitting(true);
-    try {
-      await changeUserStatus(editingUser.id, !isCurrentlyActive);
-      showSuccess(`Đã ${action} user "${editingUser.name}"`);
-      setEditingUser(null);
-      await load();
-    } catch {
-      showError(`${action} user thất bại`);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleDeleteUser = async (u: ApiUser) => {
     if (!confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN user "${u.name}"? Hành động này không thể hoàn tác.`)) return;
     setSubmitting(true);

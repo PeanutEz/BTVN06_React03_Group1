@@ -94,13 +94,6 @@ const CustomerListPage = () => {
     loadPage(1, keyword, activeFilter);
   };
 
-  const handleReset = () => {
-    setKeyword("");
-    setActiveFilter("");
-    searchRef.current = { keyword: "", activeFilter: "" };
-    loadPage(1, "", "");
-  };
-
   const handlePageChange = (page: number) => {
     loadPage(page, searchRef.current.keyword, searchRef.current.activeFilter);
   };
