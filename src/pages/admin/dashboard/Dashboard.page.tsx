@@ -9,6 +9,10 @@ import type { OrderDisplay } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
+import FranchisePickerModal from "../../../components/admin/FranchisePickerModal";
+import { switchContextAndGetProfile, type RoleInfo } from "../../../services/auth.service";
+import { useAuthStore } from "../../../store";
+import { showSuccess, showError } from "../../../utils";
 
 const topProducts = [
   {
@@ -38,7 +42,10 @@ const topProducts = [
 ];
 
 const DashboardPage = () => {
+  const { user, login } = useAuthStore();
   const [loading, setLoading] = useState(false);
+  const [showFranchisePicker, setShowFranchisePicker] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalRevenue: 0,
@@ -49,6 +56,21 @@ const DashboardPage = () => {
   });
   const [recentOrders, setRecentOrders] = useState<OrderDisplay[]>([]);
   const [loyaltyOverview, setLoyaltyOverview] = useState<LoyaltyOverview | null>(null);
+
+  const handleSwitchFranchise = async (role: RoleInfo) => {
+    try {
+      setIsSwitching(true);
+      const updatedProfile = await switchContextAndGetProfile(role.franchise_id);
+      login(updatedProfile);
+      setShowFranchisePicker(false);
+      showSuccess(`Đã chuyển sang: ${role.franchise_name || "Hệ thống (Global)"}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Chuyển franchise thất bại";
+      showError(msg);
+    } finally {
+      setIsSwitching(false);
+    }
+  };
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -110,9 +132,20 @@ const DashboardPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">WBS Coffee - Dashboard</h1>
-        <p className="text-xs sm:text-sm text-slate-600">Tổng quan hệ thống quản lý chuỗi cửa hàng</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">WBS Coffee - Dashboard</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Tổng quan hệ thống quản lý chuỗi cửa hàng</p>
+        </div>
+        {user?.roles && user.roles.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setShowFranchisePicker(true)}
+            className="flex items-center gap-2 rounded-xl border border-primary-300 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 transition hover:bg-primary-100 hover:border-primary-400 active:scale-95"
+          >
+            🏪 Đổi franchise
+          </button>
+        )}
       </div>
 
       {/* Stats Grid */}
@@ -387,6 +420,16 @@ const DashboardPage = () => {
           </table>
         </div>
       </div>
+
+      {/* Franchise Picker Modal */}
+      {showFranchisePicker && user?.roles && (
+        <FranchisePickerModal
+          roles={user.roles}
+          loading={isSwitching}
+          onSelect={handleSwitchFranchise}
+          onClose={() => setShowFranchisePicker(false)}
+        />
+      )}
     </div>
   );
 };

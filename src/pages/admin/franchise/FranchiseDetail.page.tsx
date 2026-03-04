@@ -7,10 +7,6 @@ import { ROUTER_URL } from "../../../routes/router.const";
 import { fetchInventoryByStore } from "../../../services/inventory.service";
 import { isLowStock } from "../../../models/inventory.model";
 import { showSuccess, showError } from "../../../utils";
-import { searchUserFranchiseRoles, createUserFranchiseRole } from "../../../services/user-franchise-role.service";
-import type { UserFranchiseRole } from "../../../services/user-franchise-role.service";
-import { fetchUsers, fetchRoles } from "../../../services/user.service";
-import type { ApiUser, RoleSelectItem } from "../../../services/user.service";
 
 const FranchiseDetailPage = () => {
   const { id } = useParams();
@@ -18,13 +14,6 @@ const FranchiseDetailPage = () => {
   const [loading, setLoading] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [lowStockCount, setLowStockCount] = useState(0);
-  const [franchiseUsers, setFranchiseUsers] = useState<UserFranchiseRole[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [allUsers, setAllUsers] = useState<ApiUser[]>([]);
-  const [roles, setRoles] = useState<RoleSelectItem[]>([]);
-  const [assignForm, setAssignForm] = useState({ user_id: "", role_id: "" });
-  const [assignSubmitting, setAssignSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const load = async () => {
@@ -46,68 +35,8 @@ const FranchiseDetailPage = () => {
     }
   };
 
-  const loadFranchiseUsers = async () => {
-    if (!id) return;
-    setLoadingUsers(true);
-    try {
-      const result = await searchUserFranchiseRoles({
-        searchCondition: { franchise_id: id, is_deleted: false },
-        pageInfo: { pageNum: 1, pageSize: 100 },
-      });
-      setFranchiseUsers(result.data);
-    } catch {
-      // ignore
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
-  const handleOpenAssign = async () => {
-    setAssignForm({ user_id: "", role_id: "" });
-    setShowAssignModal(true);
-    try {
-      const [usersResult, rolesResult] = await Promise.all([
-        fetchUsers("", 1, 200, ""),
-        fetchRoles(),
-      ]);
-      setAllUsers(usersResult.pageData);
-      setRoles(rolesResult);
-    } catch {
-      showError("Không thể tải danh sách");
-    }
-  };
-
-  const handleAssignSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!assignForm.user_id || !assignForm.role_id) {
-      showError("Vui lòng chọn user và role");
-      return;
-    }
-    setAssignSubmitting(true);
-    try {
-      await createUserFranchiseRole({
-        user_id: assignForm.user_id,
-        role_id: assignForm.role_id,
-        franchise_id: id!,
-        note: "",
-      });
-      showSuccess("Đã gán user vào franchise thành công");
-      setShowAssignModal(false);
-      await loadFranchiseUsers();
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        || (err instanceof Error ? err.message : null)
-        || "Gán user thất bại";
-      showError(msg);
-    } finally {
-      setAssignSubmitting(false);
-    }
-  };
-
   useEffect(() => {
     load();
-    loadFranchiseUsers();
   }, [id]);
 
   if (!franchise && !loading) {
@@ -254,139 +183,6 @@ const FranchiseDetailPage = () => {
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Users in this franchise */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Người dùng trong franchise</p>
-          <button
-            onClick={handleOpenAssign}
-            className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-600"
-          >
-            + Gán User
-          </button>
-        </div>
-        {loadingUsers ? (
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
-            Đang tải...
-          </div>
-        ) : franchiseUsers.length === 0 ? (
-          <p className="text-sm text-slate-400">Chưa có người dùng nào được gán vào franchise này.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="pb-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Người dùng</th>
-                  <th className="pb-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Email</th>
-                  <th className="pb-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Role</th>
-                  <th className="pb-2 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {franchiseUsers.map((u) => (
-                  <tr key={u.id}>
-                    <td className="py-2.5 pr-4 font-medium text-slate-900">{u.user_name || "—"}</td>
-                    <td className="py-2.5 pr-4 text-slate-500">{u.user_email}</td>
-                    <td className="py-2.5 pr-4">
-                      <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-700">
-                        {u.role_name} ({u.role_code})
-                      </span>
-                    </td>
-                    <td className="py-2.5">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        u.is_active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
-                      }`}>
-                        {u.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Assign User Modal */}
-      {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Gán User vào Franchise</h2>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Franchise: <span className="font-semibold text-slate-700">{franchise?.name}</span>
-                  {" "}—{" "}<span className="font-mono text-slate-400">{franchise?.code}</span>
-                </p>
-              </div>
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleAssignSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">User <span className="text-red-500">*</span></label>
-                <select
-                  required
-                  value={assignForm.user_id}
-                  onChange={(e) => setAssignForm((f) => ({ ...f, user_id: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                >
-                  <option value="">-- Chọn user --</option>
-                  {allUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name || u.email} {u.name ? `(${u.email})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">Role <span className="text-red-500">*</span></label>
-                <select
-                  required
-                  value={assignForm.role_id}
-                  onChange={(e) => setAssignForm((f) => ({ ...f, role_id: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                >
-                  <option value="">-- Chọn role --</option>
-                  {roles.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.name} ({r.code}) — {r.scope}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600">
-                Franchise ID: <span className="font-mono text-xs text-slate-500">{id}</span>
-              </div>
-
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="submit"
-                  disabled={assignSubmitting}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-60"
-                >
-                  {assignSubmitting && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
-                  {assignSubmitting ? "Đang lưu..." : "Xác nhận"}
-                </button>
-                <Button type="button" variant="outline" onClick={() => setShowAssignModal(false)} disabled={assignSubmitting} className="flex-1">
-                  Hủy
-                </Button>
-              </div>
-            </form>
           </div>
         </div>
       )}
