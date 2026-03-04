@@ -48,6 +48,11 @@ const FranchiseListPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    load(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
+
   const handlePageChange = (page: number) => {
     load(page);
   };
