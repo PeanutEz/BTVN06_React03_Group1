@@ -186,13 +186,9 @@ const CustomerListPage = () => {
             <tbody className="divide-y divide-slate-100">
               {loading && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
-                    <div className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin size-4 text-primary-500" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
-                      Đang tải...
+                  <td colSpan={6}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
                     </div>
                   </td>
                 </tr>

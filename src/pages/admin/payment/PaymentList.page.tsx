@@ -204,8 +204,10 @@ const PaymentListPage = () => {
               )}
               {loading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">
-                    Đang tải...
+                  <td colSpan={9}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                    </div>
                   </td>
                 </tr>
               )}
