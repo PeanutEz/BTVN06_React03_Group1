@@ -392,8 +392,10 @@ const UserPage = () => {
             )}
             {loading && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
-                  Đang tải...
+                <td colSpan={7}>
+                  <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                  </div>
                 </td>
               </tr>
             )}
