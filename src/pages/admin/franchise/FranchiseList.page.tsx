@@ -24,7 +24,7 @@ const FranchiseListPage = () => {
       const result = await searchFranchises({
         searchCondition: {
           keyword,
-          ...(isActive !== "" && { is_active: isActive }),
+          is_active: isActive,
           is_deleted: false,
         },
         pageInfo: {
@@ -47,11 +47,6 @@ const FranchiseListPage = () => {
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive]);
 
   const handlePageChange = (page: number) => {
     load(page);

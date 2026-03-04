@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import type { Product, ProductFormData } from "@/models/product.model";
-import { adminProductService } from "@/services/product.service";
+import { adminProductService, categories } from "@/services/product.service";
 import { toast } from "sonner";
 
 interface ProductModalProps {
@@ -10,26 +10,13 @@ interface ProductModalProps {
   onSave: () => void;
 }
 
-export default function ProductModal({ product, onClose, onSave }: ProductModalProps) {
+export default function ProductModal({
+  product,
+  onClose,
+  onSave,
+}: ProductModalProps) {
   const [loading, setLoading] = useState(false);
   const isEditMode = !!product;
-  const [imagesUrl, setImagesUrl] = useState<string[]>(
-    product ? (product as unknown as { images_url?: string[] }).images_url ?? [] : []
-  );
-  const [imagesUrlInput, setImagesUrlInput] = useState("");
-
-  const handleAddImageUrl = () => {
-    const url = imagesUrlInput.trim();
-    if (!url) return;
-    if (!/^https?:\/\/.+/.test(url)) { toast.error("Invalid URL"); return; }
-    if (imagesUrl.includes(url)) { toast.error("URL already added"); return; }
-    setImagesUrl((prev) => [...prev, url]);
-    setImagesUrlInput("");
-  };
-
-  const handleRemoveImageUrl = (index: number) => {
-    setImagesUrl((prev) => prev.filter((_, i) => i !== index));
-  };
 
   const {
     register,
@@ -46,18 +33,33 @@ export default function ProductModal({ product, onClose, onSave }: ProductModalP
           min_price: product.min_price,
           max_price: product.max_price,
           image_url: product.image_url || product.image || "",
+          categoryId: product.categoryId,
+          isActive: product.isActive,
         }
-      : { min_price: 0, max_price: 0 },
+      : {
+          isActive: true,
+          min_price: 0,
+          max_price: 0,
+        },
   });
 
   const minPrice = watch("min_price");
   const maxPrice = watch("max_price");
 
+  // Validate price range
+  useEffect(() => {
+    if (maxPrice && minPrice && maxPrice <= minPrice) {
+      // Will be caught by form validation
+    }
+  }, [minPrice, maxPrice]);
+
   const onSubmit = async (data: ProductFormData) => {
+    // Additional validation
     if (data.max_price <= data.min_price) {
       toast.error("Max price must be greater than min price");
       return;
     }
+
     setLoading(true);
     try {
       const dto = {
@@ -66,7 +68,7 @@ export default function ProductModal({ product, onClose, onSave }: ProductModalP
         description: data.description,
         content: data.content,
         image_url: data.image_url,
-        images_url: imagesUrl,
+        images_url: [],
         min_price: data.min_price,
         max_price: data.max_price,
       };
@@ -77,7 +79,8 @@ export default function ProductModal({ product, onClose, onSave }: ProductModalP
       }
       onSave();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to save product";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save product";
       toast.error(errorMessage);
       console.error(error);
     } finally {
@@ -85,42 +88,40 @@ export default function ProductModal({ product, onClose, onSave }: ProductModalP
     }
   };
 
-  const inputCls = (hasError: boolean) =>
-    `w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 ${
-      hasError ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"
-    }`;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
-
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-white px-6 py-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              {isEditMode ? "Edit Product" : "Create New Product"}
-            </h2>
-            <p className="mt-0.5 text-xs text-slate-500">
-              {isEditMode ? "Update product information" : "Fill in the required fields below"}
-            </p>
-          </div>
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-gray-800">
+            {isEditMode ? "Edit Product" : "Create New Product"}
+          </h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 p-6">
-
-          {/* SKU + Name */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* SKU */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 SKU <span className="text-red-500">*</span>
               </label>
               <input
@@ -128,209 +129,278 @@ export default function ProductModal({ product, onClose, onSave }: ProductModalP
                 {...register("sku", {
                   required: "SKU is required",
                   pattern: {
-                    value: /^[A-Z0-9_-]+$/,
-                    message: "Uppercase letters, numbers, - and _ only",
+                    value: /^[A-Z0-9-_]+$/,
+                    message:
+                      "SKU must contain only uppercase letters, numbers, hyphens, and underscores",
                   },
                 })}
-                placeholder="e.g., COFFEE_5"
-                className={`${inputCls(!!errors.sku)} font-mono`}
+                placeholder="e.g., CF001"
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono ${
+                  errors.sku ? "border-red-500" : "border-gray-300"
+                }`}
               />
-              {errors.sku && <p className="text-xs text-red-600">{errors.sku.message}</p>}
+              {errors.sku && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.sku.message}
+                </p>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Product Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 {...register("name", {
                   required: "Product name is required",
-                  minLength: { value: 3, message: "At least 3 characters" },
+                  minLength: {
+                    value: 3,
+                    message: "Name must be at least 3 characters",
+                  },
                 })}
                 placeholder="e.g., Cà Phê Sữa Đá"
-                className={inputCls(!!errors.name)}
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.name ? "border-red-500" : "border-gray-300"
+                }`}
               />
-              {errors.name && <p className="text-xs text-red-600">{errors.name.message}</p>}
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
-          </div>
 
-          {/* Min Price + Max Price */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">
-                Min Price (VNĐ) <span className="text-red-500">*</span>
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Category <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register("categoryId", {
+                  required: "Category is required",
+                  valueAsNumber: true,
+                })}
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.categoryId ? "border-red-500" : "border-gray-300"
+                }`}
+              >
+                <option value="">Select a category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+              {errors.categoryId && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.categoryId.message}
+                </p>
+              )}
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Status
+              </label>
+              <div className="flex items-center h-[42px]">
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register("isActive")}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <span className="ml-3 text-sm font-medium text-gray-700">
+                    {watch("isActive") ? "Active" : "Inactive"}
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Min Price */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Minimum Price (VNĐ) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
                 {...register("min_price", {
-                  required: "Min price is required",
+                  required: "Minimum price is required",
                   valueAsNumber: true,
-                  min: { value: 1000, message: "At least 1,000 VNĐ" },
+                  min: {
+                    value: 1000,
+                    message: "Price must be at least 1,000 VNĐ",
+                  },
                 })}
-                placeholder="30000"
-                className={inputCls(!!errors.min_price)}
+                placeholder="25000"
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.min_price ? "border-red-500" : "border-gray-300"
+                }`}
               />
-              {errors.min_price && <p className="text-xs text-red-600">{errors.min_price.message}</p>}
+              {errors.min_price && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.min_price.message}
+                </p>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">
-                Max Price (VNĐ) <span className="text-red-500">*</span>
+            {/* Max Price */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Maximum Price (VNĐ) <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
                 {...register("max_price", {
-                  required: "Max price is required",
+                  required: "Maximum price is required",
                   valueAsNumber: true,
-                  min: { value: 1000, message: "At least 1,000 VNĐ" },
-                  validate: (value) =>
-                    value > (watch("min_price") ?? 0) || "Must be greater than min price",
+                  min: {
+                    value: 1000,
+                    message: "Price must be at least 1,000 VNĐ",
+                  },
+                  validate: (value) => {
+                    const min = watch("min_price");
+                    return (
+                      value > min || "Max price must be greater than min price"
+                    );
+                  },
                 })}
-                placeholder="50000"
-                className={inputCls(!!errors.max_price)}
+                placeholder="35000"
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.max_price ? "border-red-500" : "border-gray-300"
+                }`}
               />
-              {errors.max_price && <p className="text-xs text-red-600">{errors.max_price.message}</p>}
-              {minPrice > 0 && maxPrice > minPrice && (
-                <p className="text-xs text-green-600">
-                  Range: {minPrice.toLocaleString("vi-VN")} – {maxPrice.toLocaleString("vi-VN")} đ
+              {errors.max_price && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.max_price.message}
+                </p>
+              )}
+              {minPrice && maxPrice && maxPrice > minPrice && (
+                <p className="mt-1 text-sm text-green-600">
+                  Franchise price range: {minPrice.toLocaleString("vi-VN")} -{" "}
+                  {maxPrice.toLocaleString("vi-VN")} VNĐ
                 </p>
               )}
             </div>
           </div>
 
           {/* Image URL */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
+          <div className="mt-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Image URL <span className="text-red-500">*</span>
             </label>
             <input
               type="url"
               {...register("image_url", {
                 required: "Image URL is required",
-                pattern: { value: /^https?:\/\/.+/, message: "Must be a valid URL" },
+                pattern: {
+                  value: /^https?:\/\/.+/,
+                  message: "Must be a valid URL",
+                },
               })}
               placeholder="https://example.com/image.jpg"
-              className={inputCls(!!errors.image_url)}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                errors.image_url ? "border-red-500" : "border-gray-300"
+              }`}
             />
-            {errors.image_url && <p className="text-xs text-red-600">{errors.image_url.message}</p>}
+            {errors.image_url && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.image_url.message}
+              </p>
+            )}
             {watch("image_url") && (
-              <img
-                src={watch("image_url")}
-                alt="Preview"
-                className="mt-2 h-24 w-24 rounded-lg border border-slate-200 object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = "https://placehold.co/96x96?text=Error";
-                }}
-              />
-            )}
-          </div>
-
-          {/* Extra Images */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-semibold text-slate-700">
-                🖼️ Ảnh phụ (có thể thêm nhiều ảnh)
-              </label>
-              <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-600">
-                {imagesUrl.length} ảnh
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={imagesUrlInput}
-                onChange={(e) => setImagesUrlInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddImageUrl(); } }}
-                placeholder="Dán URL ảnh vào đây rồi nhấn + Thêm"
-                className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              />
-              <button
-                type="button"
-                onClick={handleAddImageUrl}
-                className="whitespace-nowrap rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600"
-              >
-                + Thêm
-              </button>
-            </div>
-            {imagesUrl.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {imagesUrl.map((url, idx) => (
-                  <div key={idx} className="group relative">
-                    <img
-                      src={url}
-                      alt={`extra-${idx}`}
-                      className="h-20 w-20 rounded-lg border-2 border-slate-200 object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/80x80?text=Err"; }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImageUrl(idx)}
-                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600"
-                    >
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+              <div className="mt-3">
+                <img
+                  src={watch("image_url")}
+                  alt="Preview"
+                  className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "https://via.placeholder.com/128?text=Invalid+URL";
+                  }}
+                />
               </div>
-            ) : (
-              <p className="text-center text-xs text-slate-400 py-2">Chưa có ảnh phụ nào · Nhập URL và nhấn + Thêm</p>
             )}
           </div>
 
-          {/* Short Description */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
+          {/* Description */}
+          <div className="mt-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Short Description <span className="text-red-500">*</span>
             </label>
             <textarea
               {...register("description", {
                 required: "Description is required",
+                minLength: {
+                  value: 10,
+                  message: "Description must be at least 10 characters",
+                },
               })}
               rows={2}
               placeholder="Brief description for product listing"
-              className={`${inputCls(!!errors.description)} resize-none`}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                errors.description ? "border-red-500" : "border-gray-300"
+              }`}
             />
-            {errors.description && <p className="text-xs text-red-600">{errors.description.message}</p>}
+            {errors.description && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.description.message}
+              </p>
+            )}
           </div>
 
-          {/* Detailed Content */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
+          {/* Content */}
+          <div className="mt-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
               Detailed Content <span className="text-red-500">*</span>
             </label>
             <textarea
               {...register("content", {
                 required: "Content is required",
+                minLength: {
+                  value: 20,
+                  message: "Content must be at least 20 characters",
+                },
               })}
               rows={4}
               placeholder="Detailed product information, ingredients, etc."
-              className={`${inputCls(!!errors.content)} resize-none`}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                errors.content ? "border-red-500" : "border-gray-300"
+              }`}
             />
-            {errors.content && <p className="text-xs text-red-600">{errors.content.message}</p>}
+            {errors.content && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.content.message}
+              </p>
+            )}
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+          {/* Action Buttons */}
+          <div className="mt-8 flex justify-end gap-3 border-t border-gray-200 pt-6">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              className="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 rounded-lg bg-primary-500 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:opacity-60"
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               {loading && (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
               )}
-              {loading ? "Saving..." : isEditMode ? "Update Product" : "Create Product"}
+              {loading
+                ? "Saving..."
+                : isEditMode
+                  ? "Update Product"
+                  : "Create Product"}
             </button>
           </div>
         </form>

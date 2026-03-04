@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
   LOYALTY_TIER_LABELS,
   LOYALTY_TIER_COLORS,
 } from "../../../models/customer.model";
-import { getCustomerByIdFromApi } from "../../../services/customer.service";
+import { fetchCustomerById } from "../../../services/customer.service";
 import { fetchOrders } from "../../../services/order.service";
 import type { OrderDisplay } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "../../../models/order.model";
 import { ROUTER_URL } from "../../../routes/router.const";
+import { showError } from "../../../utils";
 
 const CustomerDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [customer, setCustomer] = useState<CustomerDisplay | null>(null);
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,24 +24,17 @@ const CustomerDetailPage = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const item = await getCustomerByIdFromApi(id);
-      const data: CustomerDisplay = {
-        id: item.id as unknown as number,
-        phone: item.phone,
-        email: item.email,
-        password_hash: "",
-        name: item.name,
-        avatar_url: item.avatar_url,
-        is_active: item.is_active,
-        is_deleted: item.is_deleted,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-      };
+      const data = await fetchCustomerById(id);
+      if (!data) {
+        showError("Không tìm thấy khách hàng");
+        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`);
+        return;
+      }
       setCustomer(data);
 
       // Load customer orders
       const allOrders = await fetchOrders();
-      const customerOrders = allOrders.filter((order) => order.customer_id === data.id);
+      const customerOrders = allOrders.filter((order) => String(order.customer_id) === String(data.id));
       setOrders(customerOrders);
     } catch (error) {
       console.error("Lỗi tải chi tiết khách hàng:", error);
@@ -114,7 +109,17 @@ const CustomerDetailPage = () => {
               </div>
               <div>
                 <p className="text-slate-600">Mã khách hàng</p>
-                <p className="font-semibold text-primary-600">KH-{String(customer.id).padStart(4, '0')}</p>
+                <p className="font-semibold text-primary-600 font-mono text-xs">{customer.id.slice(-12).toUpperCase()}</p>
+              </div>
+              <div>
+                <p className="text-slate-600">Xác thực</p>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                  customer.is_verified
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}>
+                  {customer.is_verified ? '✓ Đã xác thực' : 'Chưa xác thực'}
+                </span>
               </div>
               <div>
                 <p className="text-slate-600">Ngày tham gia</p>

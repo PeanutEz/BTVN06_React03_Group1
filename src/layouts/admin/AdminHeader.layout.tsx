@@ -18,11 +18,11 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Lấy franchise name và role từ active_context hoặc roles
-  const activeContext = user?.active_context as { franchise_id?: string; franchise_name?: string; role?: string; scope?: string } | null;
+  const activeContext = user?.active_context as { franchise_id?: string; franchise_name?: string; role?: string } | null;
   const currentRole = activeContext?.role || user?.role || "";
-  const currentFranchise = activeContext
-    ? (activeContext.franchise_name || "Hệ thống (Global)")
-    : (user?.roles?.find(r => r.franchise_id && r.franchise_name)?.franchise_name || null);
+  const currentFranchise = activeContext?.franchise_name
+    || user?.roles?.find(r => r.franchise_id && r.franchise_name)?.franchise_name
+    || null;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
