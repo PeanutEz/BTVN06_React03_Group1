@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
-import type { CustomerDisplay, LoyaltyTier } from "../../../models/customer.model";
+import type { CustomerDisplay } from "../../../models/customer.model";
 import {
   LOYALTY_TIER_LABELS,
   LOYALTY_TIER_COLORS,
 } from "../../../models/customer.model";
 import {
-  fetchCustomers,
-  searchCustomers,
+  searchCustomersFromApi,
   createCustomer,
   updateCustomer,
 } from "../../../services/customer.service";
+import type { CustomerApiItem } from "../../../services/customer.service";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 import Pagination from "../../../components/ui/Pagination";
@@ -22,8 +22,10 @@ const CustomerListPage = () => {
   const [customers, setCustomers] = useState<CustomerDisplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [tierFilter, setTierFilter] = useState<LoyaltyTier | "">("")
-  const [currentPage, setCurrentPage] = useState(1);;
+  const [statusFilter, setStatusFilter] = useState<"" | "true" | "false">("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<CustomerDisplay | null>(null);
   const [formData, setFormData] = useState({
@@ -35,12 +37,27 @@ const CustomerListPage = () => {
     is_deleted: false,
   });
 
-  const loadCustomers = async () => {
+  const mapApiItem = (item: CustomerApiItem): CustomerDisplay => ({
+    id: Number(item.id),
+    phone: item.phone,
+    email: item.email,
+    password_hash: "",
+    name: item.name,
+    avatar_url: item.avatar_url,
+    is_active: item.is_active,
+    is_deleted: item.is_deleted,
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  });
+
+  const loadCustomers = async (page = 1, keyword = searchQuery, status = statusFilter) => {
     setLoading(true);
-    setCurrentPage(1);
     try {
-      const data = await fetchCustomers();
-      setCustomers(data);
+      const isActive: boolean | "" = status === "true" ? true : status === "false" ? false : "";
+      const result = await searchCustomersFromApi(keyword, isActive, page, ITEMS_PER_PAGE);
+      setCustomers(result.data.map(mapApiItem));
+      setTotalPages(result.pageInfo.totalPages);
+      setTotalItems(result.pageInfo.totalItems);
     } catch (error) {
       console.error("Lỗi tải danh sách khách hàng:", error);
     } finally {
@@ -49,43 +66,12 @@ const CustomerListPage = () => {
   };
 
   useEffect(() => {
-    loadCustomers();
+    loadCustomers(1);
   }, []);
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      loadCustomers();
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await searchCustomers(searchQuery);
-      setCustomers(data);
-    } catch (error) {
-      console.error("Lỗi tìm kiếm khách hàng:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFilterByTier = async () => {
-    if (!tierFilter) {
-      loadCustomers();
-      return;
-    }
-    setLoading(true);
-    try {
-      // Filter customers by tier from franchise relations
-      const allCustomers = await fetchCustomers();
-      const filtered = allCustomers.filter(c => 
-        c.franchises?.some(cf => cf.loyalty_tier === tierFilter)
-      );
-      setCustomers(filtered);
-    } catch (error) {
-      console.error("Lỗi lọc khách hàng:", error);
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = (keyword = searchQuery, status = statusFilter) => {
+    setCurrentPage(1);
+    loadCustomers(1, keyword, status);
   };
 
   const handleOpenModal = (customer?: CustomerDisplay) => {
@@ -133,12 +119,6 @@ const CustomerListPage = () => {
     }
   };
 
-  const totalPages = Math.ceil(customers.length / ITEMS_PER_PAGE);
-  const paginatedCustomers = customers.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -146,61 +126,45 @@ const CustomerListPage = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý khách hàng</h1>
           <p className="text-xs sm:text-sm text-slate-600">Quản lý thông tin khách hàng và điểm thưởng</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadCustomers} loading={loading}>
-            Làm mới
-          </Button>
-          <Button onClick={() => handleOpenModal()}>+ Thêm khách hàng</Button>
-        </div>
+        <Button onClick={() => handleOpenModal()}>+ Thêm khách hàng</Button>
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-semibold text-slate-700">Tìm kiếm</label>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <svg
+              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input
               type="text"
-              placeholder="Tên, email hoặc số điện thoại"
+              placeholder="Tìm kiếm theo tên hoặc email..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSearch(searchQuery, statusFilter); }}
+              className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Hạng thành viên</label>
-            <select
-              value={tierFilter}
-              onChange={(e) => setTierFilter(e.target.value as LoyaltyTier | "")}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="">Tất cả</option>
-              <option value="SILVER">Bạc</option>
-              <option value="GOLD">Vàng</option>
-              <option value="PLATINUM">Bạch kim</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={handleSearch} size="sm">
-            Tìm kiếm
-          </Button>
-          <Button onClick={handleFilterByTier} size="sm" variant="outline">
-            Lọc theo hạng
-          </Button>
-          <Button
-            onClick={() => {
-              setSearchQuery("");
-              setTierFilter("");
-              loadCustomers();
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              const val = e.target.value as "" | "true" | "false";
+              setStatusFilter(val);
+              setCurrentPage(1);
+              handleSearch(searchQuery, val);
             }}
-            size="sm"
-            variant="outline"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           >
-            Đặt lại
+            <option value="">Tất cả trạng thái</option>
+            <option value="true">Hoạt động</option>
+            <option value="false">Ngưng hoạt động</option>
+          </select>
+          <Button onClick={() => handleSearch(searchQuery, statusFilter)} loading={loading}>
+            Tìm kiếm
           </Button>
         </div>
       </div>
@@ -221,7 +185,7 @@ const CustomerListPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {paginatedCustomers.map((customer) => (
+              {customers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -279,9 +243,6 @@ const CustomerListPage = () => {
                           Chi tiết
                         </Button>
                       </Link>
-                      <Button size="sm" variant="outline" onClick={() => handleOpenModal(customer)}>
-                        Sửa
-                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -307,8 +268,11 @@ const CustomerListPage = () => {
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={customers.length}
+            onPageChange={(page) => {
+              setCurrentPage(page);
+              loadCustomers(page, searchQuery, statusFilter);
+            }}
+            totalItems={totalItems}
             itemsPerPage={ITEMS_PER_PAGE}
           />
         </div>

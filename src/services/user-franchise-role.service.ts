@@ -119,3 +119,30 @@ export async function updateUserFranchiseRole(
 	}
 	return result.data;
 }
+
+// ==================== USER-FRANCHISE-ROLE-01: Create Item ====================
+// POST /api/user-franchise-roles — Token: YES — Role: ADMIN
+// Input: { user_id, role_id, franchise_id, note }
+// Output: { success: true, data: UserFranchiseRole }
+
+export interface CreateUserFranchiseRolePayload {
+	user_id: string;
+	role_id: string;
+	franchise_id: string | null;
+	note: string;
+}
+
+export async function createUserFranchiseRole(
+	payload: CreateUserFranchiseRolePayload,
+): Promise<UserFranchiseRole> {
+	const response = await apiClient.post<ApiResponse<UserFranchiseRole>>(
+		"/user-franchise-roles",
+		payload,
+	);
+	const result = response.data;
+	if (!result.success) {
+		const msg = (result as { message?: string }).message || "Set role cho user thất bại";
+		throw new Error(msg);
+	}
+	return (result as { data: UserFranchiseRole }).data;
+}

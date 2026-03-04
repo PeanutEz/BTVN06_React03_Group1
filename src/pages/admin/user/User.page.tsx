@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "../../../components";
 import { useAuthStore } from "../../../store";
-import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles } from "../../../services/user.service";
+import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles, changeUserStatus } from "../../../services/user.service";
 import type { ApiUser, CreateUserPayload, RoleSelectItem } from "../../../services/user.service";
+import { createUserFranchiseRole, searchUserFranchiseRoles, updateUserFranchiseRole } from "../../../services/user-franchise-role.service";
+import type { CreateUserFranchiseRolePayload, UserFranchiseRole } from "../../../services/user-franchise-role.service";
+import { fetchFranchiseSelect } from "../../../services/store.service";
+import type { FranchiseSelectItem } from "../../../services/store.service";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 
@@ -30,7 +34,22 @@ const UserPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
-  const [, setRoles] = useState<RoleSelectItem[]>([]);
+  const [roles, setRoles] = useState<RoleSelectItem[]>([]);
+  const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
+
+  // Set Role modal state
+  const [setRoleUser, setSetRoleUser] = useState<ApiUser | null>(null);
+  const [setRoleForm, setSetRoleForm] = useState<CreateUserFranchiseRolePayload>({
+    user_id: "",
+    role_id: "",
+    franchise_id: null,
+    note: "",
+  });
+  const [setRoleSubmitting, setSetRoleSubmitting] = useState(false);
+  const [existingUserRoles, setExistingUserRoles] = useState<UserFranchiseRole[]>([]);
+  const [loadingExistingRoles, setLoadingExistingRoles] = useState(false);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
+  const [updateRoleMap, setUpdateRoleMap] = useState<Record<string, string>>({});
 
   const loadRoles = async () => {
     try {
@@ -38,6 +57,15 @@ const UserPage = () => {
       setRoles(data);
     } catch (error) {
       console.error("Lỗi tải danh sách role:", error);
+    }
+  };
+
+  const loadFranchises = async () => {
+    try {
+      const data = await fetchFranchiseSelect();
+      setFranchises(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách franchise:", error);
     }
   };
 
@@ -63,7 +91,69 @@ const UserPage = () => {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load("", 1); loadRoles(); }, []);
+  useEffect(() => { load("", 1); loadRoles(); loadFranchises(); }, []);
+
+  const handleOpenSetRole = async (u: ApiUser) => {
+    setSetRoleUser(u);
+    setSetRoleForm({ user_id: u.id, role_id: "", franchise_id: null, note: "" });
+    setExistingUserRoles([]);
+    setUpdateRoleMap({});
+    setLoadingExistingRoles(true);
+    try {
+      const result = await searchUserFranchiseRoles({
+        searchCondition: { user_id: u.id, is_deleted: false },
+        pageInfo: { pageNum: 1, pageSize: 50 },
+      });
+      setExistingUserRoles(result.data);
+      const map: Record<string, string> = {};
+      result.data.forEach((r) => { map[r.id] = r.role_id; });
+      setUpdateRoleMap(map);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingExistingRoles(false);
+    }
+  };
+
+  const handleUpdateRole = async (existingRole: UserFranchiseRole) => {
+    const newRoleId = updateRoleMap[existingRole.id];
+    if (!newRoleId) { showError("Vui lòng chọn role"); return; }
+    setUpdatingRoleId(existingRole.id);
+    try {
+      await updateUserFranchiseRole(existingRole.id, { role_id: newRoleId });
+      showSuccess("Cập nhật role thành công");
+      setExistingUserRoles((prev) =>
+        prev.map((r) => r.id === existingRole.id ? { ...r, role_id: newRoleId } : r)
+      );
+    } catch (err: unknown) {
+      const apiMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || (err instanceof Error ? err.message : null)
+        || "Cập nhật role thất bại";
+      showError(apiMessage);
+    } finally {
+      setUpdatingRoleId(null);
+    }
+  };
+
+  const handleSetRoleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!setRoleForm.role_id) { showError("Vui lòng chọn role"); return; }
+    setSetRoleSubmitting(true);
+    try {
+      await createUserFranchiseRole(setRoleForm);
+      showSuccess("Set role cho user thành công");
+      setSetRoleUser(null);
+    } catch (err: unknown) {
+      const apiMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || (err instanceof Error ? err.message : null)
+        || "Set role thất bại";
+      showError(apiMessage);
+    } finally {
+      setSetRoleSubmitting(false);
+    }
+  };
 
   const handleOpenModal = () => {
     setFormData({ ...DEFAULT_FORM });
@@ -113,17 +203,35 @@ const UserPage = () => {
     }
   };
 
-  const handleBlock = async () => {
+  const handleDelete = async () => {
     if (!editingUser) return;
-    if (!confirm(`Bạn có chắc muốn Block user "${editingUser.name}"?`)) return;
+    if (!confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN user "${editingUser.name}"? Hành động này không thể hoàn tác.`)) return;
     setSubmitting(true);
     try {
       await deleteUser(editingUser.id);
-      showSuccess(`Đã Block user "${editingUser.name}"`);
+      showSuccess(`Đã xóa user "${editingUser.name}"`);
       setEditingUser(null);
       await load();
     } catch {
-      showError("Block user thất bại");
+      showError("Xóa user thất bại");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleBlock = async () => {
+    if (!editingUser) return;
+    const isCurrentlyActive = editingUser.is_active;
+    const action = isCurrentlyActive ? "Block" : "Unblock";
+    if (!confirm(`Bạn có chắc muốn ${action} user "${editingUser.name}"?`)) return;
+    setSubmitting(true);
+    try {
+      await changeUserStatus(editingUser.id, !isCurrentlyActive);
+      showSuccess(`Đã ${action} user "${editingUser.name}"`);
+      setEditingUser(null);
+      await load();
+    } catch {
+      showError(`${action} user thất bại`);
     } finally {
       setSubmitting(false);
     }
@@ -183,6 +291,7 @@ const UserPage = () => {
               <th className="px-4 py-3">SĐT</th>
               <th className="px-4 py-3">Trạng thái</th>
               <th className="px-4 py-3">Ngày tạo</th>
+              <th className="px-4 py-3">Set Role</th>
               <th className="px-4 py-3">Thao tác</th>
             </tr>
           </thead>
@@ -219,6 +328,14 @@ const UserPage = () => {
                   {new Date(u.created_at).toLocaleDateString("vi-VN")}
                 </td>
                 <td className="px-4 py-3">
+                  <button
+                    onClick={() => handleOpenSetRole(u)}
+                    className="rounded-lg border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-600 transition hover:bg-primary-100"
+                  >
+                    Set Role
+                  </button>
+                </td>
+                <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={() => handleOpenEdit(u)}>
                       Chi tiết
@@ -232,14 +349,14 @@ const UserPage = () => {
             ))}
             {users.length === 0 && !loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
                   Không có người dùng
                 </td>
               </tr>
             )}
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
                   Đang tải...
                 </td>
               </tr>
@@ -256,6 +373,163 @@ const UserPage = () => {
           />
         </div>
       </div>
+
+      {/* Set Role Modal */}
+      {setRoleUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            {/* Header */}
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Set Role</h2>
+                <p className="mt-0.5 text-sm text-slate-500">Gán role cho user vào franchise / system</p>
+              </div>
+              <button
+                onClick={() => setSetRoleUser(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* User info badge */}
+            <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
+              <img
+                src={setRoleUser.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${setRoleUser.email}`}
+                alt={setRoleUser.name}
+                className="size-10 rounded-full object-cover ring-2 ring-primary-200"
+              />
+              <div className="leading-tight">
+                <p className="font-semibold text-slate-900">{setRoleUser.name || "(Chưa đặt tên)"}</p>
+                <p className="text-xs text-slate-500">{setRoleUser.email}</p>
+              </div>
+            </div>
+
+            {/* Existing roles */}
+            {loadingExistingRoles && (
+              <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                Đang kiểm tra role hiện tại...
+              </div>
+            )}
+            {!loadingExistingRoles && existingUserRoles.length > 0 && (
+              <div className="mb-5 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Roles đã gán</p>
+                {existingUserRoles.map((er) => (
+                  <div key={er.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-slate-500 truncate">
+                        {er.franchise_name ? `${er.franchise_name} (${er.franchise_code})` : "System (Global)"}
+                      </p>
+                    </div>
+                    <select
+                      value={updateRoleMap[er.id] ?? er.role_id}
+                      onChange={(e) => setUpdateRoleMap((m) => ({ ...m, [er.id]: e.target.value }))}
+                      className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary-500"
+                    >
+                      {roles.map((r) => (
+                        <option key={r.value} value={r.value}>
+                          {r.name} ({r.code})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateRole(er)}
+                      disabled={updatingRoleId === er.id}
+                      className="shrink-0 rounded-lg bg-blue-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-600 disabled:opacity-60"
+                    >
+                      {updatingRoleId === er.id ? "..." : "Cập nhật"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <form onSubmit={handleSetRoleSubmit} className="space-y-4">
+              {/* Role */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-slate-700">
+                  Role <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  value={setRoleForm.role_id}
+                  onChange={(e) => {
+                    const selectedRole = roles.find((r) => r.value === e.target.value);
+                    const isGlobal = selectedRole?.scope === "GLOBAL";
+                    setSetRoleForm((f) => ({
+                      ...f,
+                      role_id: e.target.value,
+                      franchise_id: isGlobal ? null : f.franchise_id,
+                    }));
+                  }}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                >
+                  <option value="">-- Chọn role --</option>
+                  {roles.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.name} ({r.code}) — {r.scope}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Franchise */}
+              {(() => {
+                const selectedRole = roles.find((r) => r.value === setRoleForm.role_id);
+                const isGlobal = selectedRole?.scope === "GLOBAL";
+                return (
+                  <div className="space-y-1.5">
+                    <label className={`text-sm font-semibold ${isGlobal ? "text-slate-400" : "text-slate-700"}`}>
+                      Franchise
+                    </label>
+
+                    <select
+                      value={setRoleForm.franchise_id ?? ""}
+                      onChange={(e) =>
+                        setSetRoleForm((f) => ({ ...f, franchise_id: e.target.value || null }))
+                      }
+                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    >
+                      <option value="">-- System (không chọn franchise) --</option>
+                      {franchises.map((fr) => (
+                        <option key={fr.value} value={fr.value}>
+                          {fr.name} ({fr.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })()}
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="submit"
+                  disabled={setRoleSubmitting}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-60"
+                >
+                  {setRoleSubmitting && (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  )}
+                  {setRoleSubmitting ? "Đang lưu..." : "Xác nhận"}
+                </button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSetRoleUser(null)}
+                  disabled={setRoleSubmitting}
+                  className="flex-1"
+                >
+                  Hủy
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create User Modal */}
       {showModal && (
@@ -411,7 +685,7 @@ const UserPage = () => {
                 />
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex flex-wrap gap-3 pt-2">
                 <Button onClick={handleUpdateUser} loading={submitting} disabled={submitting} className="flex-1">
                   Cập nhật
                 </Button>
@@ -421,7 +695,15 @@ const UserPage = () => {
                   disabled={submitting}
                   className="flex-1 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
                 >
-                  🚫 Block
+                  {editingUser?.is_active ? "🚫 Block" : "✅ Unblock"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={submitting}
+                  className="flex-1 rounded-lg border border-red-600 bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+                >
+                  🗑️ Xóa
                 </button>
                 <Button
                   type="button"
