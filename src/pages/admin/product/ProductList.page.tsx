@@ -78,7 +78,7 @@ export default function ProductListPage() {
       return;
 
     try {
-      await adminProductService.deleteProduct(id);
+      await adminProductService.deleteProduct(id.toString());
       toast.success("Product deleted successfully");
       fetchProducts();
     } catch (error) {
@@ -90,7 +90,7 @@ export default function ProductListPage() {
   // Handle toggle status
   const handleToggleStatus = async (id: number) => {
     try {
-      const updatedProduct = await adminProductService.toggleProductStatus(id);
+      const updatedProduct = await adminProductService.toggleProductStatus(id.toString());
 
       // Update local state without reloading
       setProducts((prevProducts) =>

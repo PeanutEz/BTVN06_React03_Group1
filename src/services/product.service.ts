@@ -202,4 +202,16 @@ export const adminProductService = {
   restoreProduct: async (id: string): Promise<void> => {
     await apiClient.patch<{ success: boolean; data: null }>(`/products/${id}/restore`);
   },
+
+  // PRODUCT-07 — Toggle Active Status
+  // PATCH /api/products/status  |  Role: ADMIN, MANAGER  |  Token: required
+  toggleProductStatus: async (id: string): Promise<{ isActive: boolean }> => {
+    const current = await adminProductService.getProductById(id);
+    const newStatus = !current.is_active;
+    await apiClient.patch<{ success: boolean; data: null }>("/products/status", {
+      id,
+      is_active: newStatus,
+    });
+    return { isActive: newStatus };
+  },
 };
