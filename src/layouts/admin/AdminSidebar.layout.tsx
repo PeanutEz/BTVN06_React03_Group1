@@ -153,6 +153,43 @@ const adminNav = [
         />
       </svg>
     ),
+  },  {
+    label: "Inventories",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORIES}`,
+    icon: (
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Categories",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CATEGORIES}`,
+    icon: (
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+        />
+      </svg>
+    ),
   },
   {
     label: "Roles",
