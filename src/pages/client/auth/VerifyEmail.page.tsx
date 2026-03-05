@@ -14,7 +14,6 @@ const VerifyEmailPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [status, setStatus] = useState<VerifyStatus>("loading");
-  const [errorMessage, setErrorMessage] = useState("");
   const [resendEmail, setResendEmail] = useState("");
   const [isResending, setIsResending] = useState(false);
   const hasRun = useRef(false);
@@ -31,7 +30,6 @@ const VerifyEmailPage = () => {
       if (!token) {
         setStatus("error");
         const msg = "Token không hợp lệ hoặc không tìm thấy.";
-        setErrorMessage(msg);
         showError(msg);
         return;
       }
@@ -52,7 +50,6 @@ const VerifyEmailPage = () => {
         } else if (error instanceof Error) {
           msg = error.message;
         }
-        setErrorMessage(msg);
         showError(msg);
       }
     };
