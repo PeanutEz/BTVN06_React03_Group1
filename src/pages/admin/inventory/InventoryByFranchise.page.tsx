@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { InventoryItem } from "../../../models/inventory.model";
@@ -11,8 +11,7 @@ const InventoryByFranchisePage = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [storeName, setStoreName] = useState<string>("");
-
+  const [storeName, setStoreName] = useState<string>("");  const lastId = useRef<string | undefined>(undefined);
   const load = async () => {
     if (!id) return;
     setLoading(true);
@@ -26,6 +25,8 @@ const InventoryByFranchisePage = () => {
   };
 
   useEffect(() => {
+    if (id === lastId.current) return;
+    lastId.current = id;
     load();
   }, [id]);
 

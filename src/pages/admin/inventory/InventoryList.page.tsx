@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { adminInventoryService } from "../../../services/inventory.service";
@@ -31,6 +31,7 @@ export default function InventoryListPage() {
 
   // Detail modal
   const [viewingItem, setViewingItem] = useState<InventoryApiResponse | null>(null);
+  const hasRun = useRef(false);
 
   const loadFranchises = async () => {
     try {
@@ -74,6 +75,8 @@ export default function InventoryListPage() {
   );
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     load("", 1, "", false);
     loadFranchises();
     // eslint-disable-next-line react-hooks/exhaustive-deps

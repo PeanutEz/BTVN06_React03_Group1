@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { adminProductService, categories } from "@/services/product.service";
 import type { Product, ProductQueryParams } from "@/models/product.model";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export default function ProductListPage() {
   const [appliedMaxPrice, setAppliedMaxPrice] = useState(""); // committed to API on Search click
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>();
+  const lastParamsRef = useRef<string | null>(null);
 
   // Fetch products
   const fetchProducts = async () => {
@@ -63,6 +64,9 @@ export default function ProductListPage() {
   };
 
   useEffect(() => {
+    const key = JSON.stringify([pagination.page, appliedSearch, appliedMinPrice, appliedMaxPrice, categoryFilter, statusFilter]);
+    if (key === lastParamsRef.current) return;
+    lastParamsRef.current = key;
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, appliedSearch, appliedMinPrice, appliedMaxPrice, categoryFilter, statusFilter]);

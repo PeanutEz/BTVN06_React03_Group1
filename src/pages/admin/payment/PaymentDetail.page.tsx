@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { Payment, PaymentStatus } from "../../../models/payment.model";
@@ -22,6 +22,7 @@ const PaymentDetailPage = () => {
   const [updating, setUpdating] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<PaymentStatus>("DRAFT");
+  const lastId = useRef<string | undefined>(undefined);
 
   const loadPayment = async () => {
     if (!id) return;
@@ -48,6 +49,8 @@ const PaymentDetailPage = () => {
   };
 
   useEffect(() => {
+    if (id === lastId.current) return;
+    lastId.current = id;
     loadPayment();
   }, [id]);
 

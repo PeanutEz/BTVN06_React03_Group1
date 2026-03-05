@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
 import type { Payment, PaymentStatus, PaymentMethodType } from "../../../models/payment.model";
@@ -18,7 +18,8 @@ const PaymentListPage = () => {
   const [loading, setLoading] = useState(false);
   const [methodFilter, setMethodFilter] = useState<PaymentMethodType | "">("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | "">("")
-  const [currentPage, setCurrentPage] = useState(1);;
+  const [currentPage, setCurrentPage] = useState(1);
+  const hasRun = useRef(false);
 
   const loadPayments = async () => {
     setLoading(true);
@@ -34,6 +35,8 @@ const PaymentListPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadPayments();
   }, []);
 

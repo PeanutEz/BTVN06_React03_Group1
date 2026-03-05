@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "../../../components";
 import type { ApiFranchise } from "../../../services/store.service";
 import { searchFranchises, deleteFranchise, getFranchiseById } from "../../../services/store.service";
@@ -18,6 +18,7 @@ const FranchiseListPage = () => {
   const [viewingFranchise, setViewingFranchise] = useState<ApiFranchise | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const navigate = useNavigate();
+  const lastIsActive = useRef<string | null>(null);
 
   const load = useCallback(async (page = currentPage) => {
     setLoading(true);
@@ -45,11 +46,8 @@ const FranchiseListPage = () => {
   }, [currentPage, keyword, isActive]);
 
   useEffect(() => {
-    load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
+    if (isActive === lastIsActive.current) return;
+    lastIsActive.current = isActive;
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
