@@ -1,7 +1,13 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
+import { useAuthStore } from "../../store";
 
-const adminNav = [
+const adminNav: Array<{
+  label: string;
+  to: string;
+  icon: React.ReactNode;
+  hiddenForRoles?: string[];
+}> = [
   {
     label: "Dashboard",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`,
@@ -43,6 +49,7 @@ const adminNav = [
   {
     label: "Franchises",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
+    hiddenForRoles: ["MANAGER", "STAFF"],
     icon: (
       <svg
         className="size-6"
@@ -223,6 +230,12 @@ const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
   const sidebarWidth = isMobile ? 240 : isOpen ? 240 : 80;
   const translateX = isMobile && !isOpen ? "-100%" : "0%";
   const location = useLocation();
+  const { user } = useAuthStore();
+  const activeContext = user?.active_context as { role?: string } | null;
+  const currentRole = (activeContext?.role || user?.role || "").toUpperCase();
+  const visibleNav = adminNav.filter(
+    (item) => !item.hiddenForRoles?.includes(currentRole)
+  );
 
   return (
     <aside
@@ -252,7 +265,7 @@ const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
         )}
 
         <nav className="flex-1 space-y-2 px-3">
-          {adminNav.map((item) => {
+          {visibleNav.map((item) => {
             const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
             return (
               <NavLink
