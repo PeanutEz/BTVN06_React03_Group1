@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { AxiosError } from "axios";
 import { Button } from "../../../components";
 import { verifyToken, verifyTokenAuth, resendToken } from "../../../services/auth.service";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -16,15 +17,22 @@ const VerifyEmailPage = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [resendEmail, setResendEmail] = useState("");
   const [isResending, setIsResending] = useState(false);
+  const hasRun = useRef(false);
 
   // Detect if this is admin-created user verify (path: /verify-email/:token)
   const isAdminVerify = location.pathname.startsWith("/verify-email/");
 
   useEffect(() => {
+    // Guard chống React StrictMode gọi effect 2 lần
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     const verify = async () => {
       if (!token) {
         setStatus("error");
-        setErrorMessage("Token không hợp lệ hoặc không tìm thấy.");
+        const msg = "Token không hợp lệ hoặc không tìm thấy.";
+        setErrorMessage(msg);
+        showError(msg);
         return;
       }
 
@@ -37,9 +45,15 @@ const VerifyEmailPage = () => {
         setStatus("success");
       } catch (error) {
         setStatus("error");
-        setErrorMessage(
-          error instanceof Error ? error.message : "Xác thực email thất bại. Token có thể đã hết hạn."
-        );
+        let msg = "Xác thực email thất bại. Token có thể đã hết hạn.";
+        if (error instanceof AxiosError) {
+          const data = error.response?.data as { message?: string } | undefined;
+          msg = data?.message || msg;
+        } else if (error instanceof Error) {
+          msg = error.message;
+        }
+        setErrorMessage(msg);
+        showError(msg);
       }
     };
 
@@ -126,7 +140,6 @@ const VerifyEmailPage = () => {
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-500 bg-clip-text text-transparent">
                   Xác thực thất bại
                 </h1>
-                <p className="text-sm text-slate-600">{errorMessage}</p>
               </div>
 
               {/* Resend token section */}
