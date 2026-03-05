@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
@@ -19,6 +19,7 @@ const CustomerDetailPage = () => {
   const [customer, setCustomer] = useState<CustomerDisplay | null>(null);
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
   const [loading, setLoading] = useState(false);
+  const lastId = useRef<string | undefined>(undefined);
 
   const loadCustomer = async () => {
     if (!id) return;
@@ -44,6 +45,8 @@ const CustomerDetailPage = () => {
   };
 
   useEffect(() => {
+    if (id === lastId.current) return;
+    lastId.current = id;
     loadCustomer();
   }, [id]);
 

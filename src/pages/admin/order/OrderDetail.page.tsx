@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
@@ -19,6 +19,7 @@ const OrderDetailPage = () => {
   const [updating, setUpdating] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<OrderStatus>("DRAFT");
+  const lastId = useRef<string | undefined>(undefined);
 
   const loadOrder = async () => {
     if (!id) return;
@@ -40,6 +41,8 @@ const OrderDetailPage = () => {
   };
 
   useEffect(() => {
+    if (id === lastId.current) return;
+    lastId.current = id;
     loadOrder();
   }, [id]);
 

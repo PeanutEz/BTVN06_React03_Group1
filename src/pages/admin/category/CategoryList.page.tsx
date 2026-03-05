@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { categoryService } from "../../../services/category.service";
@@ -36,6 +36,7 @@ export default function CategoryListPage() {
   const [editingCategory, setEditingCategory] = useState<CategoryApiResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [viewingCategory, setViewingCategory] = useState<CategoryApiResponse | null>(null);
+  const hasRun = useRef(false);
 
   const loadParentOptions = async () => {
     try {
@@ -81,6 +82,8 @@ export default function CategoryListPage() {
   );
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     load("", 1, "", "", false);
     loadParentOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
@@ -21,6 +21,7 @@ const OrderListPage = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const hasRun = useRef(false);
 
   const loadOrders = async () => {
     setLoading(true);
@@ -45,6 +46,8 @@ const OrderListPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadOrders();
     loadStores();
   }, []);

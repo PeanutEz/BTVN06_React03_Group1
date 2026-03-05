@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../components";
 import { useAuthStore } from "../../../store";
 import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles, changeUserStatus } from "../../../services/user.service";
@@ -51,6 +51,8 @@ const UserPage = () => {
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [updateRoleMap, setUpdateRoleMap] = useState<Record<string, string>>({});
 
+  const hasRun = useRef(false);
+
   const loadRoles = async () => {
     try {
       const data = await fetchRoles();
@@ -91,7 +93,11 @@ const UserPage = () => {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load("", 1); loadRoles(); loadFranchises(); }, []);
+  useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+    load("", 1); loadRoles(); loadFranchises();
+  }, []);
 
   const handleOpenSetRole = async (u: ApiUser) => {
     setSetRoleUser(u);
