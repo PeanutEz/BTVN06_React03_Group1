@@ -61,6 +61,7 @@ const CustomerListPage = () => {
 
   // keep latest search params in ref to avoid stale closures
   const searchRef = useRef({ keyword, activeFilter });
+  const hasRun = useRef(false);
 
   const loadPage = async (page: number, kw = keyword, active = activeFilter) => {
     setLoading(true);
@@ -86,6 +87,8 @@ const CustomerListPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadPage(1);
   }, []);
 
