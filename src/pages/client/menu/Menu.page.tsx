@@ -2,7 +2,13 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { menuCategories, menuProducts, getProductsByCategory } from "@/services/menu.service";
+import { clientService } from "@/services/client.service";
+import {
+  mapClientCategoryToMenuCategory,
+  mapClientProductToMenuProduct,
+  type MenuCategoryWithApi,
+  type MenuProductWithApi,
+} from "@/services/menu-api.adapter";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -22,6 +28,34 @@ function ProductGrid({ products, onAdd }: { products: MenuProduct[]; onAdd: (p: 
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
       {products.map((product) => (
         <MenuProductCard key={product.id} product={product} onAdd={onAdd} />
+      ))}
+    </div>
+  );
+}
+
+// Loading skeleton for product cards
+function ProductCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
+      <div className="aspect-[4/3] bg-gray-200" />
+      <div className="p-3.5 space-y-2">
+        <div className="h-3 bg-gray-200 rounded w-16" />
+        <div className="h-4 bg-gray-200 rounded w-3/4" />
+        <div className="h-3 bg-gray-200 rounded w-full" />
+        <div className="h-4 bg-gray-200 rounded w-20 mt-2" />
+      </div>
+      <div className="px-3.5 pb-3.5">
+        <div className="h-9 bg-gray-200 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+function ProductGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <ProductCardSkeleton key={i} />
       ))}
     </div>
   );
@@ -51,19 +85,99 @@ export default function MenuPage() {
     hydrateDelivery();
   }, [hydrateCart, hydrateDelivery]);
 
+  // ── API State ──
+  const [categories, setCategories] = useState<MenuCategoryWithApi[]>([]);
+  const [allProducts, setAllProducts] = useState<MenuProductWithApi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch ALL franchises → for each franchise fetch categories + products → merge
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Step 1: Get all franchises
+        const franchises = await clientService.getAllFranchises();
+        if (cancelled) return;
+
+        if (franchises.length === 0) {
+          setError("Không tìm thấy thương hiệu nào.");
+          return;
+        }
+
+        // Step 2: For each franchise, fetch categories + products in parallel
+        const allResults = await Promise.all(
+          franchises.map(async (franchise) => {
+            const [apiCategories, apiProducts] = await Promise.all([
+              clientService.getCategoriesByFranchise(franchise.id),
+              clientService.getProductsByFranchiseAndCategory(franchise.id),
+            ]);
+            return { franchiseId: franchise.id, apiCategories, apiProducts };
+          })
+        );
+
+        if (cancelled) return;
+
+        // Step 3: Merge and deduplicate
+        const categoryMap = new Map<string, MenuCategoryWithApi>();
+        const productMap = new Map<string, MenuProductWithApi>();
+
+        for (const { franchiseId, apiCategories, apiProducts } of allResults) {
+          for (const c of apiCategories) {
+            const mapped = mapClientCategoryToMenuCategory(c, 0) as MenuCategoryWithApi;
+            if (!categoryMap.has(c.category_id)) {
+              categoryMap.set(c.category_id, mapped);
+            }
+          }
+          for (const p of apiProducts) {
+            const mapped = mapClientProductToMenuProduct(p as any, franchiseId) as MenuProductWithApi;
+            if (!productMap.has(p.product_id)) {
+              productMap.set(p.product_id, mapped);
+            }
+          }
+        }
+
+        const mappedCategories = Array.from(categoryMap.values());
+        const mappedProducts = Array.from(productMap.values());
+
+        // Only keep categories that have at least one available product
+        const categoriesWithProducts = mappedCategories.filter((cat) =>
+          mappedProducts.some((p) => p.categoryId === cat.id && p.isAvailable)
+        );
+
+        setCategories(categoriesWithProducts);
+        setAllProducts(mappedProducts);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("Failed to fetch menu data:", err);
+          setError("Không thể tải thực đơn. Vui lòng thử lại.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Derived data ──
+
   const productCounts = useMemo(() => {
     const map: Record<number, number> = {};
-    menuCategories.forEach((cat) => {
-      map[cat.id] = menuProducts.filter((p) => p.categoryId === cat.id && p.isAvailable).length;
+    categories.forEach((cat) => {
+      map[cat.id] = allProducts.filter((p) => p.categoryId === cat.id && p.isAvailable).length;
     });
     return map;
-  }, []);
+  }, [categories, allProducts]);
 
   const products = useMemo(() => {
     const base =
       activeCategoryId === 0
-        ? menuProducts.filter((p) => p.isAvailable)
-        : getProductsByCategory(activeCategoryId);
+        ? allProducts.filter((p) => p.isAvailable)
+        : allProducts.filter((p) => p.categoryId === activeCategoryId && p.isAvailable);
     if (!search.trim()) return base;
     const q = search.toLowerCase();
     return base.filter(
@@ -71,22 +185,22 @@ export default function MenuPage() {
         p.name.toLowerCase().includes(q) ||
         p.description.toLowerCase().includes(q),
     );
-  }, [activeCategoryId, search]);
+  }, [activeCategoryId, search, allProducts]);
 
   // Group products by category (used when "Tất cả" is selected)
   const groupedProducts = useMemo(() => {
     if (activeCategoryId !== 0) return null;
-    return menuCategories
+    return categories
       .map((cat) => ({
         category: cat,
         items: products.filter((p) => p.categoryId === cat.id),
       }))
       .filter((g) => g.items.length > 0);
-  }, [activeCategoryId, products]);
+  }, [activeCategoryId, products, categories]);
 
-  const activeCategory = menuCategories.find((c) => c.id === activeCategoryId);
+  const activeCategory = categories.find((c) => c.id === activeCategoryId);
   const activeCategoryLabel = activeCategoryId === 0
-    ? { icon: "🍽️", name: "Tất cả", description: "Toàn bộ thực đơn Hylux" }
+    ? { icon: "🍽️", name: "Tất cả", description: "Toàn bộ thực đơn" }
     : activeCategory;
 
   function handleSelectCategory(id: number) {
@@ -107,6 +221,8 @@ export default function MenuPage() {
     }
     setSelectedProduct(product);
   }, [user, navigate]);
+
+  const isLoading = loading;
 
   return (
     <>
@@ -178,7 +294,7 @@ export default function MenuPage() {
                 <span>🍽️</span>
                 <span>Tất cả</span>
               </button>
-              {menuCategories.map((cat) => (
+              {categories.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => handleSelectCategory(cat.id)}
@@ -203,7 +319,7 @@ export default function MenuPage() {
             {/* Sidebar — desktop only */}
             <div className="hidden md:block self-start sticky top-40">
               <MenuSidebar
-                categories={menuCategories}
+                categories={categories}
                 activeId={activeCategoryId}
                 productCounts={productCounts}
                 onSelect={handleSelectCategory}
@@ -212,47 +328,69 @@ export default function MenuPage() {
 
             {/* Product grid */}
             <div className="flex-1 min-w-0">
-              {products.length > 0 && (
-                <p className="text-sm text-gray-500 mb-5">{products.length} sản phẩm</p>
-              )}
-
-              {products.length === 0 ? (
+              {/* Error state */}
+              {error && (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <div className="text-5xl mb-4">🔍</div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Không tìm thấy</h3>
-                  <p className="text-sm text-gray-500">Hãy thử từ khóa khác hoặc chọn danh mục khác</p>
+                  <div className="text-5xl mb-4">⚠️</div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{error}</h3>
                   <button
-                    onClick={() => setSearch("")}
+                    onClick={() => window.location.reload()}
                     className="mt-4 text-sm text-amber-600 hover:text-amber-700 font-medium"
                   >
-                    Xóa tìm kiếm
+                    Thử lại
                   </button>
                 </div>
-              ) : groupedProducts ? (
-                /* ── Grouped by category (Tất cả) ── */
-                <div className="space-y-10">
-                  {groupedProducts.map(({ category, items }) => (
-                    <section key={category.id}>
-                      {/* Category header */}
-                      <div className="flex items-center gap-3 mb-5">
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-2xl">{category.icon}</span>
-                          <h2 className="text-lg font-bold text-emerald-700 tracking-tight">
-                            {category.name}
-                          </h2>
-                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                            {items.length} món
-                          </span>
-                        </div>
-                        <div className="flex-1 h-px bg-emerald-100" />
-                      </div>
-                      <ProductGrid products={items} onAdd={handleAddProduct} />
-                    </section>
-                  ))}
-                </div>
-              ) : (
-                /* ── Single category view ── */
-                <ProductGrid products={products} onAdd={handleAddProduct} />
+              )}
+
+              {/* Loading state */}
+              {isLoading && !error && <ProductGridSkeleton />}
+
+              {/* Loaded state */}
+              {!isLoading && !error && (
+                <>
+                  {products.length > 0 && (
+                    <p className="text-sm text-gray-500 mb-5">{products.length} sản phẩm</p>
+                  )}
+
+                  {products.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-24 text-center">
+                      <div className="text-5xl mb-4">🔍</div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Không tìm thấy</h3>
+                      <p className="text-sm text-gray-500">Hãy thử từ khóa khác hoặc chọn danh mục khác</p>
+                      <button
+                        onClick={() => setSearch("")}
+                        className="mt-4 text-sm text-amber-600 hover:text-amber-700 font-medium"
+                      >
+                        Xóa tìm kiếm
+                      </button>
+                    </div>
+                  ) : groupedProducts ? (
+                    /* ── Grouped by category (Tất cả) ── */
+                    <div className="space-y-10">
+                      {groupedProducts.map(({ category, items }) => (
+                        <section key={category.id}>
+                          {/* Category header */}
+                          <div className="flex items-center gap-3 mb-5">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-2xl">{category.icon}</span>
+                              <h2 className="text-lg font-bold text-emerald-700 tracking-tight">
+                                {category.name}
+                              </h2>
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                {items.length} món
+                              </span>
+                            </div>
+                            <div className="flex-1 h-px bg-emerald-100" />
+                          </div>
+                          <ProductGrid products={items} onAdd={handleAddProduct} />
+                        </section>
+                      ))}
+                    </div>
+                  ) : (
+                    /* ── Single category view ── */
+                    <ProductGrid products={products} onAdd={handleAddProduct} />
+                  )}
+                </>
               )}
             </div>
 
