@@ -1,6 +1,9 @@
 import apiClient from "@/services/api.client";
 import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/models/store.model";
-import type { ClientProductListItem, ClientProductDetailResponse } from "@/models/product.model";
+import type {
+  ClientProductListItem,
+  ClientProductDetailResponse,
+} from "@/models/product.model.tsx";
 
 export const clientService = {
   // CLIENT-01 — Get All Franchises
@@ -38,10 +41,10 @@ export const clientService = {
   },
 
   // CLIENT-05 — Get Product Detail
-  // GET /api/clients/products/:productFranchiseId  |  Role: CUSTOMER PUBLIC  |  Token: NO
-  getProductDetail: async (productFranchiseId: string): Promise<ClientProductDetailResponse> => {
+  // GET /api/clients/franchises/:franchiseId/products/:productId  |  Role: CUSTOMER PUBLIC  |  Token: NO
+  getProductDetail: async (franchiseId: string, productId: string): Promise<ClientProductDetailResponse> => {
     const response = await apiClient.get<{ success: boolean; data: ClientProductDetailResponse }>(
-      `/clients/products/${productFranchiseId}`,
+      `/clients/franchises/${franchiseId}/products/${productId}`,
     );
     return response.data.data;
   },
