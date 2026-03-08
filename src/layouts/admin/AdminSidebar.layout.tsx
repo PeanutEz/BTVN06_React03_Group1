@@ -1,7 +1,13 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
+import { useAuthStore } from "../../store";
 
-const adminNav = [
+const adminNav: Array<{
+  label: string;
+  to: string;
+  icon: React.ReactNode;
+  hiddenForRoles?: string[];
+}> = [
   {
     label: "Dashboard",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`,
@@ -41,8 +47,9 @@ const adminNav = [
     ),
   },
   {
-    label: "Orders",
-    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`,
+    label: "Franchises",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
+    hiddenForRoles: ["MANAGER", "STAFF"],
     icon: (
       <svg
         className="size-6"
@@ -54,7 +61,7 @@ const adminNav = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+          d="M3 7h18M3 12h18M3 17h18M6 4v3M6 17v3M12 4v3M12 17v3M18 4v3M18 17v3"
         />
       </svg>
     ),
@@ -98,6 +105,25 @@ const adminNav = [
     ),
   },
   {
+    label: "Orders",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`,
+    icon: (
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+        />
+      </svg>
+    ),
+  },
+  {
     label: "Payments",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PAYMENTS}`,
     icon: (
@@ -134,10 +160,9 @@ const adminNav = [
         />
       </svg>
     ),
-  },
-  {
-    label: "Franchises",
-    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
+  },  {
+    label: "Inventories",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORIES}`,
     icon: (
       <svg
         className="size-6"
@@ -149,33 +174,116 @@ const adminNav = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M3 7h18M3 12h18M3 17h18M6 4v3M6 17v3M12 4v3M12 17v3M18 4v3M18 17v3"
+          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Categories",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CATEGORIES}`,
+    icon: (
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+        />
+      </svg>
+    ),
+  },
+  {
+    label: "Roles",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ROLES}`,
+    icon: (
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
         />
       </svg>
     ),
   },
 ];
 
-const AdminSidebar = () => {
+interface AdminSidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  isMobile?: boolean;
+}
+
+const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
+  // On mobile: slide in/out as overlay; on desktop: collapse width
+  const sidebarWidth = isMobile ? 240 : isOpen ? 240 : 80;
+  const translateX = isMobile && !isOpen ? "-100%" : "0%";
+  const location = useLocation();
+  const { user } = useAuthStore();
+  const activeContext = user?.active_context as { role?: string } | null;
+  const currentRole = (activeContext?.role || user?.role || "").toUpperCase();
+  const visibleNav = adminNav.filter(
+    (item) => !item.hiddenForRoles?.includes(currentRole)
+  );
+
   return (
-    <aside className="peer group fixed left-0 z-40 h-[calc(100vh-72px)] w-20 border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 transition-all duration-300 hover:w-60 hover:shadow-primary-500/30 backdrop-blur-xl">
+    <aside
+      className={`fixed left-0 z-40 h-[calc(100vh-72px)] border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 backdrop-blur-xl transition-all duration-300 ${
+        isMobile ? "top-[72px]" : ""
+      }`}
+      style={{ width: sidebarWidth, transform: translateX }}
+    >
       <div className="flex h-full flex-col py-6">
-        <nav className="flex-1 space-y-2 px-3">
-          {adminNav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-200 ${isActive ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/50" : "text-slate-300 hover:bg-slate-700/50 hover:text-white"}`
-              }
-              end
+        {/* Toggle button — hidden on mobile (hamburger in header) */}
+        {!isMobile && (
+          <div className={`mb-4 flex px-3 ${isOpen ? "justify-end" : "justify-center"}`}>
+            <button
+              onClick={onToggle}
+              className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white"
+              title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
-              <span className="flex-shrink-0">{item.icon}</span>
-              <span className="whitespace-nowrap text-sm font-medium opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                {item.label}
-              </span>
-            </NavLink>
-          ))}
+              <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                {isOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                )}
+              </svg>
+            </button>
+          </div>
+        )}
+
+        <nav className="flex-1 space-y-2 px-3">
+          {visibleNav.map((item) => {
+            const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={
+                  `flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-200 ${isActive ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/50" : "text-slate-300 hover:bg-slate-700/50 hover:text-white"}`
+                }
+              >
+                <span className="flex-shrink-0">{item.icon}</span>
+                {(isOpen || isMobile) && (
+                  <span className="whitespace-nowrap text-sm font-medium">
+                    {item.label}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
       </div>
     </aside>

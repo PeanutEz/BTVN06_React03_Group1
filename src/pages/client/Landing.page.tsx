@@ -34,7 +34,7 @@ const LandingPage = () => {
 
 							{/* CTA Buttons */}
 							<div className="flex flex-col sm:flex-row gap-4 lg:gap-6 mb-8 lg:mb-12 justify-center lg:justify-start">
-								<Link to={ROUTER_URL.ORDER} className="w-full sm:w-auto">
+								<Link to={ROUTER_URL.MENU} className="w-full sm:w-auto">
 									<Button 
 										size="lg" 
 										className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl font-bold shadow-2xl shadow-red-900/50 hover:scale-105 transition-all duration-300"
@@ -42,15 +42,7 @@ const LandingPage = () => {
 										Đặt Hàng Ngay
 									</Button>
 								</Link>
-								<Link to="#story" className="w-full sm:w-auto">
-									<Button 
-										size="lg" 
-										variant="outline" 
-										className="w-full sm:w-auto border-2 border-white text-white hover:bg-white hover:text-red-900 px-8 sm:px-12 py-4 sm:py-6 text-lg sm:text-xl font-bold backdrop-blur-sm transition-all duration-300"
-									>
-										Khám Phá Thêm
-									</Button>
-								</Link>
+
 							</div>
 
 							{/* Stats */}
@@ -124,7 +116,7 @@ const LandingPage = () => {
 								</p>
 							</div>
 							<div className="mt-8">
-								<Link to={ROUTER_URL.ABOUT}>
+								<Link to={ROUTER_URL.STORE_LOCATOR}>
 									<Button variant="outline" size="lg" className="border-red-900 text-red-900 hover:bg-red-50">
 										Tìm Hiểu Thêm
 									</Button>
@@ -217,88 +209,12 @@ const LandingPage = () => {
 					</div>
 
 					<div className="text-center mt-12">
-						<Link to={ROUTER_URL.ORDER}>
+							<Link to={ROUTER_URL.MENU}>
 							<Button size="lg" className="bg-red-900 hover:bg-red-800 text-white px-12">
 								Xem Tất Cả Sản Phẩm
 							</Button>
 						</Link>
 					</div>
-				</div>
-			</section>
-
-			{/* Why Choose Us */}
-			<section className="py-24 bg-slate-900 text-white">
-				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="text-center mb-16">
-						<h2 className="text-5xl font-bold mb-4 font-serif">
-							Tại Sao Chọn Hylux?
-						</h2>
-						<p className="text-xl text-slate-300">
-							Chúng tôi cam kết mang đến trải nghiệm cà phê tuyệt vời nhất
-						</p>
-					</div>
-
-					<div className="grid md:grid-cols-4 gap-8">
-						<div className="text-center">
-							<div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-								<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-								</svg>
-							</div>
-							<h3 className="text-xl font-bold mb-3">100% Nguyên Chất</h3>
-							<p className="text-slate-400">Hạt cà phê organic, không pha trộn</p>
-						</div>
-
-						<div className="text-center">
-							<div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-								<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-							</div>
-							<h3 className="text-xl font-bold mb-3">Giao Hàng Nhanh</h3>
-							<p className="text-slate-400">Giao trong 30 phút hoặc miễn phí</p>
-						</div>
-
-						<div className="text-center">
-							<div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-								<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-							</div>
-							<h3 className="text-xl font-bold mb-3">Chất Lượng Đảm Bảo</h3>
-							<p className="text-slate-400">Hoàn tiền 100% nếu không hài lòng</p>
-						</div>
-
-						<div className="text-center">
-							<div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-								<svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
-							</div>
-							<h3 className="text-xl font-bold mb-3">Hỗ Trợ 24/7</h3>
-							<p className="text-slate-400">Luôn sẵn sàng phục vụ bạn</p>
-						</div>
-					</div>
-				</div>
-			</section>
-
-			{/* Final CTA */}
-			<section className="py-24 bg-gradient-to-r from-red-900 via-red-800 to-red-900 text-white">
-				<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-					<h2 className="text-5xl font-bold mb-6 font-serif">
-						Sẵn Sàng Trải Nghiệm?
-					</h2>
-					<p className="text-2xl mb-12 text-red-100">
-						Hãy để Hylux Coffee đồng hành cùng bạn trong mỗi khoảnh khắc
-					</p>
-					<Link to={ROUTER_URL.ORDER}>
-						<Button 
-							size="lg" 
-							className="bg-white text-red-900 hover:bg-amber-50 px-16 py-6 text-2xl font-bold shadow-2xl hover:scale-105 transition-all duration-300"
-						>
-							Đặt Hàng Ngay
-						</Button>
-					</Link>
 				</div>
 			</section>
 		</div>

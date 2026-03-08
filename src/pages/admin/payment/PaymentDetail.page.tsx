@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { Payment, PaymentStatus } from "../../../models/payment.model";
@@ -22,6 +22,7 @@ const PaymentDetailPage = () => {
   const [updating, setUpdating] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [newStatus, setNewStatus] = useState<PaymentStatus>("DRAFT");
+  const lastId = useRef<string | undefined>(undefined);
 
   const loadPayment = async () => {
     if (!id) return;
@@ -40,12 +41,16 @@ const PaymentDetailPage = () => {
       // Load related order
       const orderData = await fetchOrderById(data.order_id);
       setOrder(orderData);
+    } catch (error) {
+      console.error("Lỗi tải chi tiết thanh toán:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (id === lastId.current) return;
+    lastId.current = id;
     loadPayment();
   }, [id]);
 
@@ -100,16 +105,16 @@ const PaymentDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PAYMENTS}`}>
             <Button variant="outline" size="sm">
               ← Quay lại
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Chi tiết thanh toán PT-{String(payment.id).padStart(4, '0')}</h1>
-            <p className="text-sm text-slate-600">
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">Chi tiết thanh toán PT-{String(payment.id).padStart(4, '0')}</h1>
+            <p className="text-xs sm:text-sm text-slate-600">
               Tạo ngày {new Date(payment.created_at).toLocaleString("vi-VN")}
             </p>
           </div>

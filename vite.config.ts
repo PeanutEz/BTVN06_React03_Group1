@@ -10,6 +10,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'https://ecommerce-franchise-training-nodejs.vercel.app',
+        changeOrigin: true,
+        secure: true,
+        cookieDomainRewrite: 'localhost',
+        cookiePathRewrite: '/',
+      },
+    },
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

@@ -4,6 +4,7 @@ import { useProductStore } from "@/store/product.store";
 import ProductCard from "@/components/product/ProductCard";
 import CategoryCard from "@/components/product/CategoryCard";
 import VoucherCard from "@/components/product/VoucherCard";
+import { ProductGrid, SectionHeader } from "@/components/ui";
 
 export default function ClientHome() {
     const {
@@ -27,8 +28,8 @@ export default function ClientHome() {
 
     return (
         <div className="space-y-16">
-            {/* Hero Banner */}
-            <section className="relative -mx-4 -mt-8">
+            {/* Hero Banner — breaks out of the page container to go full-bleed */}
+            <section className="relative -mx-4 sm:-mx-6 lg:-mx-8 -mt-8 sm:-mt-10 lg:-mt-12">
                 {banners.length > 0 && (
                     <div className="relative h-[500px] overflow-hidden">
                         <img
@@ -95,34 +96,34 @@ export default function ClientHome() {
 
             {/* Featured Products Section */}
             <section>
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 className="text-3xl font-bold text-gray-900">Sản Phẩm Nổi Bật</h2>
-                        <p className="text-gray-600 mt-1">Những món được yêu thích nhất</p>
-                    </div>
-                    <Link
-                        to="/products"
-                        className="text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1"
-                    >
-                        Xem tất cả
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </Link>
-                </div>
+                <SectionHeader
+                    title="Sản Phẩm Nổi Bật"
+                    subtitle="Những món được yêu thích nhất"
+                    action={
+                        <Link
+                            to="/menu"
+                            className="text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1 text-sm"
+                        >
+                            Xem tất cả
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </Link>
+                    }
+                />
 
                 {isLoading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <ProductGrid>
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="bg-gray-200 rounded-2xl h-80 animate-pulse" />
+                            <div key={i} className="bg-gray-100 rounded-2xl h-80 animate-pulse" />
                         ))}
-                    </div>
+                    </ProductGrid>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <ProductGrid>
                         {featuredProducts.map((product) => (
                             <ProductCard key={product.id} product={product} />
                         ))}
-                    </div>
+                    </ProductGrid>
                 )}
             </section>
 

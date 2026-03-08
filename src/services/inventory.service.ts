@@ -1,75 +1,115 @@
-import type { InventoryItem } from "../models/inventory.model";
+import apiClient from "@/services/api.client";
+import type {
+  CreateInventoryDto,
+  InventoryApiResponse,
+  SearchInventoryDto,
+  InventorySearchResponse,
+  AdjustInventoryDto,
+  LowStockInventoryItem,
+  InventoryItem,
+} from "@/models/inventory.model";
 
-const mockInventory: InventoryItem[] = [
-  {
-    id: "INV-1",
-    storeId: "STORE001",
-    storeName: "WBS Coffee Nguyễn Huệ",
-    productId: "P001",
-    productName: "Espresso",
-    sku: "CF-ESP-01",
-    category: "Cà phê",
-    stock: 20,
-    minStock: 10,
-    unit: "ly",
-    updatedAt: "2024-06-01T08:30:00Z",
+export const adminInventoryService = {
+  // INVENTORY-01 — Create Item
+  createInventory: async (dto: CreateInventoryDto): Promise<InventoryApiResponse> => {
+    const payload: CreateInventoryDto = {
+      product_franchise_id: dto.product_franchise_id,
+      quantity: dto.quantity,
+      alert_threshold: dto.alert_threshold,
+    };
+    const response = await apiClient.post<{
+      success: boolean;
+      data: InventoryApiResponse;
+    }>("/inventories", payload);
+    return response.data.data;
   },
-  {
-    id: "INV-2",
-    storeId: "STORE001",
-    storeName: "WBS Coffee Nguyễn Huệ",
-    productId: "P002",
-    productName: "Latte",
-    sku: "CF-LAT-01",
-    category: "Cà phê",
-    stock: 8,
-    minStock: 15,
-    unit: "ly",
-    updatedAt: "2024-06-01T08:35:00Z",
-  },
-  {
-    id: "INV-3",
-    storeId: "STORE002",
-    storeName: "WBS Coffee Lê Lợi",
-    productId: "P001",
-    productName: "Espresso",
-    sku: "CF-ESP-01",
-    category: "Cà phê",
-    stock: 30,
-    minStock: 10,
-    unit: "ly",
-    updatedAt: "2024-06-01T08:40:00Z",
-  },
-  {
-    id: "INV-4",
-    storeId: "STORE003",
-    storeName: "WBS Coffee Thảo Điền",
-    productId: "P003",
-    productName: "Cold Brew",
-    sku: "CF-CB-01",
-    category: "Cold Brew",
-    stock: 5,
-    minStock: 10,
-    unit: "ly",
-    updatedAt: "2024-06-01T08:45:00Z",
-  },
-];
 
-export const fetchInventoryByStore = async (storeId?: string): Promise<InventoryItem[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  if (!storeId) return mockInventory;
-  return mockInventory.filter((item) => item.storeId === storeId);
+  // INVENTORY-02 — Search Items by Conditions
+  searchInventories: async (dto: SearchInventoryDto): Promise<InventorySearchResponse> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      data: InventoryApiResponse[];
+      pageInfo: InventorySearchResponse["pageInfo"];
+    }>("/inventories/search", dto);
+    return {
+      data: response.data.data,
+      pageInfo: response.data.pageInfo,
+    };
+  },
+
+  // INVENTORY-03 — Get Item
+  getInventoryById: async (id: string): Promise<InventoryApiResponse> => {
+    const response = await apiClient.get<{ success: boolean; data: InventoryApiResponse }>(
+      `/inventories/${id}`,
+    );
+    return response.data.data;
+  },
+
+  // INVENTORY-04 — Delete Item
+  deleteInventory: async (id: string): Promise<void> => {
+    await apiClient.delete<{ success: boolean; data: null }>(`/inventories/${id}`);
+  },
+
+  // INVENTORY-05 — Restore Item
+  restoreInventory: async (id: string): Promise<void> => {
+    await apiClient.patch<{ success: boolean; data: null }>("/inventories/restore", { id });
+  },
+
+  // INVENTORY-06 — Edit Quantity
+  adjustInventory: async (dto: AdjustInventoryDto): Promise<void> => {
+    await apiClient.post<{ success: boolean; data: null }>("/inventories/adjust", {
+      product_franchise_id: dto.product_franchise_id,
+      change: dto.change,
+      reason: dto.reason ?? "",
+    });
+  },
+
+  // INVENTORY-07 — Get Low Stock by Franchise
+  getLowStockByFranchise: async (franchiseId: string): Promise<LowStockInventoryItem[]> => {
+    const response = await apiClient.get<{ success: boolean; data: LowStockInventoryItem[] }>(
+      `/inventories/low-stock/franchise/${franchiseId}`,
+    );
+    return response.data.data;
+  },
 };
 
-export const updateInventoryStock = async (id: string, stock: number): Promise<InventoryItem | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const index = mockInventory.findIndex((i) => i.id === id);
-  if (index === -1) return null;
-  mockInventory[index] = {
-    ...mockInventory[index],
-    stock,
-    updatedAt: new Date().toISOString(),
+// ─── Legacy helpers ───────────────────────────────────────────────────────────
+
+function mapApiToInventoryItem(item: InventoryApiResponse): InventoryItem {
+  return {
+    id: item.id,
+    storeId: item.franchise_id,
+    storeName: item.franchise_name ?? "",
+    productId: item.product_id,
+    productName: item.product_name ?? "",
+    sku: "",
+    category: "",
+    stock: item.quantity,
+    minStock: item.alert_threshold,
+    unit: "",
+    updatedAt: item.updated_at,
   };
-  return mockInventory[index];
+}
+
+export const fetchInventoryByStore = async (franchiseId: string): Promise<InventoryItem[]> => {
+  const response = await adminInventoryService.searchInventories({
+    searchCondition: { franchise_id: franchiseId, is_deleted: false },
+    pageInfo: { pageNum: 1, pageSize: 100 },
+  });
+  return response.data.map(mapApiToInventoryItem);
 };
 
+export const updateInventoryStock = async (
+  id: string,
+  newQuantity: number,
+): Promise<InventoryItem | null> => {
+  const current = await adminInventoryService.getInventoryById(id);
+  const change = newQuantity - current.quantity;
+  await adminInventoryService.adjustInventory({
+    product_franchise_id: current.product_franchise_id,
+    change,
+    reason: "Manual adjustment",
+  });
+  const updated = await adminInventoryService.getInventoryById(id);
+  return mapApiToInventoryItem(updated);
+};

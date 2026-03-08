@@ -2,14 +2,14 @@ import { useState } from "react";
 import { useAuthStore } from "@/store/auth.store";
 import { updateUserProfile } from "@/services/user.service";
 import { showSuccess, showError } from "@/utils/toast.util";
-import type { User } from "@/models";
+import type { UserProfile } from "@/services/auth.service";
 import { ROLE } from "@/models/role.model";
 
 export default function ProfilePage() {
 	const { user, login } = useAuthStore();
 	const [isEditing, setIsEditing] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
-	const [formData, setFormData] = useState<Partial<User>>(
+	const [formData, setFormData] = useState<Partial<UserProfile>>(
 		user || {
 			name: "",
 			email: "",
@@ -48,13 +48,30 @@ export default function ProfilePage() {
 
 		try {
 			setIsLoading(true);
-			const updatedUser = await updateUserProfile(user.id, {
+			const updatedUser = await updateUserProfile(String(user.id), {
 				name: formData.name,
 				email: formData.email,
-				avatar: formData.avatar || user.avatar,
+				avatar_url: formData.avatar || user.avatar,
 			});
 
-			login(updatedUser);
+			// Map ApiUser → UserProfile để lưu vào store
+			const updatedProfile: UserProfile = {
+				user: {
+					id: updatedUser.id,
+					email: updatedUser.email,
+					name: updatedUser.name,
+					phone: updatedUser.phone || "",
+					avatar_url: updatedUser.avatar_url,
+				},
+				roles: user.roles || [],
+				active_context: user.active_context,
+				id: updatedUser.id,
+				name: updatedUser.name,
+				email: updatedUser.email,
+				role: updatedUser.role || user.role || "",
+				avatar: updatedUser.avatar_url,
+			};
+			login(updatedProfile);
 			setIsEditing(false);
 			showSuccess("Cập nhật hồ sơ thành công");
 		} catch (error) {
@@ -118,7 +135,7 @@ export default function ProfilePage() {
 						{formData.name || user.name}
 					</h2>
 					<p className="text-gray-600 mt-1">
-						{user.role === ROLE.ADMIN ? "Quản trị viên" : "Người dùng"}
+						{user.role?.toLowerCase() === ROLE.ADMIN.toLowerCase() ? "Quản trị viên" : "Người dùng"}
 					</p>
 				</div>
 
@@ -191,7 +208,7 @@ export default function ProfilePage() {
 						</label>
 						<input
 							type="text"
-							value={user.id}
+							value={String(user.id)}
 							disabled
 							className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed text-gray-600"
 						/>
@@ -205,8 +222,8 @@ export default function ProfilePage() {
 						<input
 							type="text"
 							value={
-								user.createDate
-									? new Date(user.createDate).toLocaleDateString("vi-VN")
+								(user as Record<string, unknown>).created_at
+									? new Date(String((user as Record<string, unknown>).created_at)).toLocaleDateString("vi-VN")
 									: "N/A"
 							}
 							disabled
@@ -223,12 +240,12 @@ export default function ProfilePage() {
 							<span className="text-gray-600 capitalize">{user.role}</span>
 							<span
 								className={`ml-auto px-3 py-1 rounded-full text-sm font-medium ${
-									user.role === ROLE.ADMIN
+									user.role?.toLowerCase() === ROLE.ADMIN.toLowerCase()
 										? "bg-red-100 text-red-800"
-										: "bg-green-100 text-green-800"
+										: "bg-primary-100 text-primary-800"
 								}`}
 							>
-								{user.role === ROLE.ADMIN ? "Quản trị viên" : "Người dùng"}
+								{user.role?.toLowerCase() === ROLE.ADMIN.toLowerCase() ? "Quản trị viên" : "Người dùng"}
 							</span>
 						</div>
 					</div>
@@ -240,7 +257,7 @@ export default function ProfilePage() {
 						<button
 							onClick={handleSaveProfile}
 							disabled={isLoading}
-							className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+							className="flex-1 px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
 						>
 							{isLoading ? "Đang lưu..." : "Lưu thay đổi"}
 						</button>

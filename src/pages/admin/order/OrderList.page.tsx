@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
@@ -7,6 +7,9 @@ import { fetchOrders, filterOrders, searchOrders } from "../../../services/order
 import { fetchActiveStores } from "../../../services/store.service";
 import type { Store } from "../../../models/store.model";
 import { ROUTER_URL } from "../../../routes/router.const";
+import Pagination from "../../../components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 const OrderListPage = () => {
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
@@ -17,12 +20,17 @@ const OrderListPage = () => {
   const [storeFilter, setStoreFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const hasRun = useRef(false);
 
   const loadOrders = async () => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       const data = await fetchOrders();
       setOrders(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách đơn hàng:", error);
     } finally {
       setLoading(false);
     }
@@ -38,6 +46,8 @@ const OrderListPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadOrders();
     loadStores();
   }, []);
@@ -51,6 +61,8 @@ const OrderListPage = () => {
     try {
       const data = await searchOrders(searchQuery);
       setOrders(data);
+    } catch (error) {
+      console.error("Lỗi tìm kiếm đơn hàng:", error);
     } finally {
       setLoading(false);
     }
@@ -67,6 +79,8 @@ const OrderListPage = () => {
         endDate || undefined
       );
       setOrders(data);
+    } catch (error) {
+      console.error("Lỗi lọc đơn hàng:", error);
     } finally {
       setLoading(false);
     }
@@ -88,12 +102,18 @@ const OrderListPage = () => {
     }).format(amount);
   };
 
+  const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+  const paginatedOrders = orders.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý đơn hàng</h1>
-          <p className="text-sm text-slate-600">Quản lý tất cả đơn hàng của khách hàng</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý đơn hàng</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Quản lý tất cả đơn hàng của khách hàng</p>
         </div>
         <Button variant="outline" onClick={loadOrders} loading={loading}>
           Làm mới
@@ -101,7 +121,7 @@ const OrderListPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">Tìm kiếm</label>
@@ -168,7 +188,7 @@ const OrderListPage = () => {
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={handleSearch} size="sm">
             Tìm kiếm
           </Button>
@@ -198,7 +218,7 @@ const OrderListPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {orders.map((order) => (
+              {paginatedOrders.map((order) => (
                 <tr key={order.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <span className="font-semibold text-primary-600">{order.code}</span>
@@ -250,13 +270,24 @@ const OrderListPage = () => {
               )}
               {loading && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
-                    Đang tải...
+                  <td colSpan={8}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                    </div>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={orders.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
@@ -19,12 +19,13 @@ const CustomerDetailPage = () => {
   const [customer, setCustomer] = useState<CustomerDisplay | null>(null);
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
   const [loading, setLoading] = useState(false);
+  const lastId = useRef<string | undefined>(undefined);
 
   const loadCustomer = async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await fetchCustomerById(Number(id));
+      const data = await fetchCustomerById(id);
       if (!data) {
         showError("Không tìm thấy khách hàng");
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`);
@@ -34,14 +35,18 @@ const CustomerDetailPage = () => {
 
       // Load customer orders
       const allOrders = await fetchOrders();
-      const customerOrders = allOrders.filter((order) => order.customer_id === data.id);
+      const customerOrders = allOrders.filter((order) => String(order.customer_id) === String(data.id));
       setOrders(customerOrders);
+    } catch (error) {
+      console.error("Lỗi tải chi tiết khách hàng:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (id === lastId.current) return;
+    lastId.current = id;
     loadCustomer();
   }, [id]);
 
@@ -70,15 +75,15 @@ const CustomerDetailPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`}>
           <Button variant="outline" size="sm">
             ← Quay lại
           </Button>
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Chi tiết khách hàng</h1>
-          <p className="text-sm text-slate-600">Thông tin chi tiết và lịch sử mua hàng</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Chi tiết khách hàng</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Thông tin chi tiết và lịch sử mua hàng</p>
         </div>
       </div>
 
@@ -107,7 +112,17 @@ const CustomerDetailPage = () => {
               </div>
               <div>
                 <p className="text-slate-600">Mã khách hàng</p>
-                <p className="font-semibold text-primary-600">KH-{String(customer.id).padStart(4, '0')}</p>
+                <p className="font-semibold text-primary-600 font-mono text-xs">{customer.id.slice(-12).toUpperCase()}</p>
+              </div>
+              <div>
+                <p className="text-slate-600">Xác thực</p>
+                <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+                  customer.is_verified
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}>
+                  {customer.is_verified ? '✓ Đã xác thực' : 'Chưa xác thực'}
+                </span>
               </div>
               <div>
                 <p className="text-slate-600">Ngày tham gia</p>

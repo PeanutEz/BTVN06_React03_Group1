@@ -105,10 +105,43 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
+    label: "Franchise Edit",
+    path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_EDIT,
+    component: React.lazy(
+      () => import("../../pages/admin/franchise/FranchiseCreateEdit.page.tsx"),
+    ),
+  },  {
     label: "Franchise Inventory",
     path: ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE,
     component: React.lazy(
       () => import("../../pages/admin/inventory/InventoryByFranchise.page.tsx"),
+    ),
+  },  {
+    label: "Inventories",
+    path: ROUTER_URL.ADMIN_ROUTES.INVENTORIES,
+    component: React.lazy(
+      () => import("../../pages/admin/inventory/InventoryList.page.tsx"),
+    ),
+  },
+  {
+    label: "Categories",
+    path: ROUTER_URL.ADMIN_ROUTES.CATEGORIES,
+    component: React.lazy(
+      () => import("../../pages/admin/category/CategoryList.page.tsx"),
+    ),
+  },
+  {
+    label: "Roles",
+    path: ROUTER_URL.ADMIN_ROUTES.ROLES,
+    component: React.lazy(
+      () => import("../../pages/admin/role/RoleList.page.tsx"),
+    ),
+  },
+  {
+    label: "Profile",
+    path: ROUTER_URL.ADMIN_ROUTES.PROFILE,
+    component: React.lazy(
+      () => import("../../pages/admin/profile/AdminProfile.page.tsx"),
     ),
   },
 ];
