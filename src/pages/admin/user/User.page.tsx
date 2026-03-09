@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../components";
 import { useAuthStore } from "../../../store";
 import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles, changeUserStatus } from "../../../services/user.service";
@@ -51,6 +51,8 @@ const UserPage = () => {
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [updateRoleMap, setUpdateRoleMap] = useState<Record<string, string>>({});
 
+  const hasRun = useRef(false);
+
   const loadRoles = async () => {
     try {
       const data = await fetchRoles();
@@ -91,7 +93,11 @@ const UserPage = () => {
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load("", 1); loadRoles(); loadFranchises(); }, []);
+  useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+    load("", 1); loadRoles(); loadFranchises();
+  }, []);
 
   const handleOpenSetRole = async (u: ApiUser) => {
     setSetRoleUser(u);
@@ -203,14 +209,12 @@ const UserPage = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!editingUser) return;
-    if (!confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN user "${editingUser.name}"? Hành động này không thể hoàn tác.`)) return;
+  const handleDeleteUser = async (u: ApiUser) => {
+    if (!confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN user "${u.name}"? Hành động này không thể hoàn tác.`)) return;
     setSubmitting(true);
     try {
-      await deleteUser(editingUser.id);
-      showSuccess(`Đã xóa user "${editingUser.name}"`);
-      setEditingUser(null);
+      await deleteUser(u.id);
+      showSuccess(`Đã xóa user "${u.name}"`);
       await load();
     } catch {
       showError("Xóa user thất bại");
@@ -219,16 +223,13 @@ const UserPage = () => {
     }
   };
 
-  const handleBlock = async () => {
-    if (!editingUser) return;
-    const isCurrentlyActive = editingUser.is_active;
-    const action = isCurrentlyActive ? "Block" : "Unblock";
-    if (!confirm(`Bạn có chắc muốn ${action} user "${editingUser.name}"?`)) return;
+  const handleToggleStatus = async (u: ApiUser) => {
+    const action = u.is_active ? "Block" : "Unblock";
+    if (!confirm(`Bạn có chắc muốn ${action} user "${u.name}"?`)) return;
     setSubmitting(true);
     try {
-      await changeUserStatus(editingUser.id, !isCurrentlyActive);
-      showSuccess(`Đã ${action} user "${editingUser.name}"`);
-      setEditingUser(null);
+      await changeUserStatus(u.id, !u.is_active);
+      showSuccess(`Đã ${action} user "${u.name}"`);
       await load();
     } catch {
       showError(`${action} user thất bại`);
@@ -337,9 +338,50 @@ const UserPage = () => {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleOpenEdit(u)}>
-                      Chi tiết
-                    </Button>
+                    <button
+                      title="Xem chi tiết"
+                      onClick={() => handleOpenEdit(u)}
+                      className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                    {currentUser?.id !== u.id && (
+                      <>
+                        <button
+                          title={u.is_active ? "Block user" : "Unblock user"}
+                          onClick={() => handleToggleStatus(u)}
+                          disabled={submitting}
+                          className={`inline-flex items-center justify-center size-8 rounded-lg border transition-colors disabled:opacity-50 ${
+                            u.is_active
+                              ? "border-amber-200 bg-white text-amber-500 hover:border-amber-400 hover:bg-amber-50"
+                              : "border-green-200 bg-white text-green-500 hover:border-green-400 hover:bg-green-50"
+                          }`}
+                        >
+                          {u.is_active ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                        </button>
+                        <button
+                          title="Xóa user"
+                          onClick={() => handleDeleteUser(u)}
+                          disabled={submitting}
+                          className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
                     {currentUser?.id === u.id && (
                       <span className="text-xs text-amber-600">(Bạn)</span>
                     )}
@@ -356,8 +398,10 @@ const UserPage = () => {
             )}
             {loading && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
-                  Đang tải...
+                <td colSpan={7}>
+                  <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                  </div>
                 </td>
               </tr>
             )}
@@ -689,22 +733,6 @@ const UserPage = () => {
                 <Button onClick={handleUpdateUser} loading={submitting} disabled={submitting} className="flex-1">
                   Cập nhật
                 </Button>
-                <button
-                  type="button"
-                  onClick={handleBlock}
-                  disabled={submitting}
-                  className="flex-1 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-50"
-                >
-                  {editingUser?.is_active ? "🚫 Block" : "✅ Unblock"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={submitting}
-                  className="flex-1 rounded-lg border border-red-600 bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
-                >
-                  🗑️ Xóa
-                </button>
                 <Button
                   type="button"
                   variant="outline"

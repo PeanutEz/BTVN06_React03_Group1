@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { menuCategories } from "@/services/menu.service";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { ROUTER_URL } from "@/routes/router.const";
@@ -58,6 +57,30 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
     }
   }, [product?.id]);
 
+  // Fetch full product detail from API (CLIENT-05)
+  const [productDetail, setProductDetail] = useState<any>(null);
+  useEffect(() => {
+    if (!product) {
+      setProductDetail(null);
+      return;
+    }
+    const apiFranchiseId = (product as any)?._apiFranchiseId;
+    const apiProductId = (product as any)?._apiProductId;
+    if (!apiFranchiseId || !apiProductId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { clientService } = await import("@/services/client.service");
+        const detail = await clientService.getProductDetail(apiFranchiseId, apiProductId);
+        if (!cancelled) setProductDetail(detail);
+      } catch (err) {
+        console.error("Failed to fetch product detail:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [product?.id]);
+
   // Lock body scroll
   useEffect(() => {
     if (product) {
@@ -70,12 +93,17 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
 
   if (!product) return null;
 
+  // Use detail content if loaded, fallback to list data
+  const displayContent = productDetail?.content || product.content;
+  const displayImage = productDetail?.image_url || product.image;
+
   const sizeDelta = MENU_SIZES.find((s) => s.value === size)?.priceDelta ?? 0;
   const toppingTotal = TOPPINGS.reduce((sum, t) => sum + t.price * (toppingQtys[t.id] ?? 0), 0);
   const unitPrice = product.price + sizeDelta + toppingTotal;
   const totalPrice = unitPrice * quantity;
 
-  const category = menuCategories.find((c) => c.id === product.categoryId);
+  // Derive category info from API-enriched product or fallback
+  const categoryName = (product as any)._apiCategoryName ?? "";
 
   function changeToppingQty(topping: Topping, delta: number) {
     setToppingQtys((prev) => {
@@ -109,9 +137,8 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
     toast.success(`Đã thêm "${product.name}" vào giỏ!`, {
-      description: `Size ${size} • ${sugar} đường • ${ice}${
-        toppingDesc ? ` • ${toppingDesc}` : ""
-      }${note.trim() ? ` • "${note.trim()}"` : ""}`,
+      description: `Size ${size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""
+        }${note.trim() ? ` • "${note.trim()}"` : ""}`,
     });
     onClose();
   }
@@ -133,7 +160,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
         <div className="relative shrink-0">
           <div className="h-44 sm:h-52 overflow-hidden bg-gray-100">
             <img
-              src={product.image}
+              src={displayImage}
               alt={product.name}
               className="w-full h-full object-cover"
             />
@@ -164,9 +191,9 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
 
           {/* Product info overlay */}
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
-            {category && (
+            {categoryName && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
-                {category.icon} {category.name}
+                {categoryName}
               </span>
             )}
             <h2 className="text-lg font-bold text-white mt-1 tracking-tight leading-tight">
@@ -188,8 +215,11 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
           {/* Description */}
-          {product.content && (
-            <p className="text-sm text-gray-500 leading-relaxed">{product.content}</p>
+          {displayContent && (
+            <div
+              className="text-sm text-gray-600 leading-relaxed space-y-2 [&>h3]:text-gray-800 [&>h3]:font-bold [&>h3]:mt-3 [&>ul]:list-disc [&>ul]:pl-5 [&>p>strong]:text-gray-700"
+              dangerouslySetInnerHTML={{ __html: displayContent }}
+            />
           )}
 
           {/* Size */}

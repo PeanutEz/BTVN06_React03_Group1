@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { InventoryItem } from "../../../models/inventory.model";
@@ -11,8 +11,7 @@ const InventoryByFranchisePage = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [storeName, setStoreName] = useState<string>("");
-
+  const [storeName, setStoreName] = useState<string>("");  const lastId = useRef<string | undefined>(undefined);
   const load = async () => {
     if (!id) return;
     setLoading(true);
@@ -26,6 +25,8 @@ const InventoryByFranchisePage = () => {
   };
 
   useEffect(() => {
+    if (id === lastId.current) return;
+    lastId.current = id;
     load();
   }, [id]);
 
@@ -125,8 +126,7 @@ const InventoryByFranchisePage = () => {
                   </td>
                 </tr>
               );
-            })}
-            {items.length === 0 && !loading && (
+            })}            {items.length === 0 && !loading && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
                   Không có dữ liệu tồn kho cho chi nhánh này.
@@ -135,8 +135,10 @@ const InventoryByFranchisePage = () => {
             )}
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
-                  Đang tải...
+                <td colSpan={6}>
+                  <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                  </div>
                 </td>
               </tr>
             )}

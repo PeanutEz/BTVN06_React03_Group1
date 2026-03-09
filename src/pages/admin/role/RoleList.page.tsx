@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchRoles, type RoleSelectItem } from "../../../services/user.service";
 import { showError } from "../../../utils";
 
 const RoleListPage = () => {
   const [roles, setRoles] = useState<RoleSelectItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const hasRun = useRef(false);
 
   const loadRoles = async () => {
     setLoading(true);
@@ -21,6 +22,8 @@ const RoleListPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadRoles();
   }, []);
 
