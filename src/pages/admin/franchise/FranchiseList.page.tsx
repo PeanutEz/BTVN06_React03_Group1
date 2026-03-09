@@ -1,10 +1,20 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "../../../components";
-import type { ApiFranchise } from "../../../services/store.service";
-import { searchFranchises, deleteFranchise, getFranchiseById } from "../../../services/store.service";
+import type { ApiFranchise, CreateFranchisePayload } from "../../../services/store.service";
+import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise } from "../../../services/store.service";
 import { Link, useNavigate } from "react-router-dom";import { ROUTER_URL } from "../../../routes/router.const";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
+
+const emptyCreateForm: CreateFranchisePayload = {
+  code: "",
+  name: "",
+  opened_at: "10:00",
+  closed_at: "23:30",
+  hotline: "",
+  logo_url: "",
+  address: "",
+};
 
 const ITEMS_PER_PAGE = 10;
 
@@ -17,6 +27,10 @@ const FranchiseListPage = () => {
   const [isActive, setIsActive] = useState("");
   const [viewingFranchise, setViewingFranchise] = useState<ApiFranchise | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState<CreateFranchisePayload>({ ...emptyCreateForm });
+  const [creating, setCreating] = useState(false);
+  const [createFieldErrors, setCreateFieldErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const lastIsActive = useRef<string | null>(null);
 
@@ -83,6 +97,36 @@ const FranchiseListPage = () => {
     }
   };
 
+  const handleOpenCreate = () => {
+    setCreateForm({ ...emptyCreateForm });
+    setCreateFieldErrors({});
+    setShowCreateModal(true);
+  };
+
+  const handleCreateChange = (field: keyof CreateFranchisePayload, value: string) => {
+    setCreateForm((prev) => ({ ...prev, [field]: value }));
+    if (createFieldErrors[field]) {
+      setCreateFieldErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setCreateFieldErrors({});
+    try {
+      await createFranchise(createForm);
+      showSuccess("Tạo franchise thành công");
+      setShowCreateModal(false);
+      load(1);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Tạo franchise thất bại";
+      showError(msg);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -90,7 +134,7 @@ const FranchiseListPage = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý Franchise</h1>
           <p className="text-xs sm:text-sm text-slate-600">Danh sách chi nhánh</p>
         </div>
-        <Button onClick={() => navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_CREATE}`)}>
+        <Button onClick={handleOpenCreate}>
           + Tạo franchise
         </Button>
       </div>
@@ -348,6 +392,139 @@ const FranchiseListPage = () => {
                 Đóng
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Create Franchise Modal ────────────────────────────────────────── */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 shrink-0">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Tạo Franchise</h2>
+                <p className="text-xs text-slate-500">Tạo chi nhánh mới</p>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleCreateSubmit} className="overflow-y-auto px-6 py-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Mã chi nhánh *
+                    <input
+                      className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${createFieldErrors.code ? "border-red-400 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-primary-500 focus:ring-primary-500"}`}
+                      value={createForm.code}
+                      onChange={(e) => handleCreateChange("code", e.target.value)}
+                      placeholder="HL008"
+                      required
+                    />
+                  </label>
+                  {createFieldErrors.code && (
+                    <p className="mt-1 text-xs text-red-500">{createFieldErrors.code}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Tên chi nhánh *
+                    <input
+                      className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${createFieldErrors.name ? "border-red-400 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-primary-500 focus:ring-primary-500"}`}
+                      value={createForm.name}
+                      onChange={(e) => handleCreateChange("name", e.target.value)}
+                      placeholder="High Land 008"
+                      required
+                    />
+                  </label>
+                  {createFieldErrors.name && (
+                    <p className="mt-1 text-xs text-red-500">{createFieldErrors.name}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Giờ mở cửa *
+                    <input
+                      type="time"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={createForm.opened_at}
+                      onChange={(e) => handleCreateChange("opened_at", e.target.value)}
+                      required
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Giờ đóng cửa *
+                    <input
+                      type="time"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={createForm.closed_at}
+                      onChange={(e) => handleCreateChange("closed_at", e.target.value)}
+                      required
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Hotline *
+                    <input
+                      type="tel"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={createForm.hotline}
+                      onChange={(e) => handleCreateChange("hotline", e.target.value)}
+                      placeholder="0123456789"
+                      required
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Logo URL
+                    <input
+                      type="url"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={createForm.logo_url}
+                      onChange={(e) => handleCreateChange("logo_url", e.target.value)}
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </label>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Địa chỉ
+                    <input
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={createForm.address}
+                      onChange={(e) => handleCreateChange("address", e.target.value)}
+                      placeholder="123 Nguyễn Huệ, Quận 1, TP.HCM"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <Button type="submit" loading={creating}>
+                  Tạo franchise
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
