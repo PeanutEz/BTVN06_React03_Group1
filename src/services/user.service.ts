@@ -202,12 +202,12 @@ export async function fetchUserById(id: string): Promise<ApiUser> {
 	return (result as { data: ApiUser }).data;
 }
 
-// ==================== USER-06: Change Status ====================
-// PATCH /api/users/status — Token: YES — Role: ADMIN
-// Input: { id, is_active: boolean }
+// ==================== USER-07: Change Status ====================
+// PATCH /api/users/:id/status — Token: YES — Role: ADMIN
+// Input: { is_active: boolean }
 // Output: { success: true, data: null }
 export async function changeUserStatus(id: string, isActive: boolean): Promise<void> {
-	const response = await apiClient.patch<ApiResponse>("/users/status", { id, is_active: isActive });
+	const response = await apiClient.patch<ApiResponse>(`/users/${id}/status`, { is_active: isActive });
 	const result = response.data;
 	if (!result.success) {
 		throw new Error((result as { message?: string }).message || "Đổi trạng thái user thất bại");
