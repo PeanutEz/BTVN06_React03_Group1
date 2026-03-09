@@ -392,7 +392,7 @@ export default function MenuPage() {
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Menu</h1>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  {selectedFranchise ? `Đang xem franchise: ${selectedFranchise.name}` : "Vui lòng chọn franchise trong bước chọn phương thức đặt hàng để xem thực đơn."}
+                  Vui lòng chọn franchise trong bước chọn phương thức đặt hàng để xem thực đơn.
                 </p>
               </div>
             </div>
