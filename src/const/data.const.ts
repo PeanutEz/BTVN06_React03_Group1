@@ -5,3 +5,7 @@ export const LOCAL_STORAGE_KEY = {
 	CART: "cart",
 	FRANCHISES: "franchises",
 } as const;
+
+export const MSG_CONSTANT = {
+	ACCESS_TOKEN_EXPIRED: "ACCESS_TOKEN_EXPIRED",
+} as const;

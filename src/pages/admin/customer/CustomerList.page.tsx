@@ -61,6 +61,7 @@ const CustomerListPage = () => {
 
   // keep latest search params in ref to avoid stale closures
   const searchRef = useRef({ keyword, activeFilter });
+  const hasRun = useRef(false);
 
   const loadPage = async (page: number, kw = keyword, active = activeFilter) => {
     setLoading(true);
@@ -86,19 +87,14 @@ const CustomerListPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadPage(1);
   }, []);
 
   const handleSearch = () => {
     searchRef.current = { keyword, activeFilter };
     loadPage(1, keyword, activeFilter);
-  };
-
-  const handleReset = () => {
-    setKeyword("");
-    setActiveFilter("");
-    searchRef.current = { keyword: "", activeFilter: "" };
-    loadPage(1, "", "");
   };
 
   const handlePageChange = (page: number) => {
@@ -137,9 +133,6 @@ const CustomerListPage = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => loadPage(currentPage, searchRef.current.keyword, searchRef.current.activeFilter)} loading={loading}>
-            Làm mới
-          </Button>
           <Button onClick={() => handleOpenModal()}>+ Thêm khách hàng</Button>
         </div>
       </div>
@@ -175,9 +168,6 @@ const CustomerListPage = () => {
             <Button onClick={handleSearch} size="sm" loading={loading}>
               Tìm kiếm
             </Button>
-            <Button onClick={handleReset} size="sm" variant="outline">
-              Đặt lại
-            </Button>
           </div>
         </div>
       </div>
@@ -199,13 +189,9 @@ const CustomerListPage = () => {
             <tbody className="divide-y divide-slate-100">
               {loading && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
-                    <div className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin size-4 text-primary-500" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
-                      Đang tải...
+                  <td colSpan={6}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
                     </div>
                   </td>
                 </tr>
@@ -271,7 +257,16 @@ const CustomerListPage = () => {
                   {/* Actions */}
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setDetailCustomerId(customer.id)}>Chi tiết</Button>
+                      <button
+                        title="Xem chi tiết"
+                        onClick={() => setDetailCustomerId(customer.id)}
+                        className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
                     </div>
                   </td>
                 </tr>

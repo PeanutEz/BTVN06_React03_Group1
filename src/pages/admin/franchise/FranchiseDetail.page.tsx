@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "../../../components";
 import type { ApiFranchise } from "../../../services/store.service";
@@ -26,6 +26,7 @@ const FranchiseDetailPage = () => {
   const [assignForm, setAssignForm] = useState({ user_id: "", role_id: "" });
   const [assignSubmitting, setAssignSubmitting] = useState(false);
   const navigate = useNavigate();
+  const lastId = useRef<string | undefined>(undefined);
 
   const load = async () => {
     if (!id) return;
@@ -106,6 +107,8 @@ const FranchiseDetailPage = () => {
   };
 
   useEffect(() => {
+    if (id === lastId.current) return;
+    lastId.current = id;
     load();
     loadFranchiseUsers();
   }, [id]);

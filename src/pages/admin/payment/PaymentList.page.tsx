@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
 import type { Payment, PaymentStatus, PaymentMethodType } from "../../../models/payment.model";
@@ -18,7 +18,8 @@ const PaymentListPage = () => {
   const [loading, setLoading] = useState(false);
   const [methodFilter, setMethodFilter] = useState<PaymentMethodType | "">("");
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | "">("")
-  const [currentPage, setCurrentPage] = useState(1);;
+  const [currentPage, setCurrentPage] = useState(1);
+  const hasRun = useRef(false);
 
   const loadPayments = async () => {
     setLoading(true);
@@ -34,6 +35,8 @@ const PaymentListPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadPayments();
   }, []);
 
@@ -204,8 +207,10 @@ const PaymentListPage = () => {
               )}
               {loading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">
-                    Đang tải...
+                  <td colSpan={9}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                    </div>
                   </td>
                 </tr>
               )}
