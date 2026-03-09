@@ -1,6 +1,13 @@
 import { create } from "zustand";
-import type { OrderMode, DeliveryAddress, AddressValidationResult, PlacedOrder } from "@/types/delivery.types";
-import type { Branch } from "@/types/delivery.types";
+import type {
+  OrderMode,
+  DeliveryAddress,
+  AddressValidationResult,
+  PlacedOrder,
+  PaymentStatus,
+  PaymentTransaction,
+  Branch,
+} from "@/types/delivery.types";
 import {
   validateDeliveryAddress,
   geocodeAddress,
@@ -15,32 +22,29 @@ const STORAGE_KEY_DELIVERY = "hylux_delivery_state";
 const STORAGE_KEY_ORDERS = "hylux_placed_orders";
 
 interface DeliveryState {
-  // ── Selection state ──────────────────────────────────────────────
   orderMode: OrderMode;
   selectedBranch: Branch | null;
   deliveryAddress: DeliveryAddress;
   validationResult: AddressValidationResult | null;
   isValidating: boolean;
-
-  // ── Flags ─────────────────────────────────────────────────────────
-  isInitialized: boolean; // true after localStorage has been read
-
-  // ── Computed ─────────────────────────────────────────────────────
+  isInitialized: boolean;
   isReadyToOrder: boolean;
   currentDeliveryFee: number;
   estimatedPrepMins: number;
   estimatedDeliveryMins: number;
-
-  // ── Order history ────────────────────────────────────────────────
   placedOrders: PlacedOrder[];
-
-  // ── Actions ──────────────────────────────────────────────────────
   hydrate: () => void;
   setOrderMode: (mode: OrderMode) => void;
   setSelectedBranch: (branch: Branch | null, clearCart?: () => void) => void;
   setDeliveryAddress: (address: string) => void;
   validateAddress: () => Promise<void>;
   placeOrder: (order: PlacedOrder) => void;
+  updateOrderPayment: (
+    orderId: string,
+    paymentStatus: PaymentStatus,
+    transaction?: PaymentTransaction,
+  ) => void;
+  getOrderById: (orderId: string) => PlacedOrder | undefined;
   advanceOrderStatus: (orderId: string) => void;
   reset: () => void;
 }
@@ -53,10 +57,9 @@ function computeReady(
   if (!branch) return false;
   if (!isBranchOpen(branch)) return false;
   if (mode === "DELIVERY") return validation?.isValid === true;
-  return true; // pickup: just need an open branch
+  return true;
 }
 
-// ── Eagerly read persisted state so guards get correct data on first render ──
 function _loadInitialState() {
   const saved = getItem<{
     orderMode: OrderMode;
@@ -100,7 +103,6 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
   currentDeliveryFee: 0,
   estimatedPrepMins: 0,
   estimatedDeliveryMins: 0,
-  // Apply initial state from localStorage synchronously
   ..._loadInitialState(),
 
   hydrate: () => {
@@ -119,7 +121,9 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
       const fee = branch && validation?.distanceKm != null
         ? calcDeliveryFee(branch, validation.distanceKm)
         : 0;
-      const times = branch ? estimateTotalTime(branch, mode, validation?.distanceKm ?? undefined) : { prepMins: 0, deliveryMins: 0, totalMins: 0 };
+      const times = branch
+        ? estimateTotalTime(branch, mode, validation?.distanceKm ?? undefined)
+        : { prepMins: 0, deliveryMins: 0, totalMins: 0 };
       set({
         orderMode: mode,
         selectedBranch: branch,
@@ -192,7 +196,6 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     if (!deliveryAddress.rawAddress.trim()) return;
     set({ isValidating: true });
 
-    // Simulate async geocode (in prod: call Maps API)
     await new Promise((r) => setTimeout(r, 600));
 
     const coord = geocodeAddress(deliveryAddress.rawAddress);
@@ -201,7 +204,9 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
         isValidating: false,
         deliveryAddress: { rawAddress: deliveryAddress.rawAddress, coord: null },
         validationResult: {
-          isValid: false, nearestBranch: null, distanceKm: null,
+          isValid: false,
+          nearestBranch: null,
+          distanceKm: null,
           estimatedDeliveryFee: null,
           message: "Không thể xác định địa chỉ. Vui lòng nhập rõ hơn (ví dụ: Hoàn Kiếm, Hà Nội).",
         },
@@ -215,7 +220,9 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     const result = validateDeliveryAddress(coord);
     const branch = result.nearestBranch;
     const fee = branch && result.distanceKm != null ? calcDeliveryFee(branch, result.distanceKm) : 0;
-    const times = branch ? estimateTotalTime(branch, orderMode, result.distanceKm ?? undefined) : { prepMins: 0, deliveryMins: 0, totalMins: 0 };
+    const times = branch
+      ? estimateTotalTime(branch, orderMode, result.distanceKm ?? undefined)
+      : { prepMins: 0, deliveryMins: 0, totalMins: 0 };
 
     set({
       isValidating: false,
@@ -236,17 +243,47 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     set({ placedOrders: next });
   },
 
+  updateOrderPayment: (orderId, paymentStatus, transaction) => {
+    const next = get().placedOrders.map((o) =>
+      o.id === orderId
+        ? {
+            ...o,
+            paymentStatus,
+            ...(transaction ? { transaction } : {}),
+            statusUpdatedAt: new Date().toISOString(),
+          }
+        : o,
+    );
+    setItem(STORAGE_KEY_ORDERS, next);
+    set({ placedOrders: next });
+  },
+
+  getOrderById: (orderId) => get().placedOrders.find((o) => o.id === orderId),
+
   advanceOrderStatus: (orderId) => {
     const { placedOrders } = get();
-    const FLOW_DELIVERY: PlacedOrder["status"][] = ["PENDING","CONFIRMED","PREPARING","DELIVERING","COMPLETED"];
-    const FLOW_PICKUP: PlacedOrder["status"][] = ["PENDING","CONFIRMED","PREPARING","READY","COMPLETED"];
+    const FLOW_DELIVERY: PlacedOrder["status"][] = ["PENDING", "CONFIRMED", "PREPARING", "DELIVERING", "COMPLETED"];
+    const FLOW_PICKUP: PlacedOrder["status"][] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "COMPLETED"];
+
     const next = placedOrders.map((o) => {
       if (o.id !== orderId) return o;
+
+      const requiresOnlinePayment = o.paymentMethod !== "CASH";
+      if (requiresOnlinePayment && o.paymentStatus !== "PAID" && o.status === "PENDING") {
+        return o;
+      }
+
       const flow = o.mode === "DELIVERY" ? FLOW_DELIVERY : FLOW_PICKUP;
       const idx = flow.indexOf(o.status);
       const nextStatus = idx < flow.length - 1 ? flow[idx + 1] : o.status;
-      return { ...o, status: nextStatus, statusUpdatedAt: new Date().toISOString() };
+
+      return {
+        ...o,
+        status: nextStatus,
+        statusUpdatedAt: new Date().toISOString(),
+      };
     });
+
     setItem(STORAGE_KEY_ORDERS, next);
     set({ placedOrders: next });
   },
