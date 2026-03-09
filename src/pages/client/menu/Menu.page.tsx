@@ -1,27 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { clientService } from "@/services/client.service";
-<<<<<<< HEAD
 import type { ClientCategoryByFranchiseItem, ClientFranchiseItem } from "@/models/store.model";
 import type { ClientProductDetailResponse, ClientProductListItem } from "@/models/product.model";
-=======
-import {
-  mapClientCategoryToMenuCategory,
-  mapClientProductToMenuProduct,
-  type MenuCategoryWithApi,
-  type MenuProductWithApi,
-} from "@/services/menu-api.adapter";
-import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
-import { useDeliveryStore } from "@/store/delivery.store";
-import { useAuthStore } from "@/store/auth.store";
-import type { MenuProduct } from "@/types/menu.types";
-import { ROUTER_URL } from "@/routes/router.const";
-import MenuSidebar from "@/components/menu/MenuSidebar";
-import MenuProductCard from "@/components/menu/MenuProductCard";
-import MenuProductModal from "@/components/menu/MenuProductModal";
-import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
-import BranchPickerModal from "@/components/menu/BranchPickerModal";
->>>>>>> 152c5785c3a858e1157b99b3526494d4c787f502
 
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -174,32 +155,8 @@ function ProductDetailModal({
 }
 
 // Loading skeleton for product cards
-function ProductCardSkeleton() {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
-      <div className="aspect-[4/3] bg-gray-200" />
-      <div className="p-3.5 space-y-2">
-        <div className="h-3 bg-gray-200 rounded w-16" />
-        <div className="h-4 bg-gray-200 rounded w-3/4" />
-        <div className="h-3 bg-gray-200 rounded w-full" />
-        <div className="h-4 bg-gray-200 rounded w-20 mt-2" />
-      </div>
-      <div className="px-3.5 pb-3.5">
-        <div className="h-9 bg-gray-200 rounded-xl" />
-      </div>
-    </div>
-  );
-}
+// (skeleton removed — inline skeletons are used where needed)
 
-function ProductGridSkeleton() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <ProductCardSkeleton key={i} />
-      ))}
-    </div>
-  );
-}
 
 export default function MenuPage() {
   // ─── REQUIRED STATE ─────────────────────────────────────────────────────────
@@ -230,14 +187,14 @@ export default function MenuPage() {
     if (mountedRef.current) return;
     mountedRef.current = true;
 
-<<<<<<< HEAD
     let alive = true;
     setLoading("franchises");
     setError(null);
-
+  console.debug("MenuPage: start loading franchises");
     clientService
       .getAllFranchises()
       .then((data) => {
+        console.debug("MenuPage: getAllFranchises resolved, count=", data.length);
         if (!alive) return;
         setFranchises(data);
       })
@@ -248,6 +205,7 @@ export default function MenuPage() {
         setFranchises([]);
       })
       .finally(() => {
+        console.debug("MenuPage: getAllFranchises finally — clearing loading state");
         if (!alive) return;
         setLoading(null);
       });
@@ -266,140 +224,6 @@ export default function MenuPage() {
       setSelectedCategory(null);
       setProducts([]);
       setCategoriesLoadedForFranchiseId(null);
-=======
-  // ── API State ──
-  const [categories, setCategories] = useState<MenuCategoryWithApi[]>([]);
-  const [allProducts, setAllProducts] = useState<MenuProductWithApi[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch ALL franchises → for each franchise fetch categories + products → merge
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        // Step 1: Get all franchises
-        const franchises = await clientService.getAllFranchises();
-        if (cancelled) return;
-
-        if (franchises.length === 0) {
-          setError("Không tìm thấy thương hiệu nào.");
-          return;
-        }
-
-        // Step 2: For each franchise, fetch categories + products in parallel
-        const allResults = await Promise.all(
-          franchises.map(async (franchise) => {
-            const [apiCategories, apiProducts] = await Promise.all([
-              clientService.getCategoriesByFranchise(franchise.id),
-              clientService.getProductsByFranchiseAndCategory(franchise.id),
-            ]);
-            return { franchiseId: franchise.id, apiCategories, apiProducts };
-          })
-        );
-
-        if (cancelled) return;
-
-        // Step 3: Merge and deduplicate
-        const categoryMap = new Map<string, MenuCategoryWithApi>();
-        const productMap = new Map<string, MenuProductWithApi>();
-
-        for (const { franchiseId, apiCategories, apiProducts } of allResults) {
-          for (const c of apiCategories) {
-            const mapped = mapClientCategoryToMenuCategory(c, 0) as MenuCategoryWithApi;
-            if (!categoryMap.has(c.category_id)) {
-              categoryMap.set(c.category_id, mapped);
-            }
-          }
-          for (const p of apiProducts) {
-            const mapped = mapClientProductToMenuProduct(p as any, franchiseId) as MenuProductWithApi;
-            if (!productMap.has(p.product_id)) {
-              productMap.set(p.product_id, mapped);
-            }
-          }
-        }
-
-        const mappedCategories = Array.from(categoryMap.values());
-        const mappedProducts = Array.from(productMap.values());
-
-        // Only keep categories that have at least one available product
-        const categoriesWithProducts = mappedCategories.filter((cat) =>
-          mappedProducts.some((p) => p.categoryId === cat.id && p.isAvailable)
-        );
-
-        setCategories(categoriesWithProducts);
-        setAllProducts(mappedProducts);
-      } catch (err) {
-        if (!cancelled) {
-          console.error("Failed to fetch menu data:", err);
-          setError("Không thể tải thực đơn. Vui lòng thử lại.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, []);
-
-  // ── Derived data ──
-
-  const productCounts = useMemo(() => {
-    const map: Record<number, number> = {};
-    categories.forEach((cat) => {
-      map[cat.id] = allProducts.filter((p) => p.categoryId === cat.id && p.isAvailable).length;
-    });
-    return map;
-  }, [categories, allProducts]);
-
-  const products = useMemo(() => {
-    const base =
-      activeCategoryId === 0
-        ? allProducts.filter((p) => p.isAvailable)
-        : allProducts.filter((p) => p.categoryId === activeCategoryId && p.isAvailable);
-    if (!search.trim()) return base;
-    const q = search.toLowerCase();
-    return base.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q),
-    );
-  }, [activeCategoryId, search, allProducts]);
-
-  // Group products by category (used when "Tất cả" is selected)
-  const groupedProducts = useMemo(() => {
-    if (activeCategoryId !== 0) return null;
-    return categories
-      .map((cat) => ({
-        category: cat,
-        items: products.filter((p) => p.categoryId === cat.id),
-      }))
-      .filter((g) => g.items.length > 0);
-  }, [activeCategoryId, products, categories]);
-
-  const activeCategory = categories.find((c) => c.id === activeCategoryId);
-  const activeCategoryLabel = activeCategoryId === 0
-    ? { icon: "🍽️", name: "Tất cả", description: "Toàn bộ thực đơn" }
-    : activeCategory;
-
-  function handleSelectCategory(id: number) {
-    setActiveCategoryId(id);
-    setSearchParams(id !== 0 ? { category: String(id) } : {});
-  }
-
-  // Auth-gated product selection: guests see a login prompt
-  const handleAddProduct = useCallback((product: MenuProduct) => {
-    if (!user) {
-      toast.error("Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng", {
-        action: {
-          label: "Đăng nhập",
-          onClick: () => navigate(ROUTER_URL.LOGIN, { state: { from: { pathname: ROUTER_URL.MENU } } }),
-        },
-      });
->>>>>>> 152c5785c3a858e1157b99b3526494d4c787f502
       return;
     }
 
@@ -492,7 +316,8 @@ export default function MenuPage() {
   }, [selectedFranchise?.id, selectedCategory?.category_id]);
 
   // Derived UI helpers
-  const franchisePlaceholder = loading === "franchises" ? "Đang tải franchise..." : "Chọn franchise...";
+  // If franchises already loaded, prefer showing the real placeholder so UI becomes interactive
+  const franchisePlaceholder = franchises.length > 0 ? "Chọn franchise..." : (loading === "franchises" ? "Đang tải franchise..." : "Chọn franchise...");
 
   const canShowMenu = selectedFranchise !== null;
   const showLoadingSkeleton = loading === "products";
@@ -503,7 +328,7 @@ export default function MenuPage() {
   }, [products]);
 
   // BƯỚC 4 – CLICK PRODUCT SIZE → gọi API (5) load detail
-  async function handleClickSize(productFranchiseId: string) {
+  async function handleClickSize(productFranchiseId: string, productId: string) {
     if (!productFranchiseId) return;
 
     // open modal immediately, then load detail
@@ -522,7 +347,9 @@ export default function MenuPage() {
     detailReqKeyRef.current = productFranchiseId;
 
     try {
-      const detail = await clientService.getProductDetail(productFranchiseId);
+      const franchiseId = selectedFranchise?.id ?? "";
+      if (!franchiseId) throw new Error("No franchise selected");
+      const detail = await clientService.getProductDetail(franchiseId, productId);
       setSelectedProduct(detail);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Không tải được chi tiết sản phẩm";
@@ -541,7 +368,7 @@ export default function MenuPage() {
     detailReqKeyRef.current = null;
   }
 
-  const isLoading = loading;
+  // use showLoadingSkeleton when needed; no separate isLoading variable
 
   return (
     <>
@@ -567,11 +394,9 @@ export default function MenuPage() {
                     // NOTE: downstream reset happens in effect, not here (avoid duplicate API calls)
                   }}
                   className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                  disabled={loading === "franchises"}
+                  disabled={loading === "franchises" && franchises.length === 0}
                 >
-                  <option value="" disabled>
-                    {franchisePlaceholder}
-                  </option>
+                  <option value="">{franchisePlaceholder}</option>
                   {franchises.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.name} ({f.code})
@@ -593,7 +418,6 @@ export default function MenuPage() {
                   </p>
                 </div>
 
-<<<<<<< HEAD
                 <div className="mt-2 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                   {loading === "categories" && categories.length === 0 ? (
                     <div className="text-sm text-gray-400 py-2">Đang tải categories...</div>
@@ -614,47 +438,6 @@ export default function MenuPage() {
                         {c.category_name}
                       </button>
                     ))
-=======
-                {/* Cart badge button (opens order panel on mobile) */}
-                {itemCount > 0 && (
-                  <button
-                    onClick={() => setShowOrderPanel(true)}
-                    className="lg:hidden flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <span>{itemCount}</span>
-                    <span className="hidden sm:inline">· {fmt(total)}</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Mobile category tabs */}
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none md:hidden">
-              <button
-                onClick={() => handleSelectCategory(0)}
-                className={cn(
-                  "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
-                  activeCategoryId === 0
-                    ? "bg-amber-500 text-white shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
-                )}
-              >
-                <span>🍽️</span>
-                <span>Tất cả</span>
-              </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => handleSelectCategory(cat.id)}
-                  className={cn(
-                    "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
-                    cat.id === activeCategoryId
-                      ? "bg-amber-500 text-white shadow-sm"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200",
->>>>>>> 152c5785c3a858e1157b99b3526494d4c787f502
                   )}
                 </div>
               </div>
@@ -670,7 +453,6 @@ export default function MenuPage() {
 
         {/* Content */}
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8">
-<<<<<<< HEAD
           {!canShowMenu ? (
             <EmptyState
               title="Chưa chọn franchise"
@@ -689,85 +471,6 @@ export default function MenuPage() {
                   </div>
                 </div>
               ))}
-=======
-          <div className="flex gap-8">
-            {/* Sidebar — desktop only */}
-            <div className="hidden md:block self-start sticky top-40">
-              <MenuSidebar
-                categories={categories}
-                activeId={activeCategoryId}
-                productCounts={productCounts}
-                onSelect={handleSelectCategory}
-              />
-            </div>
-
-            {/* Product grid */}
-            <div className="flex-1 min-w-0">
-              {/* Error state */}
-              {error && (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <div className="text-5xl mb-4">⚠️</div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{error}</h3>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="mt-4 text-sm text-amber-600 hover:text-amber-700 font-medium"
-                  >
-                    Thử lại
-                  </button>
-                </div>
-              )}
-
-              {/* Loading state */}
-              {isLoading && !error && <ProductGridSkeleton />}
-
-              {/* Loaded state */}
-              {!isLoading && !error && (
-                <>
-                  {products.length > 0 && (
-                    <p className="text-sm text-gray-500 mb-5">{products.length} sản phẩm</p>
-                  )}
-
-                  {products.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-center">
-                      <div className="text-5xl mb-4">🔍</div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">Không tìm thấy</h3>
-                      <p className="text-sm text-gray-500">Hãy thử từ khóa khác hoặc chọn danh mục khác</p>
-                      <button
-                        onClick={() => setSearch("")}
-                        className="mt-4 text-sm text-amber-600 hover:text-amber-700 font-medium"
-                      >
-                        Xóa tìm kiếm
-                      </button>
-                    </div>
-                  ) : groupedProducts ? (
-                    /* ── Grouped by category (Tất cả) ── */
-                    <div className="space-y-10">
-                      {groupedProducts.map(({ category, items }) => (
-                        <section key={category.id}>
-                          {/* Category header */}
-                          <div className="flex items-center gap-3 mb-5">
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-2xl">{category.icon}</span>
-                              <h2 className="text-lg font-bold text-emerald-700 tracking-tight">
-                                {category.name}
-                              </h2>
-                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                {items.length} món
-                              </span>
-                            </div>
-                            <div className="flex-1 h-px bg-emerald-100" />
-                          </div>
-                          <ProductGrid products={items} onAdd={handleAddProduct} />
-                        </section>
-                      ))}
-                    </div>
-                  ) : (
-                    /* ── Single category view ── */
-                    <ProductGrid products={products} onAdd={handleAddProduct} />
-                  )}
-                </>
-              )}
->>>>>>> 152c5785c3a858e1157b99b3526494d4c787f502
             </div>
           ) : visibleProducts.length === 0 ? (
             <EmptyState
@@ -775,7 +478,7 @@ export default function MenuPage() {
               description="Franchise/category này hiện chưa có sản phẩm hiển thị."
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid- cols-3 gap-4 sm:gap-5">
               {visibleProducts.map((p) => (
                 <div
                   key={`${p.product_id}-${p.SKU}`}
@@ -805,7 +508,7 @@ export default function MenuPage() {
                         <button
                           key={s.product_franchise_id}
                           type="button"
-                          onClick={() => handleClickSize(s.product_franchise_id)}
+                          onClick={() => handleClickSize(s.product_franchise_id, p.product_id)}
                           disabled={!s.is_available}
                           className={cn(
                             "px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all",
