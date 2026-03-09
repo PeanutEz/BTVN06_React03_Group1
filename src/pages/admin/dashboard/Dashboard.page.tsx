@@ -1,43 +1,38 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchOrders } from "../../../services/order.service";
 import { fetchPayments } from "../../../services/payment.service";
 import { fetchCustomers } from "../../../services/customer.service";
 import { fetchStores } from "../../../services/store.service";
 import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
+import { adminInventoryService } from "../../../services/inventory.service";
 import type { OrderDisplay } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
 
-const topProducts = [
-  {
-    id: 1,
-    name: "Cà phê sữa đá",
-    sold: 320,
-    revenue: 12800000,
-  },
-  {
-    id: 2,
-    name: "Trà đào cam sả",
-    sold: 280,
-    revenue: 11200000,
-  },
-  {
-    id: 3,
-    name: "Bạc xỉu",
-    sold: 210,
-    revenue: 9450000,
-  },
-  {
-    id: 4,
-    name: "Latte nóng",
-    sold: 180,
-    revenue: 8100000,
-  },
-];
+type RevenueChart = {
+  date: string;
+  revenue: number;
+};
+
+type TopProduct = {
+  name: string;
+  sold: number;
+  revenue: number;
+};
+
+type LowStockItem = {
+  _id: string;
+  product_franchise_id: string;
+  quantity: number;
+  alert_threshold: number;
+  franchise_id: string;
+  store_name?: string;
+};
 
 const DashboardPage = () => {
+  const hasRun = useRef(false);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
     totalOrders: 0,
@@ -49,7 +44,9 @@ const DashboardPage = () => {
   });
   const [recentOrders, setRecentOrders] = useState<OrderDisplay[]>([]);
   const [loyaltyOverview, setLoyaltyOverview] = useState<LoyaltyOverview | null>(null);
-  const hasRun = useRef(false);
+  const [revenueChartData, setRevenueChartData] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [lowStocks, setLowStocks] = useState<LowStockItem[]>([]);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -61,13 +58,96 @@ const DashboardPage = () => {
         fetchStores(),
         fetchLoyaltyOverview(),
       ]);
+      console.log("STORES:", stores);
 
-      const totalRevenue = payments
-        .filter((p) => p.status === "COMPLETED")
-        .reduce((sum, p) => sum + p.amount, 0);
+      const completedPayments = payments.filter(
+        (p) => p.status === "COMPLETED"
+      );
+
+      const totalRevenue = completedPayments.reduce(
+        (sum, p) => sum + p.amount,
+        0
+      );
+
+      const revenueByDate: Record<string, number> = {};
+
+      completedPayments.forEach((p) => {
+        const dateKey = p.created_at.split("T")[0];
+
+        if (!revenueByDate[dateKey]) {
+          revenueByDate[dateKey] = 0;
+        }
+
+        revenueByDate[dateKey] += p.amount;
+      });
+
+      const chartData: RevenueChart[] = Object.entries(revenueByDate)
+        .map(([date, revenue]) => ({
+          date,
+          revenue,
+        }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .map((item) => ({
+          ...item,
+          date: new Date(item.date).toLocaleDateString("vi-VN"),
+        }));
+
+      setRevenueChartData(chartData);
 
       const pendingOrders = orders.filter((o) => o.status === "DRAFT" || o.status === "CONFIRMED").length;
       const completedOrders = orders.filter((o) => o.status === "COMPLETED").length;
+      console.log("ORDERS DATA:", orders);
+      console.log("ORDER ITEMS:", orders[0]?.items);
+      const productMap: Record<string, TopProduct> = {};
+
+      orders
+        .filter((order) => order.status === "COMPLETED")
+        .forEach((order: any) => {
+          order.items?.forEach((item: any) => {
+            const name = item.product_name_snapshot;
+            const quantity = item.quantity;
+            const price = item.price_snapshot;
+
+            if (!productMap[name]) {
+              productMap[name] = {
+                name,
+                sold: 0,
+                revenue: 0,
+              };
+            }
+
+            productMap[name].sold += quantity;
+            productMap[name].revenue += quantity * price;
+          });
+        });
+
+      const top = Object.values(productMap)
+        .sort((a, b) => b.sold - a.sold)
+        .slice(0, 5);
+
+      setTopProducts(top);
+
+      const lowStockResults = await Promise.all(
+        stores.map(async (store: any) => {
+          try {
+            if (!store?.id) return [];
+
+            const items = await adminInventoryService.getLowStockByFranchise(store.id);
+
+            return items.map((item: any) => ({
+              ...item,
+              franchise_id: store.id,
+              store_name: store.name,
+            }));
+          } catch (err) {
+            console.error("Low stock error:", store.id, err);
+            return [];
+          }
+        })
+      );
+
+      const mergedLowStocks = lowStockResults.flat();
+      setLowStocks(mergedLowStocks);
 
       setStats({
         totalOrders: orders.length,
@@ -80,8 +160,6 @@ const DashboardPage = () => {
 
       setRecentOrders(orders.slice(0, 5));
       setLoyaltyOverview(loyalty);
-    } catch (error) {
-      console.error("Lỗi tải dữ liệu dashboard:", error);
     } finally {
       setLoading(false);
     }
@@ -92,8 +170,6 @@ const DashboardPage = () => {
     hasRun.current = true;
     loadDashboard();
   }, []);
-
-  const revenueChartData = useMemo(() => [{ date: "01/01", revenue: 12000000 }, { date: "02/01", revenue: 18000000 }, { date: "03/01", revenue: 15000000 }, { date: "04/01", revenue: 22000000 }, { date: "05/01", revenue: 26000000 }, { date: "06/01", revenue: 21000000 },], []);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -114,12 +190,12 @@ const DashboardPage = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">WBS Coffee - Dashboard</h1>
-        <p className="text-xs sm:text-sm text-slate-600">Tổng quan hệ thống quản lý chuỗi cửa hàng</p>
+        <h1 className="text-2xl font-bold text-slate-900">WBS Coffee - Dashboard</h1>
+        <p className="text-sm text-slate-600">Tổng quan hệ thống quản lý chuỗi cửa hàng</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-blue-100 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
@@ -140,7 +216,7 @@ const DashboardPage = () => {
               />
             </svg>
           </div>
-          <div className="mt-2 sm:mt-4 flex flex-wrap gap-2 sm:gap-4 text-xs">
+          <div className="mt-4 flex gap-4 text-xs">
             <span className="text-yellow-700">
               ⏳ Chờ xử lý: <strong>{stats.pendingOrders}</strong>
             </span>
@@ -150,16 +226,16 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-green-50 to-green-100 p-4 sm:p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-green-50 to-green-100 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm font-semibold text-green-700">Doanh thu</p>
-              <p className="mt-1 sm:mt-2 text-lg sm:text-2xl font-bold text-green-900">
+              <p className="text-sm font-semibold text-green-700">Doanh thu</p>
+              <p className="mt-2 text-2xl font-bold text-green-900">
                 {formatCurrency(stats.totalRevenue)}
               </p>
             </div>
             <svg
-              className="size-8 sm:size-12 text-green-400"
+              className="size-12 text-green-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -174,14 +250,14 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-purple-50 to-purple-100 p-4 sm:p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-purple-50 to-purple-100 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm font-semibold text-purple-700">Khách hàng</p>
-              <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-purple-900">{stats.totalCustomers}</p>
+              <p className="text-sm font-semibold text-purple-700">Khách hàng</p>
+              <p className="mt-2 text-3xl font-bold text-purple-900">{stats.totalCustomers}</p>
             </div>
             <svg
-              className="size-8 sm:size-12 text-purple-400"
+              className="size-12 text-purple-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -196,14 +272,14 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100 p-4 sm:p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs sm:text-sm font-semibold text-orange-700">Cửa hàng</p>
-              <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-orange-900">{stats.totalStores}</p>
+              <p className="text-sm font-semibold text-orange-700">Cửa hàng</p>
+              <p className="mt-2 text-3xl font-bold text-orange-900">{stats.totalStores}</p>
             </div>
             <svg
-              className="size-8 sm:size-12 text-orange-400"
+              className="size-12 text-orange-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -231,7 +307,7 @@ const DashboardPage = () => {
               Xem chi tiết →
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="rounded-lg bg-slate-50 p-4 text-center">
               <p className="text-sm text-slate-600">Tổng thành viên</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">
@@ -260,11 +336,13 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {/* ================= CHART + TOP PRODUCT ================= */}
+      {/* CHART + TOP PRODUCT */}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Revenue Chart */}
+        {/* REVENUE CHART */}
+
         <div className="lg:col-span-2 rounded-2xl border bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">
+          <h3 className="mb-4 text-lg font-semibold">
             Doanh thu theo ngày
           </h3>
 
@@ -283,45 +361,104 @@ const DashboardPage = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Top Products */}
+        {/* TOP PRODUCTS */}
         <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold text-slate-900">
+          <h3 className="mb-4 text-lg font-semibold">
             Top sản phẩm bán chạy
           </h3>
 
-          <div className="space-y-4">
-            {topProducts.map((product, index) => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between rounded-lg bg-slate-50 p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex size-8 items-center justify-center rounded-full bg-blue-100 font-bold text-blue-700">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <p className="font-semibold text-slate-800">
-                      {product.name}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      Đã bán: {product.sold} ly
-                    </p>
-                  </div>
-                </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-slate-500">
+                  <th className="pb-3">#</th>
+                  <th className="pb-3">Sản phẩm</th>
+                  <th className="pb-3">Đã bán</th>
+                  <th className="pb-3">Doanh thu</th>
+                </tr>
+              </thead>
 
-                <p className="font-semibold text-green-700">
-                  {formatCurrency(product.revenue)}
-                </p>
-              </div>
-            ))}
+              <tbody>
+                {topProducts.map((product: any, index: number) => (
+                  <tr
+                    key={index}
+                    className="border-b last:border-none hover:bg-slate-50"
+                  >
+                    <td className="py-3">{index + 1}</td>
+
+                    <td className="py-3 font-medium">
+                      {product.name}
+                    </td>
+
+                    <td className="py-3">
+                      {product.sold}
+                    </td>
+
+                    <td className="py-3 font-semibold text-green-700">
+                      {formatCurrency(product.revenue)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
+      {/* Low Stock Alert */}
+      <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-red-700">
+          ⚠️ Cảnh báo tồn kho thấp
+        </h2>
+
+        {lowStocks.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            Không có sản phẩm nào sắp hết hàng
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-slate-500">
+                  <th className="pb-3">#</th>
+                  <th className="pb-3">Store</th>
+                  <th className="pb-3">Product Franchise ID</th>
+                  <th className="pb-3">Tồn kho</th>
+                  <th className="pb-3">Ngưỡng cảnh báo</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {lowStocks.map((item, index) => (
+                  <tr key={item._id} className="border-b hover:bg-red-50">
+                    <td className="py-3">{index + 1}</td>
+
+                    <td className="py-3 font-medium">
+                      {item.store_name}
+                    </td>
+
+                    <td className="py-3">
+                      {item.product_franchise_id}
+                    </td>
+
+                    <td className="py-3 text-red-600 font-semibold">
+                      {item.quantity}
+                    </td>
+
+                    <td className="py-3">
+                      {item.alert_threshold}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Recent Orders */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Đơn hàng gần đây</h2>
           <Link
             to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`}
@@ -369,17 +506,16 @@ const DashboardPage = () => {
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        order.status === "COMPLETED"
-                          ? "bg-green-100 text-green-700"
-                          : order.status === "CONFIRMED"
-                            ? "bg-blue-100 text-blue-700"
-                            : order.status === "PREPARING"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : order.status === "CANCELLED"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-gray-100 text-gray-700"
-                      }`}
+                      className={`rounded-full px-2 py-1 text-xs font-semibold ${order.status === "COMPLETED"
+                        ? "bg-green-100 text-green-700"
+                        : order.status === "CONFIRMED"
+                          ? "bg-blue-100 text-blue-700"
+                          : order.status === "PREPARING"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : order.status === "CANCELLED"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700"
+                        }`}
                     >
                       {order.status}
                     </span>

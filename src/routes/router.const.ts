@@ -33,6 +33,9 @@ export const ROUTER_URL = {
   MENU_DETAIL: "/menu/:id",
   MENU_CHECKOUT: "/menu/checkout",
   MENU_ORDER_STATUS: "/menu/orders/:orderId",
+  PAYMENT_PROCESS: "/payment/process/:orderId",
+  PAYMENT_SUCCESS: "/payment/success/:orderId",
+  PAYMENT_FAILED: "/payment/failed/:orderId",
   CHECKOUT: "/checkout",
 
   // Orders
