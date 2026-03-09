@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { useAuthStore } from "../../../store";
 import { getProfile, changePassword } from "../../../services/auth.service";
@@ -6,10 +6,25 @@ import { updateUserProfile } from "../../../services/user.service";
 import { showSuccess, showError } from "../../../utils";
 import { Button } from "../../../components";
 
+const CLOUDINARY_CLOUD_NAME = "dn2xh5rxe";
+const CLOUDINARY_UPLOAD_PRESET = "btvn06_upload";
+
+async function uploadImageToCloudinary(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    { method: "POST", body: formData }
+  );
+  if (!res.ok) throw new Error("Upload ảnh lên Cloudinary thất bại");
+  const data = await res.json() as { secure_url: string };
+  return data.secure_url;
+}
+
 interface ProfileFormData {
   name: string;
   phone: string;
-  avatar_url: string;
 }
 
 interface PasswordFormData {
@@ -23,15 +38,14 @@ const AdminProfilePage = () => {
   const [activeTab, setActiveTab] = useState<"profile" | "password">("profile");
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const pendingAvatarFileRef = useRef<File | null>(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string>("");
 
   const userId = user?.user?.id || user?.id || "";
   const currentName = user?.user?.name || user?.name || "";
   const currentEmail = user?.user?.email || user?.email || "";
   const currentPhone = (user?.user?.phone as string) || "";
   const currentAvatar = user?.user?.avatar_url || user?.avatar || "";
-  const activeContext = user?.active_context as { franchise_name?: string; role?: string } | null;
-  const currentRole = activeContext?.role || user?.role || "";
-  const currentFranchise = activeContext?.franchise_name || "";
 
   const {
     register: registerProfile,
@@ -41,7 +55,6 @@ const AdminProfilePage = () => {
     defaultValues: {
       name: currentName,
       phone: currentPhone,
-      avatar_url: currentAvatar,
     },
   });
 
@@ -62,10 +75,17 @@ const AdminProfilePage = () => {
     }
     setSavingProfile(true);
     try {
+      let avatarUrl = currentAvatar;
+      if (pendingAvatarFileRef.current) {
+        avatarUrl = await uploadImageToCloudinary(pendingAvatarFileRef.current);
+        pendingAvatarFileRef.current = null;
+        setPendingAvatarPreview("");
+      }
       await updateUserProfile(userId, {
+        email: currentEmail,
         name: data.name,
         phone: data.phone,
-        avatar_url: data.avatar_url,
+        avatar_url: avatarUrl,
       });
       // Refresh profile from server
       const updated = await getProfile();
@@ -104,31 +124,6 @@ const AdminProfilePage = () => {
         <p className="text-xs sm:text-sm text-slate-500">Quản lý thông tin tài khoản và mật khẩu</p>
       </div>
 
-      {/* Profile Card */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 flex items-center gap-5">
-        <img
-          src={currentAvatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentEmail}`}
-          alt={currentName}
-          className="size-20 rounded-full object-cover border-4 border-primary-100 shadow"
-        />
-        <div>
-          <p className="text-lg font-bold text-slate-900">{currentName}</p>
-          <p className="text-sm text-slate-500">{currentEmail}</p>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {currentRole && (
-              <span className="inline-flex items-center rounded-full bg-primary-100 px-2.5 py-0.5 text-xs font-semibold text-primary-700 capitalize">
-                {currentRole}
-              </span>
-            )}
-            {currentFranchise && (
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
-                {currentFranchise}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-6">
         <button
@@ -157,6 +152,58 @@ const AdminProfilePage = () => {
       {activeTab === "profile" && (
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 max-w-lg">
           <form onSubmit={handleSubmitProfile(onSubmitProfile)} className="space-y-5">
+            {/* Avatar upload */}
+            <div>
+              <div className="flex items-center gap-4">
+                <div className="relative flex-shrink-0">
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200">
+                    {(pendingAvatarPreview || currentAvatar) ? (
+                      <img
+                        src={pendingAvatarPreview || currentAvatar}
+                        alt="Ảnh đại diện"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-slate-400">
+                        <svg className="w-9 h-9" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  {savingProfile && (
+                    <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="cursor-pointer inline-flex items-center gap-2 bg-white border border-slate-200 hover:border-primary-400 hover:text-primary-700 text-sm font-medium text-slate-700 px-3 py-1.5 rounded-lg transition-all shadow-sm">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Thay đổi ảnh
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={savingProfile}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          pendingAvatarFileRef.current = file;
+                          setPendingAvatarPreview(URL.createObjectURL(file));
+                        }
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                  <p className="text-xs text-slate-400 mt-1">PNG, JPG tối đa 5MB</p>
+                </div>
+              </div>
+            </div>
+
             {/* Email (read-only) */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
@@ -189,17 +236,6 @@ const AdminProfilePage = () => {
               <input
                 {...registerProfile("phone")}
                 type="tel"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              />
-            </div>
-
-            {/* Avatar URL */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">URL ảnh đại diện</label>
-              <input
-                {...registerProfile("avatar_url")}
-                type="text"
-                placeholder="https://..."
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
               />
             </div>
