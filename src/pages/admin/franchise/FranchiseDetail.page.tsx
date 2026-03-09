@@ -150,50 +150,27 @@ const FranchiseDetailPage = () => {
           >
             Chỉnh sửa
           </Button>
-          {franchise && !franchise.is_deleted && (
-            <Button
-              variant="outline"
-              className="text-red-600 border-red-200 hover:bg-red-50"
-              onClick={async () => {
-                if (!id) return;
-                if (!window.confirm("Bạn có chắc muốn xóa franchise này?")) return;
-                try {
-                  await deleteFranchise(id);
-                  showSuccess("Xóa franchise thành công");
-                  navigate(
-                    `/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
-                  );
-                } catch (err) {
-                  showError(
-                    err instanceof Error ? err.message : "Xóa franchise thất bại",
-                  );
-                }
-              }}
-            >
-              Xóa
-            </Button>
-          )}
-          {franchise && franchise.is_deleted && (
-            <Button
-              variant="outline"
-              className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-              onClick={async () => {
-                if (!id) return;
-                if (!window.confirm("Bạn có chắc muốn khôi phục franchise này?`")) return;
-                try {
-                  await restoreFranchise(id);
-                  showSuccess("Khôi phục franchise thành công");
-                  await load();
-                } catch (err) {
-                  showError(
-                    err instanceof Error ? err.message : "Khôi phục franchise thất bại",
-                  );
-                }
-              }}
-            >
-              Khôi phục
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="text-red-600 border-red-200 hover:bg-red-50"
+            onClick={async () => {
+              if (!id) return;
+              if (!window.confirm("Bạn có chắc muốn xóa franchise này?")) return;
+              try {
+                await deleteFranchise(id);
+                showSuccess("Xóa franchise thành công");
+                navigate(
+                  `/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
+                );
+              } catch (err) {
+                showError(
+                  err instanceof Error ? err.message : "Xóa franchise thất bại",
+                );
+              }
+            }}
+          >
+            Xóa
+          </Button>
           {franchise && (
             <Button
               variant="outline"
