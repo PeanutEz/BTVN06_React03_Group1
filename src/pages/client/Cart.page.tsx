@@ -115,19 +115,29 @@ export default function CartPage() {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={() =>
-                  updateQuantity(item.productId, Math.max(1, item.quantity - 1))
-                }
+                onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                disabled={item.quantity <= 1}
+                className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-slate-700"
               >
                 -
               </button>
 
-              <span className="font-semibold">{item.quantity}</span>
+              <input
+                type="number"
+                min="1"
+                value={item.quantity}
+                onChange={(e) => {
+                  const qty = parseInt(e.target.value, 10);
+                  if (!isNaN(qty) && qty >= 1) {
+                    updateQuantity(item.productId, qty);
+                  }
+                }}
+                className="w-16 text-center font-semibold border border-slate-200 rounded px-2 py-1"
+              />
 
               <button
-                onClick={() =>
-                  updateQuantity(item.productId, item.quantity + 1)
-                }
+                onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded bg-white hover:bg-slate-50 font-semibold text-slate-700"
               >
                 +
               </button>
@@ -137,7 +147,7 @@ export default function CartPage() {
                   removeFromCart(item.productId);
                   toast.success("Đã xóa sản phẩm");
                 }}
-                className="text-red-600"
+                className="text-red-600 hover:text-red-700 font-semibold"
               >
                 Xóa
               </button>

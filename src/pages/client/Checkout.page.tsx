@@ -11,10 +11,10 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
   const items = useMenuCartStore((s) => s.items);
   const updateQuantity = useMenuCartStore((s) => s.updateQuantity);
-  const removeItem = useMenuCartStore((s) => s.removeItem);
   const clearCart = useMenuCartStore((s) => s.clearCart);
   const { itemCount, subtotal, deliveryFee, total } = useMenuCartTotals();
   const [isConfirming, setIsConfirming] = useState(false);
+  const [orderCode] = useState(() => `HYLUX${Math.random().toString(36).substr(2, 6).toUpperCase()}`);
 
   async function handleConfirm() {
     setIsConfirming(true);
@@ -99,31 +99,18 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-between mt-3">
                       {/* Quantity controls */}
                       <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                        <button
-                          onClick={() =>
-                            item.quantity > 1
-                              ? updateQuantity(item.cartKey, item.quantity - 1)
-                              : removeItem(item.cartKey)
-                          }
-                          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm"
-                          aria-label="Giảm số lượng"
-                        >
-                          {item.quantity === 1 ? (
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          ) : "−"}
-                        </button>
-                        <span className="w-7 text-center text-xs font-semibold select-none">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
-                          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm"
-                          aria-label="Tăng số lượng"
-                        >
-                          +
-                        </button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const qty = parseInt(e.target.value, 10);
+                            if (!isNaN(qty) && qty >= 1) {
+                              updateQuantity(item.cartKey, qty);
+                            }
+                          }}
+                          className="w-14 text-center text-xs font-semibold border-0 outline-none"
+                        />
                       </div>
 
                       {/* Line price */}
@@ -200,7 +187,7 @@ export default function CheckoutPage() {
                   { label: "Ngân hàng", value: "Vietcombank" },
                   { label: "Số tài khoản", value: "1234567890", mono: true },
                   { label: "Chủ tài khoản", value: "HYLUX COFFEE" },
-                  { label: "Nội dung CK", value: `HYLUX ${Date.now().toString().slice(-6)}`, mono: true },
+                  { label: "Nội dung CK", value: orderCode, mono: true },
                 ].map(({ label, value, mono }) => (
                   <div key={label} className="flex items-center justify-between px-4 py-2.5">
                     <span className="text-gray-500 text-xs">{label}</span>

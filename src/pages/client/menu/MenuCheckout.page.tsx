@@ -376,13 +376,18 @@ export default function MenuCheckoutPage() {
                     </p>
                     <div className="flex items-center justify-between mt-2.5">
                       <div className="flex items-center gap-1 border border-gray-200 rounded-lg overflow-hidden">
-                        <button onClick={() => item.quantity > 1 ? updateQuantity(item.cartKey, item.quantity - 1) : removeItem(item.cartKey)}
-                          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm">
-                          {item.quantity === 1 ? "×" : "−"}
-                        </button>
-                        <span className="w-6 text-center text-xs font-semibold select-none">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
-                          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm">+</button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const qty = parseInt(e.target.value, 10);
+                            if (!isNaN(qty) && qty >= 1) {
+                              updateQuantity(item.cartKey, qty);
+                            }
+                          }}
+                          className="w-12 text-center text-xs font-semibold border-0 outline-none"
+                        />
                       </div>
                       <span className="text-sm font-bold text-gray-900">{fmt(item.unitPrice * item.quantity)}</span>
                     </div>

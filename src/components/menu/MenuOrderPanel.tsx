@@ -117,13 +117,36 @@ export default function MenuOrderPanel({
                 </p>
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center gap-0.5 border border-gray-200 rounded-lg overflow-hidden">
-                    <button onClick={() => item.quantity > 1 ? updateQuantity(item.cartKey, item.quantity - 1) : removeItem(item.cartKey)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs">
+                    <button
+                      onClick={() => item.quantity > 1 ? updateQuantity(item.cartKey, item.quantity - 1) : removeItem(item.cartKey)}
+                      className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs"
+                    >
                       {item.quantity === 1 ? (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       ) : "−"}
                     </button>
-                    <span className="w-5 text-center text-[11px] font-semibold select-none">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs">+</button>
+
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => {
+                        const qty = parseInt(e.target.value, 10);
+                        if (!isNaN(qty) && qty >= 1) {
+                          updateQuantity(item.cartKey, qty);
+                        }
+                      }}
+                      className="w-10 text-center text-xs font-semibold border-0 outline-none appearance-none"
+                    />
+
+                    <button
+                      onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
+                      className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs"
+                    >
+                      +
+                    </button>
                   </div>
                   <span className="text-xs font-bold text-gray-900">{fmt(item.unitPrice * item.quantity)}</span>
                 </div>
