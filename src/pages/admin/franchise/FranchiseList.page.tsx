@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "../../../components";
 import type { ApiFranchise, CreateFranchisePayload } from "../../../services/store.service";
 import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise } from "../../../services/store.service";
-import { Link, useNavigate } from "react-router-dom";import { ROUTER_URL } from "../../../routes/router.const";
+import { Link, useNavigate } from "react-router-dom"; import { ROUTER_URL } from "../../../routes/router.const";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 
@@ -23,7 +23,7 @@ const FranchiseListPage = () => {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);  const [keyword, setKeyword] = useState("");
+  const [totalItems, setTotalItems] = useState(0); const [keyword, setKeyword] = useState("");
   const [isActive, setIsActive] = useState("");
   const [viewingFranchise, setViewingFranchise] = useState<ApiFranchise | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -176,80 +176,79 @@ const FranchiseListPage = () => {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-            <tr>
-              <th className="px-4 py-3">Mã</th>
-              <th className="px-4 py-3">Tên chi nhánh</th>
-              <th className="px-4 py-3">Hotline</th>
-              <th className="px-4 py-3">Giờ mở cửa</th>
-              <th className="px-4 py-3">Trạng thái</th>
-              <th className="px-4 py-3">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {franchises.map((f) => (
-              <tr key={f.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-mono text-xs text-slate-500">{f.code}</td>
-                <td className="px-4 py-3">
-                  <div className="leading-tight">
-                    <p className="font-semibold text-slate-900">{f.name}</p>
-                    <p className="text-xs text-slate-500">{f.address}</p>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-slate-700">{f.hotline || "-"}</td>
-                <td className="px-4 py-3 text-slate-700">{f.opened_at} - {f.closed_at}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                    f.is_active
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Mã</th>
+                <th className="px-4 py-3">Tên chi nhánh</th>
+                <th className="px-4 py-3">Hotline</th>
+                <th className="px-4 py-3">Giờ mở cửa</th>
+                <th className="px-4 py-3">Trạng thái</th>
+                <th className="px-4 py-3">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {franchises.map((f) => (
+                <tr key={f.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{f.code}</td>
+                  <td className="px-4 py-3">
+                    <div className="leading-tight">
+                      <p className="font-semibold text-slate-900">{f.name}</p>
+                      <p className="text-xs text-slate-500">{f.address}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">{f.hotline || "-"}</td>
+                  <td className="px-4 py-3 text-slate-700">{f.opened_at} - {f.closed_at}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${f.is_active
                       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                       : "border-slate-200 bg-slate-50 text-slate-600"
-                  }`}>
-                    {f.is_active ? "Hoạt động" : "Ngừng"}
-                  </span>
-                </td>                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      title="Xem chi tiết"
-                      onClick={() => handleViewDetail(f)}
-                      className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    <button
-                      title="Xóa franchise"
-                      onClick={() => handleDelete(f)}
-                      className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {franchises.length === 0 && !loading && (
-              <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
-                  Không có chi nhánh
-                </td>
-              </tr>
-            )}
-            {loading && (
-              <tr>
-                <td colSpan={6}>
-                  <div className="flex justify-center items-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                      }`}>
+                      {f.is_active ? "Hoạt động" : "Ngừng"}
+                    </span>
+                  </td>                <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        title="Xem chi tiết"
+                        onClick={() => handleViewDetail(f)}
+                        className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      <button
+                        title="Xóa franchise"
+                        onClick={() => handleDelete(f)}
+                        className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {franchises.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-sm text-slate-500">
+                    Không có chi nhánh
+                  </td>
+                </tr>
+              )}
+              {loading && (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
         <div className="px-4">
           <Pagination
@@ -271,11 +270,10 @@ const FranchiseListPage = () => {
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-mono text-slate-500">
                   {viewingFranchise.code}
                 </span>
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                  viewingFranchise.is_active
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-slate-50 text-slate-600"
-                }`}>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${viewingFranchise.is_active
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-slate-200 bg-slate-50 text-slate-600"
+                  }`}>
                   {viewingFranchise.is_active ? "Hoạt động" : "Ngừng"}
                 </span>
                 {loadingDetail && (
@@ -361,6 +359,23 @@ const FranchiseListPage = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   Chỉnh sửa
+                </button>
+                <button
+                  onClick={() => {
+                    setViewingFranchise(null);
+                    navigate(`${ROUTER_URL.ADMIN}/franchises/${viewingFranchise.id}/categories`);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50"
+                >
+                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 7h18M3 12h18M3 17h18"
+                    />
+                  </svg>
+                  Danh mục sản phẩm
                 </button>
                 <button
                   onClick={() => {
