@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 import type {
   OrderMode,
   DeliveryAddress,
@@ -7,7 +7,7 @@ import type {
   PaymentStatus,
   PaymentTransaction,
   Branch,
-} from "@/types/delivery.types";
+} from '@/types/delivery.types';
 import {
   validateDeliveryAddress,
   geocodeAddress,
@@ -27,7 +27,16 @@ interface DeliveryState {
   deliveryAddress: DeliveryAddress;
   validationResult: AddressValidationResult | null;
   isValidating: boolean;
-  isInitialized: boolean;
+
+
+  // Franchise selection for client menu
+  selectedFranchiseId: string | null;
+  selectedFranchiseName: string | null;
+
+  // ── Flags ─────────────────────────────────────────────────────────
+  isInitialized: boolean; // true after localStorage has been read
+
+  // ── Computed ─────────────────────────────────────────────────────
   isReadyToOrder: boolean;
   currentDeliveryFee: number;
   estimatedPrepMins: number;
@@ -38,6 +47,7 @@ interface DeliveryState {
   setSelectedBranch: (branch: Branch | null, clearCart?: () => void) => void;
   setDeliveryAddress: (address: string) => void;
   validateAddress: () => Promise<void>;
+  setSelectedFranchiseId: (id: string | null, name?: string | null) => void;
   placeOrder: (order: PlacedOrder) => void;
   updateOrderPayment: (
     orderId: string,
@@ -64,6 +74,8 @@ function _loadInitialState() {
   const saved = getItem<{
     orderMode: OrderMode;
     selectedBranchId: string | null;
+    selectedFranchiseId?: string | null;
+    selectedFranchiseName?: string | null;
     deliveryAddress: DeliveryAddress;
     validationResult: AddressValidationResult | null;
   }>(STORAGE_KEY_DELIVERY);
@@ -82,6 +94,8 @@ function _loadInitialState() {
   return {
     orderMode: mode,
     selectedBranch: branch,
+    selectedFranchiseId: saved.selectedFranchiseId ?? null,
+    selectedFranchiseName: saved.selectedFranchiseName ?? null,
     deliveryAddress: saved.deliveryAddress ?? { rawAddress: "", coord: null },
     validationResult: validation,
     isReadyToOrder: computeReady(mode, branch, validation),
@@ -96,6 +110,8 @@ function _loadInitialState() {
 export const useDeliveryStore = create<DeliveryState>((set, get) => ({
   orderMode: "DELIVERY",
   selectedBranch: null,
+  selectedFranchiseId: null,
+  selectedFranchiseName: null,
   deliveryAddress: { rawAddress: "", coord: null },
   validationResult: null,
   isValidating: false,
@@ -109,6 +125,8 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     const saved = getItem<{
       orderMode: OrderMode;
       selectedBranchId: string | null;
+      selectedFranchiseId?: string | null;
+      selectedFranchiseName?: string | null;
       deliveryAddress: DeliveryAddress;
       validationResult: AddressValidationResult | null;
     }>(STORAGE_KEY_DELIVERY);
@@ -127,6 +145,8 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
       set({
         orderMode: mode,
         selectedBranch: branch,
+        selectedFranchiseId: saved.selectedFranchiseId ?? null,
+        selectedFranchiseName: saved.selectedFranchiseName ?? null,
         deliveryAddress: saved.deliveryAddress ?? { rawAddress: "", coord: null },
         validationResult: validation,
         isValidating: false,
@@ -247,11 +267,11 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     const next = get().placedOrders.map((o) =>
       o.id === orderId
         ? {
-            ...o,
-            paymentStatus,
-            ...(transaction ? { transaction } : {}),
-            statusUpdatedAt: new Date().toISOString(),
-          }
+          ...o,
+          paymentStatus,
+          ...(transaction ? { transaction } : {}),
+          statusUpdatedAt: new Date().toISOString(),
+        }
         : o,
     );
     setItem(STORAGE_KEY_ORDERS, next);
@@ -292,6 +312,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     set({
       orderMode: "DELIVERY",
       selectedBranch: null,
+      selectedFranchiseId: null,
       deliveryAddress: { rawAddress: "", coord: null },
       validationResult: null,
       isValidating: false,
@@ -302,6 +323,11 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     });
     _persist(get);
   },
+
+  setSelectedFranchiseId: (id, name) => {
+    set({ selectedFranchiseId: id, selectedFranchiseName: name ?? null });
+    _persist(get);
+  },
 }));
 
 function _persist(get: () => DeliveryState) {
@@ -309,6 +335,8 @@ function _persist(get: () => DeliveryState) {
   setItem(STORAGE_KEY_DELIVERY, {
     orderMode: s.orderMode,
     selectedBranchId: s.selectedBranch?.id ?? null,
+    selectedFranchiseId: s.selectedFranchiseId,
+    selectedFranchiseName: s.selectedFranchiseName,
     deliveryAddress: s.deliveryAddress,
     validationResult: s.validationResult,
   });

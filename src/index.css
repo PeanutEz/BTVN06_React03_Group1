@@ -117,3 +117,109 @@ input[type="password"]::-webkit-textfield-decoration-container {
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* 3D Float Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  33%       { transform: translateY(-22px) scale(1.05); }
+  66%       { transform: translateY(10px) scale(0.97); }
+}
+
+.animate-float {
+  animation: float 7s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float 10s ease-in-out 1.5s infinite;
+}
+
+.animate-float-fast {
+  animation: float 5s ease-in-out 0.8s infinite;
+}
+
+/* slide-in for admin card */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(32px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Login page — card pop-in */
+@keyframes cardPopIn {
+  0%   { opacity: 0; transform: scale(0.7) translateY(30px); }
+  70%  { transform: scale(1.04) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-card-pop {
+  animation: cardPopIn 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Login page — background blob drift */
+@keyframes blobDrift {
+  0%,100% { transform: translate(0, 0) scale(1); }
+  25%     { transform: translate(40px, -30px) scale(1.08); }
+  50%     { transform: translate(-20px, 50px) scale(0.95); }
+  75%     { transform: translate(30px, 20px) scale(1.05); }
+}
+.animate-blob { animation: blobDrift 14s ease-in-out infinite; }
+.animate-blob-2 { animation: blobDrift 18s ease-in-out 3s infinite reverse; }
+.animate-blob-3 { animation: blobDrift 11s ease-in-out 6s infinite; }
+
+/* Login page — bounce float for action circles */
+@keyframes bouncefloat {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-12px); }
+}
+.animate-bouncefloat   { animation: bouncefloat 3s ease-in-out infinite; }
+.animate-bouncefloat-2 { animation: bouncefloat 3.8s ease-in-out 0.8s infinite; }
+
+/* Login button pulse glow */
+@keyframes btnGlow {
+  0%,100% { box-shadow: 4px 4px 12px rgba(238,9,121,0.35), -2px -2px 6px rgba(255,255,255,0.7); }
+  50%     { box-shadow: 0 0 28px 6px rgba(238,9,121,0.55), -2px -2px 6px rgba(255,255,255,0.7); }
+}
+.animate-btn-glow { animation: btnGlow 2s ease-in-out infinite; }
+
+/* =========================================
+   WATER / LIQUID theme (Login page)
+   ========================================= */
+
+/* Morphing water-drop shape */
+@keyframes waterMorph {
+  0%,100% { border-radius: 60% 40% 55% 45% / 55% 45% 60% 40%; }
+  20%     { border-radius: 45% 55% 38% 62% / 62% 38% 55% 45%; }
+  40%     { border-radius: 55% 45% 62% 38% / 38% 62% 45% 55%; }
+  60%     { border-radius: 62% 38% 48% 52% / 48% 52% 62% 38%; }
+  80%     { border-radius: 40% 60% 55% 45% / 60% 40% 42% 58%; }
+}
+.animate-water-morph {
+  animation: waterMorph 9s ease-in-out infinite;
+}
+
+/* Rising bubbles */
+@keyframes bubbleRise {
+  0%   { transform: translateY(0) scale(1); opacity: 0.8; }
+  70%  { opacity: 0.5; }
+  100% { transform: translateY(-105vh) scale(0.6); opacity: 0; }
+}
+.animate-bubble {
+  animation: bubbleRise linear infinite;
+}
+
+/* Bottom ocean wave (used via inline style name) */
+@keyframes waveRotate {
+  0%,100% { transform: translateX(-50%) rotate(0deg); }
+  50%     { transform: translateX(-50%) rotate(180deg); }
+}
+
+/* Ripple expand on button click */
+@keyframes rippleExpand {
+  0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.55; }
+  100% { transform: translate(-50%,-50%) scale(4); opacity: 0; }
+}
+.animate-ripple {
+  animation: rippleExpand 0.65s ease-out forwards;
+}
