@@ -5,6 +5,7 @@ import { fetchPayments } from "../../../services/payment.service";
 import { fetchCustomers } from "../../../services/customer.service";
 import { fetchStores } from "../../../services/store.service";
 import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
+import { adminInventoryService } from "../../../services/inventory.service";
 import type { OrderDisplay } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -21,6 +22,15 @@ type TopProduct = {
   revenue: number;
 };
 
+type LowStockItem = {
+  _id: string;
+  product_franchise_id: string;
+  quantity: number;
+  alert_threshold: number;
+  franchise_id: string;
+  store_name?: string;
+};
+
 const DashboardPage = () => {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -35,6 +45,7 @@ const DashboardPage = () => {
   const [loyaltyOverview, setLoyaltyOverview] = useState<LoyaltyOverview | null>(null);
   const [revenueChartData, setRevenueChartData] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [lowStocks, setLowStocks] = useState<LowStockItem[]>([]);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -46,6 +57,7 @@ const DashboardPage = () => {
         fetchStores(),
         fetchLoyaltyOverview(),
       ]);
+      console.log("STORES:", stores);
 
       const completedPayments = payments.filter(
         (p) => p.status === "COMPLETED"
@@ -59,21 +71,25 @@ const DashboardPage = () => {
       const revenueByDate: Record<string, number> = {};
 
       completedPayments.forEach((p) => {
-        const date = new Date(p.created_at).toLocaleDateString("vi-VN");
+        const dateKey = p.created_at.split("T")[0];
 
-        if (!revenueByDate[date]) {
-          revenueByDate[date] = 0;
+        if (!revenueByDate[dateKey]) {
+          revenueByDate[dateKey] = 0;
         }
 
-        revenueByDate[date] += p.amount;
+        revenueByDate[dateKey] += p.amount;
       });
 
-      const chartData: RevenueChart[] = Object.entries(revenueByDate).map(
-        ([date, revenue]) => ({
+      const chartData: RevenueChart[] = Object.entries(revenueByDate)
+        .map(([date, revenue]) => ({
           date,
           revenue,
-        })
-      );
+        }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .map((item) => ({
+          ...item,
+          date: new Date(item.date).toLocaleDateString("vi-VN"),
+        }));
 
       setRevenueChartData(chartData);
 
@@ -109,6 +125,28 @@ const DashboardPage = () => {
         .slice(0, 5);
 
       setTopProducts(top);
+
+      const lowStockResults = await Promise.all(
+        stores.map(async (store: any) => {
+          try {
+            if (!store?.id) return [];
+
+            const items = await adminInventoryService.getLowStockByFranchise(store.id);
+
+            return items.map((item: any) => ({
+              ...item,
+              franchise_id: store.id,
+              store_name: store.name,
+            }));
+          } catch (err) {
+            console.error("Low stock error:", store.id, err);
+            return [];
+          }
+        })
+      );
+
+      const mergedLowStocks = lowStockResults.flat();
+      setLowStocks(mergedLowStocks);
 
       setStats({
         totalOrders: orders.length,
@@ -362,6 +400,57 @@ const DashboardPage = () => {
             </table>
           </div>
         </div>
+      </div>
+
+      {/* Low Stock Alert */}
+      <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-lg font-semibold text-red-700">
+          ⚠️ Cảnh báo tồn kho thấp
+        </h2>
+
+        {lowStocks.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            Không có sản phẩm nào sắp hết hàng
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-slate-500">
+                  <th className="pb-3">#</th>
+                  <th className="pb-3">Store</th>
+                  <th className="pb-3">Product Franchise ID</th>
+                  <th className="pb-3">Tồn kho</th>
+                  <th className="pb-3">Ngưỡng cảnh báo</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {lowStocks.map((item, index) => (
+                  <tr key={item._id} className="border-b hover:bg-red-50">
+                    <td className="py-3">{index + 1}</td>
+
+                    <td className="py-3 font-medium">
+                      {item.store_name}
+                    </td>
+
+                    <td className="py-3">
+                      {item.product_franchise_id}
+                    </td>
+
+                    <td className="py-3 text-red-600 font-semibold">
+                      {item.quantity}
+                    </td>
+
+                    <td className="py-3">
+                      {item.alert_threshold}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Recent Orders */}
