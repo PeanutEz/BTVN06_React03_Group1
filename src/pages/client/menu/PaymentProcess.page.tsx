@@ -4,15 +4,23 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ROUTER_URL } from "@/routes/router.const";
 import { useDeliveryStore } from "@/store/delivery.store";
-import { cancelPayment, retryPayment, verifyPayment } from "@/services/payment.service";
+import {
+  cancelPayment,
+  retryPayment,
+  verifyPayment,
+} from "@/services/payment.service";
 import { PAYMENT_STATUS_CONFIG } from "@/types/delivery.types";
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
+  new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+  }).format(n);
 
 export default function PaymentProcessPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+
   const { hydrate, placedOrders, updateOrderPayment } = useDeliveryStore();
 
   const [submitting, setSubmitting] = useState(false);
@@ -21,18 +29,23 @@ export default function PaymentProcessPage() {
     hydrate();
   }, [hydrate]);
 
-  const order = useMemo(
+  const foundOrder = useMemo(
     () => placedOrders.find((o) => o.id === orderId),
     [placedOrders, orderId],
   );
 
-  if (!order) {
+  if (!foundOrder) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white border rounded-2xl p-6 text-center max-w-md">
           <div className="text-5xl mb-3">🔍</div>
-          <h1 className="text-xl font-bold text-gray-900">Không tìm thấy đơn hàng</h1>
-          <p className="text-sm text-gray-500 mt-2 mb-5">Đơn hàng không tồn tại hoặc đã bị xoá.</p>
+          <h1 className="text-xl font-bold text-gray-900">
+            Không tìm thấy đơn hàng
+          </h1>
+          <p className="text-sm text-gray-500 mt-2 mb-5">
+            Đơn hàng không tồn tại hoặc đã bị xoá.
+          </p>
+
           <Link
             to={ROUTER_URL.MENU}
             className="inline-flex px-5 py-3 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600"
@@ -44,30 +57,43 @@ export default function PaymentProcessPage() {
     );
   }
 
+  const order = foundOrder;
   const paymentCfg = PAYMENT_STATUS_CONFIG[order.paymentStatus];
 
   async function handleConfirmPaid() {
+    const currentOrder = order;
+
     setSubmitting(true);
+
     try {
-      const status = await verifyPayment(order);
+      const status = await verifyPayment(currentOrder);
 
       if (status === "PAID") {
-        updateOrderPayment(order.id, "PAID", {
-          ...order.transaction!,
+        updateOrderPayment(currentOrder.id, "PAID", {
+          ...currentOrder.transaction!,
           status: "PAID",
           paidAt: new Date().toISOString(),
         });
+
         toast.success("Thanh toán thành công!");
-        navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", order.id));
+
+        navigate(
+          ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", currentOrder.id),
+        );
+
         return;
       }
 
-      updateOrderPayment(order.id, "FAILED", {
-        ...order.transaction!,
+      updateOrderPayment(currentOrder.id, "FAILED", {
+        ...currentOrder.transaction!,
         status: "FAILED",
       });
+
       toast.error("Thanh toán thất bại");
-      navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", order.id));
+
+      navigate(
+        ROUTER_URL.PAYMENT_FAILED.replace(":orderId", currentOrder.id),
+      );
     } catch (error) {
       console.error(error);
       toast.error("Không thể xác minh thanh toán");
@@ -77,15 +103,18 @@ export default function PaymentProcessPage() {
   }
 
   async function handleRetry() {
-    setSubmitting(true);
-    try {
-      const next = await retryPayment(order);
+    const currentOrder = order;
 
-      updateOrderPayment(order.id, "PENDING", {
+    setSubmitting(true);
+
+    try {
+      const next = await retryPayment(currentOrder);
+
+      updateOrderPayment(currentOrder.id, "PENDING", {
         transactionId: next.transactionId,
-        provider: order.paymentMethod,
+        provider: currentOrder.paymentMethod,
         status: "PENDING",
-        amount: order.total,
+        amount: currentOrder.total,
         createdAt: new Date().toISOString(),
         qrCodeUrl: next.qrCodeUrl,
         deeplink: next.deeplink,
@@ -103,17 +132,23 @@ export default function PaymentProcessPage() {
   }
 
   async function handleCancelPayment() {
+    const currentOrder = order;
+
     setSubmitting(true);
+
     try {
       const status = await cancelPayment();
 
-      updateOrderPayment(order.id, status, {
-        ...order.transaction!,
+      updateOrderPayment(currentOrder.id, status, {
+        ...currentOrder.transaction!,
         status,
       });
 
       toast.success("Đã huỷ thanh toán");
-      navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", order.id));
+
+      navigate(
+        ROUTER_URL.PAYMENT_FAILED.replace(":orderId", currentOrder.id),
+      );
     } catch (error) {
       console.error(error);
       toast.error("Không thể huỷ thanh toán");
@@ -126,20 +161,32 @@ export default function PaymentProcessPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <nav className="flex items-center gap-2 text-sm text-gray-400 mb-5">
-          <Link to={ROUTER_URL.HOME} className="hover:text-gray-600">Trang chủ</Link>
+          <Link to={ROUTER_URL.HOME} className="hover:text-gray-600">
+            Trang chủ
+          </Link>
           <span>/</span>
-          <Link to={ROUTER_URL.MENU} className="hover:text-gray-600">Menu</Link>
+          <Link to={ROUTER_URL.MENU} className="hover:text-gray-600">
+            Menu
+          </Link>
           <span>/</span>
-          <span className="text-gray-900 font-medium">Thanh toán #{order.code}</span>
+          <span className="text-gray-900 font-medium">
+            Thanh toán #{order.code}
+          </span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className="flex items-start justify-between gap-3 mb-5">
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Hoàn tất thanh toán</h1>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Hoàn tất thanh toán
+                </h1>
+
                 <p className="text-sm text-gray-500 mt-1">
-                  Mã đơn <span className="font-semibold text-amber-700">{order.code}</span>
+                  Mã đơn{" "}
+                  <span className="font-semibold text-amber-700">
+                    {order.code}
+                  </span>
                 </p>
               </div>
 
@@ -158,6 +205,7 @@ export default function PaymentProcessPage() {
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-gray-400 mb-1">Phương thức</p>
+
                   <p className="font-semibold text-gray-900">
                     {order.paymentMethod === "BANK" && "🏦 Chuyển khoản / QR"}
                     {order.paymentMethod === "MOMO" && "🟣 Ví MoMo"}
@@ -168,12 +216,16 @@ export default function PaymentProcessPage() {
 
                 <div>
                   <p className="text-xs text-gray-400 mb-1">Số tiền</p>
-                  <p className="text-2xl font-bold text-amber-600">{fmt(order.total)}</p>
+
+                  <p className="text-2xl font-bold text-amber-600">
+                    {fmt(order.total)}
+                  </p>
                 </div>
 
                 {order.transaction?.transactionId && (
                   <div>
                     <p className="text-xs text-gray-400 mb-1">Mã giao dịch</p>
+
                     <p className="font-mono text-sm font-semibold text-gray-900">
                       {order.transaction.transactionId}
                     </p>
@@ -204,6 +256,7 @@ export default function PaymentProcessPage() {
                       alt="QR thanh toán"
                       className="w-64 h-64 rounded-xl border bg-white object-cover"
                     />
+
                     <p className="text-xs text-gray-500 mt-3 text-center">
                       Quét mã QR để thanh toán đơn hàng
                     </p>
@@ -211,6 +264,7 @@ export default function PaymentProcessPage() {
                 ) : (
                   <div className="text-center py-10">
                     <div className="text-5xl mb-3">💳</div>
+
                     <p className="text-sm text-gray-600">
                       Xác nhận thanh toán để tiếp tục xử lý đơn hàng
                     </p>
@@ -247,7 +301,9 @@ export default function PaymentProcessPage() {
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-fit">
-            <h2 className="font-semibold text-gray-900 mb-4">Tóm tắt đơn hàng</h2>
+            <h2 className="font-semibold text-gray-900 mb-4">
+              Tóm tắt đơn hàng
+            </h2>
 
             <div className="space-y-3">
               {order.items.map((item) => (
@@ -257,9 +313,15 @@ export default function PaymentProcessPage() {
                     alt={item.name}
                     className="w-12 h-12 rounded-lg object-cover border"
                   />
+
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-                    <p className="text-xs text-gray-500">x{item.quantity}</p>
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {item.name}
+                    </p>
+
+                    <p className="text-xs text-gray-500">
+                      x{item.quantity}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -270,14 +332,17 @@ export default function PaymentProcessPage() {
                 <span className="text-gray-500">Tạm tính</span>
                 <span>{fmt(order.subtotal)}</span>
               </div>
+
               <div className="flex justify-between">
                 <span className="text-gray-500">Phí giao hàng</span>
                 <span>{fmt(order.deliveryFee)}</span>
               </div>
+
               <div className="flex justify-between">
                 <span className="text-gray-500">VAT</span>
                 <span>{fmt(order.vatAmount)}</span>
               </div>
+
               <div className="flex justify-between text-base font-bold text-gray-900 pt-2 border-t">
                 <span>Tổng thanh toán</span>
                 <span>{fmt(order.total)}</span>
