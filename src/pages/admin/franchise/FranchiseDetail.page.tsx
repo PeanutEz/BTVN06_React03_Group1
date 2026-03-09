@@ -6,7 +6,6 @@ import {
   getFranchiseById,
   deleteFranchise,
   changeFranchiseStatus,
-  restoreFranchise,
 } from "../../../services/store.service";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { fetchInventoryByStore } from "../../../services/inventory.service";
