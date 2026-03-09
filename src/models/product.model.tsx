@@ -355,3 +355,27 @@ export interface ProductFranchiseSearchResponse {
     totalPages: number;
   };
 }
+
+// DTO for PRODUCT-FRANCHISE-04 — Update Item (PUT /api/product-franchises/:id)
+// All fields optional so we can send partial updates if backend allows.
+export interface UpdateProductFranchiseDto {
+  franchise_id?: string;
+  product_id?: string;
+  size?: string;
+  price_base?: number;
+}
+
+// DTO for PRODUCT-FRANCHISE-07 — Change Status Item
+// PATCH /api/product-franchises/status  |  Role: ADMIN, MANAGER  |  Token: required
+export interface ChangeProductFranchiseStatusDto {
+  id: string;        // required
+  is_active: boolean; // required
+}
+
+// Query params for PRODUCT-FRANCHISE-08 — Get Products by Franchise
+// GET /api/product-franchises/franchise/:franchiseId?onlyActive=true&productId=
+export interface GetProductsByFranchiseQuery {
+  franchiseId: string;
+  onlyActive?: boolean;
+  productId?: string;
+}

@@ -5,13 +5,16 @@ import type { InventoryItem } from "../../../models/inventory.model";
 import { isLowStock } from "../../../models/inventory.model";
 import { fetchInventoryByStore, updateInventoryStock } from "../../../services/inventory.service";
 import { fetchStoreById } from "../../../services/store.service";
+import { ProductFranchisePriceModal } from "@/components/product";
 
 const InventoryByFranchisePage = () => {
   const { id } = useParams();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [storeName, setStoreName] = useState<string>("");  const lastId = useRef<string | undefined>(undefined);
+  const [storeName, setStoreName] = useState<string>("");
+  const lastId = useRef<string | undefined>(undefined);
+  const [priceTarget, setPriceTarget] = useState<{ productId: string; productName: string } | null>(null);
   const load = async () => {
     if (!id) return;
     setLoading(true);
@@ -111,15 +114,25 @@ const InventoryByFranchisePage = () => {
                   <td className="px-4 py-3 text-right text-slate-700">
                     {item.minStock.toLocaleString()} {item.unit}
                   </td>
-                  <td className="px-4 py-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleUpdateStock(item)}
-                      loading={updatingId === item.id}
-                    >
-                      Điều chỉnh
-                    </Button>
+                  <td className="px-4 py-3 space-y-1">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleUpdateStock(item)}
+                        loading={updatingId === item.id}
+                      >
+                        Điều chỉnh tồn
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-amber-200 text-amber-600 hover:bg-amber-50"
+                        onClick={() => setPriceTarget({ productId: item.productId, productName: item.productName })}
+                      >
+                        Giá bán
+                      </Button>
+                    </div>
                     <p className="mt-1 text-xs text-slate-400">
                       Cập nhật: {new Date(item.updatedAt).toLocaleString("vi-VN")}
                     </p>
@@ -146,9 +159,16 @@ const InventoryByFranchisePage = () => {
         </table>
         </div>
       </div>
+      {priceTarget && id && (
+        <ProductFranchisePriceModal
+          productId={priceTarget.productId}
+          productName={priceTarget.productName}
+          defaultFranchiseId={id}
+          onClose={() => setPriceTarget(null)}
+        />
+      )}
     </div>
   );
 };
 
 export default InventoryByFranchisePage;
-

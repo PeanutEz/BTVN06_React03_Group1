@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { adminProductService, categories } from "@/services/product.service";
 import type { Product, ProductQueryParams } from "@/models/product.model";
 import { toast } from "sonner";
-import { ProductModal } from "@/components/product";
+import { ProductModal, ProductFranchisePriceModal } from "@/components/product";
 
 export default function ProductListPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -34,6 +34,7 @@ export default function ProductListPage() {
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>();
   const lastParamsRef = useRef<string | null>(null);
+  const [priceProduct, setPriceProduct] = useState<Product | null>(null);
 
   // Fetch products
   const fetchProducts = async () => {
@@ -447,6 +448,13 @@ export default function ProductListPage() {
                             </svg>
                           </button>
                           <button
+                            title="Giá theo chi nhánh"
+                            onClick={() => setPriceProduct(product)}
+                            className="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-medium text-amber-600 hover:border-amber-400 hover:bg-amber-50 transition-colors"
+                          >
+                            🏪 Giá chi nhánh
+                          </button>
+                          <button
                             title="Xóa sản phẩm"
                             onClick={() => handleDelete(product.id)}
                             className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
@@ -533,6 +541,15 @@ export default function ProductListPage() {
           product={editingProduct}
           onClose={handleCloseModal}
           onSave={handleSaveProduct}
+        />
+      )}
+
+      {/* Modal giá theo chi nhánh */}
+      {priceProduct && (
+        <ProductFranchisePriceModal
+          productId={priceProduct.id.toString()}
+          productName={priceProduct.name}
+          onClose={() => setPriceProduct(null)}
         />
       )}
 
