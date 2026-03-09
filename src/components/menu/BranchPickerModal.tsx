@@ -5,6 +5,8 @@ import { branches, isBranchOpen } from "@/services/branch.service";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAddressStore } from "@/store/address.store";
+import { clientService } from "@/services/client.service";
+import type { ClientFranchiseItem } from "@/models/store.model";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -24,16 +26,24 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
     setSelectedBranch,
     setDeliveryAddress,
     validateAddress,
+    selectedFranchiseId,
+    setSelectedFranchiseId,
   } = useDeliveryStore();
 
   const clearCart = useMenuCartStore((s) => s.clearCart);
   const { addresses, add: addAddress } = useAddressStore();
 
-  const [activeTab, setActiveTab] = useState<OrderMode>(orderMode);
+  // Hiện tại chỉ hỗ trợ GIAO HÀNG, tab LẤY TẠI CỬA HÀNG tạm thời ẩn đi.
+  const [activeTab, setActiveTab] = useState<OrderMode>("DELIVERY");
   const [addressInput, setAddressInput] = useState(deliveryAddress.rawAddress);
   const [cityFilter, setCityFilter] = useState("all");
   const pendingConfirm = useRef(false);
   const [loadingAddrId, setLoadingAddrId] = useState<number | null>(null);
+
+  // Franchise selection (shared concept với Menu page)
+  const [franchises, setFranchises] = useState<ClientFranchiseItem[]>([]);
+  const [loadingFranchises, setLoadingFranchises] = useState(false);
+  const [franchiseError, setFranchiseError] = useState<string | null>(null);
 
   // Add-new-address form state
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
@@ -50,6 +60,34 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
       }
     }
   }, [isValidating, validationResult]);
+
+  // Load franchises for selection (CLIENT-01)
+  useEffect(() => {
+    let alive = true;
+    setLoadingFranchises(true);
+    setFranchiseError(null);
+
+    clientService
+      .getAllFranchises()
+      .then((data) => {
+        if (!alive) return;
+        setFranchises(data);
+      })
+      .catch((e: unknown) => {
+        if (!alive) return;
+        const msg = e instanceof Error ? e.message : "Không tải được danh sách franchise";
+        setFranchiseError(msg);
+        setFranchises([]);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setLoadingFranchises(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const cities = Array.from(new Set(branches.map((b) => b.city)));
   const filteredBranches = branches.filter(
@@ -77,6 +115,13 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
 
   const isOpen = isBranchOpen;
 
+  const franchisePlaceholder =
+    franchises.length > 0
+      ? "Chọn franchise..."
+      : loadingFranchises
+        ? "Đang tải franchise..."
+        : "Chọn franchise...";
+
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
       {/* Backdrop */}
@@ -92,7 +137,9 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Chọn phương thức đặt hàng</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Giao hàng hoặc đến lấy tại cửa hàng</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Hiện tại chỉ hỗ trợ giao hàng. Vui lòng chọn franchise trước khi tiếp tục.
+              </p>
             </div>
             <button
               onClick={onClose}
@@ -104,28 +151,58 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
             </button>
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-2">
-            {(
-              [
-                { tab: "DELIVERY" as OrderMode, icon: "🛵", label: "Giao hàng" },
-                { tab: "PICKUP" as OrderMode, icon: "🏪", label: "Lấy tại cửa hàng" },
-              ] as const
-            ).map(({ tab, icon, label }) => (
-              <button
-                key={tab}
-                onClick={() => handleTabChange(tab)}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200",
-                  activeTab === tab
-                    ? "bg-amber-500 text-white shadow-sm shadow-amber-200"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200",
-                )}
+          {/* Tabs + Franchise selector on the same row */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
+            <div className="flex gap-2 sm:w-auto">
+              {(
+                [
+                  { tab: "DELIVERY" as OrderMode, icon: "🛵", label: "Giao hàng" },
+                ] as const
+              ).map(({ tab, icon, label }) => (
+                <button
+                  key={tab}
+                  onClick={() => handleTabChange(tab)}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all duration-200",
+                    activeTab === tab
+                      ? "bg-amber-500 text-white shadow-sm shadow-amber-200"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                  )}
+                >
+                  <span>{icon}</span>
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Franchise selector */}
+            <div className="flex-1 space-y-1">
+              <label className="block text-xs font-semibold text-gray-500">
+                Franchise *
+              </label>
+              <select
+                value={selectedFranchiseId ?? ""}
+                onChange={(e) => {
+                  const id = e.target.value || null;
+                  const f = franchises.find((x) => String(x.id) === String(id));
+                  setSelectedFranchiseId(id, f?.name ?? null);
+                }}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                disabled={loadingFranchises && franchises.length === 0}
               >
-                <span>{icon}</span>
-                <span>{label}</span>
-              </button>
-            ))}
+                <option value="" disabled={franchises.length === 0}>
+                  {franchisePlaceholder}
+                </option>
+                {franchises.map((f) => (
+                  <option key={String(f.id)} value={String(f.id)}>
+                    {f.name} ({f.code})
+                  </option>
+                ))}
+              </select>
+              {franchiseError && (
+                <p className="text-[11px] text-red-500 mt-0.5">{franchiseError}</p>
+              )}
+            </div>
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { clientService } from "@/services/client.service";
 import type { ClientCategoryByFranchiseItem, ClientFranchiseItem } from "@/models/store.model";
 import type { ClientProductDetailResponse, ClientProductListItem } from "@/models/product.model";
+import { useDeliveryStore } from "@/store/delivery.store";
 
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -37,6 +38,7 @@ function EmptyState({
   );
 }
 
+
 function ProductDetailModal({
   open,
   loading,
@@ -58,6 +60,7 @@ function ProductDetailModal({
   }, [open]);
 
   if (!open) return null;
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -176,42 +179,48 @@ export default function MenuPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  // Global franchise selection (from BranchPickerModal)
+  const { selectedFranchiseId } = useDeliveryStore();
+
   // Prevent duplicate calls + handle stale responses
   const categoriesReqKeyRef = useRef<string | null>(null);
   const productsReqKeyRef = useRef<string | null>(null);
   const detailReqKeyRef = useRef<string | null>(null);
-  const mountedRef = useRef<boolean>(false);
+  const franchisesLoadedRef = useRef<boolean>(false);
 
   // BƯỚC 1 – LOAD FRANCHISE
   useEffect(() => {
-    if (mountedRef.current) return;
-    mountedRef.current = true;
+    // Ensure we only trigger this once even under React.StrictMode
+    if (franchisesLoadedRef.current) return;
+    franchisesLoadedRef.current = true;
 
-    let alive = true;
     setLoading("franchises");
     setError(null);
 
     clientService
       .getAllFranchises()
       .then((data) => {
-        if (!alive) return;
         setFranchises(data);
       })
       .catch((e: unknown) => {
-        if (!alive) return;
         const msg = e instanceof Error ? e.message : "Không tải được danh sách franchise";
         setError(msg);
         setFranchises([]);
       })
       .finally(() => {
-        if (!alive) return;
         setLoading(null);
       });
-
-    return () => {
-      alive = false;
-    };
   }, []);
+
+  // Sync selectedFranchise with global selectedFranchiseId
+  useEffect(() => {
+    if (!selectedFranchiseId) {
+      setSelectedFranchise(null);
+      return;
+    }
+    const next = franchises.find((f) => String(f.id) === String(selectedFranchiseId)) ?? null;
+    setSelectedFranchise(next ? { ...next, id: String(next.id) } : null);
+  }, [selectedFranchiseId, franchises]);
 
   // BƯỚC 2 – SAU KHI CHỌN FRANCHISE → load categories, sort by display_order, auto-select first
   useEffect(() => {
@@ -222,11 +231,19 @@ export default function MenuPage() {
       setSelectedCategory(null);
       setProducts([]);
       setCategoriesLoadedForFranchiseId(null);
+      // Reset request keys so re-selecting the same franchise will refetch properly
+      categoriesReqKeyRef.current = null;
+      productsReqKeyRef.current = null;
       return;
     }
 
-    // Avoid duplicate API call for the same franchiseId
-    if (categoriesReqKeyRef.current === franchiseId) return;
+    // Avoid duplicate API call for the same franchiseId only when we already have data for it.
+    // (If user cleared selection then re-selected the same franchise, we should refetch.)
+    const alreadyLoadedThisFranchise =
+      categoriesReqKeyRef.current === franchiseId &&
+      categoriesLoadedForFranchiseId === franchiseId &&
+      categories.length > 0;
+    if (alreadyLoadedThisFranchise) return;
     categoriesReqKeyRef.current = franchiseId;
 
     let alive = true;
@@ -314,9 +331,6 @@ export default function MenuPage() {
   }, [selectedFranchise?.id, selectedCategory?.category_id]);
 
   // Derived UI helpers
-  // If franchises already loaded, prefer showing the real placeholder so UI becomes interactive
-  const franchisePlaceholder = franchises.length > 0 ? "Chọn franchise..." : (loading === "franchises" ? "Đang tải franchise..." : "Chọn franchise...");
-
   const canShowMenu = selectedFranchise !== null;
   const showLoadingSkeleton = loading === "products";
 
@@ -377,32 +391,9 @@ export default function MenuPage() {
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Menu</h1>
-                <p className="text-sm text-gray-500 mt-0.5">Vui lòng chọn franchise trước khi xem thực đơn</p>
-              </div>
-
-              {/* Dropdown chọn Franchise */}
-              <div className="min-w-[240px]">
-                <label className="block text-xs font-semibold text-gray-500 mb-1">Franchise *</label>
-                <select
-                  value={selectedFranchise?.id ?? ""}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    const next = franchises.find((f) => f.id === id) ?? null;
-                    setSelectedFranchise(next);
-                    // NOTE: downstream reset happens in effect, not here (avoid duplicate API calls)
-                  }}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
-                  disabled={loading === "franchises" && franchises.length === 0}
-                >
-                  <option value="" disabled={franchises.length === 0}>
-                    {franchisePlaceholder}
-                  </option>
-                  {franchises.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} ({f.code})
-                    </option>
-                  ))}
-                </select>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  {selectedFranchise ? `Đang xem franchise: ${selectedFranchise.name}` : "Vui lòng chọn franchise trong bước chọn phương thức đặt hàng để xem thực đơn."}
+                </p>
               </div>
             </div>
 
