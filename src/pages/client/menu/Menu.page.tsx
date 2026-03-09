@@ -190,11 +190,10 @@ export default function MenuPage() {
     let alive = true;
     setLoading("franchises");
     setError(null);
-  console.debug("MenuPage: start loading franchises");
+
     clientService
       .getAllFranchises()
       .then((data) => {
-        console.debug("MenuPage: getAllFranchises resolved, count=", data.length);
         if (!alive) return;
         setFranchises(data);
       })
@@ -205,7 +204,6 @@ export default function MenuPage() {
         setFranchises([]);
       })
       .finally(() => {
-        console.debug("MenuPage: getAllFranchises finally — clearing loading state");
         if (!alive) return;
         setLoading(null);
       });
@@ -396,7 +394,9 @@ export default function MenuPage() {
                   className="w-full px-3 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
                   disabled={loading === "franchises" && franchises.length === 0}
                 >
-                  <option value="">{franchisePlaceholder}</option>
+                  <option value="" disabled={franchises.length === 0}>
+                    {franchisePlaceholder}
+                  </option>
                   {franchises.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.name} ({f.code})
