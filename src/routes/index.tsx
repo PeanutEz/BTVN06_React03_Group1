@@ -33,6 +33,9 @@ const CustomerChangePasswordPage = React.lazy(() => import("../pages/client/cust
 const MenuPage = React.lazy(() => import("../pages/client/menu/Menu.page"));
 const MenuCheckoutPage = React.lazy(() => import("../pages/client/menu/MenuCheckout.page"));
 const OrderStatusPage = React.lazy(() => import("../pages/client/menu/OrderStatus.page"));
+const PaymentProcessPage = React.lazy(() => import("../pages/client/menu/PaymentProcess.page"));
+const PaymentSuccessPage = React.lazy(() => import("../pages/client/menu/PaymentSuccess.page"));
+const PaymentFailedPage = React.lazy(() => import("../pages/client/menu/PaymentFailed.page"));
 const ReceivingSetupPage = React.lazy(() => import("../pages/client/ReceivingSetup.page"));
 const CheckoutPage = React.lazy(() => import("../pages/client/Checkout.page"));
 const InboxPage = React.lazy(() => import("../pages/client/inbox/Inbox.page"));
@@ -68,6 +71,9 @@ function AppRoutes() {
             <Route element={<ReceivingGuard />}>
               <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPage />} />
               <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
+              <Route path={ROUTER_URL.PAYMENT_PROCESS} element={<PaymentProcessPage />} />
+              <Route path={ROUTER_URL.PAYMENT_SUCCESS} element={<PaymentSuccessPage />} />
+              <Route path={ROUTER_URL.PAYMENT_FAILED} element={<PaymentFailedPage />} />
             </Route>
           </Route>
 

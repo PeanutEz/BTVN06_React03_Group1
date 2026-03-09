@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { ROUTER_URL } from "@/routes/router.const";
 import type { PlacedOrder, PaymentMethod, AppliedPromo } from "@/types/delivery.types";
 import type { MenuCartItem } from "@/types/menu.types";
 import { menuProducts } from "@/services/menu.service";
+import { createPayment } from "@/services/payment.service";
 
 const VAT_RATE = 0.08; // 8% VAT
 
@@ -64,7 +65,7 @@ export default function MenuCheckoutPage() {
   const {
     orderMode, selectedBranch, deliveryAddress,
     currentDeliveryFee, estimatedPrepMins, estimatedDeliveryMins,
-    placeOrder,
+    placeOrder, updateOrderPayment,
   } = useDeliveryStore();
   const user = useAuthStore((s) => s.user);
 
@@ -166,53 +167,86 @@ export default function MenuCheckoutPage() {
     : null;
 
   async function handleOrder() {
-    if (!validate() || !canPlace || !selectedBranch) return;
+    if (!validate() || !canPlace || !selectedBranch || isOrdering) return;
+
     setIsOrdering(true);
-    await new Promise((r) => setTimeout(r, 800));
 
-    const orderId = `ORD-${Date.now()}`;
-    const orderCode = `WBS${Math.floor(100000 + Math.random() * 900000)}`;
-    const now = new Date().toISOString();
+    try {
+      const orderId = `ORD-${Date.now()}`;
+      const orderCode = `WBS${Math.floor(100000 + Math.random() * 900000)}`;
+      const now = new Date().toISOString();
 
-    const order: PlacedOrder = {
-      id: orderId,
-      code: orderCode,
-      branchId: selectedBranch.id,
-      branchName: selectedBranch.name,
-      mode: orderMode,
-      status: "PENDING",
-      customerName: form.name.trim(),
-      customerPhone: form.phone.trim(),
-      ...(orderMode === "DELIVERY" && deliveryAddress.rawAddress
-        ? { deliveryAddress: deliveryAddress.rawAddress }
-        : {}),
-      paymentMethod: form.paymentMethod,
-      ...(appliedPromo ? { promo: appliedPromo } : {}),
-      vatAmount,
-      items: items.map((item) => ({
-        cartKey: item.cartKey,
-        productId: item.productId,
-        name: item.name,
-        image: item.image,
-        options: item.options,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      })),
-      subtotal,
-      deliveryFee,
-      total,
-      ...(form.note.trim() ? { note: form.note.trim() } : {}),
-      prepTimeMins: estimatedPrepMins,
-      deliveryTimeMins: estimatedDeliveryMins,
-      createdAt: now,
-      statusUpdatedAt: now,
-    };
+      const order: PlacedOrder = {
+        id: orderId,
+        code: orderCode,
+        branchId: selectedBranch.id,
+        branchName: selectedBranch.name,
+        mode: orderMode,
+        status: "PENDING",
+        customerName: form.name.trim(),
+        customerPhone: form.phone.trim(),
+        ...(orderMode === "DELIVERY" && deliveryAddress.rawAddress
+          ? { deliveryAddress: deliveryAddress.rawAddress }
+          : {}),
+        paymentMethod: form.paymentMethod,
+        paymentStatus: form.paymentMethod === "CASH" ? "UNPAID" : "PENDING",
+        ...(appliedPromo ? { promo: appliedPromo } : {}),
+        vatAmount,
+        items: items.map((item) => ({
+          cartKey: item.cartKey,
+          productId: item.productId,
+          name: item.name,
+          image: item.image,
+          options: item.options,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        })),
+        subtotal,
+        deliveryFee,
+        total,
+        ...(form.note.trim() ? { note: form.note.trim() } : {}),
+        prepTimeMins: estimatedPrepMins,
+        deliveryTimeMins: estimatedDeliveryMins,
+        createdAt: now,
+        statusUpdatedAt: now,
+      };
 
-    placeOrder(order);
-    clearCart();
-    setIsOrdering(false);
-    toast.success("Đặt hàng thành công! 🎉");
-    navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId));
+      placeOrder(order);
+
+      if (form.paymentMethod === "CASH") {
+        clearCart();
+        toast.success("Đặt hàng thành công! Thanh toán khi nhận hàng 🎉");
+        navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId));
+        return;
+      }
+
+      const payment = await createPayment({
+        orderId,
+        method: form.paymentMethod,
+        amount: total,
+      });
+
+      updateOrderPayment(orderId, payment.status, {
+        transactionId: payment.transactionId,
+        provider: form.paymentMethod,
+        status: payment.status,
+        amount: total,
+        createdAt: new Date().toISOString(),
+        qrCodeUrl: payment.qrCodeUrl,
+        deeplink: payment.deeplink,
+        paymentUrl: payment.paymentUrl,
+        note: payment.note,
+      });
+
+      clearCart();
+      toast.success("Đã tạo giao dịch thanh toán");
+      navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", orderId));
+    } catch (error) {
+      console.error(error);
+      toast.error("Không thể khởi tạo thanh toán. Vui lòng thử lại.");
+    } finally {
+      setIsOrdering(false);
+    }
   }
 
   if (items.length === 0) {

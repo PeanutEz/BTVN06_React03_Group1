@@ -1,6 +1,8 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
-import { useAuthStore } from "../../store";
+import { useAuthStore, useFranchiseStore } from "../../store";
+import { logoutUser } from "../../services/auth.service";
+import { showSuccess } from "../../utils";
 
 const adminNav: Array<{
   label: string;
@@ -225,44 +227,35 @@ interface AdminSidebarProps {
   isMobile?: boolean;
 }
 
-const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
-  // On mobile: slide in/out as overlay; on desktop: collapse width
-  const sidebarWidth = isMobile ? 240 : isOpen ? 240 : 80;
-  const translateX = isMobile && !isOpen ? "-100%" : "0%";
+const AdminSidebar = ({ isMobile }: AdminSidebarProps) => {
+  // Always expanded
+  const sidebarWidth = 240;
+  const translateX = "0%";
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { clear: clearFranchises } = useFranchiseStore();
   const activeContext = user?.active_context as { role?: string } | null;
   const currentRole = (activeContext?.role || user?.role || "").toUpperCase();
   const visibleNav = adminNav.filter(
     (item) => !item.hiddenForRoles?.includes(currentRole)
   );
 
+  const handleLogout = async () => {
+    await logoutUser().catch(() => {});
+    clearFranchises();
+    showSuccess("Đăng xuất thành công");
+    navigate(ROUTER_URL.ADMIN_LOGIN, { replace: true });
+  };
+
   return (
     <aside
-      className={`fixed left-0 z-40 h-[calc(100vh-72px)] border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 backdrop-blur-xl transition-all duration-300 ${
+      className={`fixed left-0 z-40 h-[calc(100vh-72px)] border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 backdrop-blur-xl transition-all duration-300 overflow-y-auto ${
         isMobile ? "top-[72px]" : ""
       }`}
       style={{ width: sidebarWidth, transform: translateX }}
     >
       <div className="flex h-full flex-col py-6">
-        {/* Toggle button — hidden on mobile (hamburger in header) */}
-        {!isMobile && (
-          <div className={`mb-4 flex px-3 ${isOpen ? "justify-end" : "justify-center"}`}>
-            <button
-              onClick={onToggle}
-              className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white"
-              title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {isOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                )}
-              </svg>
-            </button>
-          </div>
-        )}
 
         <nav className="flex-1 space-y-2 px-3">
           {visibleNav.map((item) => {
@@ -276,15 +269,27 @@ const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
                 }
               >
                 <span className="flex-shrink-0">{item.icon}</span>
-                {(isOpen || isMobile) && (
-                  <span className="whitespace-nowrap text-sm font-medium">
-                    {item.label}
-                  </span>
-                )}
+                <span className="whitespace-nowrap text-sm font-medium">
+                  {item.label}
+                </span>
               </NavLink>
             );
           })}
         </nav>
+
+        {/* Logout button */}
+        <div className="px-3 pb-4">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 px-3 py-3 text-sm font-semibold text-white border border-red-500 rounded-xl transition-all hover:bg-red-500 hover:text-white"
+          >
+            <svg className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+            </svg>
+            <span>Đăng xuất</span>
+          </button>
+        </div>
       </div>
     </aside>
   );
