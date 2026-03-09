@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 import type {
   OrderMode,
   DeliveryAddress,
@@ -7,7 +7,7 @@ import type {
   PaymentStatus,
   PaymentTransaction,
   Branch,
-} from "@/types/delivery.types";
+} from '@/types/delivery.types';
 import {
   validateDeliveryAddress,
   geocodeAddress,
@@ -27,7 +27,7 @@ interface DeliveryState {
   deliveryAddress: DeliveryAddress;
   validationResult: AddressValidationResult | null;
   isValidating: boolean;
-<<<<<<< HEAD
+
 
   // Franchise selection for client menu
   selectedFranchiseId: string | null;
@@ -37,9 +37,6 @@ interface DeliveryState {
   isInitialized: boolean; // true after localStorage has been read
 
   // ── Computed ─────────────────────────────────────────────────────
-=======
-  isInitialized: boolean;
->>>>>>> 35e5ea3f50822c6d0514267d3e95762554491e4e
   isReadyToOrder: boolean;
   currentDeliveryFee: number;
   estimatedPrepMins: number;
@@ -270,11 +267,11 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
     const next = get().placedOrders.map((o) =>
       o.id === orderId
         ? {
-            ...o,
-            paymentStatus,
-            ...(transaction ? { transaction } : {}),
-            statusUpdatedAt: new Date().toISOString(),
-          }
+          ...o,
+          paymentStatus,
+          ...(transaction ? { transaction } : {}),
+          statusUpdatedAt: new Date().toISOString(),
+        }
         : o,
     );
     setItem(STORAGE_KEY_ORDERS, next);
