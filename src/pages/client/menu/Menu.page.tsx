@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { clientService } from "@/services/client.service";
-import type { ClientCategoryByFranchiseItem, ClientFranchiseItem } from "@/models/store.model";
-import type { ClientProductDetailResponse, ClientProductListItem } from "@/models/product.model";
+import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/models/store.model";
+import type { ClientProductListItem, ClientProductDetailResponse } from "@/models/product.model.tsx";
 import { useDeliveryStore } from "@/store/delivery.store";
 
 const fmtVnd = (n: number) =>
