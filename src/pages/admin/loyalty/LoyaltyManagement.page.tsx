@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../components";
 import type { LoyaltyRule, LoyaltyOverview } from "../../../models/loyalty.model";
 import { LOYALTY_TIER_LABELS } from "../../../models/customer.model";
@@ -17,6 +17,7 @@ const LoyaltyManagementPage = () => {
   const [loading, setLoading] = useState(false);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRule, setEditingRule] = useState<LoyaltyRule | null>(null);
+  const hasRun = useRef(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -37,6 +38,8 @@ const LoyaltyManagementPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadData();
   }, []);
 

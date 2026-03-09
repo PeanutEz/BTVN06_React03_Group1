@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { fetchOrders } from "../../../services/order.service";
 import { fetchPayments } from "../../../services/payment.service";
@@ -49,6 +49,7 @@ const DashboardPage = () => {
   });
   const [recentOrders, setRecentOrders] = useState<OrderDisplay[]>([]);
   const [loyaltyOverview, setLoyaltyOverview] = useState<LoyaltyOverview | null>(null);
+  const hasRun = useRef(false);
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -87,6 +88,8 @@ const DashboardPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadDashboard();
   }, []);
 

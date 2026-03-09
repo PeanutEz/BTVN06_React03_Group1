@@ -1,4 +1,20 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { MSG_CONSTANT, LOCAL_STORAGE_KEY } from "../const/data.const";
+
+// Cờ để tránh gọi refresh token nhiều lần cùng lúc
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason: unknown) => void }> = [];
+
+function processQueue(error: unknown) {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(undefined);
+        }
+    });
+    failedQueue = [];
+}
 
 // Base URL: dùng proxy trong dev (same-origin để cookie hoạt động), direct URL khi production
 const baseURL = import.meta.env.DEV
@@ -43,7 +59,41 @@ apiClient.interceptors.response.use(
         // Trả về toàn bộ response để service tự xử lý
         return response;
     },
-    (error: AxiosError) => {
+    async (error: AxiosError) => {
+        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+        // AUTO REFRESH: khi 401 + message ACCESS_TOKEN_EXPIRED và chưa retry
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            const responseData = error.response.data as { message?: string };
+            if (responseData?.message === MSG_CONSTANT.ACCESS_TOKEN_EXPIRED) {
+                if (isRefreshing) {
+                    // Đang refresh → đưa vào hàng đợi, chờ refresh xong mới retry
+                    return new Promise((resolve, reject) => {
+                        failedQueue.push({ resolve, reject });
+                    }).then(() => apiClient(originalRequest))
+                      .catch((err) => Promise.reject(err));
+                }
+
+                originalRequest._retry = true;
+                isRefreshing = true;
+
+                try {
+                    await apiClient.get("/auth/refresh-token");
+                    processQueue(null);
+                    return apiClient(originalRequest);
+                } catch (refreshError) {
+                    processQueue(refreshError);
+                    // Refresh thất bại → xoá user khỏi localStorage và reload về login
+                    console.warn("[Auth] Refresh token thất bại, đăng xuất người dùng.");
+                    localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
+                    window.location.href = "/auth/login";
+                    return Promise.reject(refreshError);
+                } finally {
+                    isRefreshing = false;
+                }
+            }
+        }
+
         if (error.response) {
             const { status } = error.response;
 
