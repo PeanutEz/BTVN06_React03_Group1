@@ -34,13 +34,19 @@ const ClientHeader = () => {
   const branchOpen = selectedBranch ? isBranchOpen(selectedBranch) : false;
 
   // Label shown in the header pill
-  const receivingLabel =
-    selectedFranchiseName ||
-    (!selectedBranch
+  // If the user explicitly selected a franchise (selectedFranchiseName present) show it.
+  // If they didn't select a franchise (selectedFranchiseName and selectedFranchiseId both null) prompt to choose.
+  // Otherwise (no franchise chosen but branch exists) fall back to branch/address as before.
+  const { selectedFranchiseId } = useDeliveryStore.getState();
+  const receivingLabel = selectedFranchiseName
+    ? selectedFranchiseName
+    : selectedFranchiseId == null
       ? null
-      : orderMode === "PICKUP"
-        ? selectedBranch.name
-        : deliveryAddress.rawAddress || selectedBranch.name);
+      : (!selectedBranch
+        ? null
+        : orderMode === "PICKUP"
+          ? selectedBranch.name
+          : deliveryAddress.rawAddress || selectedBranch.name);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -139,7 +145,7 @@ const ClientHeader = () => {
             {showBranchPicker && (
               <BranchPickerModal
                 onClose={() => {
-                  const { selectedBranch: b, selectedFranchiseName } = useDeliveryStore.getState();
+                  const { selectedFranchiseName } = useDeliveryStore.getState();
 
                   if (selectedFranchiseName) {
                     toast.success(`Đã chọn: ${selectedFranchiseName}`, {
