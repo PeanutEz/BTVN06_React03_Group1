@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useDeliveryStore } from "@/store/delivery.store";
 import {
   ORDER_STATUS_CONFIG,
+  PAYMENT_STATUS_CONFIG,
   DELIVERY_STATUS_STEPS,
   PICKUP_STATUS_STEPS,
   type DeliveryOrderStatus,
@@ -228,7 +229,38 @@ export default function OrderStatusPage() {
                 )}
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400 w-24 shrink-0">Thanh toán:</span>
-                  <span className="text-gray-900">{order.paymentMethod === "CASH" ? "💵 Tiền mặt" : "🏦 Chuyển khoản"}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-gray-900">
+                      {order.paymentMethod === "CASH"
+                        ? "💵 Tiền mặt"
+                        : order.paymentMethod === "BANK"
+                        ? "🏦 Chuyển khoản"
+                        : order.paymentMethod === "MOMO"
+                        ? "🟣 MoMo"
+                        : order.paymentMethod === "ZALOPAY"
+                        ? "🔵 ZaloPay"
+                        : "🟠 ShopeePay"}
+                    </span>
+
+                    <span
+                      className={cn(
+                        "text-xs font-semibold px-2 py-0.5 rounded-full border",
+                        PAYMENT_STATUS_CONFIG[order.paymentStatus].bg,
+                        PAYMENT_STATUS_CONFIG[order.paymentStatus].color,
+                      )}
+                    >
+                      {PAYMENT_STATUS_CONFIG[order.paymentStatus].label}
+                    </span>
+
+                    {order.paymentMethod !== "CASH" && order.paymentStatus !== "PAID" && (
+                      <Link
+                        to={ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", order.id)}
+                        className="text-xs font-semibold text-amber-700 hover:text-amber-800"
+                      >
+                        Thanh toán ngay →
+                      </Link>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400 w-24 shrink-0">Khách hàng:</span>
