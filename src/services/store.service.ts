@@ -154,6 +154,13 @@ export async function searchFranchises(payload: SearchFranchisePayload): Promise
 // POST /api/franchises — Token: YES — Role: ADMIN
 // Input: { code, name, opened_at, closed_at, hotline, logo_url?, address? }
 // Output: { success: true, data: ApiFranchise }
+function extractApiErrorMessage(data: { message?: string | null; errors?: Array<{ message: string; field: string }> }, fallback: string): string {
+	if (data.errors && data.errors.length > 0) {
+		return data.errors.map((e) => e.message).join(", ");
+	}
+	return data.message || fallback;
+}
+
 export async function createFranchise(data: CreateFranchisePayload): Promise<ApiFranchise> {
 	try {
 		const response = await apiClient.post<ApiResponse<ApiFranchise>>("/franchises", {
@@ -167,13 +174,12 @@ export async function createFranchise(data: CreateFranchisePayload): Promise<Api
 		});
 		const result = response.data;
 		if (!result.success) {
-			const errorMsg = result.message || "Tạo franchise thất bại";
-			throw new Error(errorMsg);
+			throw new Error(extractApiErrorMessage(result as { message?: string | null; errors?: Array<{ message: string; field: string }> }, "Tạo franchise thất bại"));
 		}
 		return (result as { data: ApiFranchise }).data;
 	} catch (error) {
-		if (error instanceof AxiosError && error.response?.data?.message) {
-			throw new Error(error.response.data.message);
+		if (error instanceof AxiosError && error.response?.data) {
+			throw new Error(extractApiErrorMessage(error.response.data, "Tạo franchise thất bại"));
 		}
 		throw error;
 	}
@@ -208,13 +214,12 @@ export async function updateFranchise(id: string, data: CreateFranchisePayload):
 		});
 		const result = response.data;
 		if (!result.success) {
-			const errorMsg = result.message || "Cập nhật franchise thất bại";
-			throw new Error(errorMsg);
+			throw new Error(extractApiErrorMessage(result as { message?: string | null; errors?: Array<{ message: string; field: string }> }, "Cập nhật franchise thất bại"));
 		}
 		return (result as { data: ApiFranchise }).data;
 	} catch (error) {
-		if (error instanceof AxiosError && error.response?.data?.message) {
-			throw new Error(error.response.data.message);
+		if (error instanceof AxiosError && error.response?.data) {
+			throw new Error(extractApiErrorMessage(error.response.data, "Cập nhật franchise thất bại"));
 		}
 		throw error;
 	}
