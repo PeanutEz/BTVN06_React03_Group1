@@ -51,7 +51,7 @@ const FranchiseListPage = () => {
   const pendingLogoFileRef = useRef<File | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   // Edit detail state
-  const [isEditingDetail, setIsEditingDetail] = useState(false);
+  const [, setIsEditingDetail] = useState(false);
   const [editForm, setEditForm] = useState<CreateFranchisePayload>({ ...emptyCreateForm });
   const [saving, setSaving] = useState(false);
   const [editLogoPreview, setEditLogoPreview] = useState<string>("");
@@ -150,7 +150,7 @@ const FranchiseListPage = () => {
         finalLogoUrl = await uploadImageToCloudinary(pendingEditLogoFileRef.current);
         pendingEditLogoFileRef.current = null;
       }
-      const updated = await updateFranchise(viewingFranchise.id, { ...editForm, logo_url: finalLogoUrl });
+      await updateFranchise(viewingFranchise.id, { ...editForm, logo_url: finalLogoUrl });
       showSuccess("Cập nhật franchise thành công");
       setViewingFranchise(null);
       setIsEditingDetail(false);
