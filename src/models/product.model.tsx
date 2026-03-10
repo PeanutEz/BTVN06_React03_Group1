@@ -369,3 +369,88 @@ export interface ProductFranchiseSearchResponse {
     totalPages: number;
   };
 }
+
+// ─── PRODUCT-CATEGORY-FRANCHISE ────────────────────────────────────────────────
+
+// DTO for PRODUCT-CATEGORY-FRANCHISE-01 — Add Product to Category Franchise
+// POST /api/product-category-franchises  |  Role: ADMIN, MANAGER  |  Token: required
+export interface CreateProductCategoryFranchiseDto {
+  category_franchise_id: string;
+  product_franchise_id: string;
+  display_order: number;
+}
+
+// API response item for PRODUCT-CATEGORY-FRANCHISE (used by create/search/get)
+export interface ProductCategoryFranchiseApiResponse {
+  id: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+
+  category_franchise_id: string;
+  product_franchise_id: string;
+  display_order: number;
+
+  franchise_id: string;
+  franchise_name: string;
+
+  category_id: string;
+  category_name: string;
+
+  product_id: string;
+  product_name: string;
+
+  size: string;
+  price_base: number;
+}
+
+// DTO for PRODUCT-CATEGORY-FRANCHISE-02 — Search Items by Conditions
+// POST /api/product-category-franchises/search  |  Role: SYSTEM & FRANCHISE  |  Token: required
+export interface SearchProductCategoryFranchiseDto {
+  searchCondition: {
+    franchise_id?: string;
+    category_franchise_id?: string;
+    product_franchise_id?: string;
+    category_id?: string;
+    product_id?: string;
+    is_active?: boolean | string;
+    is_deleted?: boolean | string;
+  };
+  pageInfo: {
+    pageNum: number;
+    pageSize: number;
+  };
+}
+
+// Paginated response from PRODUCT-CATEGORY-FRANCHISE-02
+export interface ProductCategoryFranchiseSearchResponse {
+  data: ProductCategoryFranchiseApiResponse[];
+  pageInfo: {
+    pageNum: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+// DTO for PRODUCT-CATEGORY-FRANCHISE-05 — Restore Item
+// PATCH /api/product-category-franchises/restore  |  Role: ADMIN, MANAGER  |  Token: required
+export interface RestoreProductCategoryFranchiseDto {
+  id: string;
+}
+
+// DTO for PRODUCT-CATEGORY-FRANCHISE-06 — Change Status Item
+// PATCH /api/product-category-franchises/status  |  Role: ADMIN, MANAGER  |  Token: required
+export interface ChangeProductCategoryFranchiseStatusDto {
+  id: string;
+  is_active: boolean;
+}
+
+// DTO for PRODUCT-CATEGORY-FRANCHISE-07 — Change Display Order Item
+// PATCH /api/product-category-franchises/reorder  |  Role: ADMIN, MANAGER  |  Token: required
+export interface ReorderProductCategoryFranchiseDto {
+  category_franchise_id: string;
+  item_id: string;
+  new_position: number;
+}
