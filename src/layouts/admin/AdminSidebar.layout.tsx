@@ -114,6 +114,20 @@ const adminNav: Array<{
     ),
   },
   {
+    label: "Product Category Franchise",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PRODUCT_CATEGORY_FRANCHISES}`,
+    icon: (
+      <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 6h16M4 10h16M4 14h10M4 18h10"
+        />
+      </svg>
+    ),
+  },
+  {
     label: "Customers",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`,
     icon: (
