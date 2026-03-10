@@ -7,11 +7,14 @@ import type {
   AdjustInventoryDto,
   LowStockInventoryItem,
   InventoryItem,
+  InventoryLog,
 } from "@/models/inventory.model";
 
 export const adminInventoryService = {
   // INVENTORY-01 — Create Item
-  createInventory: async (dto: CreateInventoryDto): Promise<InventoryApiResponse> => {
+  createInventory: async (
+    dto: CreateInventoryDto,
+  ): Promise<InventoryApiResponse> => {
     const payload: CreateInventoryDto = {
       product_franchise_id: dto.product_franchise_id,
       quantity: dto.quantity,
@@ -25,7 +28,9 @@ export const adminInventoryService = {
   },
 
   // INVENTORY-02 — Search Items by Conditions
-  searchInventories: async (dto: SearchInventoryDto): Promise<InventorySearchResponse> => {
+  searchInventories: async (
+    dto: SearchInventoryDto,
+  ): Promise<InventorySearchResponse> => {
     const response = await apiClient.post<{
       success: boolean;
       data: InventoryApiResponse[];
@@ -39,36 +44,58 @@ export const adminInventoryService = {
 
   // INVENTORY-03 — Get Item
   getInventoryById: async (id: string): Promise<InventoryApiResponse> => {
-    const response = await apiClient.get<{ success: boolean; data: InventoryApiResponse }>(
-      `/inventories/${id}`,
-    );
+    const response = await apiClient.get<{
+      success: boolean;
+      data: InventoryApiResponse;
+    }>(`/inventories/${id}`);
     return response.data.data;
   },
 
   // INVENTORY-04 — Delete Item
   deleteInventory: async (id: string): Promise<void> => {
-    await apiClient.delete<{ success: boolean; data: null }>(`/inventories/${id}`);
+    await apiClient.delete<{ success: boolean; data: null }>(
+      `/inventories/${id}`,
+    );
   },
 
   // INVENTORY-05 — Restore Item
   restoreInventory: async (id: string): Promise<void> => {
-    await apiClient.patch<{ success: boolean; data: null }>("/inventories/restore", { id });
+    await apiClient.patch<{ success: boolean; data: null }>(
+      "/inventories/restore",
+      { id },
+    );
   },
 
   // INVENTORY-06 — Edit Quantity
   adjustInventory: async (dto: AdjustInventoryDto): Promise<void> => {
-    await apiClient.post<{ success: boolean; data: null }>("/inventories/adjust", {
-      product_franchise_id: dto.product_franchise_id,
-      change: dto.change,
-      reason: dto.reason ?? "",
-    });
+    await apiClient.post<{ success: boolean; data: null }>(
+      "/inventories/adjust",
+      {
+        product_franchise_id: dto.product_franchise_id,
+        change: dto.change,
+        alert_threshold: dto.alert_threshold,
+        reason: dto.reason ?? "",
+      },
+    );
   },
 
   // INVENTORY-07 — Get Low Stock by Franchise
-  getLowStockByFranchise: async (franchiseId: string): Promise<LowStockInventoryItem[]> => {
-    const response = await apiClient.get<{ success: boolean; data: LowStockInventoryItem[] }>(
-      `/inventories/low-stock/franchise/${franchiseId}`,
-    );
+  getLowStockByFranchise: async (
+    franchiseId: string,
+  ): Promise<LowStockInventoryItem[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: LowStockInventoryItem[];
+    }>(`/inventories/low-stock/franchise/${franchiseId}`);
+    return response.data.data;
+  },
+
+  // INVENTORY-08 — Get Inventory Logs by inventoryId
+  getInventoryLogs: async (inventoryId: string): Promise<InventoryLog[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: InventoryLog[];
+    }>(`/inventories/logs/${inventoryId}`);
     return response.data.data;
   },
 };
@@ -91,7 +118,9 @@ function mapApiToInventoryItem(item: InventoryApiResponse): InventoryItem {
   };
 }
 
-export const fetchInventoryByStore = async (franchiseId: string): Promise<InventoryItem[]> => {
+export const fetchInventoryByStore = async (
+  franchiseId: string,
+): Promise<InventoryItem[]> => {
   const response = await adminInventoryService.searchInventories({
     searchCondition: { franchise_id: franchiseId, is_deleted: false },
     pageInfo: { pageNum: 1, pageSize: 100 },
@@ -108,6 +137,7 @@ export const updateInventoryStock = async (
   await adminInventoryService.adjustInventory({
     product_franchise_id: current.product_franchise_id,
     change,
+    alert_threshold: current.alert_threshold,
     reason: "Manual adjustment",
   });
   const updated = await adminInventoryService.getInventoryById(id);
