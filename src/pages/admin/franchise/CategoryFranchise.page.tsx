@@ -14,7 +14,6 @@ export default function CategoryFranchisePage() {
     const franchiseName = location.state?.franchiseName;
     const franchiseId = params.franchiseId || params.id;
 
-    const [categories, setCategories] = useState<CategoryFranchiseApiResponse[]>([]);
     const [filteredCategories, setFilteredCategories] = useState<CategoryFranchiseApiResponse[]>([]);
 
     const [loading, setLoading] = useState(false);
@@ -49,7 +48,6 @@ export default function CategoryFranchisePage() {
             const data =
                 await categoryFranchiseService.getCategoriesByFranchise(franchiseId);
             console.log("Categories from API:", data);
-            setCategories(data);
             setFilteredCategories(data);
 
         } catch (error) {
@@ -131,7 +129,6 @@ export default function CategoryFranchisePage() {
 
             }
 
-            setCategories(data);
             setFilteredCategories(data);
 
         } catch (error) {
@@ -291,23 +288,21 @@ export default function CategoryFranchisePage() {
         <div className="space-y-6">
 
             {/* HEADER */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
                         Category Franchise
                     </h1>
 
-                    <p className="text-sm text-slate-600">
+                    <p className="text-xs sm:text-sm text-slate-600">
                         Chi Nhánh: {franchiseName || franchiseId}
                     </p>
                 </div>
 
-                <div className="flex justify-end w-full">
-                    <Button onClick={openCreateModal}>
-                        + Thêm danh mục
-                    </Button>
-                </div>
+                <Button onClick={openCreateModal}>
+                    + Thêm danh mục
+                </Button>
 
             </div>
 
@@ -719,24 +714,6 @@ export default function CategoryFranchisePage() {
 
                                 </select>
 
-                            </div>
-
-                            <div>
-                                <label className="text-sm font-medium">
-                                    Display Order
-                                </label>
-
-                                <input
-                                    type="number"
-                                    value={formData.display_order}
-                                    onChange={(e) =>
-                                        setFormData({
-                                            ...formData,
-                                            display_order: Number(e.target.value)
-                                        })
-                                    }
-                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                                />
                             </div>
 
                             <div className="flex justify-end gap-2 pt-2">
