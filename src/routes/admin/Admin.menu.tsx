@@ -24,6 +24,17 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(() => import("../../pages/admin/user/User.page.tsx")),
   },
   {
+    label: "User Franchise Roles",
+    path: ROUTER_URL.ADMIN_ROUTES.USER_FRANCHISE_ROLES,
+    component: React.lazy(
+      () =>
+        import(
+          "../../pages/admin/user-franchise-role/UserFranchiseRole.page.tsx"
+        ),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Orders",
     path: ROUTER_URL.ADMIN_ROUTES.ORDERS,
     component: React.lazy(

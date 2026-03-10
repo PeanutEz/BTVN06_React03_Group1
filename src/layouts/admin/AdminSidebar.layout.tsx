@@ -47,6 +47,20 @@ const adminNav: Array<{
     ),
   },
   {
+    label: "User Franchise",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.USER_FRANCHISE_ROLES}`,
+    icon: (
+      <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M12 7a4 4 0 110 0z"
+        />
+      </svg>
+    ),
+  },
+  {
     label: "Franchises",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST}`,
     hiddenForRoles: ["MANAGER", "STAFF"],
@@ -225,10 +239,10 @@ interface AdminSidebarProps {
   isMobile?: boolean;
 }
 
-const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
-  // On mobile: slide in/out as overlay; on desktop: collapse width
-  const sidebarWidth = isMobile ? 240 : isOpen ? 240 : 80;
-  const translateX = isMobile && !isOpen ? "-100%" : "0%";
+const AdminSidebar = ({ isMobile }: AdminSidebarProps) => {
+  // Always expanded
+  const sidebarWidth = 240;
+  const translateX = "0%";
   const location = useLocation();
   const { user } = useAuthStore();
   const activeContext = user?.active_context as { role?: string } | null;
@@ -239,30 +253,12 @@ const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
 
   return (
     <aside
-      className={`fixed left-0 z-40 h-[calc(100vh-72px)] border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 backdrop-blur-xl transition-all duration-300 ${
+      className={`fixed left-0 z-40 h-[calc(100vh-72px)] border-r border-primary-500/20 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl shadow-primary-500/20 backdrop-blur-xl transition-all duration-300 overflow-y-auto ${
         isMobile ? "top-[72px]" : ""
       }`}
       style={{ width: sidebarWidth, transform: translateX }}
     >
       <div className="flex h-full flex-col py-6">
-        {/* Toggle button — hidden on mobile (hamburger in header) */}
-        {!isMobile && (
-          <div className={`mb-4 flex px-3 ${isOpen ? "justify-end" : "justify-center"}`}>
-            <button
-              onClick={onToggle}
-              className="flex items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-white"
-              title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {isOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                )}
-              </svg>
-            </button>
-          </div>
-        )}
 
         <nav className="flex-1 space-y-2 px-3">
           {visibleNav.map((item) => {
@@ -276,11 +272,9 @@ const AdminSidebar = ({ isOpen, onToggle, isMobile }: AdminSidebarProps) => {
                 }
               >
                 <span className="flex-shrink-0">{item.icon}</span>
-                {(isOpen || isMobile) && (
-                  <span className="whitespace-nowrap text-sm font-medium">
-                    {item.label}
-                  </span>
-                )}
+                <span className="whitespace-nowrap text-sm font-medium">
+                  {item.label}
+                </span>
               </NavLink>
             );
           })}
