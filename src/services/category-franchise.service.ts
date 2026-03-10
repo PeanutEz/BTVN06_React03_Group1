@@ -4,8 +4,6 @@ import type {
   CategoryFranchiseApiResponse,
   SearchCategoryFranchiseDto,
   CategoryFranchiseSearchResponse,
-  ChangeCategoryFranchiseStatusDto,
-  ChangeDisplayOrderCategoryFranchiseDto,
 } from "@/models/product.model";
 
 // ─── Category Franchise Service ───────────────────────────────────────────────
@@ -80,34 +78,51 @@ export const categoryFranchiseService = {
 
   // CATEGORY-FRANCHISE-06 — Change Status Item
   // PATCH /api/category-franchises/status  |  Role: ADMIN, MANAGER  |  Token: required
-  changeCategoryFranchiseStatus: async (
-    dto: ChangeCategoryFranchiseStatusDto
-  ): Promise<void> => {
+  changeCategoryFranchiseStatus: async (id: string, is_active: boolean): Promise<void> => {
 
-    console.log(
-      "[API REQUEST] PATCH /category-franchises/" + dto.id + "/status",
-      dto
-    );
+    console.log("===== CHANGE CATEGORY FRANCHISE STATUS =====");
+    console.log("ID:", id);
+    console.log("is_active gửi lên:", is_active);
 
-    await apiClient.patch(
-      `/category-franchises/${dto.id}/status`,
-      {
-        id: dto.id,
-        is_active: dto.is_active
-      }
-    );
+    const body = { is_active };
+
+    console.log("Request URL:", `/category-franchises/${id}/status`);
+    console.log("Request Body:", body);
+
+    try {
+
+      const res = await apiClient.patch(
+        `/category-franchises/${id}/status`,
+        body
+      );
+
+      console.log("API SUCCESS RESPONSE:", res.data);
+
+    } catch (error: any) {
+
+      console.error("API ERROR RESPONSE:", error?.response?.data);
+      console.error("FULL ERROR:", error);
+
+      throw error;
+
+    }
 
   },
 
   // CATEGORY-FRANCHISE-07 — Change Display Order Item
   // PATCH /api/category-franchises/display-order  |  Role: ADMIN, MANAGER  |  Token: required
-  changeCategoryFranchiseDisplayOrder: async (
-    dto: ChangeDisplayOrderCategoryFranchiseDto,
+  changeCategoryDisplayOrder: async (
+    id: string,
+    display_order: number
   ): Promise<void> => {
+
     await apiClient.patch<{ success: boolean; data: null }>(
-      `/category-franchises/display-order`,
-      { id: dto.id, display_order: dto.display_order },
+      `/category-franchises/${id}/display-order`,
+      {
+        display_order: display_order
+      }
     );
+
   },
 
   // CATEGORY-FRANCHISE-08 — Get Categories by Franchise

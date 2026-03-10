@@ -29,6 +29,9 @@ export default function CategoryFranchisePage() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [allCategories, setAllCategories] = useState<any[]>([]);
 
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingDisplayOrder, setEditingDisplayOrder] = useState<number>(0);
+
     const [formData, setFormData] = useState({
         category_id: "",
         display_order: 1
@@ -45,7 +48,7 @@ export default function CategoryFranchisePage() {
 
             const data =
                 await categoryFranchiseService.getCategoriesByFranchise(franchiseId);
-
+            console.log("Categories from API:", data);
             setCategories(data);
             setFilteredCategories(data);
 
@@ -146,13 +149,10 @@ export default function CategoryFranchisePage() {
 
     // RESET FILTER
     const handleResetFilters = () => {
-
         setSearchQuery("");
         setStatusFilter("");
         setIsDeletedFilter(false);
-
-        setFilteredCategories(categories);
-
+        load();
     };
 
     // DELETE
@@ -207,6 +207,37 @@ export default function CategoryFranchisePage() {
             console.error("Restore error:", error);
 
             showError("Khôi phục thất bại");
+
+        }
+
+    };
+
+    const handlechangeCategoryDisplayOrder = async (cat: CategoryFranchiseApiResponse) => {
+
+        try {
+
+            setSubmitting(true);
+
+            await categoryFranchiseService.changeCategoryDisplayOrder(
+                cat.id,
+                editingDisplayOrder
+            );
+
+            showSuccess("Cập nhật display order thành công");
+
+            setEditingId(null);
+
+            load();
+
+        } catch (error) {
+
+            console.error(error);
+
+            showError("Cập nhật thất bại");
+
+        } finally {
+
+            setSubmitting(false);
 
         }
 
@@ -346,11 +377,11 @@ export default function CategoryFranchisePage() {
 
                         <tr>
 
-                            <th className="px-4 py-3 text-left">Code</th>
-                            <th className="px-4 py-3 text-left">Category</th>
+                            <th className="px-4 py-3 text-left">Mã</th>
+                            <th className="px-4 py-3 text-left">Danh mục</th>
                             <th className="px-4 py-3 text-left">Display Order</th>
-                            <th className="px-4 py-3 text-left">Status</th>
-                            <th className="px-4 py-3 text-right">Action</th>
+                            <th className="px-4 py-3 text-left">Trạng thái</th>
+                            <th className="px-4 py-3 text-right">Thao tác</th>
 
                         </tr>
 
@@ -405,7 +436,29 @@ export default function CategoryFranchisePage() {
                                     </td>
 
                                     <td className="px-4 py-3">
-                                        {cat.display_order}
+
+                                        {editingId === cat.id ? (
+
+                                            <input
+                                                type="number"
+                                                value={editingDisplayOrder}
+                                                onChange={(e) => setEditingDisplayOrder(Number(e.target.value))}
+                                                onBlur={() => handlechangeCategoryDisplayOrder(cat)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        handlechangeCategoryDisplayOrder(cat);
+                                                    }
+                                                }}
+                                                className="w-20 border rounded px-2 py-1 text-sm"
+                                                autoFocus
+                                            />
+
+                                        ) : (
+
+                                            cat.display_order
+
+                                        )}
+
                                     </td>
 
                                     <td className="px-4 py-2">
@@ -438,6 +491,21 @@ export default function CategoryFranchisePage() {
                                                 <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                </svg>
+                                            </button>
+
+                                            {/* Edit display order */}
+                                            <button
+                                                onClick={() => {
+                                                    setEditingId(cat.id);
+                                                    setEditingDisplayOrder(cat.display_order);
+                                                }}
+                                                className="rounded-lg p-1.5 text-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                                title="Chỉnh sửa display order"
+                                            >
+                                                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                        d="M11 5h2M12 7v10m9-5H3" />
                                                 </svg>
                                             </button>
 
