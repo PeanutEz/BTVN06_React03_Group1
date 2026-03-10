@@ -75,16 +75,28 @@ export const categoryFranchiseService = {
   // CATEGORY-FRANCHISE-05 — Restore Item
   // PATCH /api/category-franchises/restore  |  Role: ADMIN, MANAGER  |  Token: required
   restoreCategoryFranchise: async (id: string): Promise<void> => {
-    await apiClient.patch<{ success: boolean; data: null }>(`/category-franchises/restore`, { id });
+    await apiClient.patch<{ success: boolean; data: null }>(`/category-franchises/${id}/restore`);
   },
 
   // CATEGORY-FRANCHISE-06 — Change Status Item
   // PATCH /api/category-franchises/status  |  Role: ADMIN, MANAGER  |  Token: required
-  changeCategoryFranchiseStatus: async (dto: ChangeCategoryFranchiseStatusDto): Promise<void> => {
-    await apiClient.patch<{ success: boolean; data: null }>(
-      `/category-franchises/status`,
-      { id: dto.id, is_active: dto.is_active },
+  changeCategoryFranchiseStatus: async (
+    dto: ChangeCategoryFranchiseStatusDto
+  ): Promise<void> => {
+
+    console.log(
+      "[API REQUEST] PATCH /category-franchises/" + dto.id + "/status",
+      dto
     );
+
+    await apiClient.patch(
+      `/category-franchises/${dto.id}/status`,
+      {
+        id: dto.id,
+        is_active: dto.is_active
+      }
+    );
+
   },
 
   // CATEGORY-FRANCHISE-07 — Change Display Order Item

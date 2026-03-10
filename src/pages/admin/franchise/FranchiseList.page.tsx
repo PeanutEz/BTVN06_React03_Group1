@@ -303,8 +303,8 @@ const FranchiseListPage = () => {
                   <td className="px-4 py-3 text-slate-700">{f.opened_at} - {f.closed_at}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${f.is_active
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-slate-200 bg-slate-50 text-slate-600"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-slate-200 bg-slate-50 text-slate-600"
                       }`}>
                       {f.is_active ? "Hoạt động" : "Ngừng"}
                     </span>
@@ -324,8 +324,8 @@ const FranchiseListPage = () => {
                         title={f.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
                         onClick={() => handleToggleStatus(f)}
                         className={`inline-flex items-center justify-center size-8 rounded-lg border transition-colors ${f.is_active
-                            ? "border-amber-200 bg-white text-amber-500 hover:border-amber-400 hover:bg-amber-50"
-                            : "border-emerald-200 bg-white text-emerald-500 hover:border-emerald-400 hover:bg-emerald-50"
+                          ? "border-amber-200 bg-white text-amber-500 hover:border-amber-400 hover:bg-amber-50"
+                          : "border-emerald-200 bg-white text-emerald-500 hover:border-emerald-400 hover:bg-emerald-50"
                           }`}
                       >
                         {f.is_active ? (
@@ -516,7 +516,12 @@ const FranchiseListPage = () => {
                 <button
                   onClick={() => {
                     setViewingFranchise(null);
-                    navigate(`${ROUTER_URL.ADMIN}/franchises/${viewingFranchise.id}/categories`);
+                    navigate(
+                      `${ROUTER_URL.ADMIN}/franchises/${viewingFranchise.id}/categories`,
+                      {
+                        state: { franchiseName: viewingFranchise.name }
+                      }
+                    );
                   }}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-50"
                 >
