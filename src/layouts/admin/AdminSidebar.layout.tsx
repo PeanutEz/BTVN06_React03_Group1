@@ -1,8 +1,6 @@
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
-import { useAuthStore, useFranchiseStore } from "../../store";
-import { logoutUser } from "../../services/auth.service";
-import { showSuccess } from "../../utils";
+import { useAuthStore } from "../../store";
 
 const adminNav: Array<{
   label: string;
@@ -246,21 +244,12 @@ const AdminSidebar = ({ isMobile }: AdminSidebarProps) => {
   const sidebarWidth = 240;
   const translateX = "0%";
   const location = useLocation();
-  const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { clear: clearFranchises } = useFranchiseStore();
   const activeContext = user?.active_context as { role?: string } | null;
   const currentRole = (activeContext?.role || user?.role || "").toUpperCase();
   const visibleNav = adminNav.filter(
     (item) => !item.hiddenForRoles?.includes(currentRole)
   );
-
-  const handleLogout = async () => {
-    await logoutUser().catch(() => {});
-    clearFranchises();
-    showSuccess("Đăng xuất thành công");
-    navigate(ROUTER_URL.ADMIN_LOGIN, { replace: true });
-  };
 
   return (
     <aside
@@ -290,20 +279,6 @@ const AdminSidebar = ({ isMobile }: AdminSidebarProps) => {
             );
           })}
         </nav>
-
-        {/* Logout button */}
-        <div className="px-3 pb-4">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-2 px-3 py-3 text-sm font-semibold text-white border border-red-500 rounded-xl transition-all hover:bg-red-500 hover:text-white"
-          >
-            <svg className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-            </svg>
-            <span>Đăng xuất</span>
-          </button>
-        </div>
       </div>
     </aside>
   );
