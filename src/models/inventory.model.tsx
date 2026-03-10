@@ -12,7 +12,8 @@ export interface InventoryItem {
   updatedAt: string;
 }
 
-export const isLowStock = (item: InventoryItem): boolean => item.stock <= item.minStock;
+export const isLowStock = (item: InventoryItem): boolean =>
+  item.stock <= item.minStock;
 
 // ─── INVENTORY API ────────────────────────────────────────────────────────────
 
@@ -20,8 +21,8 @@ export const isLowStock = (item: InventoryItem): boolean => item.stock <= item.m
 // NOTE: alert_threshold: cảnh báo sắp hết quantity
 export interface CreateInventoryDto {
   product_franchise_id: string; // required
-  quantity: number;             // required
-  alert_threshold: number;      // required — warning threshold for low stock
+  quantity: number; // required
+  alert_threshold: number; // required — warning threshold for low stock
 }
 
 // API response shape returned by POST /api/inventories
@@ -33,7 +34,7 @@ export interface InventoryApiResponse {
   updated_at: string;
   product_franchise_id: string;
   product_id: string;
-  product_name?: string;   // present in search results
+  product_name?: string; // present in search results
   franchise_id: string;
   franchise_name?: string; // present in search results
   quantity: number;
@@ -51,7 +52,7 @@ export interface SearchInventoryDto {
     is_deleted?: string | boolean; // default FALSE
   };
   pageInfo: {
-    pageNum: number;  // default 1
+    pageNum: number; // default 1
     pageSize: number; // default 10
   };
 }
@@ -69,8 +70,9 @@ export interface InventorySearchResponse {
 // DTO for INVENTORY-06 — Edit Quantity (POST /api/inventories/adjust)
 export interface AdjustInventoryDto {
   product_franchise_id: string; // required
-  change: number;               // required — positive to add, negative to subtract
-  reason?: string;              // optional, default ""
+  change: number; // required — positive to add, negative to subtract
+  alert_threshold: number; // required by backend validation
+  reason?: string; // optional, default ""
 }
 
 // Response item for INVENTORY-07 — Get Low Stock by Franchise
@@ -97,4 +99,18 @@ export interface LowStockInventoryItem {
     updated_at: string;
     __v?: number;
   };
+}
+
+// Response item for INVENTORY-08 — Get Inventory Logs by inventoryId
+// GET api/inventories/logs/:inventoryId
+export interface InventoryLog {
+  _id: string;
+  inventory_id: string;
+  product_franchise_id: string;
+  change: number;
+  type: string; // e.g. "ADJUST"
+  reference_type: string; // e.g. "MANUAL"
+  created_by: string;
+  created_at: string;
+  __v?: number;
 }

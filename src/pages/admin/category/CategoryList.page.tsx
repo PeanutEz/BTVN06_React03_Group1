@@ -306,93 +306,93 @@ export default function CategoryListPage() {
                 </tr>
               )}
               {!loading && categories.map((cat) => (
-                  <tr key={cat.id} className={`hover:bg-slate-50 transition-colors ${cat.is_deleted ? "opacity-60" : ""}`}>
-                    <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700">
-                      <span className="rounded bg-slate-100 px-2 py-1">{cat.code}</span>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{cat.name}</td>
-                    <td className="px-4 py-3 max-w-[200px] truncate text-slate-500">
-                      {cat.description || <span className="text-slate-300 italic">—</span>}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {cat.parent_name ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
-                          <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                          </svg>
-                          {cat.parent_name}
-                        </span>
-                      ) : (
-                        <span className="text-slate-300 italic text-xs">Root</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {cat.is_deleted ? (
-                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
-                          Đã xóa
-                        </span>
-                      ) : cat.is_active ? (
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {new Date(cat.created_at).toLocaleDateString("vi-VN")}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                <tr key={cat.id} className={`hover:bg-slate-50 transition-colors ${cat.is_deleted ? "opacity-60" : ""}`}>
+                  <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700">
+                    <span className="rounded bg-slate-100 px-2 py-1">{cat.code}</span>
+                  </td>
+                  <td className="px-4 py-3 font-medium text-slate-900">{cat.name}</td>
+                  <td className="px-4 py-3 max-w-[200px] truncate text-slate-500">
+                    {cat.description || <span className="text-slate-300 italic">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {cat.parent_name ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                        <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                        </svg>
+                        {cat.parent_name}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300 italic text-xs">Root</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {cat.is_deleted ? (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                        Đã xóa
+                      </span>
+                    ) : cat.is_active ? (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                        Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
+                        Inactive
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">
+                    {new Date(cat.created_at).toLocaleDateString("vi-VN")}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setViewingCategory(cat)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                        title="Xem chi tiết"
+                      >
+                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      {!cat.is_deleted && (
                         <button
-                          onClick={() => setViewingCategory(cat)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                          title="Xem chi tiết"
+                          onClick={() => handleOpenEdit(cat)}
+                          className="rounded-lg p-1.5 text-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                          title="Chỉnh sửa"
                         >
                           <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
-                        {!cat.is_deleted && (
-                          <button
-                            onClick={() => handleOpenEdit(cat)}
-                            className="rounded-lg p-1.5 text-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                            title="Chỉnh sửa"
-                          >
-                            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                        )}
-                        {cat.is_deleted ? (
-                          <button
-                            onClick={() => handleRestore(cat)}
-                            disabled={submitting}
-                            className="rounded-lg p-1.5 text-green-400 hover:bg-green-50 hover:text-green-600 transition-colors"
-                            title="Khôi phục"
-                          >
-                            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleDelete(cat)}
-                            disabled={submitting}
-                            className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                            title="Xóa"
-                          >
-                            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      )}
+                      {cat.is_deleted ? (
+                        <button
+                          onClick={() => handleRestore(cat)}
+                          disabled={submitting}
+                          className="rounded-lg p-1.5 text-green-400 hover:bg-green-50 hover:text-green-600 transition-colors"
+                          title="Khôi phục"
+                        >
+                          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleDelete(cat)}
+                          disabled={submitting}
+                          className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          title="Xóa"
+                        >
+                          <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}                      </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

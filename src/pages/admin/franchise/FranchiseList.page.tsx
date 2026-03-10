@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "../../../components";
 import type { ApiFranchise, CreateFranchisePayload } from "../../../services/store.service";
 import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise, updateFranchise, changeFranchiseStatus } from "../../../services/store.service";
-import { Link, useNavigate } from "react-router-dom";import { ROUTER_URL } from "../../../routes/router.const";
+import { Link, useNavigate } from "react-router-dom"; import { ROUTER_URL } from "../../../routes/router.const";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 
@@ -39,7 +39,7 @@ const FranchiseListPage = () => {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);  const [keyword, setKeyword] = useState("");
+  const [totalItems, setTotalItems] = useState(0); const [keyword, setKeyword] = useState("");
   const [isActive, setIsActive] = useState("");
   const [viewingFranchise, setViewingFranchise] = useState<ApiFranchise | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
@@ -262,115 +262,114 @@ const FranchiseListPage = () => {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-            <tr>
-              <th className="px-4 py-3">Logo</th>
-              <th className="px-4 py-3">Mã</th>
-              <th className="px-4 py-3">Tên chi nhánh</th>
-              <th className="px-4 py-3">Hotline</th>
-              <th className="px-4 py-3">Giờ mở cửa</th>
-              <th className="px-4 py-3">Trạng thái</th>
-              <th className="px-4 py-3">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {franchises.map((f) => (
-              <tr key={f.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3">
-                  {f.logo_url ? (
-                    <img
-                      src={f.logo_url}
-                      alt={f.name}
-                      className="size-10 rounded-lg object-cover border border-slate-200"
-                    />
-                  ) : (
-                    <div className="size-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Logo</th>
+                <th className="px-4 py-3">Mã</th>
+                <th className="px-4 py-3">Tên chi nhánh</th>
+                <th className="px-4 py-3">Hotline</th>
+                <th className="px-4 py-3">Giờ mở cửa</th>
+                <th className="px-4 py-3">Trạng thái</th>
+                <th className="px-4 py-3">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {franchises.map((f) => (
+                <tr key={f.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    {f.logo_url ? (
+                      <img
+                        src={f.logo_url}
+                        alt={f.name}
+                        className="size-10 rounded-lg object-cover border border-slate-200"
+                      />
+                    ) : (
+                      <div className="size-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{f.code}</td>
+                  <td className="px-4 py-3">
+                    <div className="leading-tight">
+                      <p className="font-semibold text-slate-900">{f.name}</p>
+                      <p className="text-xs text-slate-500">{f.address}</p>
                     </div>
-                  )}
-                </td>
-                <td className="px-4 py-3 font-mono text-xs text-slate-500">{f.code}</td>
-                <td className="px-4 py-3">
-                  <div className="leading-tight">
-                    <p className="font-semibold text-slate-900">{f.name}</p>
-                    <p className="text-xs text-slate-500">{f.address}</p>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-slate-700">{f.hotline || "-"}</td>
-                <td className="px-4 py-3 text-slate-700">{f.opened_at} - {f.closed_at}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                    f.is_active
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">{f.hotline || "-"}</td>
+                  <td className="px-4 py-3 text-slate-700">{f.opened_at} - {f.closed_at}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${f.is_active
                       ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                       : "border-slate-200 bg-slate-50 text-slate-600"
-                  }`}>
-                    {f.is_active ? "Hoạt động" : "Ngừng"}
-                  </span>
-                </td>                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      title="Xem chi tiết"
-                      onClick={() => handleViewDetail(f)}
-                      className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    <button
-                      title={f.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
-                      onClick={() => handleToggleStatus(f)}
-                      className={`inline-flex items-center justify-center size-8 rounded-lg border transition-colors ${
-                        f.is_active
+                      }`}>
+                      {f.is_active ? "Hoạt động" : "Ngừng"}
+                    </span>
+                  </td>                <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        title="Xem chi tiết"
+                        onClick={() => handleViewDetail(f)}
+                        className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                      <button
+                        title={f.is_active ? "Ngừng hoạt động" : "Kích hoạt"}
+                        onClick={() => handleToggleStatus(f)}
+                        className={`inline-flex items-center justify-center size-8 rounded-lg border transition-colors ${f.is_active
                           ? "border-amber-200 bg-white text-amber-500 hover:border-amber-400 hover:bg-amber-50"
                           : "border-emerald-200 bg-white text-emerald-500 hover:border-emerald-400 hover:bg-emerald-50"
-                      }`}
-                    >
-                      {f.is_active ? (
+                          }`}
+                      >
+                        {f.is_active ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        title="Xóa franchise"
+                        onClick={() => handleDelete(f)}
+                        className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
+                      >
                         <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                    </button>
-                    <button
-                      title="Xóa franchise"
-                      onClick={() => handleDelete(f)}
-                      className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {franchises.length === 0 && !loading && (
-              <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
-                  Không có chi nhánh
-                </td>
-              </tr>
-            )}
-            {loading && (
-              <tr>
-                <td colSpan={7}>
-                  <div className="flex justify-center items-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {franchises.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-sm text-slate-500">
+                    Không có chi nhánh
+                  </td>
+                </tr>
+              )}
+              {loading && (
+                <tr>
+                  <td colSpan={7}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
         </div>
         <div className="px-4">
           <Pagination
@@ -392,11 +391,10 @@ const FranchiseListPage = () => {
                 <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-mono text-slate-500">
                   {viewingFranchise.code}
                 </span>
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                  viewingFranchise.is_active
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-slate-50 text-slate-600"
-                }`}>
+                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${viewingFranchise.is_active
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-slate-200 bg-slate-50 text-slate-600"
+                  }`}>
                   {viewingFranchise.is_active ? "Hoạt động" : "Ngừng"}
                 </span>
                 <span className="text-sm font-semibold text-slate-700">Chỉnh sửa Franchise</span>
@@ -416,104 +414,127 @@ const FranchiseListPage = () => {
 
             {/* Body — EDIT form */}
             <form id="edit-franchise-form" onSubmit={handleEditSubmit} className="overflow-y-auto px-6 py-5">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">
-                      Mã chi nhánh *
-                      <input
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                        value={editForm.code}
-                        onChange={(e) => setEditForm((p) => ({ ...p, code: e.target.value }))}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">
-                      Tên chi nhánh *
-                      <input
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                        value={editForm.name}
-                        onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">
-                      Giờ mở cửa *
-                      <input
-                        type="time"
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                        value={editForm.opened_at}
-                        onChange={(e) => setEditForm((p) => ({ ...p, opened_at: e.target.value }))}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">
-                      Giờ đóng cửa *
-                      <input
-                        type="time"
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                        value={editForm.closed_at}
-                        onChange={(e) => setEditForm((p) => ({ ...p, closed_at: e.target.value }))}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700">
-                      Hotline *
-                      <input
-                        type="tel"
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                        value={editForm.hotline}
-                        onChange={(e) => setEditForm((p) => ({ ...p, hotline: e.target.value }))}
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div>
-                    <span className="block text-sm font-medium text-slate-700 mb-1">Logo</span>
-                    <div className="flex items-center gap-4">
-                      <div className="size-16 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
-                        {(editLogoPreview || editForm.logo_url) ? (
-                          <img src={editLogoPreview || editForm.logo_url} alt="Logo" className="size-full object-cover" />
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="size-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <button type="button" onClick={() => editLogoInputRef.current?.click()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition">Chọn ảnh</button>
-                        {(editLogoPreview || editForm.logo_url) && (
-                          <button type="button" onClick={() => { setEditLogoPreview(""); setEditForm((p) => ({ ...p, logo_url: "" })); pendingEditLogoFileRef.current = null; if (editLogoInputRef.current) editLogoInputRef.current.value = ""; }} className="text-xs text-red-500 hover:underline text-left">Xóa ảnh</button>
-                        )}
-                        <p className="text-xs text-slate-400">PNG, JPG, WEBP tối đa 5MB</p>
-                      </div>
-                    </div>
-                    <input ref={editLogoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; pendingEditLogoFileRef.current = file; setEditLogoPreview(URL.createObjectURL(file)); }} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700">
-                      Địa chỉ
-                      <input
-                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                        value={editForm.address}
-                        onChange={(e) => setEditForm((p) => ({ ...p, address: e.target.value }))}
-                      />
-                    </label>
-                  </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Mã chi nhánh *
+                    <input
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={editForm.code}
+                      onChange={(e) => setEditForm((p) => ({ ...p, code: e.target.value }))}
+                      required
+                    />
+                  </label>
                 </div>
-              </form>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Tên chi nhánh *
+                    <input
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                      required
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Giờ mở cửa *
+                    <input
+                      type="time"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={editForm.opened_at}
+                      onChange={(e) => setEditForm((p) => ({ ...p, opened_at: e.target.value }))}
+                      required
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Giờ đóng cửa *
+                    <input
+                      type="time"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={editForm.closed_at}
+                      onChange={(e) => setEditForm((p) => ({ ...p, closed_at: e.target.value }))}
+                      required
+                    />
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    Hotline *
+                    <input
+                      type="tel"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={editForm.hotline}
+                      onChange={(e) => setEditForm((p) => ({ ...p, hotline: e.target.value }))}
+                      required
+                    />
+                  </label>
+                </div>
+                <div>
+                  <span className="block text-sm font-medium text-slate-700 mb-1">Logo</span>
+                  <div className="flex items-center gap-4">
+                    <div className="size-16 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                      {(editLogoPreview || editForm.logo_url) ? (
+                        <img src={editLogoPreview || editForm.logo_url} alt="Logo" className="size-full object-cover" />
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <button type="button" onClick={() => editLogoInputRef.current?.click()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition">Chọn ảnh</button>
+                      {(editLogoPreview || editForm.logo_url) && (
+                        <button type="button" onClick={() => { setEditLogoPreview(""); setEditForm((p) => ({ ...p, logo_url: "" })); pendingEditLogoFileRef.current = null; if (editLogoInputRef.current) editLogoInputRef.current.value = ""; }} className="text-xs text-red-500 hover:underline text-left">Xóa ảnh</button>
+                      )}
+                      <p className="text-xs text-slate-400">PNG, JPG, WEBP tối đa 5MB</p>
+                    </div>
+                  </div>
+                  <input ref={editLogoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; pendingEditLogoFileRef.current = file; setEditLogoPreview(URL.createObjectURL(file)); }} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Địa chỉ
+                    <input
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      value={editForm.address}
+                      onChange={(e) => setEditForm((p) => ({ ...p, address: e.target.value }))}
+                    />
+                  </label>
+                </div>
+              </div>
+            </form>
 
             {/* Footer actions */}
             <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-6 py-4 shrink-0">
               <div className="flex gap-2">
                 <Button type="submit" form="edit-franchise-form" loading={saving}>Lưu thay đổi</Button>
+
+                <button
+                  onClick={() => {
+                    setViewingFranchise(null);
+                    navigate(
+                      `${ROUTER_URL.ADMIN}/franchises/${viewingFranchise.id}/categories`,
+                      {
+                        state: { franchiseName: viewingFranchise.name }
+                      }
+                    );
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 7h18M3 12h18M3 17h18"
+                    />
+                  </svg>
+                  Danh mục sản phẩm
+                </button>
                 <button
                   type="button"
                   onClick={() => { setViewingFranchise(null); navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE.replace(":id", viewingFranchise.id)}`); }}
