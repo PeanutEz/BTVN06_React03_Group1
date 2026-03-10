@@ -28,13 +28,26 @@ export const adminProductFranchiseService = {
 
   // PRODUCT-FRANCHISE-02 — Search Items by Conditions
   // POST /api/product-franchises/search  |  Role: SYSTEM & FRANCHISE  |  Token: required
+  // searchProductFranchises: async (
+  //   dto: SearchProductFranchiseDto,
+  // ): Promise<ProductFranchiseSearchResponse> => {
+  //   const response = await apiClient.post<{
+  //     success: boolean;
+  //     data: ProductFranchiseSearchResponse;
+  //   }>("/product-franchises/search", dto);
+  //   return response.data.data;
+  // },
   searchProductFranchises: async (
     dto: SearchProductFranchiseDto,
   ): Promise<ProductFranchiseSearchResponse> => {
     const response = await apiClient.post<{
       success: boolean;
-      data: ProductFranchiseSearchResponse;
+      data: ProductFranchiseApiResponse[]; // ← flat — đúng
+      pageInfo: ProductFranchiseSearchResponse["pageInfo"];
     }>("/product-franchises/search", dto);
-    return response.data.data;
+    return {
+      data: response.data.data,
+      pageInfo: response.data.pageInfo,
+    };
   },
 };

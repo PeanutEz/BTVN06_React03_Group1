@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { RouteChangeLoading } from "../components";
 import ScrollToTopOnNavigate from "../components/ui/ScrollToTopOnNavigate";
 import LoadingLayout from "../layouts/Loading.layout";
 import ClientLayout from "../layouts/client/Client.layout";
@@ -43,6 +44,7 @@ const InboxPage = React.lazy(() => import("../pages/client/inbox/Inbox.page"));
 function AppRoutes() {
   return (
     <BrowserRouter>
+      <RouteChangeLoading minDurationMs={1500} />
       <ScrollToTopOnNavigate />
       <React.Suspense fallback={<LoadingLayout />}>
         <Routes>
