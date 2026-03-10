@@ -112,11 +112,30 @@ export default function CheckoutPage() {
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
-                          ) : "−"}
+                          ) : (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                            </svg>
+                          )}
                         </button>
-                        <span className="w-7 text-center text-xs font-semibold select-none">
-                          {item.quantity}
-                        </span>
+
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.quantity || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val !== "") {
+                              const parsed = parseInt(val, 10);
+                              if (!isNaN(parsed) && parsed >= 1) {
+                                updateQuantity(item.cartKey, parsed);
+                              }
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          className="w-10 text-center text-xs font-semibold text-gray-900 border-none focus:ring-0 appearance-none bg-transparent p-0 m-0"
+                        />
+
                         <button
                           onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
                           className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm"

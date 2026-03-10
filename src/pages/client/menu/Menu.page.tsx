@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { clientService } from "@/services/client.service";
 import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/models/store.model";
-import type { ClientProductListItem, ClientProductDetailResponse } from "@/models/product.model.tsx";
+import type { ClientProductListItem } from "@/models/product.model";
 import { useDeliveryStore } from "@/store/delivery.store";
+import MenuProductModal from "@/components/menu/MenuProductModal";
+import type { MenuProduct } from "@/types/menu.types";
 
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -23,7 +25,7 @@ function EmptyState({
   onAction?: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
+    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
       <div className="text-5xl mb-4">😕</div>
       <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
       {description && <p className="text-sm text-gray-500">{description}</p>}
@@ -35,124 +37,6 @@ function EmptyState({
           {actionLabel}
         </button>
       )}
-    </div>
-  );
-}
-
-/* ─── ProductDetailModal (API-based) ─────────────────────────── */
-function ProductDetailModal({
-  open,
-  loading,
-  product,
-  onClose,
-}: {
-  open: boolean;
-  loading: boolean;
-  product: ClientProductDetailResponse | null;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div
-        className="relative w-full sm:max-w-2xl bg-white sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92dvh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500">Chi tiết sản phẩm</p>
-            <h2 className="text-base font-semibold text-gray-900 truncate">
-              {product?.name ?? (loading ? "Đang tải..." : "—")}
-            </h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center"
-            aria-label="Đóng"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="overflow-y-auto flex-1 p-4">
-          {loading ? (
-            <div className="animate-pulse space-y-3">
-              <div className="h-40 bg-gray-100 rounded-xl" />
-              <div className="h-4 bg-gray-100 rounded w-2/3" />
-              <div className="h-3 bg-gray-100 rounded w-full" />
-              <div className="h-3 bg-gray-100 rounded w-5/6" />
-            </div>
-          ) : !product ? (
-            <EmptyState title="Không tải được chi tiết sản phẩm" description="Vui lòng thử lại." />
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <div className="aspect-square rounded-2xl overflow-hidden border border-gray-100 bg-gray-50">
-                  <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                </div>
-                {product.images_url?.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2">
-                    {product.images_url.slice(0, 4).map((img) => (
-                      <div key={img} className="aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
-                        <img src={img} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 inline-flex px-2 py-0.5 rounded-full">
-                    {product.category_name}
-                  </p>
-                  <h3 className="mt-2 text-xl font-bold text-gray-900 leading-tight">{product.name}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{product.description}</p>
-                </div>
-
-                {product.content && (
-                  <div className="text-sm text-gray-600 leading-relaxed">
-                    {product.content}
-                  </div>
-                )}
-
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-2">Sizes</p>
-                  <div className="flex flex-wrap gap-2">
-                    {product.sizes.map((s) => (
-                      <span
-                        key={`${s.product_franchise_id}-${s.size}`}
-                        className={cn(
-                          "text-sm px-3 py-1.5 rounded-xl border",
-                          s.is_available
-                            ? "border-gray-200 text-gray-700 bg-white"
-                            : "border-gray-100 text-gray-400 bg-gray-50 line-through",
-                        )}
-                        title={s.is_available ? undefined : "Không khả dụng"}
-                      >
-                        {s.size} · {fmtVnd(s.price)}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -319,14 +203,17 @@ function MobileCategoryTabs({
 /* ─── Product Card (inline, uses API data) ────────────────────── */
 function ProductCard({
   product,
-  onClickSize,
+  onClickProduct,
 }: {
   product: ClientProductListItem;
-  onClickSize: (productFranchiseId: string, productId: string) => void;
+  onClickProduct: (p: ClientProductListItem) => void;
 }) {
   return (
-    <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200">
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+    <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200 flex flex-col">
+      <div
+        onClick={() => onClickProduct(product)}
+        className="block relative aspect-[4/3] overflow-hidden bg-gray-50 cursor-pointer"
+      >
         <img
           src={product.image_url}
           alt={product.name}
@@ -336,32 +223,40 @@ function ProductCard({
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
       </div>
 
-      <div className="p-3.5">
-        <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-1 mb-1">
-          {product.name}
-        </h3>
-        <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">
+      <div className="p-4 flex flex-col flex-1">
+        <div className="flex justify-between items-start gap-2 mb-1">
+          <div
+            onClick={() => onClickProduct(product)}
+            className="hover:text-amber-600 transition-colors cursor-pointer"
+          >
+            <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
+              {product.name}
+            </h3>
+          </div>
+        </div>
+
+        <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed flex-1">
           {product.description}
         </p>
 
-        <div className="flex flex-wrap gap-2">
-          {product.sizes.map((s) => (
-            <button
-              key={`${s.product_franchise_id}-${s.size}`}
-              type="button"
-              onClick={() => onClickSize(s.product_franchise_id, product.product_id)}
-              disabled={!s.is_available}
-              className={cn(
-                "px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all",
-                s.is_available
-                  ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 active:scale-[0.98]"
-                  : "border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed",
-              )}
-              title={s.is_available ? "Xem chi tiết" : "Không khả dụng"}
-            >
-              {s.size} · {fmtVnd(s.price)}
-            </button>
-          ))}
+        <div className="flex items-center justify-between mt-auto">
+          <p className="font-bold text-amber-600 text-sm">
+            Từ {fmtVnd(product.sizes[0]?.price ?? 0)}
+          </p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClickProduct(product);
+            }}
+            className="w-9 h-9 rounded-full bg-amber-50 hover:bg-amber-500 text-amber-600 hover:text-white flex items-center justify-center transition-colors shadow-sm"
+            aria-label="Chọn mua"
+            title="Chọn mua"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
@@ -380,20 +275,19 @@ export default function MenuPage() {
   const [selectedCategory, setSelectedCategory] = useState<ClientCategoryByFranchiseItem | null>(null);
 
   const [products, setProducts] = useState<ClientProductListItem[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<ClientProductDetailResponse | null>(null);
+  const [searchQuery, setSearchQuery] = useState(""); // Added searchQuery state
+  const [selectedProduct, setSelectedProduct] = useState<MenuProduct | null>(null);
 
   const [loading, setLoading] = useState<LoadingPhase>(null);
   const [error, setError] = useState<string | null>(null);
   const [categoriesLoadedForFranchiseId, setCategoriesLoadedForFranchiseId] = useState<string | null>(null);
 
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
 
   const { selectedFranchiseId } = useDeliveryStore();
 
   const categoriesReqKeyRef = useRef<string | null>(null);
   const productsReqKeyRef = useRef<string | null>(null);
-  const detailReqKeyRef = useRef<string | null>(null);
   const franchisesLoadedRef = useRef<boolean>(false);
 
   // ─── BƯỚC 1: LOAD FRANCHISES ───────────────────────────────────
@@ -518,42 +412,33 @@ export default function MenuPage() {
     return counts;
   }, [products]);
 
-  // ─── BƯỚC 4: CLICK SIZE → LOAD DETAIL ─────────────────────────
-  async function handleClickSize(productFranchiseId: string, productId: string) {
-    if (!productFranchiseId) return;
+  // ─── BƯỚC 4: CLICK SẢN PHẨM → MỞ MODAL ─────────────────────────
+  function handleOpenDetail(p: ClientProductListItem) {
+    const franchiseId = selectedFranchise?.id ?? "";
+    const normalizedProduct: MenuProduct = {
+      id: Number(p.product_id),
+      sku: p.SKU,
+      name: p.name,
+      description: p.description,
+      content: p.description,
+      price: p.sizes[0]?.price || 0,
+      image: p.image_url,
+      categoryId: Number(p.category_id),
+      rating: 5,
+      reviewCount: 99,
+      isAvailable: true,
+      _apiFranchiseId: String(franchiseId),
+      _apiProductId: p.product_id,
+      _apiIsHaveTopping: p.is_have_topping, // Updated to pass _apiIsHaveTopping
+    } as any;
 
+    setSelectedProduct(normalizedProduct);
     setDetailOpen(true);
-    setSelectedProduct(null);
-    setDetailLoading(true);
-    setLoading("productDetail");
-    setError(null);
-
-    if (detailReqKeyRef.current === productFranchiseId) {
-      setDetailLoading(false);
-      setLoading(null);
-      return;
-    }
-    detailReqKeyRef.current = productFranchiseId;
-
-    try {
-      const franchiseId = selectedFranchise?.id ?? "";
-      if (!franchiseId) throw new Error("No franchise selected");
-      const detail = await clientService.getProductDetail(franchiseId, productId);
-      setSelectedProduct(detail);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Không tải được chi tiết sản phẩm");
-      setSelectedProduct(null);
-    } finally {
-      setDetailLoading(false);
-      setLoading(null);
-    }
   }
 
   function handleCloseDetail() {
     setDetailOpen(false);
     setSelectedProduct(null);
-    setDetailLoading(false);
-    detailReqKeyRef.current = null;
   }
 
   function handleSelectCategory(cat: ClientCategoryByFranchiseItem | null) {
@@ -577,6 +462,37 @@ export default function MenuPage() {
                     : "Vui lòng chọn franchise để xem thực đơn."}
                 </p>
               </div>
+
+              {/* Search Bar */}
+              {canShowMenu && (
+                <div className="w-full sm:w-72 lg:w-96">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm sản phẩm..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-4 py-2.5 pr-12 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent text-sm transition-all"
+                    />
+                    {searchQuery ? (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Mobile category tabs (hidden on lg) */}
@@ -633,30 +549,43 @@ export default function MenuPage() {
                       </div>
                     ))}
                   </div>
-                ) : products.length === 0 ? (
-                  <EmptyState
-                    title="Không có sản phẩm"
-                    description="Franchise/category này hiện chưa có sản phẩm hiển thị."
-                  />
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-                    {products.map((p) => (
-                      <ProductCard
-                        key={`${p.product_id}-${p.SKU}-${p.sizes.map(s => s.size).join('-')}`}
-                        product={p}
-                        onClickSize={handleClickSize}
+                ) : (() => { // Changed to an IIFE to handle conditional rendering and filtering
+                  const filteredProducts = products.filter(p =>
+                    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+                  );
+
+                  if (filteredProducts.length === 0) {
+                    return (
+                      <EmptyState
+                        title={searchQuery ? "Không tìm thấy sản phẩm" : "Không có sản phẩm"}
+                        description={searchQuery ? `Không có sản phẩm nào khớp với "${searchQuery}"` : "Franchise/category này hiện chưa có sản phẩm hiển thị."}
                       />
-                    ))}
-                  </div>
-                )}
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 px-0 sm:px-2">
+                      {filteredProducts.map((p) => (
+                        <ProductCard
+                          key={`${p.product_id}-${p.SKU}-${p.sizes.map(s => s.size).join('-')}`}
+                          product={p}
+                          onClickProduct={handleOpenDetail}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Detail modal */}
-      <ProductDetailModal open={detailOpen} loading={detailLoading} product={selectedProduct} onClose={handleCloseDetail} />
+      {/* Detail modal (replaces inline ProductDetailModal) */}
+      <MenuProductModal
+        product={detailOpen ? selectedProduct : null}
+        onClose={handleCloseDetail}
+      />
     </>
   );
 }

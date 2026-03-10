@@ -105,6 +105,12 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
   // Derive category info from API-enriched product or fallback
   const categoryName = (product as any)._apiCategoryName ?? "";
 
+  // Decide if this product allows toppings (default to true unless explicitly false)
+  const isHaveToppingApi = (product as any)?._apiIsHaveTopping;
+  const isHaveToppingDetail = productDetail?.is_have_topping;
+
+  const hasToppings = isHaveToppingApi !== false && isHaveToppingDetail !== false;
+
   function changeToppingQty(topping: Topping, delta: number) {
     setToppingQtys((prev) => {
       const next = Math.min(3, Math.max(0, (prev[topping.id] ?? 0) + delta));
@@ -144,28 +150,29 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
   }
 
   return (
-    /* Backdrop */
+    /* Backdrop & Wrapper */
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm -z-10" />
 
       {/* Modal */}
       <div
-        className="relative w-full sm:max-w-lg bg-white sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92dvh] flex flex-col"
+        className="absolute bottom-0 left-0 right-0 sm:relative sm:w-full sm:max-w-lg bg-white sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
+        style={{ maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header + image */}
         <div className="relative shrink-0">
-          <div className="h-44 sm:h-52 overflow-hidden bg-gray-100">
+          <div className="aspect-video sm:aspect-[21/9] overflow-hidden bg-gray-100 relative">
             <img
               src={displayImage}
               alt={product.name}
               className="w-full h-full object-cover"
             />
             {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           </div>
 
           {/* Close */}
@@ -213,7 +220,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
         </div>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
+        <div className="overflow-y-auto min-h-0 flex-1 px-4 py-4 space-y-4">
           {/* Description */}
           {displayContent && (
             <div
@@ -301,55 +308,57 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
             />
           </div>
 
-          {/* Toppings */}
-          <div>
-            <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
-            <div className="grid grid-cols-2 gap-2">
-              {TOPPINGS.map((topping) => {
-                const qty = toppingQtys[topping.id] ?? 0;
-                return (
-                  <div
-                    key={topping.id}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
-                      qty > 0
-                        ? "border-amber-500 bg-amber-50"
-                        : "border-gray-200 bg-white",
-                    )}
-                  >
-                    <span className="shrink-0 text-base">{topping.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>{topping.name}</div>
-                      <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
+          {/* Toppings (Dynamic) */}
+          {hasToppings && (
+            <div>
+              <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
+              <div className="grid grid-cols-2 gap-2">
+                {TOPPINGS.map((topping) => {
+                  const qty = toppingQtys[topping.id] ?? 0;
+                  return (
+                    <div
+                      key={topping.id}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
+                        qty > 0
+                          ? "border-amber-500 bg-amber-50"
+                          : "border-gray-200 bg-white",
+                      )}
+                    >
+                      <span className="shrink-0 text-base">{topping.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>{topping.name}</div>
+                        <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => changeToppingQty(topping, -1)}
+                          disabled={qty === 0}
+                          className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-30 border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" />
+                          </svg>
+                        </button>
+                        <span className={cn("w-4 text-center font-semibold text-xs", qty > 0 ? "text-amber-700" : "text-gray-400")}>
+                          {qty}
+                        </span>
+                        <button
+                          onClick={() => changeToppingQty(topping, 1)}
+                          disabled={qty >= 3}
+                          className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-30 border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                        >
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => changeToppingQty(topping, -1)}
-                        disabled={qty === 0}
-                        className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-30 border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                      >
-                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" />
-                        </svg>
-                      </button>
-                      <span className={cn("w-4 text-center font-semibold text-xs", qty > 0 ? "text-amber-700" : "text-gray-400")}>
-                        {qty}
-                      </span>
-                      <button
-                        onClick={() => changeToppingQty(topping, 1)}
-                        disabled={qty >= 3}
-                        className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-30 border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                      >
-                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer: qty + total + CTA */}
@@ -366,10 +375,28 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
               </button>
-              <span className="w-8 text-center text-sm font-semibold select-none">{quantity}</span>
+              <input
+                type="number"
+                min={1}
+                value={quantity || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "") setQuantity(0 as any); // allow transient empty state
+                  else {
+                    const parsed = parseInt(val, 10);
+                    if (!isNaN(parsed) && parsed >= 1) setQuantity(parsed);
+                  }
+                }}
+                onBlur={() => {
+                  if (!quantity || quantity < 1) setQuantity(1);
+                }}
+                onFocus={(e) => e.target.select()}
+                className="w-12 h-10 text-center font-bold text-gray-900 border-none focus:ring-0 appearance-none bg-transparent p-0 m-0"
+              />
               <button
                 onClick={() => setQuantity((q) => q + 1)}
                 className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+                aria-label="Tăng số lượng"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

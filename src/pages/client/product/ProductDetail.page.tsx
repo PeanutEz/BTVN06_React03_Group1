@@ -3,7 +3,8 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 // import { toast } from "react-toastify";
 
 import { useProductStore } from "@/store/product.store";
-import { useCartStore } from "@/store";
+import { useMenuCartStore } from "@/store/menu-cart.store";
+import type { MenuProduct, MenuItemOptions } from "@/types/menu.types";
 import { useAuthStore } from "@/store/auth.store";
 import { ROUTER_URL } from "@/routes/router.const";
 import ProductCard from "@/components/product/ProductCard";
@@ -15,7 +16,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
 
-  const addToCart = useCartStore((s) => s.addToCart);
+  const addItem = useMenuCartStore((s) => s.addItem);
   const { user } = useAuthStore();
 
   const {
@@ -124,11 +125,10 @@ export default function ProductDetail() {
                   src={img}
                   alt="thumbnail"
                   onClick={() => setSelectedImage(index)}
-                  className={`w-20 h-20 object-cover rounded-lg cursor-pointer border ${
-                    selectedImage === index
+                  className={`w-20 h-20 object-cover rounded-lg cursor-pointer border ${selectedImage === index
                       ? "border-amber-500"
                       : "border-transparent"
-                  }`}
+                    }`}
                 />
               ))}
             </div>
@@ -188,7 +188,30 @@ export default function ProductDetail() {
                 return;
               }
 
-              addToCart(selectedProduct, quantity);
+              // Map to MenuProduct
+              const menuProduct: MenuProduct = {
+                id: selectedProduct.id,
+                sku: selectedProduct.sku,
+                name: selectedProduct.name,
+                description: selectedProduct.description,
+                content: selectedProduct.content,
+                price: selectedProduct.price || selectedProduct.min_price || 0,
+                image: selectedProduct.image_url || selectedProduct.image || "",
+                categoryId: selectedProduct.categoryId,
+                rating: selectedProduct.rating || 5,
+                reviewCount: selectedProduct.reviewCount || 0,
+                isAvailable: selectedProduct.isActive !== false,
+              } as MenuProduct;
+
+              const options: MenuItemOptions = {
+                size: "M",
+                sugar: "100%",
+                ice: "Đá vừa",
+                toppings: [],
+                note: "",
+              };
+
+              addItem(menuProduct, options, quantity);
               // toast.success("Đã thêm vào giỏ hàng");
             }}
             className="bg-amber-500 hover:bg-amber-600 text-white px-8 py-4 rounded-xl font-semibold"
