@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchOrders } from "../../../services/order.service";
 import { fetchPayments } from "../../../services/payment.service";
@@ -32,6 +32,7 @@ type LowStockItem = {
 };
 
 const DashboardPage = () => {
+  const hasRun = useRef(false);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
     totalOrders: 0,
@@ -165,6 +166,8 @@ const DashboardPage = () => {
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadDashboard();
   }, []);
 
