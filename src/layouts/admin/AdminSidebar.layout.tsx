@@ -50,7 +50,12 @@ const adminNav: Array<{
     label: "User Franchise",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.USER_FRANCHISE_ROLES}`,
     icon: (
-      <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -103,7 +108,12 @@ const adminNav: Array<{
     label: "Product Franchise",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PRODUCT_FRANCHISES}`,
     icon: (
-      <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -114,15 +124,20 @@ const adminNav: Array<{
     ),
   },
   {
-    label: "Product Category Franchise",
+    label: "Prod. Cat. Franchise",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PRODUCT_CATEGORY_FRANCHISES}`,
     icon: (
-      <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg
+        className="size-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M4 6h16M4 10h16M4 14h10M4 18h10"
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
         />
       </svg>
     ),
@@ -202,7 +217,8 @@ const adminNav: Array<{
         />
       </svg>
     ),
-  },  {
+  },
+  {
     label: "Inventories",
     to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORIES}`,
     icon: (
@@ -276,7 +292,7 @@ const AdminSidebar = ({ isMobile }: AdminSidebarProps) => {
   const activeContext = user?.active_context as { role?: string } | null;
   const currentRole = (activeContext?.role || user?.role || "").toUpperCase();
   const visibleNav = adminNav.filter(
-    (item) => !item.hiddenForRoles?.includes(currentRole)
+    (item) => !item.hiddenForRoles?.includes(currentRole),
   );
 
   return (
@@ -287,17 +303,16 @@ const AdminSidebar = ({ isMobile }: AdminSidebarProps) => {
       style={{ width: sidebarWidth, transform: translateX }}
     >
       <div className="flex h-full flex-col py-6">
-
         <nav className="flex-1 space-y-2 px-3">
           {visibleNav.map((item) => {
-            const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
+            const isActive =
+              location.pathname === item.to ||
+              location.pathname.startsWith(item.to + "/");
             return (
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={
-                  `flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-200 ${isActive ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/50" : "text-slate-300 hover:bg-slate-700/50 hover:text-white"}`
-                }
+                className={`flex items-center gap-4 rounded-xl px-3 py-3 transition-all duration-200 ${isActive ? "bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/50" : "text-slate-300 hover:bg-slate-700/50 hover:text-white"}`}
               >
                 <span className="flex-shrink-0">{item.icon}</span>
                 <span className="whitespace-nowrap text-sm font-medium">

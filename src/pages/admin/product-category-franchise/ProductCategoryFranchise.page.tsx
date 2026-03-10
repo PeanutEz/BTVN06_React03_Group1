@@ -3,22 +3,40 @@ import { Button } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
-import {
-  adminProductCategoryFranchiseService,
-} from "../../../services/product-category-franchise.service";
+import { categoryFranchiseService } from "../../../services/category-franchise.service";
+import { adminProductFranchiseService } from "../../../services/product-franchise.service";
+import { productCategoryFranchiseService } from "../../../services/product-category-franchise.service";
 import type {
-  CreateProductCategoryFranchiseDto,
   ProductCategoryFranchiseApiResponse,
   SearchProductCategoryFranchiseDto,
+  CreateProductCategoryFranchiseDto,
+  ReorderProductCategoryFranchiseDto,
+  CategoryFranchiseApiResponse,
+  ProductFranchiseApiResponse,
 } from "../../../models/product.model";
 import { showError, showSuccess } from "../../../utils";
 
 const ITEMS_PER_PAGE = 10;
-
 const DEFAULT_CREATE: CreateProductCategoryFranchiseDto = {
   category_franchise_id: "",
   product_franchise_id: "",
   display_order: 1,
+};
+
+const getApiErrorMessage = (err: unknown, fallback: string) => {
+  const data = (err as { response?: { data?: unknown } })?.response?.data as
+    | { message?: string | null; errors?: Array<{ message?: string }> }
+    | undefined;
+  const errors = data?.errors;
+  if (Array.isArray(errors) && errors.length > 0) {
+    const msg = errors
+      .map((e) => e?.message)
+      .filter(Boolean)
+      .join(", ");
+    if (msg) return msg;
+  }
+  if (data?.message) return String(data.message);
+  return err instanceof Error ? err.message : fallback;
 };
 
 export default function ProductCategoryFranchisePage() {
@@ -27,29 +45,43 @@ export default function ProductCategoryFranchisePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
-
-
+  const [categoryFranchises, setCategoryFranchises] = useState<
+    CategoryFranchiseApiResponse[]
+  >([]);
+  const [productFranchises, setProductFranchises] = useState<
+    ProductFranchiseApiResponse[]
+  >([]);
   const [filters, setFilters] = useState<{
     franchise_id: string;
+    category_id: string;
+    product_id: string;
     is_active: string;
     is_deleted: boolean;
   }>({
     franchise_id: "",
+    category_id: "",
+    product_id: "",
     is_active: "",
     is_deleted: false,
   });
 
+  // create modal
   const [createOpen, setCreateOpen] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateProductCategoryFranchiseDto>({
-    ...DEFAULT_CREATE,
-  });
+  const [createForm, setCreateForm] =
+    useState<CreateProductCategoryFranchiseDto>({ ...DEFAULT_CREATE });
   const [creating, setCreating] = useState(false);
 
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<ProductCategoryFranchiseApiResponse | null>(null);
+  // detail modal
+  const [detail, setDetail] =
+    useState<ProductCategoryFranchiseApiResponse | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // reorder modal
+  const [reorderItem, setReorderItem] =
+    useState<ProductCategoryFranchiseApiResponse | null>(null);
+  const [newPosition, setNewPosition] = useState<string>("");
+  const [reordering, setReordering] = useState(false);
 
   const hasRun = useRef(false);
 
@@ -61,36 +93,32 @@ export default function ProductCategoryFranchisePage() {
     return map;
   }, [franchises]);
 
-  const buildSearchDto = (pageNum: number): SearchProductCategoryFranchiseDto => {
+  const buildSearchDto = (
+    pageNum: number,
+  ): SearchProductCategoryFranchiseDto => {
     const isActive =
-      filters.is_active === "true" ? true : filters.is_active === "false" ? false : undefined;
+      filters.is_active === "true"
+        ? true
+        : filters.is_active === "false"
+          ? false
+          : undefined;
     return {
       searchCondition: {
         franchise_id: filters.franchise_id || undefined,
+        category_id: filters.category_id || undefined,
+        product_id: filters.product_id || undefined,
         is_active: isActive,
         is_deleted: filters.is_deleted,
       },
-      pageInfo: {
-        pageNum,
-        pageSize: ITEMS_PER_PAGE,
-      },
+      pageInfo: { pageNum, pageSize: ITEMS_PER_PAGE },
     };
-  };
-
-  const loadSelects = async () => {
-    try {
-      const [frs] = await Promise.all([fetchFranchiseSelect()]);
-      setFranchises(frs);
-    } catch (err) {
-      console.error("[ProductCategoryFranchise] loadSelects error:", err);
-    }
   };
 
   const load = async (pageNum = currentPage) => {
     setLoading(true);
     try {
       const result =
-        await adminProductCategoryFranchiseService.searchProductCategoryFranchises(
+        await productCategoryFranchiseService.searchProductCategoryFranchises(
           buildSearchDto(pageNum),
         );
       setItems(result.data);
@@ -98,10 +126,31 @@ export default function ProductCategoryFranchisePage() {
       setTotalPages(result.pageInfo.totalPages);
       setTotalItems(result.pageInfo.totalItems);
     } catch (err) {
-      console.error("[ProductCategoryFranchise] load error:", err);
-      showError("Lấy danh sách product-category-franchise thất bại");
+      showError("Lấy danh sách thất bại");
+      console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSelects = async () => {
+    try {
+      const [frs, cfRes, pfRes] = await Promise.all([
+        fetchFranchiseSelect(),
+        categoryFranchiseService.searchCategoryFranchises({
+          searchCondition: { is_deleted: false },
+          pageInfo: { pageNum: 1, pageSize: 100 },
+        }),
+        adminProductFranchiseService.searchProductFranchises({
+          searchCondition: { is_deleted: false },
+          pageInfo: { pageNum: 1, pageSize: 100 },
+        }),
+      ]);
+      setFranchises(frs);
+      setCategoryFranchises(cfRes.data);
+      setProductFranchises(pfRes.data);
+    } catch (err) {
+      console.error("[PCF] loadSelects error:", err);
     }
   };
 
@@ -113,49 +162,44 @@ export default function ProductCategoryFranchisePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openCreate = () => {
-    setCreateForm({ ...DEFAULT_CREATE });
-    setCreateOpen(true);
-  };
-
   const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createForm.category_franchise_id || !createForm.product_franchise_id) {
       showError("Vui lòng chọn category franchise và product franchise");
       return;
     }
-    if (!createForm.display_order || Number.isNaN(Number(createForm.display_order))) {
-      showError("Vui lòng nhập display_order hợp lệ");
+    if (!createForm.display_order || createForm.display_order < 1) {
+      showError("display_order phải >= 1");
       return;
     }
     setCreating(true);
     try {
-      await adminProductCategoryFranchiseService.createProductCategoryFranchise({
-        category_franchise_id: createForm.category_franchise_id,
-        product_franchise_id: createForm.product_franchise_id,
-        display_order: Number(createForm.display_order),
-      });
-      showSuccess("Thêm product vào category franchise thành công");
+      await productCategoryFranchiseService.createProductCategoryFranchise(
+        createForm,
+      );
+      showSuccess("Thêm thành công");
       setCreateOpen(false);
+      setCreateForm({ ...DEFAULT_CREATE });
       await load(1);
     } catch (err) {
-      console.error("[ProductCategoryFranchise] create error:", err);
-      showError("Tạo thất bại");
+      showError(getApiErrorMessage(err, "Tạo thất bại"));
     } finally {
       setCreating(false);
     }
   };
 
   const openDetail = async (id: string) => {
-    setDetailId(id);
     setDetail(null);
     setDetailLoading(true);
     try {
-      const d = await adminProductCategoryFranchiseService.getProductCategoryFranchiseById(id);
+      const d =
+        await productCategoryFranchiseService.getProductCategoryFranchiseById(
+          id,
+        );
       setDetail(d);
     } catch (err) {
-      console.error("[ProductCategoryFranchise] detail error:", err);
       showError("Lấy chi tiết thất bại");
+      console.error(err);
     } finally {
       setDetailLoading(false);
     }
@@ -164,78 +208,99 @@ export default function ProductCategoryFranchisePage() {
   const handleDelete = async (it: ProductCategoryFranchiseApiResponse) => {
     if (!confirm("Bạn có chắc muốn xóa item này?")) return;
     try {
-      await adminProductCategoryFranchiseService.deleteProductCategoryFranchise(it.id);
+      await productCategoryFranchiseService.deleteProductCategoryFranchise(
+        it.id,
+      );
       showSuccess("Đã xóa");
       await load(currentPage);
     } catch (err) {
-      showError("Xóa thất bại");
+      showError(getApiErrorMessage(err, "Xóa thất bại"));
     }
   };
 
   const handleRestore = async (it: ProductCategoryFranchiseApiResponse) => {
     if (!confirm("Khôi phục item này?")) return;
     try {
-      await adminProductCategoryFranchiseService.restoreProductCategoryFranchise(it.id);
+      await productCategoryFranchiseService.restoreProductCategoryFranchise(
+        it.id,
+      );
       showSuccess("Đã khôi phục");
       await load(currentPage);
     } catch (err) {
-      showError("Khôi phục thất bại");
+      showError(getApiErrorMessage(err, "Khôi phục thất bại"));
     }
   };
 
-  const handleToggleStatus = async (it: ProductCategoryFranchiseApiResponse) => {
+  const handleToggleStatus = async (
+    it: ProductCategoryFranchiseApiResponse,
+  ) => {
     const next = !it.is_active;
-    const action = next ? "Bật" : "Tắt";
-    if (!confirm(`${action} item này?`)) return;
+    if (!confirm(`${next ? "Bật" : "Tắt"} item này?`)) return;
     try {
-      await adminProductCategoryFranchiseService.changeProductCategoryFranchiseStatus(
+      await productCategoryFranchiseService.changeProductCategoryFranchiseStatus(
         it.id,
         next,
       );
       showSuccess("Đã cập nhật trạng thái");
       await load(currentPage);
     } catch (err) {
-      showError("Đổi trạng thái thất bại");
+      showError(getApiErrorMessage(err, "Đổi trạng thái thất bại"));
     }
   };
 
-  const handleReorder = async (
-    it: ProductCategoryFranchiseApiResponse,
-    newPosition: number,
-  ) => {
-    if (!Number.isFinite(newPosition) || newPosition <= 0) {
-      showError("Vị trí mới không hợp lệ");
+  const submitReorder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reorderItem) return;
+    const pos = Number(newPosition);
+    if (!newPosition || isNaN(pos) || pos < 1) {
+      showError("Vị trí phải là số >= 1");
       return;
     }
+    setReordering(true);
     try {
-      await adminProductCategoryFranchiseService.reorderProductCategoryFranchise(
-        it.category_franchise_id,
-        it.id,
-        newPosition,
+      const dto: ReorderProductCategoryFranchiseDto = {
+        category_franchise_id: reorderItem.category_franchise_id,
+        item_id: reorderItem.id,
+        new_position: pos,
+      };
+      await productCategoryFranchiseService.reorderProductCategoryFranchise(
+        dto,
       );
       showSuccess("Đã cập nhật thứ tự");
+      setReorderItem(null);
       await load(currentPage);
     } catch (err) {
-      showError("Đổi thứ tự thất bại");
+      showError(getApiErrorMessage(err, "Đổi thứ tự thất bại"));
+    } finally {
+      setReordering(false);
     }
   };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
             Product Category Franchise
           </h1>
           <p className="text-xs text-slate-600 sm:text-sm">
-            Quản lý gán sản phẩm (product franchise) vào danh mục theo franchise
+            Quản lý sản phẩm theo danh mục trong từng franchise — tổng{" "}
+            {totalItems} item
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => load(1)} loading={loading}>
             Tải lại
           </Button>
-          <Button onClick={openCreate}>+ Thêm product vào category</Button>
+          <Button
+            onClick={() => {
+              setCreateForm({ ...DEFAULT_CREATE });
+              setCreateOpen(true);
+            }}
+          >
+            + Thêm mới
+          </Button>
         </div>
       </div>
 
@@ -248,285 +313,275 @@ export default function ProductCategoryFranchisePage() {
             </label>
             <select
               value={filters.franchise_id}
-              onChange={(e) => {
-                setFilters((f) => ({ ...f, franchise_id: e.target.value }));
-                setCurrentPage(1);
-              }}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, franchise_id: e.target.value }))
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
-              <option value="">-- Tất cả franchise --</option>
-              {franchises.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.name} ({f.code})
+              <option value="">-- Tất cả --</option>
+              {franchises.map((fr) => (
+                <option key={fr.value} value={fr.value}>
+                  {fr.name} ({fr.code})
                 </option>
               ))}
             </select>
           </div>
-
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              is_active
+              Trạng thái
             </label>
             <select
               value={filters.is_active}
-              onChange={(e) => {
-                setFilters((f) => ({ ...f, is_active: e.target.value }));
-                setCurrentPage(1);
-              }}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, is_active: e.target.value }))
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
-              <option value="">Tất cả</option>
+              <option value="">-- Tất cả --</option>
               <option value="true">Active</option>
               <option value="false">Inactive</option>
             </select>
           </div>
-
-          <div className="space-y-1.5 md:col-span-2">
+          <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Khác
+              Đã xóa
             </label>
-            <div className="flex items-center gap-2">
-              <label className="flex flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={filters.is_deleted}
-                  onChange={(e) => {
-                    setFilters((f) => ({ ...f, is_deleted: e.target.checked }));
-                    setCurrentPage(1);
-                  }}
-                />
-                Hiện record đã xóa
-              </label>
-              <Button onClick={() => load(1)} loading={loading} className="shrink-0">
-                Tìm
-              </Button>
-            </div>
+            <select
+              value={filters.is_deleted ? "true" : "false"}
+              onChange={(e) =>
+                setFilters((f) => ({
+                  ...f,
+                  is_deleted: e.target.value === "true",
+                }))
+              }
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+            >
+              <option value="false">Chưa xóa</option>
+              <option value="true">Đã xóa</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <Button
+              className="w-full"
+              onClick={() => load(1)}
+              loading={loading}
+            >
+              Tìm kiếm
+            </Button>
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="w-full text-sm">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-4 py-3 text-left">Franchise</th>
+              <th className="px-4 py-3 text-left">Category</th>
+              <th className="px-4 py-3 text-left">Product</th>
+              <th className="px-4 py-3 text-left">Size</th>
+              <th className="px-4 py-3 text-right">Price</th>
+              <th className="px-4 py-3 text-center">Order</th>
+              <th className="px-4 py-3 text-center">Status</th>
+              <th className="px-4 py-3 text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading && (
               <tr>
-                <th className="px-4 py-3">Franchise</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Size / Price</th>
-                <th className="px-4 py-3">Display Order</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Thao tác</th>
+                <td
+                  colSpan={8}
+                  className="px-4 py-8 text-center text-slate-400"
+                >
+                  Đang tải...
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {items.map((it) => (
-                <tr key={it.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-900">
-                      {franchiseNameMap[it.franchise_id] || it.franchise_name || it.franchise_id}
-                    </p>
-                    <p className="text-[11px] font-mono text-slate-400">{it.franchise_id}</p>
+            )}
+            {!loading && items.length === 0 && (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="px-4 py-8 text-center text-slate-400"
+                >
+                  Không có dữ liệu
+                </td>
+              </tr>
+            )}
+            {!loading &&
+              items.map((it) => (
+                <tr key={it.id} className="transition-colors hover:bg-slate-50">
+                  <td className="px-4 py-3 text-slate-700">
+                    {it.franchise_name ||
+                      franchiseNameMap[it.franchise_id] ||
+                      it.franchise_id}
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">
+                    {it.category_name || it.category_id}
+                  </td>
+                  <td className="px-4 py-3 text-slate-700">
+                    {it.product_name || it.product_id}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{it.size}</td>
+                  <td className="px-4 py-3 text-right font-medium text-slate-700">
+                    {it.price_base.toLocaleString("vi-VN")}đ
+                  </td>
+                  <td className="px-4 py-3 text-center text-slate-500">
+                    {it.display_order}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        it.is_active
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-red-50 text-red-700"
+                      }`}
+                    >
+                      {it.is_active ? "Active" : "Inactive"}
+                    </span>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-900">{it.category_name}</p>
-                    <p className="text-[11px] font-mono text-slate-400">{it.category_franchise_id}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-900">{it.product_name}</p>
-                    <p className="text-[11px] font-mono text-slate-400">{it.product_franchise_id}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="space-y-1 text-xs">
-                      <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
-                        Size: {it.size}
-                      </span>
-                      <div className="font-semibold text-slate-900">
-                        {Number(it.price_base).toLocaleString("vi-VN")} đ
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        defaultValue={it.display_order}
-                        min={1}
-                        className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
-                        onBlur={(e) =>
-                          handleReorder(it, Number((e.target as HTMLInputElement).value))
-                        }
-                      />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {it.is_deleted ? (
-                      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">
-                        Deleted
-                      </span>
-                    ) : it.is_active ? (
-                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                        Active
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                        Inactive
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => openDetail(it.id)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
+                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 transition hover:bg-slate-50"
                       >
                         Chi tiết
                       </button>
-                      {!it.is_deleted && (
+                      <button
+                        onClick={() => handleToggleStatus(it)}
+                        className={`rounded-lg border px-2 py-1 text-xs transition ${
+                          it.is_active
+                            ? "border-amber-200 text-amber-700 hover:bg-amber-50"
+                            : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                        }`}
+                      >
+                        {it.is_active ? "Tắt" : "Bật"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setReorderItem(it);
+                          setNewPosition(String(it.display_order));
+                        }}
+                        className="rounded-lg border border-blue-200 px-2 py-1 text-xs text-blue-700 transition hover:bg-blue-50"
+                      >
+                        Sắp xếp
+                      </button>
+                      {it.is_deleted ? (
                         <button
-                          onClick={() => handleToggleStatus(it)}
-                          className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:border-amber-400 hover:bg-amber-50"
+                          onClick={() => handleRestore(it)}
+                          className="rounded-lg border border-emerald-200 px-2 py-1 text-xs text-emerald-700 transition hover:bg-emerald-50"
                         >
-                          {it.is_active ? "Tắt" : "Bật"}
-                        </button>
-                      )}
-                      {!it.is_deleted ? (
-                        <button
-                          onClick={() => handleDelete(it)}
-                          className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:border-red-400 hover:bg-red-50"
-                        >
-                          Xóa
+                          Khôi phục
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleRestore(it)}
-                          className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-600 transition hover:border-emerald-400 hover:bg-emerald-50"
+                          onClick={() => handleDelete(it)}
+                          className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 transition hover:bg-red-50"
                         >
-                          Khôi phục
+                          Xóa
                         </button>
                       )}
                     </div>
                   </td>
                 </tr>
               ))}
-
-              {items.length === 0 && !loading && (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-sm text-slate-500"
-                  >
-                    Không có dữ liệu
-                  </td>
-                </tr>
-              )}
-              {loading && (
-                <tr>
-                  <td colSpan={7}>
-                    <div className="flex items-center justify-center py-16">
-                      <div className="size-10 animate-spin rounded-full border-4 border-primary-200 border-t-primary-500" />
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-4">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={ITEMS_PER_PAGE}
-            onPageChange={(page) => {
-              setCurrentPage(page);
-              load(page);
-            }}
-          />
-        </div>
+          </tbody>
+        </table>
       </div>
+
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(p) => load(p)}
+        />
+      )}
 
       {/* Create Modal */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Thêm product vào Category Franchise
-                </h2>
-              </div>
-              <button
-                onClick={() => setCreateOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-4 text-lg font-bold text-slate-900">
+              Thêm Product vào Category Franchise
+            </h2>
             <form onSubmit={submitCreate} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">
-                    Category Franchise ID *
-                  </label>
-                  <input
-                    value={createForm.category_franchise_id}
-                    onChange={(e) =>
-                      setCreateForm((f) => ({ ...f, category_franchise_id: e.target.value }))
-                    }
-                    placeholder="Nhập category_franchise_id"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">
-                    Product Franchise ID *
-                  </label>
-                  <input
-                    value={createForm.product_franchise_id}
-                    onChange={(e) =>
-                      setCreateForm((f) => ({ ...f, product_franchise_id: e.target.value }))
-                    }
-                    placeholder="Nhập product_franchise_id"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-              </div>
-
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">
-                  Display order *
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Category Franchise <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={createForm.category_franchise_id}
+                  onChange={(e) =>
+                    setCreateForm((f) => ({
+                      ...f,
+                      category_franchise_id: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  required
+                >
+                  <option value="">-- Chọn category franchise --</option>
+                  {categoryFranchises.map((cf) => (
+                    <option key={cf.id} value={cf.id}>
+                      {cf.category_name || cf.category_id} —{" "}
+                      {cf.franchise_name || cf.franchise_id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Product Franchise <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={createForm.product_franchise_id}
+                  onChange={(e) =>
+                    setCreateForm((f) => ({
+                      ...f,
+                      product_franchise_id: e.target.value,
+                    }))
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  required
+                >
+                  <option value="">-- Chọn product franchise --</option>
+                  {productFranchises.map((pf) => (
+                    <option key={pf.id} value={pf.id}>
+                      {pf.product_id} — Size: {pf.size} —{" "}
+                      {pf.price_base.toLocaleString("vi-VN")}đ
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Display Order <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
-                  value={String(createForm.display_order ?? "")}
+                  min={1}
+                  value={createForm.display_order}
                   onChange={(e) =>
                     setCreateForm((f) => ({
                       ...f,
                       display_order: Number(e.target.value),
                     }))
                   }
-                  placeholder="VD: 1"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  required
                 />
               </div>
-
-              <div className="flex gap-3 pt-1">
-                <Button type="submit" loading={creating} className="flex-1">
-                  Xác nhận
-                </Button>
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setCreateOpen(false)}
-                  disabled={creating}
-                  className="flex-1"
                 >
                   Hủy
+                </Button>
+                <Button type="submit" loading={creating}>
+                  Tạo
                 </Button>
               </div>
             </form>
@@ -535,83 +590,104 @@ export default function ProductCategoryFranchisePage() {
       )}
 
       {/* Detail Modal */}
-      {detailId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">Chi tiết</h2>
-              </div>
-              <button
-                onClick={() => setDetailId(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            {detailLoading ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
-                Đang tải...
-              </div>
-            ) : !detail ? (
-              <p className="text-sm text-slate-500">Không có dữ liệu</p>
-            ) : (
-              <div className="space-y-3 text-sm">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs text-slate-500">ID</p>
-                  <p className="font-mono text-xs text-slate-700">{detail.id}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs text-slate-500">Franchise</p>
-                  <p className="font-semibold text-slate-900">
-                    {franchiseNameMap[detail.franchise_id] || detail.franchise_name}
-                  </p>
-                  <p className="font-mono text-[11px] text-slate-400">{detail.franchise_id}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs text-slate-500">Category</p>
-                  <p className="font-semibold text-slate-900">{detail.category_name}</p>
-                  <p className="font-mono text-[11px] text-slate-400">
-                    {detail.category_franchise_id}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs text-slate-500">Product</p>
-                  <p className="font-semibold text-slate-900">{detail.product_name}</p>
-                  <p className="font-mono text-[11px] text-slate-400">
-                    {detail.product_franchise_id}
-                  </p>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                    <p className="text-xs text-slate-500">Size</p>
-                    <p className="font-semibold text-slate-900">{detail.size}</p>
+      {(detail || detailLoading) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-4 text-lg font-bold text-slate-900">Chi tiết</h2>
+            {detailLoading && (
+              <p className="text-sm text-slate-400">Đang tải...</p>
+            )}
+            {detail && (
+              <div className="space-y-2 text-sm">
+                {(
+                  [
+                    ["ID", detail.id],
+                    [
+                      "Franchise",
+                      `${detail.franchise_name} (${detail.franchise_id})`,
+                    ],
+                    [
+                      "Category",
+                      `${detail.category_name} (${detail.category_id})`,
+                    ],
+                    [
+                      "Product",
+                      `${detail.product_name} (${detail.product_id})`,
+                    ],
+                    ["Size", detail.size],
+                    ["Price", `${detail.price_base.toLocaleString("vi-VN")}đ`],
+                    ["Display Order", detail.display_order],
+                    ["Status", detail.is_active ? "Active" : "Inactive"],
+                    ["Deleted", detail.is_deleted ? "Yes" : "No"],
+                    [
+                      "Created",
+                      new Date(detail.created_at).toLocaleString("vi-VN"),
+                    ],
+                    [
+                      "Updated",
+                      new Date(detail.updated_at).toLocaleString("vi-VN"),
+                    ],
+                  ] as [string, string | number][]
+                ).map(([label, value]) => (
+                  <div key={label} className="flex gap-2">
+                    <span className="w-32 flex-shrink-0 font-semibold text-slate-500">
+                      {label}
+                    </span>
+                    <span className="break-all text-slate-700">{value}</span>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                    <p className="text-xs text-slate-500">Price base</p>
-                    <p className="font-semibold text-slate-900">
-                      {Number(detail.price_base).toLocaleString("vi-VN")} đ
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             )}
-            <div className="mt-5 flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setDetailId(null)}
-                className="flex-1"
-              >
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" onClick={() => setDetail(null)}>
                 Đóng
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Reorder Modal */}
+      {reorderItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h2 className="mb-1 text-lg font-bold text-slate-900">
+              Đổi thứ tự hiển thị
+            </h2>
+            <p className="mb-4 text-xs text-slate-500">
+              {reorderItem.product_name} — {reorderItem.category_name}
+            </p>
+            <form onSubmit={submitReorder} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Vị trí mới <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={newPosition}
+                  onChange={(e) => setNewPosition(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setReorderItem(null)}
+                >
+                  Hủy
+                </Button>
+                <Button type="submit" loading={reordering}>
+                  Cập nhật
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

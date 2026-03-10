@@ -1,133 +1,215 @@
 import apiClient from "@/services/api.client";
 import type {
-  ChangeProductCategoryFranchiseStatusDto,
   CreateProductCategoryFranchiseDto,
   ProductCategoryFranchiseApiResponse,
+  SearchProductCategoryFranchiseDto,
   ProductCategoryFranchiseSearchResponse,
   ReorderProductCategoryFranchiseDto,
-  RestoreProductCategoryFranchiseDto,
-  SearchProductCategoryFranchiseDto,
 } from "@/models/product.model";
 
-export const adminProductCategoryFranchiseService = {
-  // PRODUCT-CATEGORY-FRANCHISE-01 — Add Product to Category Franchise
-  // POST /api/product-category-franchises
+export const productCategoryFranchiseService = {
+  /**
+   * PCF-01 — Add Product to Category Franchise
+   * POST /api/product-category-franchises | Role: ADMIN, MANAGER | Token: required
+   */
   createProductCategoryFranchise: async (
     dto: CreateProductCategoryFranchiseDto,
   ): Promise<ProductCategoryFranchiseApiResponse> => {
-    const payload: CreateProductCategoryFranchiseDto = {
-      category_franchise_id: dto.category_franchise_id,
-      product_franchise_id: dto.product_franchise_id,
-      display_order: dto.display_order,
-    };
+    try {
+      const res = await apiClient.post<{
+        success: boolean;
+        data: ProductCategoryFranchiseApiResponse;
+        message?: string;
+      }>("/product-category-franchises", dto);
 
-    const res = await apiClient.post<{
-      success: boolean;
-      data: ProductCategoryFranchiseApiResponse;
-    }>("/product-category-franchises", payload);
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Tạo liên kết sản phẩm - danh mục thất bại");
+      }
 
-    return res.data.data;
+      return res.data.data;
+    } catch (err: any) {
+      console.error("[createProductCategoryFranchise] failed:", err);
+      throw new Error(
+        err.response?.data?.message ||
+        err.message ||
+        "Không thể tạo liên kết sản phẩm - danh mục"
+      );
+    }
   },
 
-  // PRODUCT-CATEGORY-FRANCHISE-02 — Search Items by Conditions
-  // POST /api/product-category-franchises/search
+  /**
+   * PCF-02 — Search Items by Conditions
+   * POST /api/product-category-franchises/search | Role: SYSTEM & FRANCHISE | Token: required
+   */
   searchProductCategoryFranchises: async (
     dto: SearchProductCategoryFranchiseDto,
   ): Promise<ProductCategoryFranchiseSearchResponse> => {
-    const res = await apiClient.post<{
-      success: boolean;
-      data: ProductCategoryFranchiseApiResponse[];
-      pageInfo: ProductCategoryFranchiseSearchResponse["pageInfo"];
-    }>("/product-category-franchises/search", dto);
+    try {
+      const payload: SearchProductCategoryFranchiseDto = {
+        searchCondition: {
+          franchise_id: dto.searchCondition.franchise_id || undefined,
+          product_id: dto.searchCondition.product_id || undefined,
+          category_id: dto.searchCondition.category_id || undefined,
+          is_active: dto.searchCondition.is_active,
+          is_deleted: dto.searchCondition.is_deleted ?? false,
+        },
+        pageInfo: {
+          pageNum: dto.pageInfo?.pageNum ?? 1,
+          pageSize: dto.pageInfo?.pageSize ?? 10,
+        },
+      };
 
-    return {
-      data: res.data.data,
-      pageInfo: res.data.pageInfo,
-    };
+      const res = await apiClient.post<{
+        success: boolean;
+        data: ProductCategoryFranchiseApiResponse[];
+        pageInfo: ProductCategoryFranchiseSearchResponse["pageInfo"];
+        message?: string;
+      }>("/product-category-franchises/search", payload);
+
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Tìm kiếm thất bại");
+      }
+
+      return {
+        data: res.data.data,
+        pageInfo: res.data.pageInfo,
+      };
+    } catch (err: any) {
+      console.error("[searchProductCategoryFranchises] failed:", err);
+      throw new Error(
+        err.response?.data?.message ||
+        err.message ||
+        "Không thể tìm kiếm liên kết sản phẩm - danh mục"
+      );
+    }
   },
 
-  // PRODUCT-CATEGORY-FRANCHISE-03 — Get Item
-  // GET /api/product-category-franchises/:id
+  /**
+   * PCF-03 — Get Item
+   * GET /api/product-category-franchises/:id | Role: SYSTEM & FRANCHISE | Token: required
+   */
   getProductCategoryFranchiseById: async (
     id: string,
   ): Promise<ProductCategoryFranchiseApiResponse> => {
-    const res = await apiClient.get<{
-      success: boolean;
-      data: ProductCategoryFranchiseApiResponse;
-    }>(`/product-category-franchises/${id}`);
+    try {
+      const res = await apiClient.get<{
+        success: boolean;
+        data: ProductCategoryFranchiseApiResponse;
+        message?: string;
+      }>(`/product-category-franchises/${id}`);
 
-    return res.data.data;
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Lấy chi tiết thất bại");
+      }
+
+      return res.data.data;
+    } catch (err: any) {
+      console.error("[getProductCategoryFranchiseById] failed:", err);
+      throw new Error(
+        err.response?.data?.message ||
+        err.message ||
+        "Không thể lấy thông tin liên kết sản phẩm - danh mục"
+      );
+    }
   },
 
-  // PRODUCT-CATEGORY-FRANCHISE-04 — Delete Item
-  // DELETE /api/product-category-franchises/:id
+  /**
+   * PCF-04 — Delete Item
+   * DELETE /api/product-category-franchises/:id | Role: ADMIN, MANAGER | Token: required
+   */
   deleteProductCategoryFranchise: async (id: string): Promise<void> => {
-    const res = await apiClient.delete<{ success: boolean; data: null }>(
-      `/product-category-franchises/${id}`,
-    );
+    try {
+      const res = await apiClient.delete<{ success: boolean; data: null; message?: string }>(
+        `/product-category-franchises/${id}`,
+      );
 
-    if (!res.data.success) {
-      throw new Error("Xóa product-category-franchise thất bại");
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Xóa thất bại");
+      }
+    } catch (err: any) {
+      console.error("[deleteProductCategoryFranchise] failed:", err);
+      throw new Error(
+        err.response?.data?.message ||
+        err.message ||
+        "Không thể xóa liên kết sản phẩm - danh mục"
+      );
     }
   },
 
-  // PRODUCT-CATEGORY-FRANCHISE-05 — Restore Item
-  // PATCH /api/product-category-franchises/restore
+  /**
+   * PCF-05 — Restore Item
+   * PATCH /api/product-category-franchises/restore | Role: ADMIN, MANAGER | Token: required
+   */
   restoreProductCategoryFranchise: async (id: string): Promise<void> => {
-    const payload: RestoreProductCategoryFranchiseDto = { id };
+    try {
+      const res = await apiClient.patch<{ success: boolean; data: null; message?: string }>(
+        "/product-category-franchises/restore",
+        { id },
+      );
 
-    const res = await apiClient.patch<{ success: boolean; data: null }>(
-      "/product-category-franchises/restore",
-      payload,
-    );
-
-    if (!res.data.success) {
-      throw new Error("Khôi phục product-category-franchise thất bại");
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Khôi phục thất bại");
+      }
+    } catch (err: any) {
+      console.error("[restoreProductCategoryFranchise] failed:", err);
+      throw new Error(
+        err.response?.data?.message ||
+        err.message ||
+        "Không thể khôi phục liên kết sản phẩm - danh mục"
+      );
     }
   },
 
-  // PRODUCT-CATEGORY-FRANCHISE-06 — Change Status Item
-  // PATCH /api/product-category-franchises/status
+  /**
+   * PCF-06 — Change Status Item
+   * PATCH /api/product-category-franchises/status | Role: ADMIN, MANAGER | Token: required
+   */
   changeProductCategoryFranchiseStatus: async (
     id: string,
-    isActive: boolean,
+    is_active: boolean,
   ): Promise<void> => {
-    const payload: ChangeProductCategoryFranchiseStatusDto = {
-      id,
-      is_active: isActive,
-    };
+    try {
+      const res = await apiClient.patch<{ success: boolean; data: null; message?: string }>(
+        "/product-category-franchises/status",
+        { id, is_active },
+      );
 
-    const res = await apiClient.patch<{ success: boolean; data: null }>(
-      "/product-category-franchises/status",
-      payload,
-    );
-
-    if (!res.data.success) {
-      throw new Error("Đổi trạng thái product-category-franchise thất bại");
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Đổi trạng thái thất bại");
+      }
+    } catch (err: any) {
+      console.error("[changeProductCategoryFranchiseStatus] failed:", err);
+      throw new Error(
+        err.response?.data?.message ||
+        err.message ||
+        "Không thể thay đổi trạng thái liên kết sản phẩm - danh mục"
+      );
     }
   },
 
-  // PRODUCT-CATEGORY-FRANCHISE-07 — Change Display Order Item
-  // PATCH /api/product-category-franchises/reorder
+  /**
+   * PCF-07 — Change Display Order Item
+   * PATCH /api/product-category-franchises/reorder | Role: ADMIN, MANAGER | Token: required
+   */
   reorderProductCategoryFranchise: async (
-    categoryFranchiseId: string,
-    itemId: string,
-    newPosition: number,
+    dto: ReorderProductCategoryFranchiseDto,
   ): Promise<void> => {
-    const payload: ReorderProductCategoryFranchiseDto = {
-      category_franchise_id: categoryFranchiseId,
-      item_id: itemId,
-      new_position: newPosition,
-    };
+    try {
+      const res = await apiClient.patch<{ success: boolean; data: null; message?: string }>(
+        "/product-category-franchises/reorder",
+        dto,
+      );
 
-    const res = await apiClient.patch<{ success: boolean; data: null }>(
-      "/product-category-franchises/reorder",
-      payload,
-    );
-
-    if (!res.data.success) {
-      throw new Error("Đổi thứ tự product-category-franchise thất bại");
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Đổi thứ tự thất bại");
+      }
+    } catch (err: any) {
+      console.error("[reorderProductCategoryFranchise] failed:", err);
+      throw new Error(
+        err.response?.data?.message ||
+        err.message ||
+        "Không thể thay đổi thứ tự hiển thị"
+      );
     }
   },
 };
-
