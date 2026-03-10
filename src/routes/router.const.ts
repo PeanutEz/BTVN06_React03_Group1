@@ -61,6 +61,7 @@ export const ROUTER_URL = {
   ADMIN_ROUTES: {
     DASHBOARD: "dashboard",
     USERS: "users",
+    USER_FRANCHISE_ROLES: "user-franchise-roles",
     ORDERS: "orders",
     ORDER_DETAIL: "orders/:id",
     CUSTOMERS: "customers",
