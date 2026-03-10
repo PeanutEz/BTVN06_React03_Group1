@@ -17,7 +17,6 @@ import type {
 import { showError, showSuccess } from "../../../utils";
 
 const ITEMS_PER_PAGE = 10;
-
 const DEFAULT_CREATE: CreateProductCategoryFranchiseDto = {
   category_franchise_id: "",
   product_franchise_id: "",
@@ -46,7 +45,6 @@ export default function ProductCategoryFranchisePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
   const [categoryFranchises, setCategoryFranchises] = useState<
     CategoryFranchiseApiResponse[]
@@ -54,7 +52,6 @@ export default function ProductCategoryFranchisePage() {
   const [productFranchises, setProductFranchises] = useState<
     ProductFranchiseApiResponse[]
   >([]);
-
   const [filters, setFilters] = useState<{
     franchise_id: string;
     category_id: string;
@@ -329,7 +326,6 @@ export default function ProductCategoryFranchisePage() {
               ))}
             </select>
           </div>
-
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Trạng thái
@@ -346,7 +342,6 @@ export default function ProductCategoryFranchisePage() {
               <option value="false">Inactive</option>
             </select>
           </div>
-
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Đã xóa
@@ -365,7 +360,6 @@ export default function ProductCategoryFranchisePage() {
               <option value="true">Đã xóa</option>
             </select>
           </div>
-
           <div className="flex items-end">
             <Button
               className="w-full"
@@ -536,7 +530,6 @@ export default function ProductCategoryFranchisePage() {
                   ))}
                 </select>
               </div>
-
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Product Franchise <span className="text-red-500">*</span>
@@ -561,7 +554,6 @@ export default function ProductCategoryFranchisePage() {
                   ))}
                 </select>
               </div>
-
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Display Order <span className="text-red-500">*</span>
@@ -580,7 +572,6 @@ export default function ProductCategoryFranchisePage() {
                   required
                 />
               </div>
-
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"

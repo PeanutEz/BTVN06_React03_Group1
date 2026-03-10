@@ -370,17 +370,17 @@ export interface ProductFranchiseSearchResponse {
   };
 }
 
-// ─── PRODUCT-CATEGORY-FRANCHISE ───────────────────────────────────────────────
+// ─── PRODUCT-CATEGORY-FRANCHISE ────────────────────────────────────────────────
 
-// DTO for PCF-01 — Add Product to Category Franchise
-// POST /api/product-category-franchises  |  Role: ADMIN, MANAGER
+// DTO for PRODUCT-CATEGORY-FRANCHISE-01 — Add Product to Category Franchise
+// POST /api/product-category-franchises  |  Role: ADMIN, MANAGER  |  Token: required
 export interface CreateProductCategoryFranchiseDto {
-  category_franchise_id: string; // required
-  product_franchise_id: string; // required
-  display_order: number; // required
+  category_franchise_id: string;
+  product_franchise_id: string;
+  display_order: number;
 }
 
-// API response shape for product-category-franchise
+// API response item for PRODUCT-CATEGORY-FRANCHISE (used by create/search/get)
 export interface ProductCategoryFranchiseApiResponse {
   id: string;
   is_active: boolean;
@@ -400,23 +400,25 @@ export interface ProductCategoryFranchiseApiResponse {
   price_base: number;
 }
 
-// DTO for PCF-02 — Search Items by Conditions
-// POST /api/product-category-franchises/search  |  Role: SYSTEM & FRANCHISE
+// DTO for PRODUCT-CATEGORY-FRANCHISE-02 — Search Items by Conditions
+// POST /api/product-category-franchises/search  |  Role: SYSTEM & FRANCHISE  |  Token: required
 export interface SearchProductCategoryFranchiseDto {
   searchCondition: {
-    franchise_id?: string; // optional, default ""
-    product_id?: string; // optional, default ""
-    category_id?: string; // optional, default ""
-    is_active?: string | boolean; // optional, default ""
-    is_deleted?: string | boolean; // optional, default false
+    franchise_id?: string;
+    category_franchise_id?: string;
+    product_franchise_id?: string;
+    category_id?: string;
+    product_id?: string;
+    is_active?: boolean | string;
+    is_deleted?: boolean | string;
   };
   pageInfo: {
-    pageNum: number; // required, default 1
-    pageSize: number; // required, default 10
+    pageNum: number;
+    pageSize: number;
   };
 }
 
-// Paginated response from POST /api/product-category-franchises/search
+// Paginated response from PRODUCT-CATEGORY-FRANCHISE-02
 export interface ProductCategoryFranchiseSearchResponse {
   data: ProductCategoryFranchiseApiResponse[];
   pageInfo: {
@@ -427,10 +429,23 @@ export interface ProductCategoryFranchiseSearchResponse {
   };
 }
 
-// DTO for PCF-07 — Change Display Order Item
-// PATCH /api/product-category-franchises/reorder  |  Role: ADMIN, MANAGER
+// DTO for PRODUCT-CATEGORY-FRANCHISE-05 — Restore Item
+// PATCH /api/product-category-franchises/restore  |  Role: ADMIN, MANAGER  |  Token: required
+export interface RestoreProductCategoryFranchiseDto {
+  id: string;
+}
+
+// DTO for PRODUCT-CATEGORY-FRANCHISE-06 — Change Status Item
+// PATCH /api/product-category-franchises/status  |  Role: ADMIN, MANAGER  |  Token: required
+export interface ChangeProductCategoryFranchiseStatusDto {
+  id: string;
+  is_active: boolean;
+}
+
+// DTO for PRODUCT-CATEGORY-FRANCHISE-07 — Change Display Order Item
+// PATCH /api/product-category-franchises/reorder  |  Role: ADMIN, MANAGER  |  Token: required
 export interface ReorderProductCategoryFranchiseDto {
-  category_franchise_id: string; // required
-  item_id: string; // required — id of the product-category-franchise item
-  new_position: number; // required
+  category_franchise_id: string;
+  item_id: string;
+  new_position: number;
 }

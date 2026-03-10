@@ -101,6 +101,17 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     isEnd: true,
   },
   {
+    label: "Product Category Franchises",
+    path: ROUTER_URL.ADMIN_ROUTES.PRODUCT_CATEGORY_FRANCHISES,
+    component: React.lazy(
+      () =>
+        import(
+          "../../pages/admin/product-category-franchise/ProductCategoryFranchise.page.tsx"
+        ),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Franchises",
     path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST,
     component: React.lazy(
