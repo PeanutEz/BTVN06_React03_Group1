@@ -120,6 +120,20 @@ export interface ChangeDisplayOrderCategoryFranchiseDto {
   display_order: number; // required
 }
 
+// CATEGORY-FRANCHISE-08 — Get Categories by Franchise
+// GET /api/category-franchises/franchise/:franchiseId
+
+export interface CategoryByFranchiseResponse {
+  success: boolean;
+  data: CategoryFranchiseApiResponse[];
+  pageInfo: {
+    pageNum: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
 // Response item from GET /api/categories/select (CATEGORY-07)
 export interface CategorySelectItem {
   value: string; // category id
