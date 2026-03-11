@@ -10,8 +10,7 @@ import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import MenuProductModal from "@/components/menu/MenuProductModal";
 import { ROUTER_URL } from "@/routes/router.const";
 import type { PlacedOrder, PaymentMethod, AppliedPromo } from "@/types/delivery.types";
-import type { MenuCartItem } from "@/types/menu.types";
-import { menuProducts } from "@/services/menu.service";
+import type { MenuCartItem, MenuProduct } from "@/types/menu.types";
 import { createPayment } from "@/services/payment.service";
 
 const VAT_RATE = 0.08; // 8% VAT
@@ -269,7 +268,20 @@ export default function MenuCheckoutPage() {
         <BranchPickerModal onClose={() => { toast.success("Đã cập nhật phương thức nhận hàng"); setShowBranchPicker(false); }} />
       )}
       {editingItem && (() => {
-        const product = menuProducts.find((p) => p.id === editingItem.productId) ?? null;
+        const product: MenuProduct = {
+          id: editingItem.productId,
+          name: editingItem.name,
+          image: editingItem.image,
+          price: editingItem.basePrice,
+          sku: "",
+          description: "",
+          content: "",
+          images: [],
+          categoryId: 0,
+          rating: 0,
+          reviewCount: 0,
+          isAvailable: true,
+        };
         return (
           <MenuProductModal
             product={product}
