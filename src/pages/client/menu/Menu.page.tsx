@@ -5,6 +5,7 @@ import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/model
 import type { ClientProductListItem } from "@/models/product.model.tsx";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useMenuCartTotals } from "@/store/menu-cart.store";
+import { useLoadingStore } from "@/store/loading.store";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import MenuProductModal from "@/components/menu/MenuProductModal";
@@ -325,6 +326,17 @@ export default function MenuPage() {
   const canShowMenu = selectedFranchise !== null;
   const showLoadingSkeleton = loading === "products";
 
+  // Show global loading screen while menu data is being fetched after franchise selection
+  const showGlobalLoading = useLoadingStore((s) => s.show);
+  const hideGlobalLoading = useLoadingStore((s) => s.hide);
+  useEffect(() => {
+    if (loading === "categories" || loading === "products") {
+      showGlobalLoading("Đang tải thực đơn...");
+    } else {
+      hideGlobalLoading();
+    }
+  }, [loading, showGlobalLoading, hideGlobalLoading]);
+
   // Count products per category (from the full product list)
   const categoryCounts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -374,6 +386,9 @@ export default function MenuPage() {
 
   const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [showOrderPanel, setShowOrderPanel] = useState(false);
+  const openBranchPicker = () => {
+    setShowBranchPicker(true);
+  };
   const { itemCount, total } = useMenuCartTotals();
 
   return (
@@ -571,7 +586,7 @@ export default function MenuPage() {
                   title="Chưa chọn cửa hàng"
                   description="Hãy chọn phương thức đặt hàng để hệ thống tải thực đơn."
                   actionLabel="📍 Chọn phương thức đặt hàng"
-                  onAction={() => setShowBranchPicker(true)}
+                  onAction={openBranchPicker}
                 />
               ) : showLoadingSkeleton ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 animate-pulse">
@@ -627,7 +642,7 @@ export default function MenuPage() {
 
             {/* ── RIGHT: Cart / Order Panel (desktop sticky) ── */}
             <aside className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden" style={{ maxHeight: "calc(100vh - 10rem)" }}>
-              <MenuOrderPanel onOpenBranchPicker={() => setShowBranchPicker(true)} />
+              <MenuOrderPanel onOpenBranchPicker={openBranchPicker} />
             </aside>
           </div>
         </div>
@@ -666,7 +681,7 @@ export default function MenuPage() {
           <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden">
             <MenuOrderPanel
               onRequestClose={() => setShowOrderPanel(false)}
-              onOpenBranchPicker={() => { setShowOrderPanel(false); setShowBranchPicker(true); }}
+              onOpenBranchPicker={() => { setShowOrderPanel(false); openBranchPicker(); }}
             />
           </div>
         </div>

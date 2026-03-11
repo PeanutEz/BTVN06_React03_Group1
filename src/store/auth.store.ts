@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { LOCAL_STORAGE_KEY } from "../const/data.const";
 import type { UserProfile } from "../services/auth.service";
+import { removeItem } from "@/utils/localstorage.util";
 
 type AuthState = {
 	user: UserProfile | null;
@@ -29,6 +30,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 	logout: () => {
 		localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
+		removeItem("hylux_delivery_state");
+		removeItem("hylux_menu_cart");
 		set({ user: null, isLoggedIn: false });
 	},
 

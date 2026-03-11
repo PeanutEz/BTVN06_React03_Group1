@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useMenuCartStore } from "@/store/menu-cart.store";
-import { useAuthStore } from "@/store/auth.store";
-import { ROUTER_URL } from "@/routes/router.const";
 import {
   MENU_SIZES,
   SUGAR_LEVELS,
@@ -34,9 +31,7 @@ interface MenuProductModalProps {
 }
 
 export default function MenuProductModal({ product, onClose }: MenuProductModalProps) {
-  const navigate = useNavigate();
   const addItem = useMenuCartStore((s) => s.addItem);
-  const user = useAuthStore((s) => s.user);
 
   const [size, setSize] = useState<MenuSize>("M");
   const [sugar, setSugar] = useState<SugarLevel>("100%");
@@ -118,16 +113,6 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
 
   function handleAddToCart() {
     if (!product) return;
-    // Auth gate — must be logged in
-    if (!user) {
-      toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng", {
-        action: {
-          label: "Đăng nhập",
-          onClick: () => { onClose(); navigate(ROUTER_URL.LOGIN); },
-        },
-      });
-      return;
-    }
     const toppingsFlat: Topping[] = TOPPINGS.flatMap((t) =>
       Array(toppingQtys[t.id] ?? 0).fill(t)
     );

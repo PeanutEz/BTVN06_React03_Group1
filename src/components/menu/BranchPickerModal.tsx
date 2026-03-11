@@ -4,6 +4,7 @@ import type { OrderMode } from "@/types/delivery.types";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAddressStore } from "@/store/address.store";
+import { useAuthStore } from "@/store/auth.store";
 import { clientService } from "@/services/client.service";
 import type { ClientFranchiseItem } from "@/models/store.model";
 
@@ -30,8 +31,9 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
 
   const clearCart = useMenuCartStore((s) => s.clearCart);
   const { addresses, add: addAddress } = useAddressStore();
+  const user = useAuthStore((s) => s.user);
 
-  const [activeTab, setActiveTab] = useState<OrderMode>("DELIVERY");
+  const [activeTab, setActiveTab] = useState<OrderMode>(user ? "DELIVERY" : "PICKUP");
   const [addressInput, setAddressInput] = useState(deliveryAddress.rawAddress);
   const pendingConfirm = useRef(false);
   const [loadingAddrId, setLoadingAddrId] = useState<number | null>(null);
@@ -99,6 +101,9 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
   }
 
   function handleSelectPickupFranchise(id: string, name: string) {
+    if (id !== selectedFranchiseId) {
+      clearCart();
+    }
     setSelectedFranchiseId(id, name);
     setOrderMode("PICKUP");
     onClose();
@@ -137,7 +142,7 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
           <div className="flex gap-2">
             {(
               [
-                { tab: "DELIVERY" as OrderMode, icon: "🛵", label: "Giao hàng" },
+                ...(user ? [{ tab: "DELIVERY" as OrderMode, icon: "🛵", label: "Giao hàng" }] : []),
                 { tab: "PICKUP" as OrderMode, icon: "🏪", label: "Lấy tại cửa hàng" },
               ] as const
             ).map(({ tab, icon, label }) => (
