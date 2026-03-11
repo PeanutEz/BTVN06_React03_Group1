@@ -56,7 +56,7 @@ export default function MenuOrderPanel({
 
   if (items.length === 0) {
     return (
-      <div className={cn("flex flex-col h-full", !visible && "hidden lg:flex")}>
+      <div className={cn("flex flex-col h-full min-h-0", !visible && "hidden lg:flex")}>
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 shrink-0">
           <h2 className="font-bold text-gray-900 text-sm">Đơn hàng của bạn</h2>
           {onRequestClose && (
@@ -95,7 +95,7 @@ export default function MenuOrderPanel({
           </button>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-0">
         {selectedBranch && (
           <button onClick={onOpenBranchPicker} className="w-full flex items-center gap-2 bg-amber-50 border-b border-amber-100 px-4 py-2.5 text-left hover:bg-amber-100 transition-colors">
             <span className="text-sm">{orderMode === "DELIVERY" ? "🛵" : "🏪"}</span>
@@ -106,7 +106,7 @@ export default function MenuOrderPanel({
             <span className="text-[10px] text-amber-600 font-medium shrink-0">Đổi</span>
           </button>
         )}
-        <div className="divide-y divide-gray-50">
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-50 min-h-0">
           {items.map((item) => (
             <div key={item.cartKey} className="px-4 py-3 flex gap-3 relative">
               <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-50 shrink-0">
@@ -208,7 +208,7 @@ export default function MenuOrderPanel({
             <span className="text-amber-600">{fmt(total)}</span>
           </div>
         </div>
-        <div className="sticky bottom-0 border-t border-gray-100 bg-white p-4 space-y-2">
+        <div className="border-t border-gray-100 bg-white p-4 space-y-2 shrink-0">
           {disabledReason && (
             <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
               <span className="text-sm">⚠️</span>

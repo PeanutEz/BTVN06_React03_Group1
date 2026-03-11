@@ -42,7 +42,6 @@ function getCategoryIcon(name: string): string {
  */
 export function mapClientCategoryToMenuCategory(
     item: ClientCategoryByFranchiseItem,
-    _index: number,
 ): MenuCategory {
     return {
         id: hashStringToNumber(item.category_id),

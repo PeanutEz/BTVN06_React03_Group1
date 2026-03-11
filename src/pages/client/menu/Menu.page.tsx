@@ -706,9 +706,17 @@ export default function MenuPage() {
             </div>
 
             {/* ── RIGHT: Cart / Order Panel (desktop sticky) ── */}
-            <aside className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden" style={{ maxHeight: "calc(100vh - 10rem)" }}>
-              <MenuOrderPanel onOpenBranchPicker={() => setShowBranchPicker(true)} onEditItem={openEditItem} />
-            </aside>
+            <aside
+  className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden"
+  style={{ height: "calc(100vh - 10rem)" }}
+>
+  <div className="flex flex-col h-full">
+    <MenuOrderPanel
+      onOpenBranchPicker={() => setShowBranchPicker(true)}
+      onEditItem={openEditItem}
+    />
+  </div>
+</aside>
           </div>
         </div>
       </div>
