@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
 import { customerLoginAndGetProfile, resendToken } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
+import { useLoadingStore } from "../../../store/loading.store";
 import type { AuthCredentials } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
@@ -48,6 +49,8 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, login } = useAuthStore();
+  const showLoading = useLoadingStore((s) => s.show);
+  const hideLoading = useLoadingStore((s) => s.hide);
   const [notVerifiedEmail, setNotVerifiedEmail] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
   const [ripples, setRipples] = useState<RippleItem[]>([]);
@@ -74,6 +77,7 @@ const LoginPage = () => {
   };
 
   const onSubmit = async (values: AuthCredentials) => {
+    showLoading("Đang đăng nhập...");
     try {
       const profile = await customerLoginAndGetProfile(values);
       login(profile);
@@ -87,6 +91,7 @@ const LoginPage = () => {
         navigate(ROUTER_URL.MENU, { replace: true });
       }
     } catch (error) {
+      hideLoading();
       const msg = error instanceof Error ? error.message : "Sai email hoặc mật khẩu";
       if (msg.toLowerCase().includes("not verified") || msg.toLowerCase().includes("chưa xác thực")) {
         setNotVerifiedEmail(values.email);
