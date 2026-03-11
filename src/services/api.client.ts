@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { MSG_CONSTANT, LOCAL_STORAGE_KEY } from "../const/data.const";
+import { LOCAL_STORAGE_KEY } from "../const/data.const";
 
 // Cờ để tránh gọi refresh token nhiều lần cùng lúc
 let isRefreshing = false;
@@ -62,10 +62,15 @@ apiClient.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // AUTO REFRESH: khi 401 + message ACCESS_TOKEN_EXPIRED và chưa retry
+        // AUTO REFRESH: khi 401 và chưa retry (bỏ qua auth endpoints để tránh vòng lặp vô tận)
         if (error.response?.status === 401 && !originalRequest._retry) {
-            const responseData = error.response.data as { message?: string };
-            if (responseData?.message === MSG_CONSTANT.ACCESS_TOKEN_EXPIRED) {
+            const url = originalRequest.url ?? "";
+            const isAuthEndpoint =
+                url === "/auth" ||
+                url === "/customer-auth" ||
+                url.includes("/auth/refresh-token");
+
+            if (!isAuthEndpoint) {
                 if (isRefreshing) {
                     // Đang refresh → đưa vào hàng đợi, chờ refresh xong mới retry
                     return new Promise((resolve, reject) => {

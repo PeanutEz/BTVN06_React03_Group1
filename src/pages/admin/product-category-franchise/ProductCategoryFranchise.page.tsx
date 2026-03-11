@@ -87,6 +87,7 @@ export default function ProductCategoryFranchisePage() {
   const [reordering, setReordering] = useState(false);
 
   const hasRun = useRef(false);
+  const isInitialized = useRef(false);
 
   const franchiseNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -161,9 +162,17 @@ export default function ProductCategoryFranchisePage() {
     if (hasRun.current) return;
     hasRun.current = true;
     loadSelects();
-    load(1);
+    load(1).finally(() => {
+      isInitialized.current = true;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    load(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -366,15 +375,7 @@ export default function ProductCategoryFranchisePage() {
             </select>
           </div>
 
-          <div className="flex items-end">
-            <Button
-              className="w-full"
-              onClick={() => load(1)}
-              loading={loading}
-            >
-              Tìm kiếm
-            </Button>
-          </div>
+
         </div>
       </div>
 
