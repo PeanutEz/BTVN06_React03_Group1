@@ -20,6 +20,7 @@ const segmentLabels: Record<string, string> = {
   create: "Tạo mới",
   edit: "Chỉnh sửa",
   inventory: "Tồn kho",
+  categories: "Danh mục",
 };
 
 function buildBreadcrumbs(pathname: string): BreadcrumbItem[] {
