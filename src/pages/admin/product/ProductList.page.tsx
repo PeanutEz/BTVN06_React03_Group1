@@ -31,8 +31,8 @@ export default function ProductListPage() {
   const [maxPriceInput, setMaxPriceInput] = useState("");   // input display value
   const [appliedMinPrice, setAppliedMinPrice] = useState(""); // committed to API on Search click
   const [appliedMaxPrice, setAppliedMaxPrice] = useState(""); // committed to API on Search click
-  const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>();
+  const [isDeletedFilter, setIsDeletedFilter] = useState<boolean>(false);
   const lastParamsRef = useRef<string | null>(null);
 
   // Fetch products
@@ -43,8 +43,8 @@ export default function ProductListPage() {
         page: pagination.page,
         limit: pagination.limit,
         search: appliedSearch || undefined,
-        categoryId: categoryFilter,
         isActive: statusFilter,
+        isDeleted: isDeletedFilter,
         minPrice: appliedMinPrice || undefined,
         maxPrice: appliedMaxPrice || undefined,
       };
@@ -64,12 +64,12 @@ export default function ProductListPage() {
   };
 
   useEffect(() => {
-    const key = JSON.stringify([pagination.page, appliedSearch, appliedMinPrice, appliedMaxPrice, categoryFilter, statusFilter]);
+    const key = JSON.stringify([pagination.page, appliedSearch, appliedMinPrice, appliedMaxPrice, statusFilter, isDeletedFilter]);
     if (key === lastParamsRef.current) return;
     lastParamsRef.current = key;
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, appliedSearch, appliedMinPrice, appliedMaxPrice, categoryFilter, statusFilter]);
+  }, [pagination.page, appliedSearch, appliedMinPrice, appliedMaxPrice, statusFilter, isDeletedFilter]);
 
   // Handle create/edit
   const handleOpenModal = (product?: Product) => {
@@ -150,6 +150,18 @@ export default function ProductListPage() {
     }
   };
 
+  const handleRestore = async (id: number) => {
+    if (!window.confirm("Bạn có chắc muốn khôi phục sản phẩm này?")) return;
+    try {
+      await adminProductService.restoreProduct(id.toString());
+      toast.success("Khôi phục sản phẩm thành công");
+      fetchProducts();
+    } catch (error) {
+      toast.error("Khôi phục sản phẩm thất bại");
+      console.error(error);
+    }
+  };
+
   // Handle toggle status
   const handleToggleStatus = async (id: number) => {
     try {
@@ -200,10 +212,10 @@ export default function ProductListPage() {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm mb-6 space-y-3">
-        {/* Search row */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm mb-6">
+        <div className="flex flex-wrap gap-2">
+          {/* Search */}
+          <div className="relative flex-1 min-w-48">
             <svg
               className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -216,7 +228,7 @@ export default function ProductListPage() {
               placeholder="Search by SKU or Name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { setAppliedSearch(e.currentTarget.value); setPagination((prev) => ({ ...prev, page: 1 })); } }}
+              onKeyDown={(e) => { if (e.key === "Enter") { setAppliedSearch(e.currentTarget.value); setAppliedMinPrice(minPriceInput); setAppliedMaxPrice(maxPriceInput); setPagination((prev) => ({ ...prev, page: 1 })); } }}
               className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
@@ -226,14 +238,7 @@ export default function ProductListPage() {
             placeholder="Min price"
             value={minPriceInput}
             onChange={(e) => setMinPriceInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setAppliedSearch(searchQuery);
-                setAppliedMinPrice(minPriceInput);
-                setAppliedMaxPrice(maxPriceInput);
-                setPagination((prev) => ({ ...prev, page: 1 }));
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") { setAppliedSearch(searchQuery); setAppliedMinPrice(minPriceInput); setAppliedMaxPrice(maxPriceInput); setPagination((prev) => ({ ...prev, page: 1 })); } }}
             className="w-32 rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           />
           <span className="text-slate-400 text-sm self-center">–</span>
@@ -243,84 +248,41 @@ export default function ProductListPage() {
             placeholder="Max price"
             value={maxPriceInput}
             onChange={(e) => setMaxPriceInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setAppliedSearch(searchQuery);
-                setAppliedMinPrice(minPriceInput);
-                setAppliedMaxPrice(maxPriceInput);
-                setPagination((prev) => ({ ...prev, page: 1 }));
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") { setAppliedSearch(searchQuery); setAppliedMinPrice(minPriceInput); setAppliedMaxPrice(maxPriceInput); setPagination((prev) => ({ ...prev, page: 1 })); } }}
             className="w-32 rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           />
+          {/* Status dropdown */}
+          <select
+            value={statusFilter === undefined ? "" : String(statusFilter)}
+            onChange={(e) => { setStatusFilter(e.target.value === "" ? undefined : e.target.value === "true"); setPagination((prev) => ({ ...prev, page: 1 })); }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+          {/* Deleted filter */}
+          <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
+            isDeletedFilter
+              ? "border-red-400 bg-red-50 text-red-700"
+              : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+          }`}>
+            <input
+              type="checkbox"
+              checked={isDeletedFilter}
+              onChange={(e) => { setIsDeletedFilter(e.target.checked); setPagination((prev) => ({ ...prev, page: 1 })); }}
+              className="accent-red-500"
+            />
+            <span className="font-medium">Đã xóa</span>
+          </label>
+          {/* Search button */}
           <button
-            onClick={() => {
-              setAppliedSearch(searchQuery);
-              setAppliedMinPrice(minPriceInput);
-              setAppliedMaxPrice(maxPriceInput);
-              setPagination((prev) => ({ ...prev, page: 1 }));
-            }}
+            onClick={() => { setAppliedSearch(searchQuery); setAppliedMinPrice(minPriceInput); setAppliedMaxPrice(maxPriceInput); setPagination((prev) => ({ ...prev, page: 1 })); }}
             disabled={loading}
             className="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-600 disabled:opacity-60"
           >
             Search
           </button>
-        </div>
-
-        {/* Status chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1">Status:</span>
-          {[
-            { label: "All", value: undefined },
-            { label: "Active", value: true },
-            { label: "Inactive", value: false },
-          ].map((opt) => {
-            const isSelected = statusFilter === opt.value;
-            return (
-              <button
-                key={String(opt.value)}
-                onClick={() => { setStatusFilter(opt.value); setPagination((prev) => ({ ...prev, page: 1 })); }}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition border ${
-                  isSelected
-                    ? "bg-primary-500 text-white border-primary-500 shadow-sm"
-                    : "bg-white text-slate-600 border-slate-300 hover:border-primary-400 hover:text-primary-600"
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Category chips */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide mr-1">Category:</span>
-          <button
-            onClick={() => { setCategoryFilter(undefined); setPagination((prev) => ({ ...prev, page: 1 })); }}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition border ${
-              categoryFilter === undefined
-                ? "bg-primary-500 text-white border-primary-500 shadow-sm"
-                : "bg-white text-slate-600 border-slate-300 hover:border-primary-400 hover:text-primary-600"
-            }`}
-          >
-            All
-          </button>
-          {categories.map((cat) => {
-            const isSelected = categoryFilter === cat.id;
-            return (
-              <button
-                key={cat.id}
-                onClick={() => { setCategoryFilter(cat.id); setPagination((prev) => ({ ...prev, page: 1 })); }}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition border ${
-                  isSelected
-                    ? "bg-primary-500 text-white border-primary-500 shadow-sm"
-                    : "bg-white text-slate-600 border-slate-300 hover:border-primary-400 hover:text-primary-600"
-                }`}
-              >
-                {cat.name}
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -383,7 +345,7 @@ export default function ProductListPage() {
                   {products.map((product) => (
                     <tr
                       key={product.id}
-                      className="hover:bg-gray-50 transition-colors"
+                      className={`transition-colors ${isDeletedFilter ? "bg-red-50" : "hover:bg-gray-50"}`}
                     >
                       <td className="px-6 py-4">
                         <img
@@ -436,24 +398,38 @@ export default function ProductListPage() {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          <button
-                            title="Chỉnh sửa"
-                            onClick={() => openViewingProduct(product)}
-                            className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                          <button
-                            title="Xóa sản phẩm"
-                            onClick={() => handleDelete(product.id)}
-                            className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          {isDeletedFilter ? (
+                            <button
+                              title="Khôi phục sản phẩm"
+                              onClick={() => handleRestore(product.id)}
+                              className="inline-flex items-center justify-center size-8 rounded-lg border border-emerald-200 bg-white text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                title="Chỉnh sửa"
+                                onClick={() => openViewingProduct(product)}
+                                className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                              </button>
+                              <button
+                                title="Xóa sản phẩm"
+                                onClick={() => handleDelete(product.id)}
+                                className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
