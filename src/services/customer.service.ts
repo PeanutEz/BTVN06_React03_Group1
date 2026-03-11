@@ -1,206 +1,247 @@
-   import type { Customer, CustomerFranchise, CustomerDisplay } from "../models/customer.model";
+import type { Customer, CustomerFranchise, CustomerDisplay } from "../models/customer.model";
+import apiClient from "./api.client";
+import type { ApiResponse } from "./auth.service";
 
-// Mock data
-const mockCustomers: Customer[] = [
-  {
-    id: 1,
-    phone: "0912345678",
-    email: "nguyenvana@example.com",
-    password_hash: "$2b$10$...",
-    name: "Nguyễn Văn A",
-    avatar_url: "https://i.pravatar.cc/150?img=1",
-    is_active: true,
-    is_deleted: false,
-    created_at: "2025-01-15T10:00:00Z",
-    updated_at: "2026-02-01T11:00:00Z",
-  },
-  {
-    id: 2,
-    phone: "0987654321",
-    email: "tranthib@example.com",
-    password_hash: "$2b$10$...",
-    name: "Trần Thị B",
-    avatar_url: "https://i.pravatar.cc/150?img=2",
-    is_active: true,
-    is_deleted: false,
-    created_at: "2025-03-20T14:30:00Z",
-    updated_at: "2026-01-31T09:15:00Z",
-  },
-  {
-    id: 3,
-    phone: "0901234567",
-    email: "levanc@example.com",
-    password_hash: "$2b$10$...",
-    name: "Lê Văn C",
-    avatar_url: "https://i.pravatar.cc/150?img=3",
-    is_active: true,
-    is_deleted: false,
-    created_at: "2025-11-05T08:00:00Z",
-    updated_at: "2026-02-02T08:45:00Z",
-  },
-  {
-    id: 4,
-    phone: "0911223344",
-    email: "phamthid@example.com",
-    password_hash: "$2b$10$...",
-    name: "Phạm Thị D",
-    avatar_url: "https://i.pravatar.cc/150?img=4",
-    is_active: false,
-    is_deleted: false,
-    created_at: "2025-06-12T16:20:00Z",
-    updated_at: "2025-12-01T10:00:00Z",
-  },
-];
+// ==================== Types ====================
 
-const mockCustomerFranchises: CustomerFranchise[] = [
-  {
-    id: 1,
-    customer_id: 1,
-    franchise_id: 1,
-    loyalty_point: 5200,
-    loyalty_tier: "GOLD",
-    first_order_at: "2025-01-20T10:00:00Z",
-    last_order_at: "2026-02-01T11:00:00Z",
-    is_active: true,
-    is_deleted: false,
-    created_at: "2025-01-15T10:00:00Z",
-    updated_at: "2026-02-01T11:00:00Z",
-  },
-  {
-    id: 2,
-    customer_id: 2,
-    franchise_id: 2,
-    loyalty_point: 1500,
-    loyalty_tier: "SILVER",
-    first_order_at: "2025-03-25T14:00:00Z",
-    last_order_at: "2026-01-31T09:15:00Z",
-    is_active: true,
-    is_deleted: false,
-    created_at: "2025-03-20T14:30:00Z",
-    updated_at: "2026-01-31T09:15:00Z",
-  },
-  {
-    id: 3,
-    customer_id: 3,
-    franchise_id: 3,
-    loyalty_point: 450,
-    loyalty_tier: "SILVER",
-    first_order_at: "2025-11-10T08:00:00Z",
-    last_order_at: "2026-02-02T08:45:00Z",
-    is_active: true,
-    is_deleted: false,
-    created_at: "2025-11-05T08:00:00Z",
-    updated_at: "2026-02-02T08:45:00Z",
-  },
-];
+/** Raw customer từ API response */
+export interface ApiCustomer {
+  id: string;
+  phone: string;
+  email?: string;
+  name: string;
+  avatar_url?: string;
+  address?: string;
+  is_verified?: boolean;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  franchises?: CustomerFranchise[];
+  [key: string]: unknown;
+}
 
-export const fetchCustomers = async (): Promise<CustomerDisplay[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return mockCustomers.map(customer => ({
-    ...customer,
-    franchises: mockCustomerFranchises
-      .filter(cf => cf.customer_id === customer.id)
-      .map(cf => ({
-        ...cf,
-        franchise: cf.franchise_id === 1
-          ? { id: 1, code: "WBS-HN-01", name: "WBS Coffee Hoàn Kiếm" }
-          : cf.franchise_id === 2
-            ? { id: 2, code: "WBS-HCM-01", name: "WBS Coffee Quận 1" }
-            : { id: 3, code: "WBS-DN-01", name: "WBS Coffee Hải Châu" },
-      })),
-  }));
-};
+/** Search condition — CUSTOMER-01: POST /api/customers/search */
+export interface CustomerSearchCondition {
+  keyword?: string;
+  is_active?: boolean | string;
+  is_deleted?: boolean;
+}
 
-export const fetchCustomerById = async (id: number): Promise<CustomerDisplay | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const customer = mockCustomers.find((c) => c.id === id);
-  if (!customer) return null;
+export interface CustomerPageInfo {
+  pageNum: number;
+  pageSize: number;
+}
+
+export interface SearchCustomersPayload {
+  searchCondition: CustomerSearchCondition;
+  pageInfo: CustomerPageInfo;
+}
+
+export interface SearchCustomersResponse {
+  success: boolean;
+  data: ApiCustomer[];
+  pageInfo: {
+    pageNum: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+  message?: string;
+  errors?: unknown[];
+}
+
+export interface SearchCustomersResult {
+  pageData: CustomerDisplay[];
+  pageInfo: {
+    pageNum: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+// ==================== Helpers ====================
+
+function normalizeCustomer(c: ApiCustomer): CustomerDisplay {
   return {
-    ...customer,
-    franchises: mockCustomerFranchises
-      .filter(cf => cf.customer_id === customer.id)
-      .map(cf => ({
-        ...cf,
-        franchise: cf.franchise_id === 1
-          ? { id: 1, code: "WBS-HN-01", name: "WBS Coffee Hoàn Kiếm" }
-          : cf.franchise_id === 2
-            ? { id: 2, code: "WBS-HCM-01", name: "WBS Coffee Quận 1" }
-            : { id: 3, code: "WBS-DN-01", name: "WBS Coffee Hải Châu" },
-      })),
+    id: c.id,
+    phone: c.phone,
+    email: c.email,
+    name: c.name,
+    avatar_url: c.avatar_url,
+    address: c.address,
+    is_verified: c.is_verified,
+    is_active: c.is_active,
+    is_deleted: c.is_deleted,
+    created_at: c.created_at,
+    updated_at: c.updated_at,
+    franchises: c.franchises ?? [],
   };
-};
+}
 
-export const fetchCustomerFranchises = async (customerId: number): Promise<CustomerFranchise[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return mockCustomerFranchises.filter(cf => cf.customer_id === customerId && !cf.is_deleted);
-};
+// ==================== CUSTOMER-01: Search Items by Conditions ====================
+// POST /api/customers/search — Token: YES — Role: ADMIN
+export async function searchCustomersPaged(
+  payload: SearchCustomersPayload,
+): Promise<SearchCustomersResult> {
+  const response = await apiClient.post<SearchCustomersResponse>("/customers/search", {
+    searchCondition: {
+      keyword: payload.searchCondition.keyword ?? "",
+      is_active: payload.searchCondition.is_active ?? "",
+      is_deleted: payload.searchCondition.is_deleted ?? false,
+    },
+    pageInfo: {
+      pageNum: payload.pageInfo.pageNum,
+      pageSize: payload.pageInfo.pageSize,
+    },
+  });
 
-export const createCustomer = async (data: Omit<Customer, "id" | "created_at" | "updated_at">): Promise<Customer> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  const newCustomer: Customer = {
-    ...data,
-    id: mockCustomers.length + 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  const result = response.data;
+  if (!result.success) {
+    throw new Error(result.message || "Tìm kiếm khách hàng thất bại");
+  }
+
+  return {
+    pageData: (result.data ?? []).map(normalizeCustomer),
+    pageInfo: result.pageInfo ?? {
+      pageNum: payload.pageInfo.pageNum,
+      pageSize: payload.pageInfo.pageSize,
+      totalItems: 0,
+      totalPages: 0,
+    },
   };
-  mockCustomers.push(newCustomer);
-  return newCustomer;
-};
+}
 
-export const updateCustomer = async (id: number, data: Partial<Customer>): Promise<Customer | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  const customer = mockCustomers.find((c) => c.id === id);
-  if (customer) {
-    Object.assign(customer, data, { updated_at: new Date().toISOString() });
+export async function fetchCustomers(): Promise<CustomerDisplay[]> {
+  const result = await searchCustomersPaged({
+    searchCondition: { keyword: "", is_active: "", is_deleted: false },
+    pageInfo: { pageNum: 1, pageSize: 100 },
+  });
+  return result.pageData;
+}
+
+export async function searchCustomers(query: string): Promise<CustomerDisplay[]> {
+  const result = await searchCustomersPaged({
+    searchCondition: { keyword: query, is_active: "", is_deleted: false },
+    pageInfo: { pageNum: 1, pageSize: 100 },
+  });
+  return result.pageData;
+}
+
+// ==================== CUSTOMER-02: Get Item ====================
+// GET /api/customers/:id — Token: YES — Role: ADMIN
+export async function fetchCustomerById(id: string | number): Promise<CustomerDisplay | null> {
+  try {
+    const response = await apiClient.get<ApiResponse<ApiCustomer>>(`/customers/${id}`);
+    const result = response.data;
+    if (!result.success) return null;
+    return normalizeCustomer((result as { data: ApiCustomer }).data);
+  } catch {
+    return null;
   }
-  return customer || null;
-};
+}
 
-export const deleteCustomer = async (id: number): Promise<boolean> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  const customer = mockCustomers.find((c) => c.id === id);
-  if (customer) {
-    customer.is_deleted = true;
-    customer.updated_at = new Date().toISOString();
-    return true;
+// ==================== CUSTOMER-03: Create Item ====================
+// POST /api/customers — Token: YES — Role: ADMIN
+export async function createCustomer(
+  data: Omit<Customer, "id" | "created_at" | "updated_at">,
+): Promise<Customer> {
+  const response = await apiClient.post<ApiResponse<ApiCustomer>>("/customers", {
+    phone: data.phone,
+    ...(data.email && { email: data.email }),
+    name: data.name,
+    is_active: data.is_active,
+  });
+  const result = response.data;
+  if (!result.success) {
+    throw new Error(result.message || "Tạo khách hàng thất bại");
   }
-  return false;
-};
+  return normalizeCustomer((result as { data: ApiCustomer }).data);
+}
 
-export const searchCustomers = async (query: string): Promise<CustomerDisplay[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const lowerQuery = query.toLowerCase();
-  const filtered = mockCustomers.filter(
-    (customer) =>
-      customer.name.toLowerCase().includes(lowerQuery) ||
-      (customer.email && customer.email.toLowerCase().includes(lowerQuery)) ||
-      customer.phone.includes(query)
-  );
-  return filtered.map(customer => ({
-    ...customer,
-    franchises: mockCustomerFranchises.filter(cf => cf.customer_id === customer.id),
-  }));
-};
+// ==================== CUSTOMER-04: Update Item ====================
+// PUT /api/customers/:id — Token: YES — Role: ADMIN
+export async function updateCustomer(
+  id: string | number,
+  data: Partial<Customer>,
+): Promise<Customer | null> {
+  const response = await apiClient.put<ApiResponse<null>>(`/customers/${id}`, {
+    ...(data.name !== undefined && { name: data.name }),
+    ...(data.email !== undefined && { email: data.email }),
+    ...(data.phone !== undefined && { phone: data.phone }),
+    ...(data.is_active !== undefined && { is_active: data.is_active }),
+  });
+  const result = response.data;
+  if (!result.success) {
+    throw new Error(result.message || "Cập nhật khách hàng thất bại");
+  }
+  return fetchCustomerById(id);
+}
 
-export const updateCustomerLoyalty = async (
+// ==================== CUSTOMER-05: Delete Item ====================
+// DELETE /api/customers/:id — Token: YES — Role: ADMIN
+export async function deleteCustomer(id: string | number): Promise<boolean> {
+  const response = await apiClient.delete<ApiResponse<null>>(`/customers/${id}`);
+  const result = response.data;
+  if (!result.success) {
+    throw new Error(result.message || "Xóa khách hàng thất bại");
+  }
+  return true;
+}
+
+// ==================== fetchCustomerFranchises ====================
+export async function fetchCustomerFranchises(customerId: number): Promise<CustomerFranchise[]> {
+  try {
+    const response = await apiClient.get<ApiResponse<CustomerFranchise[]>>(
+      `/customers/${customerId}/franchises`,
+    );
+    const result = response.data;
+    if (!result.success) return [];
+    return (result as { data: CustomerFranchise[] }).data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// ==================== CUSTOMER-06: Update Loyalty ====================
+export async function updateCustomerLoyalty(
   customerFranchiseId: number,
-  pointChange: number
-): Promise<CustomerFranchise | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const cf = mockCustomerFranchises.find((cf) => cf.id === customerFranchiseId);
-  if (cf) {
-    cf.loyalty_point += pointChange;
-    cf.updated_at = new Date().toISOString();
-    
-    // Update tier based on points
-    if (cf.loyalty_point >= 5000) {
-      cf.loyalty_tier = "PLATINUM";
-    } else if (cf.loyalty_point >= 1000) {
-      cf.loyalty_tier = "GOLD";
-    } else {
-      cf.loyalty_tier = "SILVER";
-    }
-    return cf;
+  pointChange: number,
+): Promise<CustomerFranchise | null> {
+  try {
+    const response = await apiClient.patch<ApiResponse<CustomerFranchise>>(
+      `/customer-franchises/${customerFranchiseId}/loyalty`,
+      { point_change: pointChange },
+    );
+    const result = response.data;
+    if (!result.success) return null;
+    return (result as { data: CustomerFranchise }).data;
+  } catch {
+    return null;
   }
-  return null;
-};
+}
+
+// ==================== CUSTOMER-07: Restore Item ====================
+// PATCH /api/customers/:id/restore — Token: YES — Role: ADMIN
+export async function restoreCustomer(id: string | number): Promise<void> {
+  const response = await apiClient.patch<ApiResponse<null>>(`/customers/${id}/restore`);
+  const result = response.data;
+  if (!result.success) {
+    throw new Error(result.message || "Khôi phục khách hàng thất bại");
+  }
+}
+// ==================== CUSTOMER-08: Change Status Item ====================
+// PATCH /api/customers/:id/status — Token: YES — Role: ADMIN
+export async function changeCustomerStatus(
+  id: string | number,
+  isActive: boolean,
+): Promise<void> {
+  const response = await apiClient.patch<ApiResponse<null>>(`/customers/${id}/status`, {
+    is_active: isActive,
+  });
+  const result = response.data;
+  if (!result.success) {
+    throw new Error(result.message || "Thay đổi trạng thái khách hàng thất bại");
+  }
+}
