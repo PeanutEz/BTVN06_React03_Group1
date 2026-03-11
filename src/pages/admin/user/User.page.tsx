@@ -292,7 +292,6 @@ const UserPage = () => {
               <th className="px-4 py-3">SĐT</th>
               <th className="px-4 py-3">Trạng thái</th>
               <th className="px-4 py-3">Ngày tạo</th>
-              <th className="px-4 py-3">Set Role</th>
               <th className="px-4 py-3">Thao tác</th>
             </tr>
           </thead>
@@ -301,11 +300,21 @@ const UserPage = () => {
               <tr key={u.id} className="hover:bg-slate-50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <img
-                      src={u.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.email}`}
-                      alt={u.name}
-                      className="size-9 rounded-full object-cover"
-                    />
+                    <div className="relative size-9 shrink-0">
+                      <div className="size-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-slate-100">
+                        {u.name
+                          ? u.name.split(" ").filter(Boolean).slice(-2).map((w: string) => w[0].toUpperCase()).join("")
+                          : u.email?.[0]?.toUpperCase() ?? "?"}
+                      </div>
+                      {u.avatar_url && (
+                        <img
+                          src={u.avatar_url}
+                          alt={u.name}
+                          className="absolute inset-0 size-9 rounded-full object-cover ring-2 ring-slate-100"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                    </div>
                     <div className="leading-tight">
                       <p className="font-semibold text-slate-900">{u.name || "(Chưa đặt tên)"}</p>
                       {u.is_verified ? (
@@ -327,14 +336,6 @@ const UserPage = () => {
                 </td>
                 <td className="px-4 py-3 text-xs text-slate-500">
                   {new Date(u.created_at).toLocaleDateString("vi-VN")}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => handleOpenSetRole(u)}
-                    className="rounded-lg border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-600 transition hover:bg-primary-100"
-                  >
-                    Set Role
-                  </button>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">

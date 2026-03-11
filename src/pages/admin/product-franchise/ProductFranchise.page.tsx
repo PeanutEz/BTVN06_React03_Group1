@@ -94,6 +94,7 @@ export default function ProductFranchisePage() {
   const [menuItems, setMenuItems] = useState<ProductFranchiseApiResponse[] | null>(null);
 
   const hasRun = useRef(false);
+  const isInitialized = useRef(false);
 
   const getApiErrorMessage = (err: unknown, fallback: string) => {
     const data = (err as { response?: { data?: unknown } })?.response?.data as
@@ -299,9 +300,17 @@ export default function ProductFranchisePage() {
     if (hasRun.current) return;
     hasRun.current = true;
     loadSelects();
-    load(1);
+    load(1).finally(() => {
+      isInitialized.current = true;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    load(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   const openCreate = () => {
     setCreateForm({ ...DEFAULT_CREATE });
@@ -647,17 +656,14 @@ export default function ProductFranchisePage() {
 
           <div className="space-y-1.5 md:col-span-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Khác</label>
-            <div className="flex items-center gap-2">
-              <label className="flex flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={filters.is_deleted}
-                  onChange={(e) => { setFilters((f) => ({ ...f, is_deleted: e.target.checked })); setCurrentPage(1); }}
-                />
-                Hiện record đã xóa
-              </label>
-              <Button onClick={() => load(1)} loading={loading} className="shrink-0">Tìm</Button>
-            </div>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+              <input
+                type="checkbox"
+                checked={filters.is_deleted}
+                onChange={(e) => { setFilters((f) => ({ ...f, is_deleted: e.target.checked })); setCurrentPage(1); }}
+              />
+              Hiện record đã xóa
+            </label>
           </div>
         </div>
       </div>
