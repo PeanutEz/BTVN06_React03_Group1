@@ -292,7 +292,6 @@ const UserPage = () => {
               <th className="px-4 py-3">SĐT</th>
               <th className="px-4 py-3">Trạng thái</th>
               <th className="px-4 py-3">Ngày tạo</th>
-              <th className="px-4 py-3">Set Role</th>
               <th className="px-4 py-3">Thao tác</th>
             </tr>
           </thead>
@@ -301,11 +300,21 @@ const UserPage = () => {
               <tr key={u.id} className="hover:bg-slate-50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <img
-                      src={u.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.email}`}
-                      alt={u.name}
-                      className="size-9 rounded-full object-cover"
-                    />
+                    <div className="relative size-9 shrink-0">
+                      <div className="size-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-slate-100">
+                        {u.name
+                          ? u.name.split(" ").filter(Boolean).slice(-2).map((w: string) => w[0].toUpperCase()).join("")
+                          : u.email?.[0]?.toUpperCase() ?? "?"}
+                      </div>
+                      {u.avatar_url && (
+                        <img
+                          src={u.avatar_url}
+                          alt={u.name}
+                          className="absolute inset-0 size-9 rounded-full object-cover ring-2 ring-slate-100"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                    </div>
                     <div className="leading-tight">
                       <p className="font-semibold text-slate-900">{u.name || "(Chưa đặt tên)"}</p>
                       {u.is_verified ? (
@@ -329,14 +338,6 @@ const UserPage = () => {
                   {new Date(u.created_at).toLocaleDateString("vi-VN")}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => handleOpenSetRole(u)}
-                    className="rounded-lg border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-600 transition hover:bg-primary-100"
-                  >
-                    Set Role
-                  </button>
-                </td>
-                <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <button
                       title="Chỉnh sửa"
@@ -345,6 +346,15 @@ const UserPage = () => {
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                    <button
+                      title="Gán role"
+                      onClick={() => handleOpenSetRole(u)}
+                      className="inline-flex items-center justify-center size-8 rounded-lg border border-indigo-200 bg-white text-indigo-500 hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     </button>
                     {currentUser?.id !== u.id && (
