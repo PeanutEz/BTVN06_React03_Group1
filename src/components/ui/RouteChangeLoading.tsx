@@ -2,6 +2,10 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 import logoHylux from "../../assets/logo-hylux.png";
+import { useLoadingStore } from "../../store/loading.store";
+
+const MAX_MS = 8000;
+const SKIP_PATHS = ["/", "/login", "/register", "/reset-password"];
 
 type RouteChangeLoadingProps = {
   minDurationMs?: number;
@@ -11,57 +15,90 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
   const location = useLocation();
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
-  const apiActive = isFetching + isMutating > 0;
+  const manualLoading = useLoadingStore((s) => s.isLoading);
+  const manualMessage = useLoadingStore((s) => s.message);
+  const hideManual = useLoadingStore((s) => s.hide);
 
-  const [visible, setVisible] = useState(false);
+  // routeVisible handles route-change loading separately
+  // The overlay shows if EITHER is true — manualLoading is derived directly so it
+  // appears in the same render frame (no useEffect delay)
+  const [routeVisible, setRouteVisible] = useState(false);
+  const visible = routeVisible || manualLoading;
+
   const minElapsedRef = useRef(false);
   const apiDoneRef = useRef(true);
-  const timeoutRef = useRef<number | null>(null);
+  const minTimerRef = useRef<number | null>(null);
+  const maxTimerRef = useRef<number | null>(null);
+  const trackApiRef = useRef(false);
 
-  const tryHide = useCallback(() => {
-    if (minElapsedRef.current && apiDoneRef.current) {
-      setVisible(false);
-    }
+  const isSkipPath = SKIP_PATHS.some(
+    (p) => location.pathname === p || location.pathname.startsWith(p + "/")
+  );
+
+  const forceHide = useCallback(() => {
+    setRouteVisible(false);
+    trackApiRef.current = false;
+    if (minTimerRef.current) { window.clearTimeout(minTimerRef.current); minTimerRef.current = null; }
+    if (maxTimerRef.current) { window.clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
   }, []);
 
-  // When route changes → show loading, reset flags (skip homepage)
-  useEffect(() => {
-    if (location.pathname === "/") return;
+  const tryHide = useCallback(() => {
+    if (minElapsedRef.current && apiDoneRef.current) forceHide();
+  }, [forceHide]);
 
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-
-    setVisible(true);
+  const startRouteLoading = useCallback(() => {
+    if (minTimerRef.current) { window.clearTimeout(minTimerRef.current); minTimerRef.current = null; }
+    if (maxTimerRef.current) { window.clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
+    setRouteVisible(true);
     minElapsedRef.current = false;
-    apiDoneRef.current = false;
-
-    timeoutRef.current = window.setTimeout(() => {
+    apiDoneRef.current = true;
+    minTimerRef.current = window.setTimeout(() => {
       minElapsedRef.current = true;
-      timeoutRef.current = null;
+      minTimerRef.current = null;
       tryHide();
     }, minDurationMs);
+    maxTimerRef.current = window.setTimeout(() => {
+      maxTimerRef.current = null;
+      forceHide();
+    }, MAX_MS);
+  }, [tryHide, forceHide]);
 
-    return () => {
-      if (timeoutRef.current) {
-        window.clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-    };
-  }, [location.pathname, location.search, location.hash, minDurationMs, tryHide]);
-
-  // Track API state — mark done only when all requests finish
+  // Route change → show loading (skip auth/landing pages)
   useEffect(() => {
-    if (!visible) return;
+    if (isSkipPath) { forceHide(); return; }
+    // If manual loading was active (e.g. login), just clear it — no route-change loading needed
+    if (manualLoading) {
+      hideManual();
+      forceHide();
+      return;
+    }
+    trackApiRef.current = true;
+    startRouteLoading();
+    return () => {
+      if (minTimerRef.current) { window.clearTimeout(minTimerRef.current); minTimerRef.current = null; }
+      if (maxTimerRef.current) { window.clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, location.search, location.hash]);
 
-    if (!apiActive) {
+  // Max safety timeout for manual loading (prevents stuck overlay)
+  useEffect(() => {
+    if (!manualLoading) return;
+    const t = window.setTimeout(() => hideManual(), MAX_MS);
+    return () => window.clearTimeout(t);
+  }, [manualLoading, hideManual]);
+
+  // Track API calls fired right after a route change
+  useEffect(() => {
+    if (!routeVisible || !trackApiRef.current) return;
+    const apiActive = isFetching + isMutating > 0;
+    if (apiActive) {
+      apiDoneRef.current = false;
+    } else {
       apiDoneRef.current = true;
       tryHide();
-    } else {
-      apiDoneRef.current = false;
     }
-  }, [apiActive, visible, tryHide]);
+  }, [isFetching, isMutating, routeVisible, tryHide]);
 
   if (!visible) return null;
 
@@ -116,7 +153,7 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
             <div className="cup-saucer" />
           </div>
 
-          <div className="loading-text">Đang chuyển trang</div>
+          <div className="loading-text">{manualLoading ? manualMessage : "Đang chuyển trang"}</div>
           <div className="loading-dots">
             <div className="loading-dot" />
             <div className="loading-dot" />

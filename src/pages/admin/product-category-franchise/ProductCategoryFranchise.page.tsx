@@ -360,19 +360,24 @@ export default function ProductCategoryFranchisePage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Đã xóa
             </label>
-            <select
-              value={filters.is_deleted ? "true" : "false"}
-              onChange={(e) =>
-                setFilters((f) => ({
-                  ...f,
-                  is_deleted: e.target.value === "true",
-                }))
-              }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="false">Chưa xóa</option>
-              <option value="true">Đã xóa</option>
-            </select>
+            <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
+              filters.is_deleted
+                ? "border-red-400 bg-red-50 text-red-700"
+                : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+            }`}>
+              <input
+                type="checkbox"
+                checked={filters.is_deleted}
+                onChange={(e) =>
+                  setFilters((f) => ({
+                    ...f,
+                    is_deleted: e.target.checked,
+                  }))
+                }
+                className="accent-red-500"
+              />
+              <span className="font-medium">Đã xóa</span>
+            </label>
           </div>
 
 
@@ -417,7 +422,7 @@ export default function ProductCategoryFranchisePage() {
             )}
             {!loading &&
               items.map((it) => (
-                <tr key={it.id} className="transition-colors hover:bg-slate-50">
+                <tr key={it.id} className={`transition-colors ${it.is_deleted && filters.is_deleted ? "bg-red-50" : "hover:bg-slate-50"}`}>
                   <td className="px-4 py-3 text-slate-700">
                     {it.franchise_name ||
                       franchiseNameMap[it.franchise_id] ||

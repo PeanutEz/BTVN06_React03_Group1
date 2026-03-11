@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useNotificationStore } from "@/store/notification.store";
@@ -15,7 +15,6 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"news" | "orders">("news");
   const ref = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
   const { hydrate, unreadCount, notifications, markAsRead, markAllAsRead, isInitialized } =
@@ -65,12 +64,6 @@ export default function NotificationBell() {
   const recent = activeTab === "news" ? newsItems : orderItems;
 
   function handleBellClick() {
-    if (!user) {
-      toast.error("Vui lòng đăng nhập để xem thông báo", {
-        action: { label: "Đăng nhập", onClick: () => navigate(ROUTER_URL.LOGIN) },
-      });
-      return;
-    }
     setOpen((v) => !v);
   }
 
@@ -135,20 +128,22 @@ export default function NotificationBell() {
                 <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
               )}
             </button>
-            <button
-              onClick={() => setActiveTab("orders")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition-colors relative",
-                activeTab === "orders"
-                  ? "text-green-700 border-b-2 border-green-600"
-                  : "text-gray-500 hover:text-gray-700",
-              )}
-            >
-              ĐƠN HÀNG
-              {orderUnread > 0 && (
-                <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-              )}
-            </button>
+            {user && (
+              <button
+                onClick={() => setActiveTab("orders")}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold transition-colors relative",
+                  activeTab === "orders"
+                    ? "text-green-700 border-b-2 border-green-600"
+                    : "text-gray-500 hover:text-gray-700",
+                )}
+              >
+                ĐƠN HÀNG
+                {orderUnread > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                )}
+              </button>
+            )}
           </div>
 
           {/* Notification list */}
@@ -201,16 +196,28 @@ export default function NotificationBell() {
 
           {/* Footer */}
           <div className="border-t border-gray-100 px-4 py-2.5">
-            <Link
-              to={ROUTER_URL.INBOX}
-              onClick={() => setOpen(false)}
-              className="w-full flex items-center justify-center gap-1.5 text-sm text-red-600 hover:text-red-700 font-semibold py-1 transition-colors"
-            >
-              Xem tất cả thông báo
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
+            {user ? (
+              <Link
+                to={ROUTER_URL.INBOX}
+                onClick={() => setOpen(false)}
+                className="w-full flex items-center justify-center gap-1.5 text-sm text-red-600 hover:text-red-700 font-semibold py-1 transition-colors"
+              >
+                Xem tất cả thông báo
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            ) : (
+              <button
+                onClick={() => setOpen(false)}
+                className="w-full flex items-center justify-center gap-1.5 text-sm text-red-600 hover:text-red-700 font-semibold py-1 transition-colors"
+              >
+                Xem tin tức
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       )}

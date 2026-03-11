@@ -1,7 +1,9 @@
 ﻿import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
 import { useDeliveryStore } from "@/store/delivery.store";
+import { useAuthStore } from "@/store/auth.store";
 import { isBranchOpen } from "@/services/branch.service";
 import { ROUTER_URL } from "@/routes/router.const";
 
@@ -23,15 +25,30 @@ export default function MenuOrderPanel({
   const items = useMenuCartStore((s) => s.items);
   const updateQuantity = useMenuCartStore((s) => s.updateQuantity);
   const removeItem = useMenuCartStore((s) => s.removeItem);
+  const user = useAuthStore((s) => s.user);
+
+  function handleCheckout() {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để đặt hàng", {
+        description: "Giỏ hàng và cửa hàng của bạn sẽ được giữ nguyên.",
+      });
+      return;
+    }
+    navigate(ROUTER_URL.MENU_CHECKOUT);
+  }
 
   const {
     orderMode,
     selectedBranch,
+    selectedFranchiseName,
     isReadyToOrder,
     currentDeliveryFee,
     estimatedPrepMins,
     estimatedDeliveryMins,
   } = useDeliveryStore();
+
+  const displayName = orderMode === "PICKUP" ? selectedFranchiseName : selectedBranch?.name ?? null;
+  const hasLocation = orderMode === "PICKUP" ? !!selectedFranchiseName : !!selectedBranch;
 
   const { itemCount, subtotal, total } = useMenuCartTotals(
     orderMode === "DELIVERY" ? currentDeliveryFee : 0,
@@ -39,9 +56,9 @@ export default function MenuOrderPanel({
 
   const branchOpen = selectedBranch ? isBranchOpen(selectedBranch) : false;
 
-  const disabledReason = !selectedBranch
+  const disabledReason = !hasLocation
     ? "Vui lòng chọn cửa hàng"
-    : !branchOpen
+    : orderMode === "DELIVERY" && !branchOpen
     ? "Cửa hàng đang đóng cửa"
     : orderMode === "DELIVERY" && !isReadyToOrder
     ? "Địa chỉ chưa xác nhận"
@@ -68,11 +85,6 @@ export default function MenuOrderPanel({
           <div className="text-5xl mb-3">🛒</div>
           <p className="font-semibold text-gray-700 mb-1 text-sm">Giỏ hàng trống</p>
           <p className="text-xs text-gray-400">Chọn đồ uống từ menu để đặt hàng nhé!</p>
-          {!selectedBranch && (
-            <button onClick={onOpenBranchPicker} className="mt-4 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-semibold transition-all">
-              📍 Chọn phương thức đặt hàng
-            </button>
-          )}
         </div>
       </div>
     );
@@ -93,11 +105,11 @@ export default function MenuOrderPanel({
         )}
       </div>
       <div className="flex-1 overflow-y-auto">
-        {selectedBranch && (
+        {hasLocation && (
           <button onClick={onOpenBranchPicker} className="w-full flex items-center gap-2 bg-amber-50 border-b border-amber-100 px-4 py-2.5 text-left hover:bg-amber-100 transition-colors">
             <span className="text-sm">{orderMode === "DELIVERY" ? "🛵" : "🏪"}</span>
             <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-semibold text-amber-900 truncate">{selectedBranch.name}</p>
+              <p className="text-[11px] font-semibold text-amber-900 truncate">{displayName}</p>
               <p className="text-[10px] text-amber-700">{orderMode === "DELIVERY" ? "Giao hàng" : "Lấy tại quán"} · ~{estimatedPrepMins + estimatedDeliveryMins} phút</p>
             </div>
             <span className="text-[10px] text-amber-600 font-medium shrink-0">Đổi</span>
@@ -155,7 +167,7 @@ export default function MenuOrderPanel({
               <p className="text-xs text-orange-700 font-medium">{disabledReason}</p>
             </div>
           )}
-          <button disabled={!canCheckout} onClick={() => canCheckout && navigate(ROUTER_URL.MENU_CHECKOUT)} className={cn("w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-150", canCheckout ? "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
+          <button disabled={!canCheckout} onClick={() => canCheckout && handleCheckout()} className={cn("w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-150", canCheckout ? "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
             Đặt hàng · {fmt(total)}
           </button>

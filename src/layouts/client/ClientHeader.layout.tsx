@@ -28,25 +28,13 @@ const ClientHeader = () => {
   const navigate = useNavigate();
 
   // ── Delivery / receiving store ────────────────────────────────────────
-  const { orderMode, selectedBranch, deliveryAddress, hydrate, selectedFranchiseName } = useDeliveryStore();
+  const { orderMode, selectedBranch, hydrate, selectedFranchiseName, selectedFranchiseId } = useDeliveryStore();
   useEffect(() => { hydrate(); }, [hydrate]);
 
   const branchOpen = selectedBranch ? isBranchOpen(selectedBranch) : false;
 
-  // Label shown in the header pill
-  // If the user explicitly selected a franchise (selectedFranchiseName present) show it.
-  // If they didn't select a franchise (selectedFranchiseName and selectedFranchiseId both null) prompt to choose.
-  // Otherwise (no franchise chosen but branch exists) fall back to branch/address as before.
-  const { selectedFranchiseId } = useDeliveryStore.getState();
-  const receivingLabel = selectedFranchiseName
-    ? selectedFranchiseName
-    : selectedFranchiseId == null
-      ? null
-      : (!selectedBranch
-        ? null
-        : orderMode === "PICKUP"
-          ? selectedBranch.name
-          : deliveryAddress.rawAddress || selectedBranch.name);
+  // Chỉ hiển thị tên franchise khi đã chọn
+  const receivingLabel = selectedFranchiseId != null ? selectedFranchiseName : null;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -64,19 +52,9 @@ const ClientHeader = () => {
     navigate(ROUTER_URL.HOME);
   };
 
-  // Auth-gated — guests must log in before configuring receiving
   const openPicker = useCallback(() => {
-    if (!user) {
-      toast.error("Vui lòng đăng nhập để chọn phương thức nhận hàng", {
-        action: {
-          label: "Đăng nhập",
-          onClick: () => navigate(ROUTER_URL.LOGIN, { state: { from: { pathname: ROUTER_URL.RECEIVING_SETUP } } }),
-        },
-      });
-      return;
-    }
     setShowBranchPicker(true);
-  }, [user, navigate]);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-md">
@@ -132,7 +110,7 @@ const ClientHeader = () => {
                 <span className="text-base">🏪</span>
                 <span className="max-w-[180px] truncate">
                   {!receivingLabel
-                    ? "Chọn franchise"
+                    ? "Chọn chi nhánh"
                     : `Franchise – ${receivingLabel}`}
                 </span>
                 {selectedBranch && !branchOpen && (
