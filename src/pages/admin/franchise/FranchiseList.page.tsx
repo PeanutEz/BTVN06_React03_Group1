@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "../../../components";
 import type { ApiFranchise, CreateFranchisePayload } from "../../../services/store.service";
 import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise, updateFranchise, changeFranchiseStatus, restoreFranchise } from "../../../services/store.service";
-import { Link, useNavigate } from "react-router-dom"; import { ROUTER_URL } from "../../../routes/router.const";
+import { useNavigate } from "react-router-dom"; import { ROUTER_URL } from "../../../routes/router.const";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 
