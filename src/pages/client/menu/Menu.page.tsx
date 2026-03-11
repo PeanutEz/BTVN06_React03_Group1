@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { clientService } from "@/services/client.service";
@@ -10,10 +9,16 @@ import MenuProductModal from "@/components/menu/MenuProductModal";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
-import { useAuthStore } from "@/store/auth.store";
-import { ROUTER_URL } from "@/routes/router.const";
 import { hashStringToNumber } from "@/services/menu-api.adapter";
-import type { MenuProduct, MenuCartItem, MenuSize, SugarLevel, IceLevel, Topping } from "@/types/menu.types";
+
+import type {
+  MenuProduct,
+  MenuCartItem,
+  MenuSize,
+  SugarLevel,
+  IceLevel,
+  Topping,
+} from "@/types/menu.types";
 
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -49,266 +54,101 @@ function EmptyState({
   );
 }
 
-/* ─── Sidebar Category Nav ───────────────────────────────────── */
-function CategorySidebar({
-  categories,
-  activeId,
-  productCounts,
-  loading,
-  onSelect,
-}: {
-  categories: ClientCategoryByFranchiseItem[];
-  activeId: string | null;
-  productCounts: Record<string, number>;
-  loading: boolean;
-  onSelect: (cat: ClientCategoryByFranchiseItem | null) => void;
-}) {
-  const totalCount = Object.values(productCounts).reduce((s, n) => s + n, 0);
 
-  return (
-    <aside className="w-60 shrink-0 hidden lg:block">
-      <div className="sticky top-28">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3 px-3">
-          Danh mục
-        </p>
-
-        {loading ? (
-          <div className="space-y-1 px-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />
-            ))}
-          </div>
-        ) : categories.length === 0 ? (
-          <p className="text-sm text-gray-400 px-3">Chưa có danh mục.</p>
-        ) : (
-          <nav className="space-y-0.5">
-            {/* Tất cả */}
-            <button
-              onClick={() => onSelect(null)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
-                activeId === null
-                  ? "bg-amber-50 text-amber-700 shadow-sm"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-              )}
-            >
-              <span className={cn("text-xl shrink-0 transition-transform duration-150", activeId === null ? "scale-110" : "group-hover:scale-105")}>
-                🍽️
-              </span>
-              <span className="flex-1 truncate">Tất cả</span>
-              <span
-                className={cn(
-                  "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
-                  activeId === null
-                    ? "bg-amber-600 text-white"
-                    : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
-                )}
-              >
-                {totalCount}
-              </span>
-            </button>
-
-            {categories.map((cat) => {
-              const isActive = cat.category_id === activeId;
-              return (
-                <button
-                  key={cat.category_id}
-                  onClick={() => onSelect(cat)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
-                    isActive
-                      ? "bg-amber-50 text-amber-700 shadow-sm"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                  )}
-                >
-                  <span className={cn("text-xl shrink-0 transition-transform duration-150", isActive ? "scale-110" : "group-hover:scale-105")}>
-                    ☕
-                  </span>
-                  <span className="flex-1 truncate">{cat.category_name}</span>
-                  <span
-                    className={cn(
-                      "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
-                      isActive
-                        ? "bg-amber-600 text-white"
-                        : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
-                    )}
-                  >
-                    {productCounts[cat.category_id] ?? 0}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-        )}
-
-        {/* Promo banner */}
-        <div className="mt-6 mx-3 p-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
-          <p className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">
-            Ưu đãi hôm nay
-          </p>
-          <p className="text-sm font-bold leading-snug">Giảm 15% đơn từ 150k</p>
-          <p className="text-xs opacity-75 mt-1">Code: HYLUX15</p>
-        </div>
-      </div>
-    </aside>
-  );
+// Map category name keywords → emoji icon
+function getCategoryIcon(name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("cà phê") || n.includes("coffee") || n.includes("espresso") || n.includes("cappuccino") || n.includes("latte")) return "☕";
+  if (n.includes("trà sữa") || n.includes("milk tea") || n.includes("milktea")) return "🧋";
+  if (n.includes("trà") || n.includes("tea")) return "🍵";
+  if (n.includes("freeze") || n.includes("đá xay") || n.includes("blended") || n.includes("ice blended")) return "🧋";
+  if (n.includes("smoothie")) return "🥤";
+  if (n.includes("juice") || n.includes("nước ép")) return "🧃";
+  if (n.includes("bánh mì")) return "🥖";
+  if (n.includes("bánh") || n.includes("snack") || n.includes("pastry")) return "🥨";
+  if (n.includes("topping")) return "🍡";
+  if (n.includes("phindi") || n.includes("phin")) return "🧐";
+  if (n.includes("non-coffee") || n.includes("không cà phê")) return "🌿";
+  if (n.includes("việt") || n.includes("vietnamese")) return "🇻🇳";
+  return "🍹"; // default cup
 }
 
-/* ─── Mobile Category Tabs ───────────────────────────────────── */
-function MobileCategoryTabs({
-  categories,
-  activeId,
-  loading,
-  onSelect,
+function ProductGrid({
+  items,
+  onAdd,
 }: {
-  categories: ClientCategoryByFranchiseItem[];
-  activeId: string | null;
-  loading: boolean;
-  onSelect: (cat: ClientCategoryByFranchiseItem | null) => void;
-}) {
-  if (loading && categories.length === 0) {
-    return (
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none lg:hidden">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-9 w-20 rounded-xl bg-gray-100 animate-pulse shrink-0" />
-        ))}
-      </div>
-    );
-  }
-  if (categories.length === 0) return null;
-
-  return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none lg:hidden">
-      <button
-        onClick={() => onSelect(null)}
-        className={cn(
-          "shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all border",
-          activeId === null
-            ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50",
-        )}
-      >
-        Tất cả
-      </button>
-      {categories.map((c) => (
-        <button
-          key={c.category_id}
-          onClick={() => onSelect(c)}
-          className={cn(
-            "shrink-0 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all border",
-            c.category_id === activeId
-              ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50",
-          )}
-        >
-          {c.category_name}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/* ─── Product Card (inline, uses API data) ────────────────────── */
-function ProductCard({
-  product,
-  onClickProduct,
-  cartQty,
-  onQuickAdd,
-  onQuickMinus,
-}: {
-  product: ClientProductListItem;
-  onClickProduct: (p: ClientProductListItem) => void;
-  cartQty: number;
-  onQuickAdd: (p: ClientProductListItem) => void;
-  onQuickMinus: (p: ClientProductListItem) => void;
+  items: ClientProductListItem[];
+  onAdd: (product: ClientProductListItem) => void;
 }) {
   return (
-    <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200 flex flex-col">
-      <div
-        onClick={() => onClickProduct(product)}
-        className="block relative aspect-[4/3] overflow-hidden bg-gray-50 cursor-pointer"
-      >
-        <img
-          src={product.image_url}
-          alt={product.name}
-          loading="lazy"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
-      </div>
-
-      <div className="p-4 flex flex-col flex-1">
-        <div className="flex justify-between items-start gap-2 mb-1">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      {items.map((p) => {
+        const available = p.sizes.filter((s) => s.is_available);
+        const isAvailable = available.length > 0;
+        const basePrice = available[0]?.price ?? p.sizes[0]?.price ?? 0;
+        return (
           <div
-            onClick={() => onClickProduct(product)}
-            className="hover:text-amber-600 transition-colors cursor-pointer"
+            key={`${p.product_id}-${p.SKU}`}
+            className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200"
           >
-            <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2">
-              {product.name}
-            </h3>
-          </div>
-        </div>
-
-        <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed flex-1">
-          {product.description}
-        </p>
-
-        <div className="flex items-center justify-between mt-auto">
-          <p className="font-bold text-amber-600 text-sm">
-            Từ {fmtVnd(product.sizes[0]?.price ?? 0)}
-          </p>
-          {cartQty > 0 ? (
-            <div
-              className="flex items-center gap-1 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => onQuickMinus(product)}
-                className="w-9 h-9 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
-                aria-label="Giảm số lượng"
-                title="Giảm"
-              >
-                −
-              </button>
-              <span className="w-7 text-center text-sm font-bold text-gray-900 select-none tabular-nums">
-                {cartQty}
-              </span>
-              <button
-                type="button"
-                onClick={() => onQuickAdd(product)}
-                className="w-9 h-9 flex items-center justify-center text-amber-600 hover:bg-amber-50 transition-colors"
-                aria-label="Tăng số lượng"
-                title="Tăng"
-              >
-                +
-              </button>
-            </div>
-          ) : (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onClickProduct(product);
-              }}
-              className="h-9 px-3 rounded-xl bg-amber-50 hover:bg-amber-500 text-amber-600 hover:text-white flex items-center justify-center transition-colors shadow-sm text-sm font-semibold"
-              aria-label="Thêm"
-              title="Thêm"
+              className="block w-full text-left"
+              onClick={() => onAdd(p)}
+              disabled={!isAvailable}
             >
-              + Thêm
+              <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
+                <img
+                  src={p.image_url}
+                  alt={p.name}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                {!isAvailable && (
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                    <span className="text-white text-xs font-semibold bg-black/50 px-3 py-1 rounded-full">Hết hàng</span>
+                  </div>
+                )}
+              </div>
             </button>
-          )}
-        </div>
-      </div>
+            <div className="p-3.5">
+              <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-1 mb-1">
+                {p.name}
+              </h3>
+              <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">
+                {p.description}
+              </p>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-bold text-amber-700">
+                  {fmtVnd(basePrice)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onAdd(p)}
+                  disabled={!isAvailable}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.97]",
+                    isAvailable
+                      ? "bg-amber-500 hover:bg-amber-600 text-white shadow-sm"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed",
+                  )}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Thêm
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════ */
-/*  MENU PAGE                                                    */
-/* ═══════════════════════════════════════════════════════════════ */
 export default function MenuPage() {
-  const navigate = useNavigate();
   // ─── STATE ──────────────────────────────────────────────────────
   const [franchises, setFranchises] = useState<ClientFranchiseItem[]>([]);
   const [selectedFranchise, setSelectedFranchise] = useState<ClientFranchiseItem | null>(null);
@@ -317,7 +157,7 @@ export default function MenuPage() {
   const [selectedCategory, setSelectedCategory] = useState<ClientCategoryByFranchiseItem | null>(null);
 
   const [products, setProducts] = useState<ClientProductListItem[]>([]);
-  const [searchQuery, setSearchQuery] = useState(""); // Added searchQuery state
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<MenuProduct | null>(null);
 
   const [loading, setLoading] = useState<LoadingPhase>(null);
@@ -328,6 +168,7 @@ export default function MenuPage() {
   const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const [editingCartKey, setEditingCartKey] = useState<string | null>(null);
+
   const [modalInitial, setModalInitial] = useState<{
     size: MenuSize;
     sugar: SugarLevel;
@@ -339,11 +180,8 @@ export default function MenuPage() {
 
   const { selectedFranchiseId } = useDeliveryStore();
   const { itemCount, total } = useMenuCartTotals();
-  const cartItems = useMenuCartStore((s) => s.items);
   const addItem = useMenuCartStore((s) => s.addItem);
-  const updateQuantity = useMenuCartStore((s) => s.updateQuantity);
   const removeItem = useMenuCartStore((s) => s.removeItem);
-  const user = useAuthStore((s) => s.user);
 
   const categoriesReqKeyRef = useRef<string | null>(null);
   const productsReqKeyRef = useRef<string | null>(null);
@@ -437,16 +275,20 @@ export default function MenuPage() {
     const franchiseId = selectedFranchise?.id ?? null;
     if (!franchiseId) return;
 
-    const categoryId = selectedCategory?.category_id;
+    // Wait until categories are loaded for this franchise
+    if (categoriesLoadedForFranchiseId !== franchiseId) return;
+
 
     const categoriesReadyForThisFranchise = categoriesLoadedForFranchiseId === franchiseId;
     if (!categoriesReadyForThisFranchise) return;
 
-    const key = `${franchiseId}::${categoryId ?? "all"}`;
+    const categoryId = selectedCategory?.category_id ?? "all";
+
+    const key = `${franchiseId}::${categoryId}`;
     if (productsReqKeyRef.current === key) return;
     productsReqKeyRef.current = key;
 
-    let alive = true;
+    const alive = true;
     queueMicrotask(() => {
       setLoading("products");
       setError(null);
@@ -454,7 +296,10 @@ export default function MenuPage() {
 
     clientService
       .getProductsByFranchiseAndCategory(franchiseId, categoryId)
-      .then((data) => { if (alive) setProducts(data); })
+      .then((data) => {
+        if (!alive) return;
+        setProducts(data);
+      })
       .catch((e: unknown) => {
         if (!alive) return;
         setError(e instanceof Error ? e.message : "Không tải được danh sách sản phẩm");
@@ -462,24 +307,53 @@ export default function MenuPage() {
       })
       .finally(() => { if (alive) setLoading(null); });
 
-    return () => { alive = false; };
   }, [selectedFranchise?.id, selectedCategory?.category_id, categoriesLoadedForFranchiseId]);
 
   // ─── Derived helpers ──────────────────────────────────────────
   const canShowMenu = selectedFranchise !== null;
   const showLoadingSkeleton = loading === "products";
 
-  // Product counts per category for sidebar badges
-  const productCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const p of products) {
-      const catId = (p as { category_id?: string }).category_id ?? "unknown";
-      counts[catId] = (counts[catId] ?? 0) + 1;
-    }
-    return counts;
+  // Count products per category (from the full product list)
+  const categoryCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    products.forEach((p) => {
+      map[p.category_id] = (map[p.category_id] ?? 0) + 1;
+    });
+    return map;
   }, [products]);
 
-  // ─── BƯỚC 4: CLICK SẢN PHẨM → MỞ MODAL ─────────────────────────
+  // Filter client-side; null selectedCategory = show all
+  const visibleProducts = useMemo(() => {
+    const baseProducts = !selectedCategory ? products : products.filter((p) => p.category_id === selectedCategory.category_id);
+    if (!searchQuery) return baseProducts;
+    return baseProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [products, selectedCategory, searchQuery]);
+
+  // Group all products by category (used when "Tất cả" is selected)
+  const groupedProducts = useMemo(() => {
+    if (selectedCategory !== null) return null;
+    const grouped: { categoryId: string; categoryName: string; items: typeof products }[] = [];
+    const seen = new Set<string>();
+    // preserve display_order by following categories array order
+    categories.forEach((cat) => {
+      const items = visibleProducts.filter((p) => p.category_id === cat.category_id);
+      if (items.length > 0) {
+        grouped.push({ categoryId: cat.category_id, categoryName: cat.category_name, items });
+        seen.add(cat.category_id);
+      }
+    });
+    // append any products whose category wasn't in categories list
+    visibleProducts.forEach((p) => {
+      if (!seen.has(p.category_id)) {
+        const existing = grouped.find((g) => g.categoryId === p.category_id);
+        if (existing) existing.items.push(p);
+        else grouped.push({ categoryId: p.category_id, categoryName: p.category_name, items: [p] });
+        seen.add(p.category_id);
+      }
+    });
+    return grouped;
+  }, [selectedCategory, visibleProducts, categories]);
+
   function handleOpenDetail(p: ClientProductListItem) {
     const franchiseId = selectedFranchise?.id ?? "";
     const normalizedProduct: MenuProduct & {
@@ -514,53 +388,8 @@ export default function MenuPage() {
     setModalInitial(undefined);
   }
 
-  function handleSelectCategory(cat: ClientCategoryByFranchiseItem | null) {
-    setSelectedCategory(cat);
-    // Reset product request key so it refetches
-    productsReqKeyRef.current = null;
-  }
-
-  function getCartQtyForProduct(productId: string | number): number {
-    const pid = String(hashStringToNumber(String(productId)));
-    return cartItems
-      .filter((i) => String(i.productId) === pid)
-      .reduce((s, i) => s + i.quantity, 0);
-  }
-
-  function quickAdd(p: ClientProductListItem) {
-    if (!user) {
-      toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng", {
-        action: { label: "Đăng nhập", onClick: () => navigate(ROUTER_URL.LOGIN) },
-      });
-      return;
-    }
-    const normalized: MenuProduct = {
-      id: hashStringToNumber(p.product_id),
-      sku: p.SKU,
-      name: p.name,
-      description: p.description,
-      content: p.description,
-      price: p.sizes[0]?.price || 0,
-      image: p.image_url,
-      categoryId: hashStringToNumber(p.category_id),
-      rating: 5,
-      reviewCount: 99,
-      isAvailable: true,
-    } as MenuProduct;
-
-    addItem(
-      normalized,
-      { size: "M", sugar: "100%", ice: "Đá vừa", toppings: [] },
-      1,
-    );
-  }
-
-  function quickMinus(p: ClientProductListItem) {
-    const pid = hashStringToNumber(p.product_id);
-    const first = cartItems.find((i) => i.productId === pid);
-    if (!first) return;
-    if (first.quantity > 1) updateQuantity(first.cartKey, first.quantity - 1);
-    else removeItem(first.cartKey);
+  function handleAddProduct(p: ClientProductListItem) {
+    handleOpenDetail(p);
   }
 
   function openEditItem(item: MenuCartItem) {
@@ -591,6 +420,7 @@ export default function MenuPage() {
     setDetailOpen(true);
   }
 
+
   return (
     <>
       {showBranchPicker && (
@@ -598,10 +428,21 @@ export default function MenuPage() {
       )}
 
       <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-8 sm:-my-10 lg:-my-12 min-h-screen bg-white">
-        {/* ── Header ── */}
+        {/* ── Page header ── */}
         <div className="border-b border-gray-100 bg-white">
           <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            <nav className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+              <a href="/" className="hover:text-gray-600 transition-colors">Trang chủ</a>
+              <span>/</span>
+              <span className="text-gray-900 font-medium">Menu</span>
+              {selectedCategory && (
+                <>
+                  <span>/</span>
+                  <span className="text-amber-600 font-medium">{selectedCategory.category_name}</span>
+                </>
+              )}
+            </nav>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Thực đơn</h1>
                 <p className="text-sm text-gray-500 mt-0.5">
@@ -611,47 +452,99 @@ export default function MenuPage() {
                 </p>
               </div>
 
-              {/* Search Bar */}
-              {canShowMenu && (
-                <div className="w-full sm:w-72 lg:w-96">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Tìm kiếm sản phẩm..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-4 py-2.5 pr-12 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent text-sm transition-all"
-                    />
-                    {searchQuery ? (
-                      <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    ) : (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </div>
-                    )}
+              <div className="flex items-center gap-3">
+                {/* Search Bar */}
+                {canShowMenu && (
+                  <div className="w-full sm:w-72 lg:w-96">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Tìm kiếm sản phẩm..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full px-4 py-2.5 pr-12 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent text-sm transition-all"
+                      />
+                      {searchQuery ? (
+                        <button
+                          onClick={() => setSearchQuery("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+                {/* Mobile cart button */}
+                {itemCount > 0 && (
+                  <button
+                    onClick={() => setMobileCartOpen(true)}
+                    className="lg:hidden flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span>{itemCount}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Mobile category tabs (hidden on lg) */}
+            {/* Mobile: horizontal category tabs */}
             {canShowMenu && (
-              <div className="mt-4">
-                <MobileCategoryTabs
-                  categories={categories}
-                  activeId={selectedCategory?.category_id ?? null}
-                  loading={loading === "categories"}
-                  onSelect={handleSelectCategory}
-                />
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none md:hidden">
+                {loading === "categories" && categories.length === 0 ? (
+                  <div className="text-sm text-gray-400 py-2">Đang tải...</div>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setSelectedCategory(null)}
+                      className={cn(
+                        "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
+                        !selectedCategory
+                          ? "bg-amber-500 text-white shadow-sm"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                      )}
+                    >
+                      🍽️ Tất cả
+                      {products.length > 0 && (
+                        <span className={cn(
+                          "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                          !selectedCategory ? "bg-white/20" : "bg-gray-200 text-gray-500",
+                        )}>{products.length}</span>
+                      )}
+                    </button>
+                    {categories.map((c) => (
+                      <button
+                        key={c.category_id}
+                        onClick={() => setSelectedCategory(c)}
+                        className={cn(
+                          "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
+                          c.category_id === selectedCategory?.category_id
+                            ? "bg-amber-500 text-white shadow-sm"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                        )}
+                      >
+                        <span>{getCategoryIcon(c.category_name)}</span>
+                        {c.category_name}
+                        {categoryCounts[c.category_id] !== undefined && (
+                          <span className={cn(
+                            "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                            c.category_id === selectedCategory?.category_id ? "bg-white/20" : "bg-gray-200 text-gray-500",
+                          )}>{categoryCounts[c.category_id]}</span>
+                        )}
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
 
@@ -663,82 +556,160 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* ── Content: Sidebar + Grid ── */}
+        {/* ── Main 3-panel layout ── */}
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8">
-          {!canShowMenu ? (
-            <EmptyState
-              title="Chưa chọn franchise"
-              description="Hãy chọn franchise ở dropdown để hệ thống tải category và sản phẩm."
-            />
-          ) : (
-            <div className="flex gap-8">
-              {/* Sidebar (desktop only) */}
-              <CategorySidebar
-                categories={categories}
-                activeId={selectedCategory?.category_id ?? null}
-                productCounts={productCounts}
-                loading={loading === "categories"}
-                onSelect={handleSelectCategory}
-              />
+          <div className="flex gap-8 min-h-screen">
 
-              {/* Product grid */}
-              <div className="flex-1 min-w-0">
-                {showLoadingSkeleton ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 animate-pulse">
-                    {Array.from({ length: 9 }).map((_, i) => (
-                      <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                        <div className="aspect-[4/3] bg-gray-100" />
-                        <div className="p-3.5 space-y-2">
-                          <div className="h-4 bg-gray-100 rounded w-2/3" />
-                          <div className="h-3 bg-gray-100 rounded w-full" />
-                          <div className="h-3 bg-gray-100 rounded w-5/6" />
-                          <div className="h-8 bg-gray-100 rounded w-full" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (() => { // Changed to an IIFE to handle conditional rendering and filtering
-                  const filteredProducts = products.filter(p =>
-                    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-                  );
-
-                  if (filteredProducts.length === 0) {
-                    return (
-                      <EmptyState
-                        title={searchQuery ? "Không tìm thấy sản phẩm" : "Không có sản phẩm"}
-                        description={searchQuery ? `Không có sản phẩm nào khớp với "${searchQuery}"` : "Franchise/category này hiện chưa có sản phẩm hiển thị."}
-                      />
-                    );
-                  }
-
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4 sm:gap-5 px-0 sm:px-2">
-                      {filteredProducts.map((p) => (
-                        <ProductCard
-                          key={`${p.product_id}-${p.SKU}-${p.sizes.map(s => s.size).join('-')}`}
-                          product={p}
-                          onClickProduct={handleOpenDetail}
-                          cartQty={getCartQtyForProduct(p.product_id)}
-                          onQuickAdd={quickAdd}
-                          onQuickMinus={quickMinus}
-                        />
+            {/* ── LEFT: Category Sidebar (desktop only) ── */}
+            <aside className="hidden md:flex w-56 shrink-0 flex-col sticky top-40 self-start">
+              <div className="pr-1">
+                <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3 px-3">
+                  Danh mục
+                </p>
+                <nav className="space-y-0.5">
+                  {loading === "categories" && categories.length === 0 ? (
+                    <div className="space-y-1.5 animate-pulse px-3">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="h-9 bg-gray-100 rounded-xl" />
                       ))}
                     </div>
-                  );
-                })()}
-              </div>
+                  ) : categories.length === 0 ? (
+                    <p className="text-xs text-gray-400 px-3">
+                      {canShowMenu ? "Chưa có danh mục" : "Chọn phương thức đặt hàng để xem"}
+                    </p>
+                  ) : (
+                    <>
+                      {/* Tất cả */}
+                      <button
+                        onClick={() => setSelectedCategory(null)}
+                        className={cn(
+                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
+                          !selectedCategory
+                            ? "bg-amber-50 text-amber-700 shadow-sm"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                        )}
+                      >
+                        <span className={cn("text-xl shrink-0 transition-transform duration-150", !selectedCategory ? "scale-110" : "group-hover:scale-105")}>🍽️</span>
+                        <span className="flex-1 truncate">Tất cả</span>
+                        <span className={cn(
+                          "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
+                          !selectedCategory ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
+                        )}>
+                          {products.length}
+                        </span>
+                      </button>
 
-              {/* Cart / Order panel (desktop) */}
-              <aside className="hidden lg:block w-[360px] shrink-0">
-                <div className="sticky top-28 h-[calc(100vh-7rem)] bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                  <MenuOrderPanel
-                    onOpenBranchPicker={() => setShowBranchPicker(true)}
-                    onEditItem={openEditItem}
-                  />
+                      {categories.map((cat) => {
+                        const isActive = cat.category_id === selectedCategory?.category_id;
+                        const count = categoryCounts[cat.category_id] ?? 0;
+                        return (
+                          <button
+                            key={cat.category_id}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
+                              isActive
+                                ? "bg-amber-50 text-amber-700 shadow-sm"
+                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                            )}
+                          >
+                            <span className={cn("text-xl shrink-0 transition-transform duration-150", isActive ? "scale-110" : "group-hover:scale-105")}>
+                              {getCategoryIcon(cat.category_name)}
+                            </span>
+                            <span className="flex-1 truncate">{cat.category_name}</span>
+                            {count > 0 && (
+                              <span className={cn(
+                                "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
+                                isActive ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
+                              )}>
+                                {count}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
+                </nav>
+
+                {canShowMenu && (
+                  <div className="mt-6 mx-3 p-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+                    <p className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">
+                      Ưu đãi hôm nay
+                    </p>
+                    <p className="text-sm font-bold leading-snug">Giảm 15% đơn từ 150k</p>
+                    <p className="text-xs opacity-75 mt-1">Code: HYLUX15</p>
+                  </div>
+                )}
+              </div>
+            </aside>
+
+            {/* ── MIDDLE: Product Grid ── */}
+            <div className="flex-1 min-w-0">
+              {!canShowMenu ? (
+                <EmptyState
+                  title="Chưa chọn cửa hàng"
+                  description="Hãy chọn phương thức đặt hàng để hệ thống tải thực đơn."
+                  actionLabel="📍 Chọn phương thức đặt hàng"
+                  onAction={() => setShowBranchPicker(true)}
+                />
+              ) : showLoadingSkeleton ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 animate-pulse">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                      <div className="aspect-[4/3] bg-gray-100" />
+                      <div className="p-3.5 space-y-2">
+                        <div className="h-4 bg-gray-100 rounded w-2/3" />
+                        <div className="h-3 bg-gray-100 rounded w-full" />
+                        <div className="h-3 bg-gray-100 rounded w-5/6" />
+                        <div className="h-8 bg-gray-100 rounded w-full" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </aside>
+              ) : visibleProducts.length === 0 ? (
+                <EmptyState
+                  title={searchQuery ? "Không tìm thấy sản phẩm" : "Không có sản phẩm"}
+                  description={searchQuery ? `Không có sản phẩm nào khớp với "${searchQuery}"` : "Franchise/category này hiện chưa có sản phẩm hiển thị."}
+                />
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 mb-5">{visibleProducts.length} sản phẩm</p>
+
+                  {groupedProducts ? (
+                    /* ── Grouped by category (Tất cả) ── */
+                    <div className="space-y-10">
+                      {groupedProducts.map(({ categoryId, categoryName, items }) => (
+                        <section key={categoryId}>
+                          {/* Category section header */}
+                          <div className="flex items-center gap-3 mb-5">
+                            <div className="flex items-center gap-2.5">
+                              <h2 className="text-lg font-bold text-emerald-700 tracking-tight">
+                                {categoryName}
+                              </h2>
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                {items.length} món
+                              </span>
+                            </div>
+                            <div className="flex-1 h-px bg-emerald-100" />
+                          </div>
+                          <ProductGrid items={items} onAdd={handleAddProduct} />
+                        </section>
+                      ))}
+                    </div>
+                  ) : (
+                    /* ── Single category view ── */
+                    <ProductGrid items={visibleProducts} onAdd={handleAddProduct} />
+                  )}
+                </>
+              )}
             </div>
-          )}
+
+            {/* ── RIGHT: Cart / Order Panel (desktop sticky) ── */}
+            <aside className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden" style={{ maxHeight: "calc(100vh - 10rem)" }}>
+              <MenuOrderPanel onOpenBranchPicker={() => setShowBranchPicker(true)} onEditItem={openEditItem} />
+            </aside>
+          </div>
         </div>
       </div>
 
@@ -765,11 +736,14 @@ export default function MenuPage() {
               onClick={() => setMobileCartOpen(false)}
               aria-label="Đóng giỏ hàng"
             />
-            <div className="absolute bottom-0 left-0 right-0 h-[85vh] bg-white rounded-t-3xl shadow-2xl overflow-hidden border-t border-gray-100">
+            <div className="absolute bottom-0 left-0 right-0 h-[85vh] bg-white rounded-t-3xl shadow-2xl overflow-hidden border-t border-gray-100 flex flex-col">
               <MenuOrderPanel
                 visible={true}
                 onRequestClose={() => setMobileCartOpen(false)}
-                onOpenBranchPicker={() => setShowBranchPicker(true)}
+                onOpenBranchPicker={() => {
+                  setMobileCartOpen(false);
+                  setShowBranchPicker(true);
+                }}
                 onEditItem={openEditItem}
               />
             </div>
@@ -786,11 +760,11 @@ export default function MenuPage() {
         onSubmit={
           editingCartKey
             ? ({ options, quantity }) => {
-                // Replace old cart item with updated options/quantity
-                removeItem(editingCartKey);
-                if (selectedProduct) addItem(selectedProduct, options, quantity);
-                toast.success("Đã cập nhật sản phẩm trong đơn hàng");
-              }
+              // Replace old cart item with updated options/quantity
+              removeItem(editingCartKey);
+              if (selectedProduct) addItem(selectedProduct, options, quantity);
+              toast.success("Đã cập nhật sản phẩm trong đơn hàng");
+            }
             : undefined
         }
       />
