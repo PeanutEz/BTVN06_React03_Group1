@@ -33,10 +33,7 @@ const ClientHeader = () => {
 
   const branchOpen = selectedBranch ? isBranchOpen(selectedBranch) : false;
 
-  // Label shown in the header pill
-  // If the user explicitly selected a franchise (selectedFranchiseName present) show it.
-  // If they didn't select a franchise (selectedFranchiseName and selectedFranchiseId both null) prompt to choose.
-  // Otherwise (no franchise chosen but branch exists) fall back to branch/address as before.
+  
   const { selectedFranchiseId } = useDeliveryStore.getState();
   const receivingLabel = selectedFranchiseName
     ? selectedFranchiseName
