@@ -63,11 +63,12 @@ function computeReady(
   mode: OrderMode,
   branch: Branch | null,
   validation: AddressValidationResult | null,
+  franchiseId?: string | null,
 ): boolean {
+  if (mode === "PICKUP") return franchiseId != null;
   if (!branch) return false;
   if (!isBranchOpen(branch)) return false;
-  if (mode === "DELIVERY") return validation?.isValid === true;
-  return true;
+  return validation?.isValid === true;
 }
 
 function _loadInitialState() {
@@ -98,7 +99,7 @@ function _loadInitialState() {
     selectedFranchiseName: saved.selectedFranchiseName ?? null,
     deliveryAddress: saved.deliveryAddress ?? { rawAddress: "", coord: null },
     validationResult: validation,
-    isReadyToOrder: computeReady(mode, branch, validation),
+    isReadyToOrder: computeReady(mode, branch, validation, saved.selectedFranchiseId ?? null),
     currentDeliveryFee: mode === "DELIVERY" ? fee : 0,
     estimatedPrepMins: times.prepMins,
     estimatedDeliveryMins: times.deliveryMins,
@@ -151,7 +152,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
         validationResult: validation,
         isValidating: false,
         isInitialized: true,
-        isReadyToOrder: computeReady(mode, branch, validation),
+        isReadyToOrder: computeReady(mode, branch, validation, saved?.selectedFranchiseId ?? null),
         currentDeliveryFee: mode === "DELIVERY" ? fee : 0,
         estimatedPrepMins: times.prepMins,
         estimatedDeliveryMins: times.deliveryMins,
@@ -163,7 +164,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
   },
 
   setOrderMode: (mode) => {
-    const { selectedBranch, validationResult } = get();
+    const { selectedBranch, validationResult, selectedFranchiseId } = get();
     const fee =
       mode === "DELIVERY" && selectedBranch && validationResult?.distanceKm != null
         ? calcDeliveryFee(selectedBranch, validationResult.distanceKm)
@@ -176,7 +177,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
       currentDeliveryFee: fee,
       estimatedPrepMins: times.prepMins,
       estimatedDeliveryMins: times.deliveryMins,
-      isReadyToOrder: computeReady(mode, selectedBranch, validationResult),
+      isReadyToOrder: computeReady(mode, selectedBranch, validationResult, selectedFranchiseId),
     });
     _persist(get);
   },
@@ -198,7 +199,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
       currentDeliveryFee: fee,
       estimatedPrepMins: times.prepMins,
       estimatedDeliveryMins: times.deliveryMins,
-      isReadyToOrder: computeReady(orderMode, branch, validationResult),
+      isReadyToOrder: computeReady(orderMode, branch, validationResult, get().selectedFranchiseId),
     });
     _persist(get);
   },
@@ -252,7 +253,7 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
       currentDeliveryFee: orderMode === "DELIVERY" ? fee : 0,
       estimatedPrepMins: times.prepMins,
       estimatedDeliveryMins: times.deliveryMins,
-      isReadyToOrder: computeReady(orderMode, result.isValid ? branch : get().selectedBranch, result),
+      isReadyToOrder: computeReady(orderMode, result.isValid ? branch : get().selectedBranch, result, get().selectedFranchiseId),
     });
     _persist(get);
   },
@@ -325,7 +326,12 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
   },
 
   setSelectedFranchiseId: (id, name) => {
-    set({ selectedFranchiseId: id, selectedFranchiseName: name ?? null });
+    const { orderMode, selectedBranch, validationResult } = get();
+    set({
+      selectedFranchiseId: id,
+      selectedFranchiseName: name ?? null,
+      isReadyToOrder: computeReady(orderMode, selectedBranch, validationResult, id),
+    });
     _persist(get);
   },
 }));
