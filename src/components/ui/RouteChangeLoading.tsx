@@ -24,8 +24,10 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
     }
   }, []);
 
-  // When route changes → show loading, reset flags
+  // When route changes → show loading, reset flags (skip homepage)
   useEffect(() => {
+    if (location.pathname === "/") return;
+
     if (timeoutRef.current) {
       window.clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
