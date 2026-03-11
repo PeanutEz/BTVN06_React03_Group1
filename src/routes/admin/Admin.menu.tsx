@@ -109,13 +109,6 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     isEnd: true,
   },
   {
-    label: "Franchise Detail",
-    path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_DETAIL,
-    component: React.lazy(
-      () => import("../../pages/admin/franchise/FranchiseDetail.page.tsx"),
-    ),
-  },
-  {
     label: "Franchise Create",
     path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_CREATE,
     component: React.lazy(
@@ -134,13 +127,6 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     path: ROUTER_URL.ADMIN_ROUTES.CATEGORY_FRANCHISE,
     component: React.lazy(
       () => import("../../pages/admin/franchise/CategoryFranchise.page.tsx"),
-    ),
-  },
-  {
-    label: "Franchise Inventory",
-    path: ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE,
-    component: React.lazy(
-      () => import("../../pages/admin/inventory/InventoryByFranchise.page.tsx"),
     ),
   },
   {

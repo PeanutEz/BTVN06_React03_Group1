@@ -232,7 +232,7 @@ export default function CategoryListPage() {
           {/* Status filter */}
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, e.target.value, parentFilter, isDeletedFilter); }}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           >
             <option value="">Tất cả trạng thái</option>
@@ -243,7 +243,7 @@ export default function CategoryListPage() {
           {/* Parent category filter */}
           <select
             value={parentFilter}
-            onChange={(e) => setParentFilter(e.target.value)}
+            onChange={(e) => { setParentFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, statusFilter, e.target.value, isDeletedFilter); }}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           >
             <option value="">Tất cả danh mục cha</option>          {parentOptions.map((opt) => (
@@ -252,14 +252,18 @@ export default function CategoryListPage() {
           </select>
 
           {/* Is deleted filter */}
-          <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm cursor-pointer hover:bg-slate-50">
+          <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
+            isDeletedFilter
+              ? "border-red-400 bg-red-50 text-red-700"
+              : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+          }`}>
             <input
               type="checkbox"
               checked={isDeletedFilter}
-              onChange={(e) => setIsDeletedFilter(e.target.checked)}
-              className="accent-primary-500"
+              onChange={(e) => { setIsDeletedFilter(e.target.checked); setCurrentPage(1); load(searchQuery, 1, statusFilter, parentFilter, e.target.checked); }}
+              className="accent-red-500"
             />
-            <span className="text-slate-700">Đã xóa</span>
+            <span className="font-medium">Đã xóa</span>
           </label>
 
           <Button onClick={handleSearch} loading={loading}>
@@ -306,7 +310,7 @@ export default function CategoryListPage() {
                 </tr>
               )}
               {!loading && categories.map((cat) => (
-                <tr key={cat.id} className={`hover:bg-slate-50 transition-colors ${cat.is_deleted ? "opacity-60" : ""}`}>
+                <tr key={cat.id} className={`hover:bg-slate-50 transition-colors ${cat.is_deleted && !isDeletedFilter ? "opacity-60" : cat.is_deleted && isDeletedFilter ? "bg-red-50" : ""}`}>
                   <td className="px-4 py-3 font-mono text-xs font-medium text-slate-700">
                     <span className="rounded bg-slate-100 px-2 py-1">{cat.code}</span>
                   </td>

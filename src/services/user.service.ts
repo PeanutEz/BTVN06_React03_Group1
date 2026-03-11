@@ -181,10 +181,11 @@ export async function fetchUsers(
 	keyword = "",
 	pageNum = 1,
 	pageSize = 10,
-	is_active: string | boolean = ""
+	is_active: string | boolean = "",
+	is_deleted = false
 ): Promise<SearchUsersResult> {
 	return searchUsers({
-		searchCondition: { keyword, is_active, is_deleted: false },
+		searchCondition: { keyword, is_active, is_deleted },
 		pageInfo: { pageNum, pageSize },
 	});
 }
@@ -222,6 +223,17 @@ export async function deleteUser(id: string): Promise<void> {
 	const result = response.data;
 	if (!result.success) {
 		throw new Error((result as { message?: string }).message || "Xóa user thất bại");
+	}
+}
+
+// ==================== USER-06: Restore Item ====================
+// PATCH /api/users/:id/restore — Token: YES — Role: ADMIN
+// Output: { success: true, data: null }
+export async function restoreUser(id: string): Promise<void> {
+	const response = await apiClient.patch<ApiResponse>(`/users/${id}/restore`);
+	const result = response.data;
+	if (!result.success) {
+		throw new Error((result as { message?: string }).message || "Khôi phục user thất bại");
 	}
 }
 

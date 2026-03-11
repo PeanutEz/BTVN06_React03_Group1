@@ -656,13 +656,18 @@ export default function ProductFranchisePage() {
 
           <div className="space-y-1.5 md:col-span-2">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Khác</label>
-            <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+            <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
+              filters.is_deleted
+                ? "border-red-400 bg-red-50 text-red-700"
+                : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+            }`}>
               <input
                 type="checkbox"
                 checked={filters.is_deleted}
                 onChange={(e) => { setFilters((f) => ({ ...f, is_deleted: e.target.checked })); setCurrentPage(1); }}
+                className="accent-red-500"
               />
-              Hiện record đã xóa
+              <span className="font-medium">Đã xóa</span>
             </label>
           </div>
         </div>
@@ -684,7 +689,7 @@ export default function ProductFranchisePage() {
             </thead>
             <tbody className="divide-y divide-slate-200">
               {items.map((it) => (
-                <tr key={it.id} className="hover:bg-slate-50">
+                <tr key={it.id} className={`${it.is_deleted && filters.is_deleted ? "bg-red-50" : "hover:bg-slate-50"}`}>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-slate-900">{productNameMap[it.product_id] || it.product_id}</p>
                     <p className="text-[11px] font-mono text-slate-400">{it.product_id}</p>
