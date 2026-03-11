@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -31,12 +31,27 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 interface MenuProductModalProps {
   product: MenuProduct | null;
   onClose: () => void;
+  initialOptions?: {
+    size: MenuSize;
+    sugar: SugarLevel;
+    ice: IceLevel;
+    toppings: Topping[];
+    note?: string;
+    quantity: number;
+  };
+  onSubmit?: (payload: { options: { size: MenuSize; sugar: SugarLevel; ice: IceLevel; toppings: Topping[]; note?: string }; quantity: number }) => void;
+  submitLabel?: string;
 }
 
-export default function MenuProductModal({ product, onClose }: MenuProductModalProps) {
+export default function MenuProductModal({ product, onClose, initialOptions, onSubmit, submitLabel }: MenuProductModalProps) {
   const navigate = useNavigate();
   const addItem = useMenuCartStore((s) => s.addItem);
   const user = useAuthStore((s) => s.user);
+
+  // iOS keyboard / dynamic viewport handling:
+  // keep footer visible by translating the sheet up by the obscured inset.
+  const [keyboardInset, setKeyboardInset] = useState(0);
+  const [visualH, setVisualH] = useState<number | null>(null);
 
   const [size, setSize] = useState<MenuSize>("M");
   const [sugar, setSugar] = useState<SugarLevel>("100%");
@@ -45,17 +60,60 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
 
-  // Reset state when product changes
+  const sheetMaxHeight = useMemo(() => {
+    // prefer visual viewport height when available (iOS keyboard safe)
+    const base = visualH ?? window.innerHeight;
+    // keep a little top space so it's not glued to status bar
+    return Math.max(360, Math.round(base * 0.92));
+  }, [visualH]);
+
+  // Reset / prefill state when product changes
   useEffect(() => {
     if (product) {
-      setSize("M");
-      setSugar("100%");
-      setIce("Đá vừa");
-      setToppingQtys({});
-      setQuantity(1);
-      setNote("");
+      const init = initialOptions;
+      setSize(init?.size ?? "M");
+      setSugar(init?.sugar ?? "100%");
+      setIce(init?.ice ?? "Đá vừa");
+      setQuantity(init?.quantity ?? 1);
+      setNote(init?.note ?? "");
+
+      if (init?.toppings?.length) {
+        const next: Record<string, number> = {};
+        for (const t of init.toppings) next[t.id] = (next[t.id] ?? 0) + 1;
+        setToppingQtys(next);
+      } else {
+        setToppingQtys({});
+      }
     }
-  }, [product?.id]);
+  }, [product?.id, initialOptions]);
+
+  useEffect(() => {
+    if (!product) return;
+
+    const vv = window.visualViewport;
+    if (!vv) {
+      setKeyboardInset(0);
+      setVisualH(null);
+      return;
+    }
+
+    const update = () => {
+      // Amount of the layout viewport that's obscured (mostly keyboard on iOS)
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardInset(inset);
+      setVisualH(vv.height);
+    };
+
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, [product]);
 
   // Fetch full product detail from API (CLIENT-05)
   const [productDetail, setProductDetail] = useState<any>(null);
@@ -137,7 +195,13 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
     const toppingsFlat: Topping[] = TOPPINGS.flatMap((t) =>
       Array(toppingQtys[t.id] ?? 0).fill(t)
     );
-    addItem(product, { size, sugar, ice, toppings: toppingsFlat, note: note.trim() || undefined }, quantity);
+    const options = { size, sugar, ice, toppings: toppingsFlat, note: note.trim() || undefined };
+    if (onSubmit) {
+      onSubmit({ options, quantity });
+      onClose();
+      return;
+    }
+    addItem(product, options, quantity);
     const toppingDesc = TOPPINGS
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
@@ -159,8 +223,14 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
 
       {/* Modal */}
       <div
-        className="absolute bottom-0 left-0 right-0 sm:relative sm:w-full sm:max-w-lg bg-white sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
-        style={{ maxHeight: '90vh' }}
+        className="absolute left-0 right-0 sm:relative sm:w-full sm:max-w-lg bg-white sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden flex flex-col"
+        style={{
+          bottom: "env(safe-area-inset-bottom)",
+          maxHeight: sheetMaxHeight,
+          transform: keyboardInset > 0 ? `translateY(-${keyboardInset}px)` : undefined,
+          transition: "transform 180ms ease-out",
+          willChange: keyboardInset > 0 ? "transform" : undefined,
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header + image */}
@@ -362,7 +432,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
         </div>
 
         {/* Footer: qty + total + CTA */}
-        <div className="shrink-0 border-t border-gray-100 bg-white px-4 py-3">
+        <div className="shrink-0 border-t border-gray-100 bg-white px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
           <div className="flex items-center gap-3">
             {/* Quantity */}
             <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden shrink-0">
@@ -412,7 +482,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              Thêm vào giỏ · {fmt(totalPrice)}
+              {(submitLabel ?? "Thêm vào giỏ")} · {fmt(totalPrice)}
             </button>
           </div>
         </div>

@@ -1,9 +1,10 @@
-﻿import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { isBranchOpen } from "@/services/branch.service";
 import { ROUTER_URL } from "@/routes/router.const";
+import type { MenuCartItem } from "@/types/menu.types";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -12,12 +13,14 @@ interface MenuOrderPanelProps {
   visible?: boolean;
   onRequestClose?: () => void;
   onOpenBranchPicker?: () => void;
+  onEditItem?: (item: MenuCartItem) => void;
 }
 
 export default function MenuOrderPanel({
   visible = true,
   onRequestClose,
   onOpenBranchPicker,
+  onEditItem,
 }: MenuOrderPanelProps) {
   const navigate = useNavigate();
   const items = useMenuCartStore((s) => s.items);
@@ -105,28 +108,85 @@ export default function MenuOrderPanel({
         )}
         <div className="divide-y divide-gray-50">
           {items.map((item) => (
-            <div key={item.cartKey} className="px-4 py-3 flex gap-3">
+            <div key={item.cartKey} className="px-4 py-3 flex gap-3 relative">
               <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-50 shrink-0">
                 <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pr-16">
                 <p className="font-semibold text-gray-900 text-xs truncate">{item.name}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">
                   Size {item.options.size} · {item.options.sugar} đường · {item.options.ice}
                   {item.options.toppings.length > 0 && ` · ${item.options.toppings.map((t) => t.name).join(", ")}`}
                 </p>
                 <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-0.5 border border-gray-200 rounded-lg overflow-hidden">
-                    <button onClick={() => item.quantity > 1 ? updateQuantity(item.cartKey, item.quantity - 1) : removeItem(item.cartKey)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs">
-                      {item.quantity === 1 ? (
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      ) : "−"}
+                  <div className="flex items-center gap-0.5 border border-gray-200 rounded-lg overflow-hidden bg-white">
+                    <button
+                      onClick={() =>
+                        item.quantity > 1
+                          ? updateQuantity(item.cartKey, item.quantity - 1)
+                          : removeItem(item.cartKey)
+                      }
+                      className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs"
+                      aria-label="Giảm số lượng"
+                      title="Giảm"
+                    >
+                      −
                     </button>
-                    <span className="w-5 text-center text-[11px] font-semibold select-none">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs">+</button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={item.quantity || ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "") return;
+                        const parsed = parseInt(v, 10);
+                        if (!Number.isNaN(parsed) && parsed >= 1) updateQuantity(item.cartKey, parsed);
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      className="w-10 h-7 text-center text-[11px] font-semibold text-gray-900 border-0 focus:ring-0 outline-none bg-transparent tabular-nums"
+                      aria-label="Số lượng"
+                    />
+                    <button
+                      onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
+                      className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs"
+                      aria-label="Tăng số lượng"
+                      title="Tăng"
+                    >
+                      +
+                    </button>
                   </div>
                   <span className="text-xs font-bold text-gray-900">{fmt(item.unitPrice * item.quantity)}</span>
                 </div>
+              </div>
+
+              {/* Quick actions: edit + delete */}
+              <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                <button
+                  onClick={() => onEditItem?.(item)}
+                  className={cn(
+                    "w-7 h-7 rounded-lg border flex items-center justify-center transition-colors",
+                    onEditItem
+                      ? "border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700"
+                      : "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed",
+                  )}
+                  disabled={!onEditItem}
+                  aria-label="Sửa"
+                  title="Sửa"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => removeItem(item.cartKey)}
+                  className="w-7 h-7 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition-colors"
+                  aria-label="Xóa"
+                  title="Xóa"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
               </div>
             </div>
           ))}
