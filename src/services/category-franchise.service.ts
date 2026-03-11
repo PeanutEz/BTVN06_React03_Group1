@@ -6,6 +6,7 @@ import type {
   CategoryFranchiseSearchResponse,
 } from "@/models/product.model";
 
+
 // ─── Category Franchise Service ───────────────────────────────────────────────
 // CATEGORY-FRANCHISE-01 — Create Item
 // POST /api/category-franchises  |  Role: ADMIN, MANAGER  |  Token: required
@@ -78,34 +79,22 @@ export const categoryFranchiseService = {
 
   // CATEGORY-FRANCHISE-06 — Change Status Item
   // PATCH /api/category-franchises/status  |  Role: ADMIN, MANAGER  |  Token: required
-  changeCategoryFranchiseStatus: async (id: string, is_active: boolean): Promise<void> => {
+  changeCategoryFranchiseStatus: async (
+    id: string,
+    is_active: boolean
+  ): Promise<void> => {
 
-    console.log("===== CHANGE CATEGORY FRANCHISE STATUS =====");
-    console.log("ID:", id);
-    console.log("is_active gửi lên:", is_active);
-
-    const body = { is_active };
+    const body = {
+      is_active: is_active
+    };
 
     console.log("Request URL:", `/category-franchises/${id}/status`);
     console.log("Request Body:", body);
 
-    try {
-
-      const res = await apiClient.patch(
-        `/category-franchises/${id}/status`,
-        body
-      );
-
-      console.log("API SUCCESS RESPONSE:", res.data);
-
-    } catch (error: any) {
-
-      console.error("API ERROR RESPONSE:", error?.response?.data);
-      console.error("FULL ERROR:", error);
-
-      throw error;
-
-    }
+    await apiClient.patch(
+      `/category-franchises/${id}/status`,
+      body
+    );
 
   },
 
