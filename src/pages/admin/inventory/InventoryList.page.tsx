@@ -164,11 +164,6 @@ export default function InventoryListPage() {
   }, []);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleSearch = () => {
-    setCurrentPage(1);
-    load(searchFranchise, 1, statusFilter, isDeletedFilter);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     load(searchFranchise, page, statusFilter, isDeletedFilter);
