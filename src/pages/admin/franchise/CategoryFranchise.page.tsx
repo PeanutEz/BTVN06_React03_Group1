@@ -45,15 +45,25 @@ export default function CategoryFranchisePage() {
 
             setLoading(true);
 
-            const data =
-                await categoryFranchiseService.getCategoriesByFranchise(franchiseId);
-            console.log("Categories from API:", data);
-            setFilteredCategories(data);
+            const res = await categoryFranchiseService.searchCategoryFranchises({
+                searchCondition: {
+                    franchise_id: franchiseId,
+                    is_deleted: false
+                },
+                pageInfo: {
+                    pageNum: 1,
+                    pageSize: 50
+                }
+            });
+
+            console.log("LOAD DATA:", res.data);
+
+            setFilteredCategories(res.data);
 
         } catch (error) {
 
             console.error(error);
-            showError("Không lấy được danh mục theo franchise");
+            showError("Không lấy được danh mục");
 
         } finally {
 
@@ -102,13 +112,17 @@ export default function CategoryFranchisePage() {
         try {
 
             setLoading(true);
+            console.log("===== SEARCH CLICK =====");
+            console.log("Search Query:", searchQuery);
+            console.log("Status Filter:", statusFilter);
+            console.log("Deleted Filter:", isDeletedFilter);
 
             const res = await categoryFranchiseService.searchCategoryFranchises({
 
                 searchCondition: {
                     franchise_id: franchiseId,
-                    is_active: statusFilter === "" ? "" : statusFilter === "true",
-                    is_deleted: isDeletedFilter
+                    ...(statusFilter !== "" && { is_active: statusFilter === "true" }),
+                    ...(isDeletedFilter && { is_deleted: true })
                 },
 
                 pageInfo: {
@@ -118,16 +132,17 @@ export default function CategoryFranchisePage() {
 
             });
 
-            let data = res.data;
+            let data: CategoryFranchiseApiResponse[] = res.data;
 
-            if (searchQuery) {
+            if (searchQuery.trim()) {
+                const keyword = searchQuery.toLowerCase();
 
-                data = data.filter((cat: CategoryFranchiseApiResponse) =>
-                    cat.category_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    cat.category_code?.toLowerCase().includes(searchQuery.toLowerCase())
+                data = data.filter((cat) =>
+                    cat.category_name?.toLowerCase().includes(keyword) ||
+                    cat.category_code?.toLowerCase().includes(keyword)
                 );
-
             }
+            console.log("DATA AFTER SEARCH FILTER:", data);
 
             setFilteredCategories(data);
 
@@ -204,6 +219,62 @@ export default function CategoryFranchisePage() {
             console.error("Restore error:", error);
 
             showError("Khôi phục thất bại");
+
+        }
+
+    };
+
+    const handleChangeStatus = async (cat: CategoryFranchiseApiResponse) => {
+
+        const newStatus = !cat.is_active;
+
+        console.log("===== CHANGE STATUS CLICK =====");
+        console.log("Category ID:", cat.id);
+        console.log("Current status:", cat.is_active);
+        console.log("New status:", !cat.is_active);
+
+        if (!confirm(`Bạn có muốn đổi trạng thái sang ${newStatus ? "Active" : "Inactive"}?`)) {
+            console.log("User cancelled change status");
+            return;
+        }
+
+        try {
+
+            setSubmitting(true)
+
+            console.log("Sending request to API...");
+            console.log({
+                id: cat.id,
+                is_active: newStatus
+            });
+
+            const res = await categoryFranchiseService.changeCategoryFranchiseStatus(
+                cat.id,
+                newStatus
+            );
+
+            console.log("API RESPONSE:", res);
+
+            showSuccess("Đổi trạng thái thành công");
+
+            load();
+
+        } catch (error: any) {
+
+            console.error("===== CHANGE STATUS ERROR =====");
+            console.error("Full error:", error);
+
+            if (error?.response) {
+                console.error("API ERROR RESPONSE:", error.response.data);
+            }
+
+            showError("Đổi trạng thái thất bại");
+
+        } finally {
+
+            setSubmitting(false);
+
+            console.log("===== CHANGE STATUS END =====");
 
         }
 
@@ -459,17 +530,11 @@ export default function CategoryFranchisePage() {
                                     <td className="px-4 py-2">
 
                                         {cat.is_deleted ? (
-                                            <span className="text-red-500 font-medium">
-                                                Deleted
-                                            </span>
-                                        ) : cat.is_active ? (
-                                            <span className="text-green-600 font-medium">
-                                                Active
-                                            </span>
+                                            <span className="text-red-500 font-medium">Deleted</span>
+                                        ) : cat.is_active === true ? (
+                                            <span className="text-green-600 font-medium">Active</span>
                                         ) : (
-                                            <span className="text-yellow-600 font-medium">
-                                                Inactive
-                                            </span>
+                                            <span className="text-yellow-600 font-medium">Inactive</span>
                                         )}
 
                                     </td>
@@ -489,23 +554,53 @@ export default function CategoryFranchisePage() {
                                                 </svg>
                                             </button>
 
-                                            {/* Edit display order */}
-                                            <button
-                                                onClick={() => {
-                                                    setEditingId(cat.id);
-                                                    setEditingDisplayOrder(cat.display_order);
-                                                }}
-                                                className="rounded-lg p-1.5 text-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                                title="Chỉnh sửa display order"
-                                            >
-                                                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                        d="M11 5h2M12 7v10m9-5H3" />
-                                                </svg>
-                                            </button>
+                                            {/* Khi chưa delete */}
+                                            {!cat.is_deleted && (
+                                                <>
+                                                    {/* Change Status */}
+                                                    <button
+                                                        onClick={() => handleChangeStatus(cat)}
+                                                        disabled={submitting}
+                                                        className="rounded-lg p-1.5 text-purple-400 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                                                        title="Đổi trạng thái"
+                                                    >
+                                                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                d="M10 6H6a4 4 0 000 8h4m4-8h4a4 4 0 010 8h-4"
+                                                            />
+                                                        </svg>
+                                                    </button>
 
-                                            {/* Restore */}
-                                            {cat.is_deleted ? (
+                                                    {/* Edit display order */}
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingId(cat.id);
+                                                            setEditingDisplayOrder(cat.display_order);
+                                                        }}
+                                                        className="rounded-lg p-1.5 text-blue-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                                        title="Chỉnh sửa display order"
+                                                    >
+                                                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5h2M12 7v10m9-5H3" />
+                                                        </svg>
+                                                    </button>
+
+                                                    {/* Delete */}
+                                                    <button
+                                                        onClick={() => handleDelete(cat)}
+                                                        disabled={submitting}
+                                                        className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                                        title="Xóa"
+                                                    >
+                                                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                </>
+                                            )}
+
+                                            {/* Khi đã delete */}
+                                            {cat.is_deleted && (
                                                 <button
                                                     onClick={() => handleRestore(cat)}
                                                     disabled={submitting}
@@ -513,23 +608,11 @@ export default function CategoryFranchisePage() {
                                                     title="Khôi phục"
                                                 >
                                                     <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                                        />
                                                     </svg>
                                                 </button>
-                                            ) : (
-
-                                                /* Delete */
-                                                <button
-                                                    onClick={() => handleDelete(cat)}
-                                                    disabled={submitting}
-                                                    className="rounded-lg p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                                                    title="Xóa"
-                                                >
-                                                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-
                                             )}
 
                                         </div>

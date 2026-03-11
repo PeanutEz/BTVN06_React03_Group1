@@ -83,6 +83,7 @@ export default function InventoryListPage() {
   const pfComboRef = useRef<HTMLDivElement>(null);
 
   const hasRun = useRef(false);
+  const isInitialized = useRef(false);
 
   const loadFranchises = async () => {
     try {
@@ -129,10 +130,19 @@ export default function InventoryListPage() {
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
-    load("", 1, "", false);
+    load("", 1, "", false).finally(() => {
+      isInitialized.current = true;
+    });
     loadFranchises();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    setCurrentPage(1);
+    load(searchFranchise, 1, statusFilter, isDeletedFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchFranchise, statusFilter, isDeletedFilter]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -154,11 +164,6 @@ export default function InventoryListPage() {
   }, []);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleSearch = () => {
-    setCurrentPage(1);
-    load(searchFranchise, 1, statusFilter, isDeletedFilter);
-  };
-
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     load(searchFranchise, page, statusFilter, isDeletedFilter);
@@ -505,9 +510,6 @@ export default function InventoryListPage() {
             />
             <span className="text-slate-700">Đã xóa</span>
           </label>
-          <Button onClick={handleSearch} loading={loading}>
-            Tìm kiếm
-          </Button>
           <button
             onClick={handleResetFilters}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
