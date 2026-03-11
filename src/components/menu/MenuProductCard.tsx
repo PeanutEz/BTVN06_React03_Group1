@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { MenuProduct } from "@/types/menu.types";
 
@@ -10,13 +11,17 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
 export default function MenuProductCard({ product, onAdd }: MenuProductCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const discount =
     product.originalPrice && product.originalPrice > product.price
       ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
       : 0;
 
+  const displayDescription = product.content || product.description;
+
   return (
-    <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200">
+    <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200 h-full flex flex-col">
       <button type="button" onClick={() => onAdd(product)} className="block w-full text-left">
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-50">
           <img
@@ -63,11 +68,19 @@ export default function MenuProductCard({ product, onAdd }: MenuProductCardProps
           <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-1 mb-1">
             {product.name}
           </h3>
-          <p className="text-xs text-gray-500 line-clamp-1 mb-3 leading-relaxed">
-            {product.description}
-          </p>
+          {displayDescription && (
+            <div className="mb-2">
+              <div
+                className={cn(
+                  "text-xs text-gray-500 leading-relaxed transition-all duration-300",
+                  !isExpanded ? "line-clamp-1" : "line-clamp-none",
+                )}
+                dangerouslySetInnerHTML={{ __html: displayDescription }}
+              />
+            </div>
+          )}
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 mb-1 mt-auto">
             <span className="text-sm font-bold text-gray-900">{fmt(product.price)}</span>
             {product.originalPrice && (
               <span className="text-xs text-gray-400 line-through">{fmt(product.originalPrice)}</span>
@@ -76,7 +89,18 @@ export default function MenuProductCard({ product, onAdd }: MenuProductCardProps
         </div>
       </button>
 
-      <div className="px-3.5 pb-3.5">
+      <div className="px-3.5 pb-2">
+        {displayDescription && displayDescription.length > 50 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+            className="text-[11px] font-medium text-amber-600 hover:text-amber-700 transition-colors mb-2 w-full text-left"
+          >
+            {isExpanded ? "Thu gọn" : "Xem chi tiết"}
+          </button>
+        )}
+      </div>
+
+      <div className="px-3.5 pb-3.5 mt-auto">
         <button
           onClick={() => onAdd(product)}
           className={cn(

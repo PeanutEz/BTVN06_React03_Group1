@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { ROUTER_URL } from "@/routes/router.const";
-import { useCartStore } from "@/store";
+import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 
 const formatPrice = (price: number) =>
@@ -13,7 +13,7 @@ const formatPrice = (price: number) =>
 
 export default function CartPage() {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeFromCart, clearCart } = useCartStore();
+  const { items, updateQuantity, removeItem, clearCart } = useMenuCartStore();
   const { user } = useAuthStore();
   const [paymentMethod, setPaymentMethod] = useState<"COD" | "MOMO" | "VNPAY">("COD");
 
@@ -26,7 +26,7 @@ export default function CartPage() {
   }, [user, navigate]);
 
   const totalQuantity = items.reduce((sum, x) => sum + x.quantity, 0);
-  const subtotal = items.reduce((sum, x) => sum + x.price * x.quantity, 0);
+  const subtotal = items.reduce((sum, x) => sum + x.unitPrice * x.quantity, 0);
   const shippingFee = useMemo(() => (subtotal > 300000 ? 0 : 15000), [subtotal]);
   const discount = useMemo(() => (subtotal >= 500000 ? Math.floor(subtotal * 0.05) : 0), [subtotal]);
   const finalTotal = subtotal + shippingFee - discount;
@@ -97,8 +97,8 @@ export default function CartPage() {
       <div className="space-y-4">
         {items.map((item) => (
           <div
-            key={item.productId}
-            className="bg-white rounded-2xl shadow-md p-4 flex gap-4 items-center"
+            key={item.cartKey}
+            className="bg-white rounded-2xl shadow-md p-4 flex gap-4 items-start sm:items-center flex-col sm:flex-row"
           >
             <img
               src={item.image}
@@ -108,36 +108,72 @@ export default function CartPage() {
 
             <div className="flex-1">
               <p className="font-semibold text-slate-900">{item.name}</p>
-              <p className="text-amber-600 font-bold">
-                {formatPrice(item.price)}
+
+              {/* Display Options/Toppings */}
+              <div className="text-sm text-gray-500 mt-1 space-y-0.5">
+                <p>Size {item.options.size} • {item.options.sugar} đường • {item.options.ice}</p>
+                {item.options.toppings.length > 0 && (
+                  <p className="text-amber-600/80">
+                    + {item.options.toppings.map((t) => t.name).join(", ")}
+                  </p>
+                )}
+                {item.note && <p className="italic">Ghi chú: {item.note}</p>}
+              </div>
+
+              <p className="text-amber-600 font-bold mt-2">
+                {formatPrice(item.unitPrice)}
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() =>
-                  updateQuantity(item.productId, Math.max(1, item.quantity - 1))
-                }
-              >
-                -
-              </button>
+            <div className="flex items-center gap-3 w-full sm:w-auto mt-3 sm:mt-0 justify-between sm:justify-end border-t sm:border-0 pt-3 sm:pt-0 border-gray-100">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() =>
+                    updateQuantity(item.cartKey, Math.max(1, item.quantity - 1))
+                  }
+                  className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition-colors"
+                  aria-label="Giảm số lượng"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                  </svg>
+                </button>
 
-              <span className="font-semibold">{item.quantity}</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={item.quantity || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val !== "") {
+                      const parsed = parseInt(val, 10);
+                      if (!isNaN(parsed) && parsed >= 1) {
+                        updateQuantity(item.cartKey, parsed);
+                      }
+                    }
+                  }}
+                  onFocus={(e) => e.target.select()}
+                  className="w-12 text-center text-sm font-semibold text-gray-900 border-none focus:ring-0 appearance-none bg-transparent p-0 m-0"
+                />
 
-              <button
-                onClick={() =>
-                  updateQuantity(item.productId, item.quantity + 1)
-                }
-              >
-                +
-              </button>
+                <button
+                  onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
+                  className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-500 hover:text-gray-900 transition-colors"
+                  aria-label="Tăng số lượng"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
 
               <button
                 onClick={() => {
-                  removeFromCart(item.productId);
-                  toast.success("Đã xóa sản phẩm");
+                  removeItem(item.cartKey);
+                  toast.success("Đã xóa sản phẩm khỏi giỏ");
                 }}
-                className="text-red-600"
+                className="text-red-500 hover:text-red-700 font-medium px-2 py-1 transition-colors"
+                aria-label="Xóa"
               >
                 Xóa
               </button>
@@ -159,11 +195,10 @@ export default function CartPage() {
             ].map((method) => (
               <label
                 key={method.key}
-                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${
-                  paymentMethod === method.key
-                    ? "border-amber-500 bg-amber-50"
-                    : "border-slate-200 hover:border-amber-300"
-                }`}
+                className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${paymentMethod === method.key
+                  ? "border-amber-500 bg-amber-50"
+                  : "border-slate-200 hover:border-amber-300"
+                  }`}
               >
                 <input
                   type="radio"
@@ -218,6 +253,6 @@ export default function CartPage() {
           </button>
         </aside>
       </section>
-    </div>
+    </div >
   );
 }

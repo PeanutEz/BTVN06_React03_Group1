@@ -99,7 +99,7 @@ export function mapClientProductToMenuProduct(
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Deterministic hash of a UUID string to a positive integer (for use as numeric id) */
-function hashStringToNumber(str: string): number {
+export function hashStringToNumber(str: string): number {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         const char = str.charCodeAt(i);
