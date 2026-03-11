@@ -9,10 +9,10 @@ export interface Category {
 
 // DTO for creating a new category (CATEGORY-01)
 export interface CreateCategoryDto {
-  code: string;         // required
-  name: string;         // required
+  code: string; // required
+  name: string; // required
   description?: string; // optional, default ""
-  parent_id?: string;   // optional, default ""
+  parent_id?: string; // optional, default ""
 }
 
 // API response shape returned by POST /api/categories
@@ -33,13 +33,13 @@ export interface CategoryApiResponse {
 // POST /api/categories/search  |  Role: SYSTEM & FRANCHISE  |  Token: required
 export interface SearchCategoryDto {
   searchCondition: {
-    keyword?: string;             // optional, default ""
-    parent_id?: string;           // optional, default ""
+    keyword?: string; // optional, default ""
+    parent_id?: string; // optional, default ""
     is_active?: string | boolean; // optional, default ""
-    is_deleted?: boolean;         // optional, default false
+    is_deleted?: boolean; // optional, default false
   };
   pageInfo: {
-    pageNum: number;  // required, default 1
+    pageNum: number; // required, default 1
     pageSize: number; // required, default 10
   };
 }
@@ -58,10 +58,10 @@ export interface CategorySearchResponse {
 // DTO for CATEGORY-FRANCHISE-01 — Create Item
 // POST /api/category-franchises  |  Role: ADMIN, MANAGER  |  Token: required
 export interface CreateCategoryFranchiseDto {
-  franchise_id: string;   // required
-  category_id: string;    // required
+  franchise_id: string; // required
+  category_id: string; // required
   display_order?: number; // optional, default 1
-  parent_id?: string;     // optional, default ""
+  parent_id?: string; // optional, default ""
 }
 
 // API response shape returned by POST /api/category-franchises
@@ -84,13 +84,13 @@ export interface CategoryFranchiseApiResponse {
 // POST /api/category-franchises/search  |  Role: SYSTEM & FRANCHISE  |  Token: required
 export interface SearchCategoryFranchiseDto {
   searchCondition: {
-    franchise_id?: string;             // optional, default ""
-    category_id?: string;              // optional, default ""
-    is_active?: string | boolean;      // optional, default ""
-    is_deleted?: string | boolean;     // optional, default false
+    franchise_id?: string; // optional, default ""
+    category_id?: string; // optional, default ""
+    is_active?: string | boolean; // optional, default ""
+    is_deleted?: string | boolean; // optional, default false
   };
   pageInfo: {
-    pageNum: number;  // required, default 1
+    pageNum: number; // required, default 1
     pageSize: number; // required, default 10
   };
 }
@@ -109,15 +109,29 @@ export interface CategoryFranchiseSearchResponse {
 // DTO for CATEGORY-FRANCHISE-06 — Change Status Item
 // PATCH /api/category-franchises/status  |  Role: ADMIN, MANAGER  |  Token: required
 export interface ChangeCategoryFranchiseStatusDto {
-  id: string;        // required
+  id: string; // required
   is_active: boolean; // required
 }
 
 // DTO for CATEGORY-FRANCHISE-07 — Change Display Order Item
 // PATCH /api/category-franchises/display-order  |  Role: ADMIN, MANAGER  |  Token: required
 export interface ChangeDisplayOrderCategoryFranchiseDto {
-  id: string;           // required — id of the category-franchise item
+  id: string; // required — id of the category-franchise item
   display_order: number; // required
+}
+
+// CATEGORY-FRANCHISE-08 — Get Categories by Franchise
+// GET /api/category-franchises/franchise/:franchiseId
+
+export interface CategoryByFranchiseResponse {
+  success: boolean;
+  data: CategoryFranchiseApiResponse[];
+  pageInfo: {
+    pageNum: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
 }
 
 // Response item from GET /api/categories/select (CATEGORY-07)
@@ -130,14 +144,14 @@ export interface CategorySelectItem {
 // DTO for PRODUCT-01 — Create Item
 // POST /api/products  |  Role: ADMIN, MANAGER  |  Token: required
 export interface CreateProductDto {
-  SKU: string;          // required
-  name: string;         // required
-  description: string;  // required
-  content: string;      // required
-  image_url: string;    // required
+  SKU: string; // required
+  name: string; // required
+  description: string; // required
+  content: string; // required
+  image_url: string; // required
   images_url?: string[]; // optional, default []
-  min_price: number;    // required
-  max_price: number;    // required
+  min_price: number; // required
+  max_price: number; // required
 }
 
 // API response shape returned by /api/products
@@ -162,15 +176,15 @@ export interface ProductApiResponse {
 // POST /api/products/search  |  Role: SYSTEM & FRANCHISE  |  Token: required
 export interface SearchProductDto {
   searchCondition: {
-    keyword?: string;                  // optional, default ""
-    franchise_id?: string;             // optional, default ""
-    min_price?: string | number;       // optional, default ""
-    max_price?: string | number;       // optional, default ""
-    is_active?: string | boolean;      // optional, default ""
-    is_deleted?: string | boolean;     // optional, default false
+    keyword?: string; // optional, default ""
+    franchise_id?: string; // optional, default ""
+    min_price?: string | number; // optional, default ""
+    max_price?: string | number; // optional, default ""
+    is_active?: string | boolean; // optional, default ""
+    is_deleted?: string | boolean; // optional, default false
   };
   pageInfo: {
-    pageNum: number;  // required, default 1
+    pageNum: number; // required, default 1
     pageSize: number; // required, default 10
   };
 }
@@ -310,10 +324,10 @@ export interface ClientProductDetailResponse {
 // DTO for PRODUCT-FRANCHISE-01 — Create Item (POST /api/product-franchises)
 // NOTE: size can be set "DEFAULT" if no size applies
 export interface CreateProductFranchiseDto {
-  franchise_id: string;  // required
-  product_id: string;    // required
-  size: string;          // required — use "DEFAULT" when no size
-  price_base: number;    // required
+  franchise_id: string; // required
+  product_id: string; // required
+  size: string; // required — use "DEFAULT" when no size
+  price_base: number; // required
 }
 
 // API response shape returned by POST /api/product-franchises
@@ -341,7 +355,7 @@ export interface SearchProductFranchiseDto {
     is_deleted?: string | boolean; // default FALSE
   };
   pageInfo: {
-    pageNum: number;  // default 1
+    pageNum: number; // default 1
     pageSize: number; // default 10
   };
 }
@@ -354,4 +368,69 @@ export interface ProductFranchiseSearchResponse {
     totalItems: number;
     totalPages: number;
   };
+}
+
+// ─── PRODUCT-CATEGORY-FRANCHISE ───────────────────────────────────────────────
+
+// DTO for PCF-01 — Add Product to Category Franchise
+// POST /api/product-category-franchises  |  Role: ADMIN, MANAGER
+export interface CreateProductCategoryFranchiseDto {
+  category_franchise_id: string; // required
+  product_franchise_id: string; // required
+  display_order: number; // required
+}
+
+// API response shape for product-category-franchise
+export interface ProductCategoryFranchiseApiResponse {
+  id: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  category_franchise_id: string;
+  product_franchise_id: string;
+  display_order: number;
+  franchise_id: string;
+  franchise_name: string;
+  category_id: string;
+  category_name: string;
+  product_id: string;
+  product_name: string;
+  size: string;
+  price_base: number;
+}
+
+// DTO for PCF-02 — Search Items by Conditions
+// POST /api/product-category-franchises/search  |  Role: SYSTEM & FRANCHISE
+export interface SearchProductCategoryFranchiseDto {
+  searchCondition: {
+    franchise_id?: string; // optional, default ""
+    product_id?: string; // optional, default ""
+    category_id?: string; // optional, default ""
+    is_active?: string | boolean; // optional, default ""
+    is_deleted?: string | boolean; // optional, default false
+  };
+  pageInfo: {
+    pageNum: number; // required, default 1
+    pageSize: number; // required, default 10
+  };
+}
+
+// Paginated response from POST /api/product-category-franchises/search
+export interface ProductCategoryFranchiseSearchResponse {
+  data: ProductCategoryFranchiseApiResponse[];
+  pageInfo: {
+    pageNum: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+// DTO for PCF-07 — Change Display Order Item
+// PATCH /api/product-category-franchises/reorder  |  Role: ADMIN, MANAGER
+export interface ReorderProductCategoryFranchiseDto {
+  category_franchise_id: string; // required
+  item_id: string; // required — id of the product-category-franchise item
+  new_position: number; // required
 }
