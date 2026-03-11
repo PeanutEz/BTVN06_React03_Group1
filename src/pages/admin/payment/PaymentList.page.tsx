@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components";
 import type { Payment, PaymentStatus, PaymentMethodType } from "../../../models/payment.model";
@@ -9,24 +9,34 @@ import {
 } from "../../../models/payment.model";
 import { fetchPayments, filterPayments } from "../../../services/payment.service";
 import { ROUTER_URL } from "../../../routes/router.const";
+import Pagination from "../../../components/ui/Pagination";
+
+const ITEMS_PER_PAGE = 10;
 
 const PaymentListPage = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [methodFilter, setMethodFilter] = useState<PaymentMethodType | "">("");
-  const [statusFilter, setStatusFilter] = useState<PaymentStatus | "">("");
+  const [statusFilter, setStatusFilter] = useState<PaymentStatus | "">("")
+  const [currentPage, setCurrentPage] = useState(1);
+  const hasRun = useRef(false);
 
   const loadPayments = async () => {
     setLoading(true);
+    setCurrentPage(1);
     try {
       const data = await fetchPayments();
       setPayments(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách thanh toán:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadPayments();
   }, []);
 
@@ -38,6 +48,8 @@ const PaymentListPage = () => {
         statusFilter || undefined
       );
       setPayments(data);
+    } catch (error) {
+      console.error("Lỗi lọc thanh toán:", error);
     } finally {
       setLoading(false);
     }
@@ -56,12 +68,18 @@ const PaymentListPage = () => {
     }).format(amount);
   };
 
+  const totalPages = Math.ceil(payments.length / ITEMS_PER_PAGE);
+  const paginatedPayments = payments.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý thanh toán</h1>
-          <p className="text-sm text-slate-600">Theo dõi và quản lý các giao dịch thanh toán</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý thanh toán</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Theo dõi và quản lý các giao dịch thanh toán</p>
         </div>
         <Button variant="outline" onClick={loadPayments} loading={loading}>
           Làm mới
@@ -69,7 +87,7 @@ const PaymentListPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">Phương thức</label>
@@ -101,7 +119,7 @@ const PaymentListPage = () => {
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={handleFilter} size="sm">
             Lọc
           </Button>
@@ -129,7 +147,7 @@ const PaymentListPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {payments.map((payment) => (
+              {paginatedPayments.map((payment) => (
                 <tr key={payment.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <span className="font-semibold text-primary-600">PT-{String(payment.id).padStart(4, '0')}</span>
@@ -189,13 +207,24 @@ const PaymentListPage = () => {
               )}
               {loading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">
-                    Đang tải...
+                  <td colSpan={9}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                    </div>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+        <div className="px-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={payments.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
         </div>
       </div>
     </div>

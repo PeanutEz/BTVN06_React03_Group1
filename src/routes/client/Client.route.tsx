@@ -7,6 +7,7 @@ import { CLIENT_MENU } from "./Client.menu";
 import { ROUTER_URL } from "../router.const";
 
 const CustomerProfile = React.lazy(() => import("../../pages/client/customer/CustomerProfile.page"));
+const CustomerChangePassword = React.lazy(() => import("../../pages/client/customer/CustomerChangePassword.page"));
 const CustomerAddressBook = React.lazy(() => import("../../pages/client/customer/CustomerAddressBook.page"));
 const CustomerOrders = React.lazy(() => import("../../pages/client/customer/CustomerOrders.page"));
 const CustomerFavorites = React.lazy(() => import("../../pages/client/customer/CustomerFavorites.page"));
@@ -23,6 +24,7 @@ export const ClientRoutes = (
       ))}
       <Route path="customer" element={<CustomerAccountLayout />}>
         <Route path="account" element={<CustomerProfile />} />
+        <Route path="change-password" element={<CustomerChangePassword />} />
         <Route path="address-book" element={<CustomerAddressBook />} />
         <Route path="membership" element={<LoyaltyDashboard />} />
         <Route path="vouchers" element={<LoyaltyPoints />} />

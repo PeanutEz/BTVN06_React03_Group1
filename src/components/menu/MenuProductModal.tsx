@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { menuCategories } from "@/services/menu.service";
 import { useMenuCartStore } from "@/store/menu-cart.store";
+import { useAuthStore } from "@/store/auth.store";
+import { ROUTER_URL } from "@/routes/router.const";
 import {
   MENU_SIZES,
   SUGAR_LEVELS,
@@ -32,13 +34,16 @@ interface MenuProductModalProps {
 }
 
 export default function MenuProductModal({ product, onClose }: MenuProductModalProps) {
+  const navigate = useNavigate();
   const addItem = useMenuCartStore((s) => s.addItem);
+  const user = useAuthStore((s) => s.user);
 
   const [size, setSize] = useState<MenuSize>("M");
   const [sugar, setSugar] = useState<SugarLevel>("100%");
   const [ice, setIce] = useState<IceLevel>("Đá vừa");
-  const [selectedToppings, setSelectedToppings] = useState<Topping[]>([]);
+  const [toppingQtys, setToppingQtys] = useState<Record<string, number>>({});
   const [quantity, setQuantity] = useState(1);
+  const [note, setNote] = useState("");
 
   // Reset state when product changes
   useEffect(() => {
@@ -46,9 +51,34 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
       setSize("M");
       setSugar("100%");
       setIce("Đá vừa");
-      setSelectedToppings([]);
+      setToppingQtys({});
       setQuantity(1);
+      setNote("");
     }
+  }, [product?.id]);
+
+  // Fetch full product detail from API (CLIENT-05)
+  const [productDetail, setProductDetail] = useState<any>(null);
+  useEffect(() => {
+    if (!product) {
+      setProductDetail(null);
+      return;
+    }
+    const apiFranchiseId = (product as any)?._apiFranchiseId;
+    const apiProductId = (product as any)?._apiProductId;
+    if (!apiFranchiseId || !apiProductId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { clientService } = await import("@/services/client.service");
+        const detail = await clientService.getProductDetail(apiFranchiseId, apiProductId);
+        if (!cancelled) setProductDetail(detail);
+      } catch (err) {
+        console.error("Failed to fetch product detail:", err);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [product?.id]);
 
   // Lock body scroll
@@ -63,26 +93,52 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
 
   if (!product) return null;
 
+  // Use detail content if loaded, fallback to list data
+  const displayContent = productDetail?.content || product.content;
+  const displayImage = productDetail?.image_url || product.image;
+
   const sizeDelta = MENU_SIZES.find((s) => s.value === size)?.priceDelta ?? 0;
-  const toppingTotal = selectedToppings.reduce((s, t) => s + t.price, 0);
+  const toppingTotal = TOPPINGS.reduce((sum, t) => sum + t.price * (toppingQtys[t.id] ?? 0), 0);
   const unitPrice = product.price + sizeDelta + toppingTotal;
   const totalPrice = unitPrice * quantity;
 
-  const category = menuCategories.find((c) => c.id === product.categoryId);
+  // Derive category info from API-enriched product or fallback
+  const categoryName = (product as any)._apiCategoryName ?? "";
 
-  function toggleTopping(topping: Topping) {
-    setSelectedToppings((prev) =>
-      prev.find((t) => t.id === topping.id)
-        ? prev.filter((t) => t.id !== topping.id)
-        : [...prev, topping],
-    );
+  function changeToppingQty(topping: Topping, delta: number) {
+    setToppingQtys((prev) => {
+      const next = Math.min(3, Math.max(0, (prev[topping.id] ?? 0) + delta));
+      if (next === 0) {
+        const { [topping.id]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [topping.id]: next };
+    });
   }
 
-  function handleAddToCart() {    if (!product) return;    addItem(product, { size, sugar, ice, toppings: selectedToppings }, quantity);
+  function handleAddToCart() {
+    if (!product) return;
+    // Auth gate — must be logged in
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng", {
+        action: {
+          label: "Đăng nhập",
+          onClick: () => { onClose(); navigate(ROUTER_URL.LOGIN); },
+        },
+      });
+      return;
+    }
+    const toppingsFlat: Topping[] = TOPPINGS.flatMap((t) =>
+      Array(toppingQtys[t.id] ?? 0).fill(t)
+    );
+    addItem(product, { size, sugar, ice, toppings: toppingsFlat, note: note.trim() || undefined }, quantity);
+    const toppingDesc = TOPPINGS
+      .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
+      .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
+      .join(", ");
     toast.success(`Đã thêm "${product.name}" vào giỏ!`, {
-      description: `Size ${size} • ${sugar} đường • ${ice}${
-        selectedToppings.length ? ` • ${selectedToppings.map((t) => t.name).join(", ")}` : ""
-      }`,
+      description: `Size ${size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""
+        }${note.trim() ? ` • "${note.trim()}"` : ""}`,
     });
     onClose();
   }
@@ -104,7 +160,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
         <div className="relative shrink-0">
           <div className="h-44 sm:h-52 overflow-hidden bg-gray-100">
             <img
-              src={product.image}
+              src={displayImage}
               alt={product.name}
               className="w-full h-full object-cover"
             />
@@ -135,9 +191,9 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
 
           {/* Product info overlay */}
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
-            {category && (
+            {categoryName && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
-                {category.icon} {category.name}
+                {categoryName}
               </span>
             )}
             <h2 className="text-lg font-bold text-white mt-1 tracking-tight leading-tight">
@@ -159,8 +215,11 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
           {/* Description */}
-          {product.content && (
-            <p className="text-sm text-gray-500 leading-relaxed">{product.content}</p>
+          {displayContent && (
+            <div
+              className="text-sm text-gray-600 leading-relaxed space-y-2 [&>h3]:text-gray-800 [&>h3]:font-bold [&>h3]:mt-3 [&>ul]:list-disc [&>ul]:pl-5 [&>p>strong]:text-gray-700"
+              dangerouslySetInnerHTML={{ __html: displayContent }}
+            />
           )}
 
           {/* Size */}
@@ -229,41 +288,64 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
             </div>
           </div>
 
+          {/* Note */}
+          <div>
+            <SectionLabel>Ghi chú</SectionLabel>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="VD: ít đường hơn, không hành, dị ứng..."
+              rows={2}
+              maxLength={200}
+              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white resize-none focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-400 transition-all"
+            />
+          </div>
+
           {/* Toppings */}
           <div>
             <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
             <div className="grid grid-cols-2 gap-2">
               {TOPPINGS.map((topping) => {
-                const selected = selectedToppings.some((t) => t.id === topping.id);
+                const qty = toppingQtys[topping.id] ?? 0;
                 return (
-                  <button
+                  <div
                     key={topping.id}
-                    onClick={() => toggleTopping(topping)}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150 text-left",
-                      selected
-                        ? "border-amber-500 bg-amber-50 text-amber-800"
-                        : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
+                      "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
+                      qty > 0
+                        ? "border-amber-500 bg-amber-50"
+                        : "border-gray-200 bg-white",
                     )}
                   >
-                    <span
-                      className={cn(
-                        "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 transition-all",
-                        selected ? "bg-amber-500 border-amber-500" : "border-gray-300",
-                      )}
-                    >
-                      {selected && (
-                        <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                    <span className="shrink-0">{topping.emoji}</span>
+                    <span className="shrink-0 text-base">{topping.emoji}</span>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{topping.name}</div>
+                      <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>{topping.name}</div>
                       <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
                     </div>
-                  </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => changeToppingQty(topping, -1)}
+                        disabled={qty === 0}
+                        className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-30 border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                      >
+                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" />
+                        </svg>
+                      </button>
+                      <span className={cn("w-4 text-center font-semibold text-xs", qty > 0 ? "text-amber-700" : "text-gray-400")}>
+                        {qty}
+                      </span>
+                      <button
+                        onClick={() => changeToppingQty(topping, 1)}
+                        disabled={qty >= 3}
+                        className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-30 border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                      >
+                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>

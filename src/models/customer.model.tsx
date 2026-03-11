@@ -1,13 +1,15 @@
 // Customer - Khách hàng toàn hệ thống
 export interface Customer {
-  id: number;
+  id: string;
   phone: string; // unique
   email?: string; // nullable
-  password_hash: string;
+  password_hash?: string;
   name: string;
   avatar_url?: string;
+  address?: string;
   is_active: boolean; // default true
   is_deleted: boolean; // default false
+  is_verified?: boolean;
   created_at: string; // timestamp
   updated_at: string; // timestamp
 }

@@ -5,6 +5,8 @@ export const ROUTER_URL = {
   LOGIN: "/login",
   REGISTER: "/register",
   RESET_PASSWORD: "/reset-password",
+  VERIFY_EMAIL: "/verify-customer-email/:token",
+  VERIFY_EMAIL_ALT: "/verify-email/:token",
   PROFILE: "/profile",
   ACCOUNT: "/customer/account",
   CART: "/cart",
@@ -19,15 +21,22 @@ export const ROUTER_URL = {
   CUSTOMER_FAVORITES: "/customer/product-favorite",
   CUSTOMER_ORDERED: "/customer/ordered",
   CUSTOMER_SUPPORT: "/customer/support",
+  CUSTOMER_CHANGE_PASSWORD: "/customer/change-password",
 
   // Browse & Product
-  CATEGORIES: "/categories",
   PRODUCT_DETAIL: "/products/:id",
+
+  // Receiving setup (mandatory before browsing menu)
+  RECEIVING_SETUP: "/receiving-setup",
 
   // Menu (new ecommerce menu flow)
   MENU: "/menu",
   MENU_DETAIL: "/menu/:id",
   MENU_CHECKOUT: "/menu/checkout",
+  MENU_ORDER_STATUS: "/menu/orders/:orderId",
+  PAYMENT_PROCESS: "/payment/process/:orderId",
+  PAYMENT_SUCCESS: "/payment/success/:orderId",
+  PAYMENT_FAILED: "/payment/failed/:orderId",
   CHECKOUT: "/checkout",
 
   // Orders
@@ -42,6 +51,9 @@ export const ROUTER_URL = {
   LOYALTY_TIER: "/loyalty/tier",
   LOYALTY_HISTORY: "/loyalty/history",
 
+  // Inbox / Notifications
+  INBOX: "/inbox",
+
   // Static Pages
   STATIC_PAGE: "/page/:slug",
 
@@ -50,6 +62,8 @@ export const ROUTER_URL = {
   ADMIN_ROUTES: {
     DASHBOARD: "dashboard",
     USERS: "users",
+    USER_FRANCHISE_ROLES: "user-franchise-roles",
+    PRODUCT_FRANCHISES: "product-franchises",
     ORDERS: "orders",
     ORDER_DETAIL: "orders/:id",
     CUSTOMERS: "customers",
@@ -61,6 +75,13 @@ export const ROUTER_URL = {
     FRANCHISE_LIST: "franchises",
     FRANCHISE_DETAIL: "franchises/:id",
     FRANCHISE_CREATE: "franchises/create",
+    FRANCHISE_EDIT: "franchises/:id/edit",
     INVENTORY_BY_FRANCHISE: "franchises/:id/inventory",
+    CATEGORIES: "categories",
+    CATEGORY_FRANCHISE: "franchises/:id/categories",
+    INVENTORIES: "inventories",
+    ROLES: "roles",
+    PROFILE: "profile",
+    PRODUCT_CATEGORY_FRANCHISES: "product-category-franchises",
   },
 } as const;

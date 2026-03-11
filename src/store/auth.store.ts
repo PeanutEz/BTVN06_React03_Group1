@@ -1,14 +1,14 @@
 import { create } from "zustand";
 import { LOCAL_STORAGE_KEY } from "../const/data.const";
-import type { User } from "../models";
-import { getCurrentUser, removeItem, setItem } from "../utils/localstorage.util";
+import type { UserProfile } from "../services/auth.service";
 
 type AuthState = {
-	user: User | null;
+	user: UserProfile | null;
 	isLoggedIn: boolean;
 	isInitialized: boolean;
-	login: (user: User) => void;
+	login: (user: UserProfile) => void;
 	logout: () => void;
+	setUser: (user: UserProfile) => void;
 	hydrate: () => void;
 };
 
@@ -18,17 +18,30 @@ export const useAuthStore = create<AuthState>((set) => ({
 	isInitialized: false,
 
 	login: (user) => {
-		setItem(LOCAL_STORAGE_KEY.AUTH_USER, user);
+		localStorage.setItem(LOCAL_STORAGE_KEY.AUTH_USER, JSON.stringify(user));
 		set({ user, isLoggedIn: true });
 	},
 
+	setUser: (user) => {
+		localStorage.setItem(LOCAL_STORAGE_KEY.AUTH_USER, JSON.stringify(user));
+		set({ user });
+	},
+
 	logout: () => {
-		removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
+		localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
 		set({ user: null, isLoggedIn: false });
 	},
 
 	hydrate: () => {
-		const user = getCurrentUser();
+		const userRaw = localStorage.getItem(LOCAL_STORAGE_KEY.AUTH_USER);
+		let user: UserProfile | null = null;
+		if (userRaw) {
+			try {
+				user = JSON.parse(userRaw);
+			} catch {
+				user = null;
+			}
+		}
 		set({ user, isLoggedIn: !!user, isInitialized: true });
 	},
 }));

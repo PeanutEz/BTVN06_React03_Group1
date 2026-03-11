@@ -1,17 +1,22 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { RouteChangeLoading } from "../components";
+import ScrollToTopOnNavigate from "../components/ui/ScrollToTopOnNavigate";
 import LoadingLayout from "../layouts/Loading.layout";
 import ClientLayout from "../layouts/client/Client.layout";
 import CustomerAccountLayout from "../layouts/client/CustomerAccount.layout";
 import LandingLayout from "../layouts/landing/Landing.layout";
 import AdminLayout from "../layouts/admin/Admin.layout";
 import AdminGuard from "./guard/AdminGuard";
+import AuthGuard from "./guard/AuthGuard";
+import ReceivingGuard from "./guard/ReceivingGuard";
 import { ROUTER_URL } from "./router.const";
 import { CLIENT_MENU } from "./client/Client.menu";
 import { ADMIN_MENU } from "./admin/Admin.menu";
 import LoginPage from "../pages/client/auth/Login.page";
 import RegisterPage from "../pages/client/auth/Register.page";
 import ResetPasswordPage from "../pages/client/auth/ResetPassword.page";
+import VerifyEmailPage from "../pages/client/auth/VerifyEmail.page";
 import AdminLoginPage from "../pages/admin/auth/Login.page";
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
@@ -25,12 +30,22 @@ const LoyaltyDashboardPage = React.lazy(() => import("../pages/client/loyalty/Lo
 const LoyaltyPointsPage = React.lazy(() => import("../pages/client/loyalty/LoyaltyPoints.page"));
 const CartPage = React.lazy(() => import("../pages/client/Cart.page"));
 const ContactPage = React.lazy(() => import("../pages/client/Contact.page"));
+const CustomerChangePasswordPage = React.lazy(() => import("../pages/client/customer/CustomerChangePassword.page"));
 const MenuPage = React.lazy(() => import("../pages/client/menu/Menu.page"));
+const MenuCheckoutPage = React.lazy(() => import("../pages/client/menu/MenuCheckout.page"));
+const OrderStatusPage = React.lazy(() => import("../pages/client/menu/OrderStatus.page"));
+const PaymentProcessPage = React.lazy(() => import("../pages/client/menu/PaymentProcess.page"));
+const PaymentSuccessPage = React.lazy(() => import("../pages/client/menu/PaymentSuccess.page"));
+const PaymentFailedPage = React.lazy(() => import("../pages/client/menu/PaymentFailed.page"));
+const ReceivingSetupPage = React.lazy(() => import("../pages/client/ReceivingSetup.page"));
 const CheckoutPage = React.lazy(() => import("../pages/client/Checkout.page"));
+const InboxPage = React.lazy(() => import("../pages/client/inbox/Inbox.page"));
 
 function AppRoutes() {
   return (
     <BrowserRouter>
+      <RouteChangeLoading minDurationMs={1500} />
+      <ScrollToTopOnNavigate />
       <React.Suspense fallback={<LoadingLayout />}>
         <Routes>
           {/* Landing page with its own header */}
@@ -45,18 +60,42 @@ function AppRoutes() {
 
           {/* Menu */}
           <Route element={<ClientLayout />}>
-            <Route path={ROUTER_URL.MENU} element={<MenuPage />} />
-            <Route path={ROUTER_URL.CHECKOUT} element={<CheckoutPage />} />
+            {/* Receiving setup – auth required, no branch required */}
+          <Route element={<AuthGuard />}>
+            <Route path={ROUTER_URL.RECEIVING_SETUP} element={<ReceivingSetupPage />} />
+          </Route>
+
+          {/* Menu – public: guests can browse; auth required to add to cart (handled in-page) */}
+          <Route path={ROUTER_URL.MENU} element={<MenuPage />} />
+
+          {/* Menu checkout & order status – auth + receiving method both required */}
+          <Route element={<AuthGuard />}>
+            <Route element={<ReceivingGuard />}>
+              <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPage />} />
+              <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
+              <Route path={ROUTER_URL.PAYMENT_PROCESS} element={<PaymentProcessPage />} />
+              <Route path={ROUTER_URL.PAYMENT_SUCCESS} element={<PaymentSuccessPage />} />
+              <Route path={ROUTER_URL.PAYMENT_FAILED} element={<PaymentFailedPage />} />
+            </Route>
+          </Route>
+
+          {/* Inbox – auth required */}
+          <Route element={<AuthGuard />}>
+            <Route path={ROUTER_URL.INBOX} element={<InboxPage />} />
+          </Route>
+
+          <Route path={ROUTER_URL.CHECKOUT} element={<CheckoutPage />} />
           </Route>
 
           {/* Public client pages with standard header */}
           <Route element={<ClientLayout />}>
-            {CLIENT_MENU.filter((item) => item.path !== ROUTER_URL.HOME && item.path !== ROUTER_URL.ACCOUNT).map((item) => (
+            {CLIENT_MENU.filter((item) => item.path !== ROUTER_URL.HOME && item.path !== ROUTER_URL.ACCOUNT && item.path !== ROUTER_URL.MENU).map((item) => (
               <Route key={item.path} path={item.path} element={<item.component />} />
             ))}
 
             <Route path="customer" element={<CustomerAccountLayout />}>
               <Route path="account" element={<CustomerProfilePage />} />
+              <Route path="change-password" element={<CustomerChangePasswordPage />} />
               <Route path="address-book" element={<CustomerAddressBookPage />} />
               <Route path="membership" element={<LoyaltyDashboardPage />} />
               <Route path="vouchers" element={<LoyaltyPointsPage />} />
@@ -68,10 +107,11 @@ function AppRoutes() {
             </Route>
           </Route>
 
-          {/* Client auth */}
-          <Route path={ROUTER_URL.LOGIN} element={<LoginPage />} />
+          {/* Client auth */}          <Route path={ROUTER_URL.LOGIN} element={<LoginPage />} />
           <Route path={ROUTER_URL.REGISTER} element={<RegisterPage />} />
           <Route path={ROUTER_URL.RESET_PASSWORD} element={<ResetPasswordPage />} />
+          <Route path={ROUTER_URL.VERIFY_EMAIL} element={<VerifyEmailPage />} />
+          <Route path={ROUTER_URL.VERIFY_EMAIL_ALT} element={<VerifyEmailPage />} />
 
           {/* Admin auth */}
           <Route path={ROUTER_URL.ADMIN_LOGIN} element={<AdminLoginPage />} />

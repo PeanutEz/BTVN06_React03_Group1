@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useProductStore } from "@/store/product.store";
 import ProductCard from "@/components/product/ProductCard";
 import ProductFilter from "@/components/product/ProductFilter";
+import type { Category, Product } from "@/models/product.model";
 
 export default function ProductList() {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -69,6 +70,21 @@ export default function ProductList() {
         return categories.find((c) => c.code === categoryCode);
     }, [categories, categoryCode]);
 
+    // Group products by category when "All" is selected
+    const groupedByCategory = useMemo<{ category: Category; products: Product[] }[]>(() => {
+        if (categoryCode || debouncedQuery) return [];
+        const map = new Map<number, { category: Category; products: Product[] }>();
+        for (const product of products) {
+            const cat = categories.find((c) => c.id === product.categoryId);
+            if (!cat) continue;
+            if (!map.has(cat.id)) {
+                map.set(cat.id, { category: cat, products: [] });
+            }
+            map.get(cat.id)!.products.push(product);
+        }
+        return Array.from(map.values());
+    }, [products, categories, categoryCode, debouncedQuery]);
+
     return (
         <div>
             {/* Header */}
@@ -121,17 +137,44 @@ export default function ProductList() {
 
             {/* Products Grid */}
             {isLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {[...Array(8)].map((_, i) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[...Array(6)].map((_, i) => (
                         <div key={i} className="bg-gray-200 rounded-2xl h-80 animate-pulse" />
                     ))}
                 </div>
             ) : products.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {products.map((product) => (
-                        <ProductCard key={product.id} product={product} />
-                    ))}
-                </div>
+                /* All Products — grouped by category */
+                groupedByCategory.length > 0 ? (
+                    <div className="space-y-10">
+                        {groupedByCategory.map(({ category, products: catProducts }) => (
+                            <section key={category.id}>
+                                {/* Category Header */}
+                                <div className="flex items-center gap-3 mb-4">
+                                    <h2 className="text-2xl font-bold text-green-600">
+                                        {category.name}
+                                    </h2>
+                                    <span className="bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                                        {catProducts.length} sản phẩm
+                                    </span>
+                                    <div className="flex-1 h-px bg-green-100" />
+                                </div>
+                                {/* Product grid — 3 columns */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {catProducts.map((product) => (
+                                        <ProductCard key={product.id} product={product} />
+                                    ))}
+                                </div>
+                            </section>
+                        ))}
+                    </div>
+                ) : (
+                    /* Specific category or search — flat grid */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {products.map((product) => (
+                            <ProductCard key={product.id} product={product} />
+                        ))}
+                    </div>
+                )
             ) : (
                 /* Empty State */
                 <div className="text-center py-16 bg-white rounded-2xl shadow-md">

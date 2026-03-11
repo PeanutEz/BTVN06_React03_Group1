@@ -24,6 +24,15 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(() => import("../../pages/admin/user/User.page.tsx")),
   },
   {
+    label: "User Franchise Roles",
+    path: ROUTER_URL.ADMIN_ROUTES.USER_FRANCHISE_ROLES,
+    component: React.lazy(
+      () =>
+        import("../../pages/admin/user-franchise-role/UserFranchiseRole.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Orders",
     path: ROUTER_URL.ADMIN_ROUTES.ORDERS,
     component: React.lazy(
@@ -83,6 +92,15 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
+    label: "Product Franchises",
+    path: ROUTER_URL.ADMIN_ROUTES.PRODUCT_FRANCHISES,
+    component: React.lazy(
+      () =>
+        import("../../pages/admin/product-franchise/ProductFranchise.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Franchises",
     path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST,
     component: React.lazy(
@@ -105,10 +123,61 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
+    label: "Franchise Edit",
+    path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_EDIT,
+    component: React.lazy(
+      () => import("../../pages/admin/franchise/FranchiseCreateEdit.page.tsx"),
+    ),
+  },
+  {
+    label: "Franchise Categories",
+    path: ROUTER_URL.ADMIN_ROUTES.CATEGORY_FRANCHISE,
+    component: React.lazy(
+      () => import("../../pages/admin/franchise/CategoryFranchise.page.tsx"),
+    ),
+  },
+  {
     label: "Franchise Inventory",
     path: ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE,
     component: React.lazy(
       () => import("../../pages/admin/inventory/InventoryByFranchise.page.tsx"),
     ),
+  },
+  {
+    label: "Inventories",
+    path: ROUTER_URL.ADMIN_ROUTES.INVENTORIES,
+    component: React.lazy(
+      () => import("../../pages/admin/inventory/InventoryList.page.tsx"),
+    ),
+  },
+  {
+    label: "Categories",
+    path: ROUTER_URL.ADMIN_ROUTES.CATEGORIES,
+    component: React.lazy(
+      () => import("../../pages/admin/category/CategoryList.page.tsx"),
+    ),
+  },
+  {
+    label: "Roles",
+    path: ROUTER_URL.ADMIN_ROUTES.ROLES,
+    component: React.lazy(
+      () => import("../../pages/admin/role/RoleList.page.tsx"),
+    ),
+  },
+  {
+    label: "Profile",
+    path: ROUTER_URL.ADMIN_ROUTES.PROFILE,
+    component: React.lazy(
+      () => import("../../pages/admin/profile/AdminProfile.page.tsx"),
+    ),
+  },
+  {
+    label: "Product Category Franchises",
+    path: ROUTER_URL.ADMIN_ROUTES.PRODUCT_CATEGORY_FRANCHISES,
+    component: React.lazy(
+      () =>
+        import("../../pages/admin/product-category-franchise/ProductCategoryFranchise.page.tsx"),
+    ),
+    isEnd: true,
   },
 ];

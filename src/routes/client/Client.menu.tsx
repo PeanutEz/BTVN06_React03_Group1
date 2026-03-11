@@ -25,13 +25,7 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		isEnd: true,
 		showInNav: false,
 	},
-	{
-		label: "Danh mục",
-		path: ROUTER_URL.CATEGORIES,
-		component: React.lazy(() => import("@/pages/client/product/CategoryList.page")),
-		isEnd: true,
-		showInNav: false,
-	},
+
 	{
 		label: "Menu",
 		path: ROUTER_URL.MENU,
@@ -39,13 +33,7 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		isEnd: true,
 		showInNav: true,
 	},
-	{
-		label: "Chi tiết sản phẩm",
-		path: ROUTER_URL.PRODUCT_DETAIL,
-		component: React.lazy(() => import("@/pages/client/product/ProductDetail.page")),
-		isEnd: false,
-		showInNav: false, // Hidden from nav
-	},
+
 	{
 		label: "Liên hệ",
 		path: ROUTER_URL.CONTACT,

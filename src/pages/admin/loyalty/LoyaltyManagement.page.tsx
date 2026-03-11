@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../components";
 import type { LoyaltyRule, LoyaltyOverview } from "../../../models/loyalty.model";
 import { LOYALTY_TIER_LABELS } from "../../../models/customer.model";
@@ -17,6 +17,7 @@ const LoyaltyManagementPage = () => {
   const [loading, setLoading] = useState(false);
   const [showRuleModal, setShowRuleModal] = useState(false);
   const [editingRule, setEditingRule] = useState<LoyaltyRule | null>(null);
+  const hasRun = useRef(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -29,12 +30,16 @@ const LoyaltyManagementPage = () => {
       setRule(ruleData);
       setOverview(overviewData);
       setHistory(historyData);
+    } catch (error) {
+      console.error("Lỗi tải dữ liệu loyalty:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     loadData();
   }, []);
 
@@ -90,12 +95,12 @@ const LoyaltyManagementPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý chương trình thành viên</h1>
-          <p className="text-sm text-slate-600">Cấu hình quy tắc tích điểm và hạng thành viên</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý chương trình thành viên</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Cấu hình quy tắc tích điểm và hạng thành viên</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={loadData} loading={loading}>
             Làm mới
           </Button>
@@ -105,28 +110,28 @@ const LoyaltyManagementPage = () => {
 
       {/* Overview Cards */}
       {overview && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-primary-50 to-primary-100 p-6 shadow-sm">
-            <p className="text-sm font-semibold text-primary-700">Tổng khách hàng</p>
-            <p className="mt-2 text-3xl font-bold text-primary-900">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-primary-50 to-primary-100 p-4 sm:p-6 shadow-sm">
+            <p className="text-xs sm:text-sm font-semibold text-primary-700">Tổng khách hàng</p>
+            <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-primary-900">
               {formatNumber(overview.total_customers)}
             </p>
           </div>
-          <div className="rounded-2xl border border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 p-6 shadow-sm">
-            <p className="text-sm font-semibold text-gray-700">Hạng Bạc</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">
+          <div className="rounded-2xl border border-gray-300 bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6 shadow-sm">
+            <p className="text-xs sm:text-sm font-semibold text-gray-700">Hạng Bạc</p>
+            <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-gray-900">
               {formatNumber(overview.customers_by_tier.SILVER)}
             </p>
           </div>
-          <div className="rounded-2xl border border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 shadow-sm">
-            <p className="text-sm font-semibold text-yellow-700">Hạng Vàng</p>
-            <p className="mt-2 text-3xl font-bold text-yellow-900">
+          <div className="rounded-2xl border border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 sm:p-6 shadow-sm">
+            <p className="text-xs sm:text-sm font-semibold text-yellow-700">Hạng Vàng</p>
+            <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-yellow-900">
               {formatNumber(overview.customers_by_tier.GOLD)}
             </p>
           </div>
-          <div className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100 p-6 shadow-sm">
-            <p className="text-sm font-semibold text-cyan-700">Hạng Bạch Kim</p>
-            <p className="mt-2 text-3xl font-bold text-cyan-900">
+          <div className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 sm:p-6 shadow-sm">
+            <p className="text-xs sm:text-sm font-semibold text-cyan-700">Hạng Bạch Kim</p>
+            <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold text-cyan-900">
               {formatNumber(overview.customers_by_tier.PLATINUM)}
             </p>
           </div>
@@ -250,14 +255,14 @@ const LoyaltyManagementPage = () => {
       {/* Rule Edit Modal */}
       {showRuleModal && editingRule && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
-          <div className="my-8 w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <div className="my-8 w-full max-w-full sm:max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
             {/* Modal Header */}
-            <div className="border-b border-slate-200 bg-slate-50 px-8 py-6 rounded-t-2xl">
-              <h2 className="text-2xl font-bold text-slate-900">Chỉnh sửa quy tắc tích điểm</h2>
+            <div className="border-b border-slate-200 bg-slate-50 px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl">
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Chỉnh sửa quy tắc tích điểm</h2>
               <p className="mt-1 text-sm text-slate-600">Cấu hình tỷ lệ tích điểm và hạng thành viên</p>
             </div>
             
-            <div className="p-8 space-y-8">
+            <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
               {/* Points Per Amount */}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-6">
                 <div className="flex items-start gap-4 mb-4">
@@ -267,10 +272,10 @@ const LoyaltyManagementPage = () => {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <label className="block text-lg font-bold text-slate-900 mb-2">
+                    <label className="block text-base sm:text-lg font-bold text-slate-900 mb-2">
                       Tỷ lệ tích điểm cơ bản
                     </label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                       <span className="text-sm font-semibold text-slate-700">Khách hàng nhận</span>
                       <span className="text-2xl font-bold text-primary-600">1 điểm</span>
                       <span className="text-sm font-semibold text-slate-700">cho mỗi</span>
@@ -371,7 +376,7 @@ const LoyaltyManagementPage = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-slate-200 bg-slate-50 px-8 py-6 rounded-b-2xl flex gap-4">
+            <div className="border-t border-slate-200 bg-slate-50 px-4 sm:px-8 py-4 sm:py-6 rounded-b-2xl flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Button
                 onClick={() => setShowRuleModal(false)}
                 variant="outline"

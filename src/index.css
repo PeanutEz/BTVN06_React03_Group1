@@ -30,6 +30,17 @@ body {
   color: #fef2f2;
 }
 
+/* Hide browser default password reveal button (Edge, Chrome) */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none;
+}
+
 * {
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
@@ -105,4 +116,958 @@ body {
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* 3D Float Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  33%       { transform: translateY(-22px) scale(1.05); }
+  66%       { transform: translateY(10px) scale(0.97); }
+}
+
+.animate-float {
+  animation: float 7s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float 10s ease-in-out 1.5s infinite;
+}
+
+.animate-float-fast {
+  animation: float 5s ease-in-out 0.8s infinite;
+}
+
+/* slide-in for admin card */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(32px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Login page — card pop-in */
+@keyframes cardPopIn {
+  0%   { opacity: 0; transform: scale(0.7) translateY(30px); }
+  70%  { transform: scale(1.04) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-card-pop {
+  animation: cardPopIn 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Login page — background blob drift */
+@keyframes blobDrift {
+  0%,100% { transform: translate(0, 0) scale(1); }
+  25%     { transform: translate(40px, -30px) scale(1.08); }
+  50%     { transform: translate(-20px, 50px) scale(0.95); }
+  75%     { transform: translate(30px, 20px) scale(1.05); }
+}
+.animate-blob { animation: blobDrift 14s ease-in-out infinite; }
+.animate-blob-2 { animation: blobDrift 18s ease-in-out 3s infinite reverse; }
+.animate-blob-3 { animation: blobDrift 11s ease-in-out 6s infinite; }
+
+/* Login page — bounce float for action circles */
+@keyframes bouncefloat {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-12px); }
+}
+.animate-bouncefloat   { animation: bouncefloat 3s ease-in-out infinite; }
+.animate-bouncefloat-2 { animation: bouncefloat 3.8s ease-in-out 0.8s infinite; }
+
+/* Login button pulse glow */
+@keyframes btnGlow {
+  0%,100% { box-shadow: 4px 4px 12px rgba(238,9,121,0.35), -2px -2px 6px rgba(255,255,255,0.7); }
+  50%     { box-shadow: 0 0 28px 6px rgba(238,9,121,0.55), -2px -2px 6px rgba(255,255,255,0.7); }
+}
+.animate-btn-glow { animation: btnGlow 2s ease-in-out infinite; }
+
+/* =========================================
+   WATER / LIQUID theme (Login page)
+   ========================================= */
+
+/* Morphing water-drop shape */
+@keyframes waterMorph {
+  0%,100% { border-radius: 60% 40% 55% 45% / 55% 45% 60% 40%; }
+  20%     { border-radius: 45% 55% 38% 62% / 62% 38% 55% 45%; }
+  40%     { border-radius: 55% 45% 62% 38% / 38% 62% 45% 55%; }
+  60%     { border-radius: 62% 38% 48% 52% / 48% 52% 62% 38%; }
+  80%     { border-radius: 40% 60% 55% 45% / 60% 40% 42% 58%; }
+}
+.animate-water-morph {
+  animation: waterMorph 9s ease-in-out infinite;
+}
+
+/* Rising bubbles */
+@keyframes bubbleRise {
+  0%   { transform: translateY(0) scale(1); opacity: 0.8; }
+  70%  { opacity: 0.5; }
+  100% { transform: translateY(-105vh) scale(0.6); opacity: 0; }
+}
+.animate-bubble {
+  animation: bubbleRise linear infinite;
+}
+
+/* Bottom ocean wave (used via inline style name) */
+@keyframes waveRotate {
+  0%,100% { transform: translateX(-50%) rotate(0deg); }
+  50%     { transform: translateX(-50%) rotate(180deg); }
+}
+
+/* Ripple expand on button click */
+@keyframes rippleExpand {
+  0%   { transform: translate(-50%,-50%) scale(0); opacity: 0.55; }
+  100% { transform: translate(-50%,-50%) scale(4); opacity: 0; }
+}
+.animate-ripple {
+  animation: rippleExpand 0.65s ease-out forwards;
+}
+
+/* =========================================
+   Loading: Hyper-Realistic Premium Coffee
+   ========================================= */
+
+/* ---------- Scene container ---------- */
+.loading-scene {
+  position: relative;
+  width: 260px;
+  height: 240px;
+}
+
+/* Warm ambient light pool beneath the cup */
+.loading-scene::before {
+  content: "";
+  position: absolute;
+  inset: -90px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 65%, rgba(196, 157, 80, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at 35% 40%, rgba(255, 230, 170, 0.08) 0%, transparent 30%),
+    radial-gradient(ellipse at 65% 75%, rgba(140, 80, 20, 0.06) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 90%, rgba(0, 0, 0, 0.18) 0%, transparent 25%);
+  animation: ambientPulse 5s ease-in-out infinite;
+  filter: blur(14px);
+}
+
+/* Subtle rotating halo */
+.loading-scene::after {
+  content: "";
+  position: absolute;
+  inset: -45px;
+  border-radius: 50%;
+  border: 1px dashed rgba(196, 157, 80, 0.06);
+  animation: orbitSpin 30s linear infinite;
+}
+
+/* ---------- Orbiting coffee beans ---------- */
+.orbit-ring {
+  position: absolute;
+  inset: -28px;
+  animation: orbitSpin 12s linear infinite;
+}
+
+.coffee-bean {
+  position: absolute;
+  width: 13px;
+  height: 19px;
+  background: linear-gradient(145deg, #9b6930 0%, #6b3a18 40%, #3e1f0d 80%, #2a1208 100%);
+  border-radius: 50%;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    inset 0 2px 3px rgba(255, 200, 120, 0.15),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+  animation: beanGlow 3s ease-in-out infinite;
+}
+
+.coffee-bean::after {
+  content: "";
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.5px;
+  height: 55%;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.15));
+  border-radius: 2px;
+  box-shadow: 0.5px 0 0 rgba(120, 80, 40, 0.2);
+}
+
+.coffee-bean:nth-child(1) { top: -8px; left: 50%; transform: translateX(-50%) rotate(30deg); }
+.coffee-bean:nth-child(2) { bottom: -8px; left: 50%; transform: translateX(-50%) rotate(-45deg); animation-delay: 1s; }
+.coffee-bean:nth-child(3) { top: 50%; left: -8px; transform: translateY(-50%) rotate(60deg); animation-delay: 2s; }
+.coffee-bean:nth-child(4) { top: 50%; right: -8px; left: auto; transform: translateY(-50%) rotate(-30deg); animation-delay: 0.5s; }
+
+/* ---------- Floating particles ---------- */
+.coffee-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 184, 102, 0.8), rgba(196, 137, 64, 0.3));
+  animation: particleFloat 4.5s ease-in-out infinite;
+}
+
+.particle:nth-child(1) { top: 20%; left: 8%; animation-delay: 0s; }
+.particle:nth-child(2) { top: 55%; left: 88%; animation-delay: 0.8s; width: 2px; height: 2px; }
+.particle:nth-child(3) { top: 28%; left: 92%; animation-delay: 1.6s; }
+.particle:nth-child(4) { top: 78%; left: 12%; animation-delay: 2.4s; width: 4px; height: 4px; }
+.particle:nth-child(5) { top: 8%; left: 72%; animation-delay: 3.2s; width: 2px; height: 2px; }
+.particle:nth-child(6) { top: 88%; left: 50%; animation-delay: 1.2s; }
+
+/* =================================================
+   CUP — Fine Bone China / Premium Porcelain Style
+   ================================================= */
+
+/* ---------- Cup body ---------- */
+.cup-body {
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 136px;
+  height: 80px;
+  background: linear-gradient(
+    168deg,
+    #fefbf6 0%,
+    #f9f0e3 5%,
+    #f2e5d2 12%,
+    #ebdac3 22%,
+    #e0ccae 35%,
+    #d5bd99 48%,
+    #c9ac84 60%,
+    #be9c72 72%,
+    #b38e64 83%,
+    #a88058 92%,
+    #9e7650 100%
+  );
+  border-radius: 6px 6px 48px 48px;
+  box-shadow:
+    /* Primary drop shadow */
+    0 22px 60px rgba(0, 0, 0, 0.32),
+    0 10px 25px rgba(0, 0, 0, 0.18),
+    0 4px 10px rgba(0, 0, 0, 0.12),
+    /* Thin outline for definition */
+    0 0 0 0.5px rgba(140, 100, 50, 0.1),
+    /* Inner top highlight — light hitting rim area */
+    inset 0 4px 0 rgba(255, 255, 255, 0.45),
+    /* Left side light reflection */
+    inset 8px 0 20px rgba(255, 255, 255, 0.22),
+    /* Right side ambient shadow */
+    inset -8px 0 20px rgba(100, 60, 20, 0.08),
+    /* Bottom interior shadow */
+    inset 0 -16px 30px rgba(110, 65, 25, 0.15);
+  overflow: hidden;
+}
+
+/* Primary glossy reflection — curved highlight strip */
+.cup-body::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  width: 24px;
+  height: 60px;
+  background: linear-gradient(
+    188deg,
+    rgba(255, 255, 255, 0.72) 0%,
+    rgba(255, 255, 255, 0.4) 20%,
+    rgba(255, 255, 255, 0.18) 45%,
+    rgba(255, 255, 255, 0.04) 70%,
+    transparent 100%
+  );
+  border-radius: 50% 18% 50% 14px;
+  pointer-events: none;
+}
+
+/* Secondary reflection on right + subtle sheen */
+.cup-body::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 9px;
+  width: 10px;
+  height: 30px;
+  background: linear-gradient(
+    182deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.1) 40%,
+    transparent 100%
+  );
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+/* ---------- Inner cup ellipse (depth illusion) ---------- */
+.cup-inner {
+  position: absolute;
+  bottom: 31px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 114px;
+  height: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(80, 44, 14, 0.75) 0%,
+    rgba(55, 28, 10, 0.5) 100%
+  );
+  border-radius: 50%;
+  z-index: 2;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.35),
+    0 1px 2px rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  animation: innerShow 3.5s ease-in-out infinite;
+}
+
+/* ---------- Rim — thick porcelain lip ---------- */
+.cup-rim {
+  position: absolute;
+  bottom: 106px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 152px;
+  height: 14px;
+  background: linear-gradient(
+    180deg,
+    #fdf8f0 0%,
+    #f3e8d8 15%,
+    #e8d8c0 35%,
+    #dcc8a8 55%,
+    #d0b890 75%,
+    #c8ac82 100%
+  );
+  border-radius: 14px 14px 4px 4px;
+  border: 1px solid rgba(180, 140, 90, 0.18);
+  border-bottom: none;
+  box-shadow:
+    0 -4px 14px rgba(255, 255, 255, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    inset 0 3px 5px rgba(255, 255, 255, 0.55),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Rim top highlight — porcelain gleam */
+.cup-rim::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 8%;
+  right: 8%;
+  height: 2.5px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.6) 20%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0.6) 80%,
+    transparent 100%
+  );
+  border-radius: 2px;
+}
+
+/* Inner rim warm coffee glow */
+.cup-rim::after {
+  content: "";
+  position: absolute;
+  bottom: -2px;
+  left: 10px;
+  right: 10px;
+  height: 5px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(180, 120, 50, 0.12),
+    rgba(196, 137, 64, 0.18),
+    rgba(180, 120, 50, 0.12),
+    transparent
+  );
+  border-radius: 3px;
+}
+
+/* ---------- Handle — elegant D-curve ---------- */
+.cup-handle {
+  position: absolute;
+  bottom: 50px;
+  left: calc(50% + 54px);
+  width: 30px;
+  height: 40px;
+  border: 7px solid transparent;
+  border-image: none;
+  border-right-color: #c9a87c;
+  border-top-color: #dcc8a8;
+  border-bottom-color: #a87848;
+  border-left: none;
+  border-radius: 0 20px 20px 0;
+  box-shadow:
+    8px 4px 16px rgba(0, 0, 0, 0.22),
+    2px 2px 6px rgba(0, 0, 0, 0.12),
+    inset -3px 0 6px rgba(255, 255, 255, 0.18);
+  z-index: -1;
+}
+
+/* Handle top highlight flare */
+.cup-handle::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 18px;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0.15)
+  );
+  border-radius: 3px;
+}
+
+/* Handle outer reflection strip */
+.cup-handle::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: -5px;
+  width: 4px;
+  height: 60%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    transparent 100%
+  );
+  border-radius: 4px;
+}
+
+/* ---------- Saucer — fine china plate ---------- */
+.cup-saucer {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 190px;
+  height: 18px;
+  background: linear-gradient(
+    180deg,
+    #f5ebdc 0%,
+    #e8dac4 20%,
+    #d8c4a4 45%,
+    #ccb490 65%,
+    #c0a47c 85%,
+    #b89870 100%
+  );
+  border-radius: 50%;
+  border: 1px solid rgba(180, 140, 90, 0.12);
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.24),
+    0 3px 8px rgba(0, 0, 0, 0.16),
+    0 1px 3px rgba(0, 0, 0, 0.1),
+    inset 0 3px 5px rgba(255, 255, 255, 0.4),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* Saucer decorative gold ring */
+.cup-saucer::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72%;
+  height: 56%;
+  border: 1.5px solid rgba(218, 180, 100, 0.25);
+  border-radius: 50%;
+  box-shadow:
+    0 0 4px rgba(218, 180, 100, 0.08),
+    inset 0 0 4px rgba(218, 180, 100, 0.05);
+}
+
+/* Contact shadow beneath saucer */
+.cup-saucer::after {
+  content: "";
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 12px;
+  background: radial-gradient(
+    ellipse,
+    rgba(0, 0, 0, 0.25) 0%,
+    rgba(0, 0, 0, 0.1) 40%,
+    transparent 70%
+  );
+  border-radius: 50%;
+}
+
+/* ---------- Gold decorative band ---------- */
+.cup-band {
+  position: absolute;
+  bottom: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 136px;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(180, 140, 60, 0.05) 0%,
+    rgba(196, 157, 80, 0.5) 10%,
+    rgba(218, 180, 100, 0.75) 25%,
+    rgba(245, 225, 160, 1) 50%,
+    rgba(218, 180, 100, 0.75) 75%,
+    rgba(196, 157, 80, 0.5) 90%,
+    rgba(180, 140, 60, 0.05) 100%
+  );
+  border-radius: 2px;
+  box-shadow:
+    0 0 8px rgba(218, 180, 100, 0.25),
+    0 0 2px rgba(245, 225, 160, 0.3);
+  animation: bandShimmer 3s ease-in-out infinite;
+}
+
+/* Second gold accent line */
+.cup-band::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 4%;
+  right: 4%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(218, 180, 100, 0.3) 20%,
+    rgba(245, 225, 160, 0.55) 50%,
+    rgba(218, 180, 100, 0.3) 80%,
+    transparent 100%
+  );
+  border-radius: 1px;
+  box-shadow: 0 0 4px rgba(218, 180, 100, 0.1);
+}
+
+/* ---------- Logo image on cup ---------- */
+.cup-logo {
+  position: absolute;
+  bottom: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 38px;
+  height: 38px;
+  border: 2.5px solid rgba(218, 180, 100, 0.5);
+  border-radius: 50%;
+  box-shadow:
+    0 0 12px rgba(218, 180, 100, 0.2),
+    0 0 4px rgba(218, 180, 100, 0.15),
+    inset 0 0 8px rgba(218, 180, 100, 0.1);
+  overflow: hidden;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0.2), rgba(196, 157, 80, 0.08));
+  z-index: 2;
+}
+
+.cup-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  filter: brightness(1.15) contrast(1.08) saturate(0.95);
+  opacity: 0.88;
+}
+
+/* Gold sparkle accent */
+.cup-logo::after {
+  content: "✦";
+  position: absolute;
+  top: -10px;
+  right: -8px;
+  font-size: 9px;
+  color: rgba(245, 225, 160, 0.7);
+  animation: sparkle 2s ease-in-out infinite;
+  z-index: 3;
+  text-shadow: 0 0 4px rgba(245, 225, 160, 0.3);
+}
+
+/* ---------- Coffee liquid ---------- */
+.cup-liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 0%;
+  background: linear-gradient(
+    180deg,
+    #b8843c 0%,
+    #8e5c22 8%,
+    #6d3f14 20%,
+    #52300e 40%,
+    #3e220a 60%,
+    #2c1508 80%,
+    #1e0e05 100%
+  );
+  border-radius: 0 0 46px 46px;
+  animation: liquidFill 3.5s ease-in-out infinite;
+  box-shadow:
+    inset 0 6px 16px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Crema / foam layer */
+.cup-liquid::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: -1px;
+  right: -1px;
+  height: 18px;
+  background: linear-gradient(
+    180deg,
+    #f5e4c4 0%,
+    #edd4a8 15%,
+    #e0c28e 35%,
+    #d0aa70 55%,
+    rgba(180, 130, 70, 0.5) 80%,
+    rgba(139, 94, 60, 0.2) 100%
+  );
+  border-radius: 10px;
+  opacity: 0;
+  animation: cremaAppear 3.5s ease-in-out infinite;
+  box-shadow:
+    inset 0 2px 5px rgba(255, 255, 255, 0.35),
+    inset 0 -1px 3px rgba(100, 60, 20, 0.15),
+    0 2px 8px rgba(90, 50, 16, 0.12);
+}
+
+/* Latte art — rosetta pattern */
+.cup-liquid::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 34px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(245, 230, 200, 0.55) 0%, transparent 40%),
+    radial-gradient(circle at 38% 52%, rgba(245, 230, 200, 0.3) 0%, transparent 28%),
+    radial-gradient(circle at 62% 52%, rgba(245, 230, 200, 0.3) 0%, transparent 28%),
+    radial-gradient(circle at 50% 65%, rgba(245, 230, 200, 0.2) 0%, transparent 25%);
+  border: 2px solid rgba(245, 230, 200, 0.25);
+  border-radius: 50% 50% 42% 42%;
+  opacity: 0;
+  animation: latteArt 3.5s ease-in-out infinite;
+  box-shadow: inset 0 0 10px rgba(245, 230, 200, 0.12);
+}
+
+/* ---------- Steam wisps ---------- */
+.steam-group {
+  position: absolute;
+  bottom: 124px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.steam-wisp {
+  width: 7px;
+  border-radius: 50%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(255, 255, 255, 0.35) 40%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  filter: blur(5.5px);
+  animation: steamFloat 3.2s ease-out infinite;
+  opacity: 0;
+}
+
+.steam-wisp:nth-child(1) { height: 44px; animation-delay: 0s; width: 6px; }
+.steam-wisp:nth-child(2) { height: 58px; animation-delay: 0.5s; width: 9px; }
+.steam-wisp:nth-child(3) { height: 38px; animation-delay: 1.0s; width: 8px; }
+.steam-wisp:nth-child(4) { height: 52px; animation-delay: 1.5s; width: 7px; }
+.steam-wisp:nth-child(5) { height: 34px; animation-delay: 0.3s; width: 5px; }
+
+/* ---------- Pour stream (for GlobalApiLoading) ---------- */
+.pour-stream {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 5px;
+  height: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(196, 137, 64, 0) 0%,
+    rgba(160, 112, 60, 0.4) 10%,
+    rgba(120, 72, 36, 0.7) 30%,
+    rgba(90, 48, 22, 0.85) 60%,
+    rgba(62, 31, 13, 0.9) 100%
+  );
+  border-radius: 0 0 4px 4px;
+  animation: pourFlow 3.5s ease-in-out infinite;
+  filter: blur(0.5px);
+}
+
+/* Pour stream splash */
+.pour-stream::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 7px;
+  background: radial-gradient(ellipse, rgba(160, 112, 60, 0.35) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: splashPulse 0.6s ease-in-out infinite;
+}
+
+/* ---------- Loading text with golden shimmer ---------- */
+.loading-text {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  background: linear-gradient(
+    90deg,
+    rgba(180, 120, 50, 0.4) 0%,
+    rgba(218, 180, 120, 0.9) 20%,
+    rgba(255, 235, 190, 1) 50%,
+    rgba(218, 180, 120, 0.9) 80%,
+    rgba(180, 120, 50, 0.4) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 2.8s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(196, 137, 64, 0.15));
+}
+
+/* ---------- Progress dots ---------- */
+.loading-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.loading-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(232, 200, 130, 0.9), rgba(196, 157, 80, 0.4));
+  box-shadow: 0 0 8px rgba(196, 157, 80, 0.25);
+  animation: dotBounce 1.4s ease-in-out infinite;
+}
+
+.loading-dot:nth-child(2) { animation-delay: 0.16s; }
+.loading-dot:nth-child(3) { animation-delay: 0.32s; }
+
+/* ---------- Circular progress ring ---------- */
+.progress-ring {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(196, 157, 80, 0.04);
+  overflow: visible;
+}
+
+.progress-ring::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: rgba(218, 180, 100, 0.35);
+  border-right-color: rgba(232, 200, 130, 0.15);
+  animation: ringRotate 2.2s linear infinite;
+  filter: drop-shadow(0 0 5px rgba(218, 180, 100, 0.25));
+}
+
+/* ===== KEYFRAMES ===== */
+
+@keyframes ambientPulse {
+  0%, 100% { opacity: 0.45; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes orbitSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes beanGlow {
+  0%, 100% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3),
+                inset 0 2px 3px rgba(255, 200, 120, 0.15), inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 10px rgba(196, 137, 64, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3),
+                inset 0 2px 3px rgba(255, 200, 120, 0.3), inset 0 -2px 3px rgba(0, 0, 0, 0.3);
+  }
+}
+
+@keyframes particleFloat {
+  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
+  25%  { opacity: 0.6; }
+  75%  { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(-35px) scale(1.3); }
+}
+
+@keyframes liquidFill {
+  0%   { height: 0%; }
+  12%  { height: 8%; }
+  35%  { height: 72%; }
+  62%  { height: 72%; }
+  82%  { height: 8%; }
+  100% { height: 0%; }
+}
+
+@keyframes cremaAppear {
+  0%   { opacity: 0; }
+  18%  { opacity: 0; }
+  32%  { opacity: 1; }
+  62%  { opacity: 1; }
+  78%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes latteArt {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.15) rotate(0deg); }
+  22%  { opacity: 0; }
+  33%  { opacity: 0.75; transform: translateX(-50%) scale(1) rotate(180deg); }
+  58%  { opacity: 0.75; transform: translateX(-50%) scale(1) rotate(360deg); }
+  72%  { opacity: 0; transform: translateX(-50%) scale(0.5) rotate(540deg); }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.15) rotate(720deg); }
+}
+
+@keyframes steamFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scaleX(1) rotate(0deg);
+  }
+  12% {
+    opacity: 0.8;
+  }
+  35% {
+    opacity: 0.5;
+    transform: translateY(-22px) scaleX(2.2) rotate(2deg);
+  }
+  65% {
+    opacity: 0.22;
+    transform: translateY(-48px) scaleX(3.5) rotate(5deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80px) scaleX(5) rotate(10deg);
+  }
+}
+
+@keyframes pourFlow {
+  0%   { height: 0; opacity: 0; }
+  10%  { height: 80px; opacity: 0.85; }
+  40%  { height: 80px; opacity: 0.85; }
+  50%  { height: 0; opacity: 0; }
+  100% { height: 0; opacity: 0; }
+}
+
+@keyframes splashPulse {
+  0%, 100% { transform: translateX(-50%) scale(0.8); opacity: 0.3; }
+  50%      { transform: translateX(-50%) scale(1.3); opacity: 0.5; }
+}
+
+@keyframes textShimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0.5) translateY(0); opacity: 0.25; }
+  40%           { transform: scale(1.2) translateY(-3px); opacity: 1; }
+}
+
+@keyframes bandShimmer {
+  0%, 100% { opacity: 0.65; }
+  50%      { opacity: 1; box-shadow: 0 0 12px rgba(218, 180, 100, 0.35), 0 0 3px rgba(245, 225, 160, 0.4); }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.7) rotate(0deg); }
+  50%      { opacity: 1; transform: scale(1.4) rotate(180deg); }
+}
+
+@keyframes innerShow {
+  0%   { opacity: 0; }
+  18%  { opacity: 0; }
+  38%  { opacity: 0.85; }
+  62%  { opacity: 0.85; }
+  82%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes ringRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* =========================================
+   Route-change: Top progress bar (premium)
+   ========================================= */
+
+.route-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(196, 137, 64, 0) 0%,
+    #c48940 10%,
+    #e8b866 30%,
+    #f5dfa0 50%,
+    #e8b866 70%,
+    #c48940 90%,
+    rgba(196, 137, 64, 0) 100%
+  );
+  background-size: 300% 100%;
+  border-radius: 0 2px 2px 0;
+  box-shadow:
+    0 0 12px rgba(196, 137, 64, 0.5),
+    0 0 30px rgba(196, 137, 64, 0.15);
+  animation: progressSlide 2s ease-in-out infinite, progressGlow 1.5s ease-in-out infinite;
+  z-index: 10000;
+}
+
+/* Glow trail on progress bar */
+.route-progress-bar::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -3px;
+  width: 60px;
+  height: 9px;
+  background: radial-gradient(ellipse at right, rgba(245, 223, 160, 0.6), transparent);
+  border-radius: 50%;
+  filter: blur(2px);
+}
+
+@keyframes progressSlide {
+  0%   { width: 0%; }
+  50%  { width: 80%; }
+  100% { width: 100%; }
+}
+
+@keyframes progressGlow {
+  0%, 100% { background-position: 0% center; }
+  50%      { background-position: 300% center; }
 }

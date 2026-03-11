@@ -14,6 +14,7 @@ export interface MenuItemOptions {
   sugar: SugarLevel;
   ice: IceLevel;
   toppings: Topping[];
+  note?: string;
 }
 
 export interface MenuCartItem {
@@ -25,6 +26,7 @@ export interface MenuCartItem {
   options: MenuItemOptions;
   quantity: number;
   unitPrice: number;
+  note?: string;
 }
 
 export interface MenuCategory {
