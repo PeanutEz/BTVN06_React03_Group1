@@ -70,6 +70,7 @@ export interface PaymentTransaction {
   amount: number;
   createdAt: string;
   paidAt?: string;
+  bankName?: string;
   qrCodeUrl?: string;
   deeplink?: string;
   paymentUrl?: string;
@@ -90,6 +91,7 @@ export interface PlacedOrder {
 
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  bankName?: string;
   transaction?: PaymentTransaction;
 
   promo?: AppliedPromo;

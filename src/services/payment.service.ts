@@ -90,11 +90,13 @@ export interface CreatePaymentPayload {
   orderId: string;
   method: PaymentMethod;
   amount: number;
+  bankName?: string;
 }
 
 export interface CreatePaymentResult {
   transactionId: string;
   status: PaymentStatus;
+  bankName?: string;
   qrCodeUrl?: string;
   deeplink?: string;
   paymentUrl?: string;
@@ -111,11 +113,14 @@ export async function createPayment(
   const transactionId = `TXN-${Date.now()}`;
 
   if (payload.method === "BANK") {
+    const bankLabel = payload.bankName ?? "Ngân hàng đã chọn";
+
     return {
       transactionId,
       status: "PENDING",
-      qrCodeUrl: `https://dummyimage.com/320x320/f3f4f6/111827&text=QR+${payload.orderId}`,
-      note: "Quét QR để thanh toán đơn hàng",
+      bankName: bankLabel,
+      qrCodeUrl: `https://dummyimage.com/320x320/f3f4f6/111827&text=${encodeURIComponent(bankLabel)}+${payload.orderId}`,
+      note: `Quét QR hoặc chuyển khoản thủ công qua ${bankLabel}`,
     };
   }
 
@@ -168,6 +173,7 @@ export async function retryPayment(order: PlacedOrder): Promise<CreatePaymentRes
     orderId: order.id,
     method: order.paymentMethod,
     amount: order.total,
+    bankName: order.bankName,
   });
 }
 
