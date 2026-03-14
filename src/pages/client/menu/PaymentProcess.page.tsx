@@ -207,7 +207,7 @@ export default function PaymentProcessPage() {
                   <p className="text-xs text-gray-400 mb-1">Phương thức</p>
 
                   <p className="font-semibold text-gray-900">
-                    {order.paymentMethod === "BANK" && "🏦 Chuyển khoản / QR"}
+                    {order.paymentMethod === "BANK" && `🏦 ${order.transaction?.bankName || order.bankName || "Chuyển khoản / QR"}`}
                     {order.paymentMethod === "MOMO" && "🟣 Ví MoMo"}
                     {order.paymentMethod === "ZALOPAY" && "🔵 ZaloPay"}
                     {order.paymentMethod === "SHOPEEPAY" && "🟠 ShopeePay"}
@@ -229,6 +229,13 @@ export default function PaymentProcessPage() {
                     <p className="font-mono text-sm font-semibold text-gray-900">
                       {order.transaction.transactionId}
                     </p>
+                  </div>
+                )}
+
+                {order.paymentMethod === "BANK" && (order.transaction?.bankName || order.bankName) && (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Ngân hàng</p>
+                    <p className="font-semibold text-gray-900">{order.transaction?.bankName || order.bankName}</p>
                   </div>
                 )}
 

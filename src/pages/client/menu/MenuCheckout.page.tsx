@@ -54,6 +54,13 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string; desc
   { value: "BANK",      label: "Thẻ NH / Chuyển khoản", icon: "🏦", desc: "QR code / tài khoản ngân hàng" },
 ];
 
+const BANK_OPTIONS = [
+  { value: "Vietcombank", short: "VCB", accountNumber: "1234567890" },
+  { value: "Techcombank", short: "TCB", accountNumber: "2209888888" },
+  { value: "BIDV", short: "BIDV", accountNumber: "6688999999" },
+  { value: "ACB", short: "ACB", accountNumber: "4455667788" },
+];
+
 export default function MenuCheckoutPage() {
   const navigate = useNavigate();
   const items = useMenuCartStore((s) => s.items);
@@ -89,6 +96,7 @@ export default function MenuCheckoutPage() {
     phone: "",
     note: "",
     paymentMethod: "CASH" as PaymentMethod,
+    bankName: BANK_OPTIONS[0].value,
   });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -146,6 +154,7 @@ export default function MenuCheckoutPage() {
     if (!form.name.trim()) e.name = "Vui lòng nhập họ tên";
     if (!form.phone.trim()) e.phone = "Vui lòng nhập số điện thoại";
     else if (!/^(0[3-9])\d{8}$/.test(form.phone.trim())) e.phone = "Số điện thoại không hợp lệ (VD: 0901234567)";
+    if (form.paymentMethod === "BANK" && !form.bankName) e.bankName = "Vui lòng chọn ngân hàng";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -189,6 +198,7 @@ export default function MenuCheckoutPage() {
           : {}),
         paymentMethod: form.paymentMethod,
         paymentStatus: form.paymentMethod === "CASH" ? "UNPAID" : "PENDING",
+        ...(form.paymentMethod === "BANK" ? { bankName: form.bankName } : {}),
         ...(appliedPromo ? { promo: appliedPromo } : {}),
         vatAmount,
         items: items.map((item) => ({
@@ -223,6 +233,7 @@ export default function MenuCheckoutPage() {
         orderId,
         method: form.paymentMethod,
         amount: total,
+        bankName: form.paymentMethod === "BANK" ? form.bankName : undefined,
       });
 
       updateOrderPayment(orderId, payment.status, {
@@ -231,6 +242,7 @@ export default function MenuCheckoutPage() {
         status: payment.status,
         amount: total,
         createdAt: new Date().toISOString(),
+        bankName: payment.bankName,
         qrCodeUrl: payment.qrCodeUrl,
         deeplink: payment.deeplink,
         paymentUrl: payment.paymentUrl,
@@ -494,21 +506,117 @@ export default function MenuCheckoutPage() {
 
             {/* Payment */}
             <section className="bg-white rounded-2xl border border-gray-100 p-5">
-              <h2 className="font-semibold text-gray-900 mb-4">Phương thức thanh toán</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {PAYMENT_METHODS.map((method) => (
-                  <button key={method.value} onClick={() => setField("paymentMethod", method.value)}
-                    className={cn("flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all duration-150",
-                      form.paymentMethod === method.value ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200" : "border-gray-200 hover:border-gray-300 bg-white")}>
-                    <span className="text-xl shrink-0">{method.icon}</span>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-sm text-gray-900 leading-tight">{method.label}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 leading-tight">{method.desc}</p>
+              <div className="flex flex-col gap-1.5 mb-4">
+                <h2 className="font-semibold text-gray-900">Phương thức thanh toán</h2>
+                <p className="text-sm text-gray-500">Chọn cách thanh toán phù hợp trước khi xác nhận đơn hàng.</p>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 content-start">
+                  {PAYMENT_METHODS.map((method) => (
+                    <button
+                      key={method.value}
+                      onClick={() => setFormState((prev) => ({
+                        ...prev,
+                        paymentMethod: method.value,
+                        bankName: method.value === "BANK" ? prev.bankName : prev.bankName,
+                      }))}
+                      className={cn(
+                        "flex min-h-[104px] items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-150",
+                        form.paymentMethod === method.value
+                          ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm",
+                      )}
+                    >
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-xl shadow-sm">
+                        {method.icon}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm text-gray-900 leading-tight">{method.label}</p>
+                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{method.desc}</p>
+                      </div>
+                      <div
+                        className={cn(
+                          "ml-auto mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 transition-all",
+                          form.paymentMethod === method.value
+                            ? "border-amber-500 bg-amber-500 shadow-[inset_0_0_0_3px_white]"
+                            : "border-gray-300",
+                        )}
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4">
+                  {form.paymentMethod === "BANK" ? (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Chọn ngân hàng thanh toán</p>
+                        <p className="text-xs text-gray-500 mt-1">Thông tin tài khoản và QR sẽ thay đổi theo ngân hàng bạn chọn.</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Loại ngân hàng</label>
+                        <select
+                          value={form.bankName}
+                          onChange={(e) => setField("bankName", e.target.value)}
+                          className={cn(
+                            "w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none transition-all focus:ring-2",
+                            errors.bankName
+                              ? "border-red-300 focus:ring-red-200"
+                              : "border-amber-200 focus:border-amber-400 focus:ring-amber-200",
+                          )}
+                        >
+                          {BANK_OPTIONS.map((bank) => (
+                            <option key={bank.value} value={bank.value}>
+                              {bank.value}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.bankName && <p className="mt-1 text-xs text-red-500">{errors.bankName}</p>}
+                      </div>
+
+                      <div className="rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm">
+                        {(() => {
+                          const bank = BANK_OPTIONS.find((item) => item.value === form.bankName) ?? BANK_OPTIONS[0];
+
+                          return (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Ngân hàng đã chọn</p>
+                                  <p className="mt-1 text-base font-semibold text-gray-900">{bank.value}</p>
+                                </div>
+                                <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">{bank.short}</span>
+                              </div>
+
+                              <div className="grid grid-cols-1 gap-2.5 text-sm">
+                                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                                  <span className="text-gray-500">Số tài khoản</span>
+                                  <span className="font-mono font-semibold text-gray-900">{bank.accountNumber}</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                                  <span className="text-gray-500">Chủ tài khoản</span>
+                                  <span className="font-semibold text-gray-900">HYLUX COFFEE</span>
+                                </div>
+                                <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                                  <span className="text-gray-500">Nội dung CK</span>
+                                  <span className="font-mono text-xs font-semibold text-amber-700">{form.phone || "HYLUX-ORDER"}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
-                    <div className={cn("ml-auto w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 transition-all",
-                      form.paymentMethod === method.value ? "border-amber-500 bg-amber-500" : "border-gray-300")} />
-                  </button>
-                ))}
+                  ) : (
+                    <div className="flex h-full min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-amber-200 bg-white/80 px-5 text-center">
+                      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-2xl">💳</div>
+                      <p className="text-sm font-semibold text-gray-900">Chi tiết thanh toán sẽ hiển thị ở đây</p>
+                      <p className="mt-1 max-w-xs text-xs leading-relaxed text-gray-500">Nếu bạn chọn chuyển khoản ngân hàng, hệ thống sẽ cho phép chọn ngân hàng và xem nhanh thông tin tài khoản trước khi đặt hàng.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
           </div>
