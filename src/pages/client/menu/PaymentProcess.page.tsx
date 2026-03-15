@@ -208,7 +208,12 @@ export default function PaymentProcessPage() {
                 <div>
                   <p className="text-xs text-gray-400 mb-1">Phương thức</p>
 
-                  <p className="font-semibold text-gray-900">{`${paymentMeta.icon} ${paymentMeta.label}`}</p>
+                  <p className="font-semibold text-gray-900">
+                    {order.paymentMethod === "BANK" && `🏦 ${order.transaction?.bankName || order.bankName || "Chuyển khoản / QR"}`}
+                    {order.paymentMethod === "MOMO" && "🟣 Ví MoMo"}
+                    {order.paymentMethod === "ZALOPAY" && "🔵 ZaloPay"}
+                    {order.paymentMethod === "SHOPEEPAY" && "🟠 ShopeePay"}
+                  </p>
                 </div>
 
                 <div>

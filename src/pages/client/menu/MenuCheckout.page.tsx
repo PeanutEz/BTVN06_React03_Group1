@@ -509,85 +509,21 @@ export default function MenuCheckoutPage() {
 
             {/* Payment */}
             <section className="bg-white rounded-2xl border border-gray-100 p-5">
-              <div className="flex flex-col gap-1.5 mb-4">
-                <h2 className="font-semibold text-gray-900">Phương thức thanh toán</h2>
-                <p className="text-sm text-gray-500">Chọn cách thanh toán phù hợp trước khi xác nhận đơn hàng.</p>
-              </div>
-
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(280px,0.85fr)] gap-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 content-start">
-                  {PAYMENT_METHODS.map((method) => (
-                    <button
-                      key={method.value}
-                      onClick={() => setFormState((prev) => ({
-                        ...prev,
-                        paymentMethod: method.value,
-                        bankName: method.value === "BANK" ? prev.bankName : prev.bankName,
-                      }))}
-                      className={cn(
-                        "flex min-h-[104px] items-start gap-3 rounded-2xl border p-4 text-left transition-all duration-150",
-                        form.paymentMethod === method.value
-                          ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm",
-                      )}
-                    >
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-xl shadow-sm">
-                        {method.icon}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-sm text-gray-900 leading-tight">{method.label}</p>
-                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{method.desc}</p>
-                      </div>
-                      <div
-                        className={cn(
-                          "ml-auto mt-0.5 h-5 w-5 shrink-0 rounded-full border-2 transition-all",
-                          form.paymentMethod === method.value
-                            ? "border-amber-500 bg-amber-500 shadow-[inset_0_0_0_3px_white]"
-                            : "border-gray-300",
-                        )}
-                      />
-                    </button>
-                  ))}
-                </div>
-
-                <div className="rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4">
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {form.paymentMethod === "BANK" ? "Thanh toán chuyển khoản / thẻ ngân hàng" : `Thanh toán bằng ${paymentMeta.label}`}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {form.paymentMethod === "BANK"
-                          ? "Chỉ hiển thị loại ngân hàng tại bước này. Mã QR sẽ xuất hiện ở trang payment sau khi đặt hàng."
-                          : "Mã QR sẽ chỉ hiển thị ở trang payment sau khi bạn đặt hàng thành công."}
-                      </p>
+              <h2 className="font-semibold text-gray-900 mb-4">Phương thức thanh toán</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PAYMENT_METHODS.map((method) => (
+                  <button key={method.value} onClick={() => setField("paymentMethod", method.value)}
+                    className={cn("flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all duration-150",
+                      form.paymentMethod === method.value ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200" : "border-gray-200 hover:border-gray-300 bg-white")}>
+                    <span className="text-xl shrink-0">{method.icon}</span>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-gray-900 leading-tight">{method.label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 leading-tight">{method.desc}</p>
                     </div>
-
-                    {form.paymentMethod === "BANK" && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Loại ngân hàng</label>
-                        <select
-                          value={form.bankName}
-                          onChange={(e) => setField("bankName", e.target.value)}
-                          className={cn(
-                            "w-full rounded-xl border bg-white px-4 py-3 text-sm outline-none transition-all focus:ring-2",
-                            errors.bankName
-                              ? "border-red-300 focus:ring-red-200"
-                              : "border-amber-200 focus:border-amber-400 focus:ring-amber-200",
-                          )}
-                        >
-                          {BANK_OPTIONS.map((bank) => (
-                            <option key={bank.value} value={bank.value}>
-                              {bank.value}
-                            </option>
-                          ))}
-                        </select>
-                        {errors.bankName && <p className="mt-1 text-xs text-red-500">{errors.bankName}</p>}
-                      </div>
-                    )}
-
-                  </div>
-                </div>
+                    <div className={cn("ml-auto w-4 h-4 rounded-full border-2 mt-0.5 shrink-0 transition-all",
+                      form.paymentMethod === method.value ? "border-amber-500 bg-amber-500" : "border-gray-300")} />
+                  </button>
+                ))}
               </div>
             </section>
           </div>
