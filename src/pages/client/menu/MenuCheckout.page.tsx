@@ -12,7 +12,6 @@ import { ROUTER_URL } from "@/routes/router.const";
 import type { PlacedOrder, PaymentMethod, AppliedPromo } from "@/types/delivery.types";
 import type { MenuCartItem, MenuProduct } from "@/types/menu.types";
 import { createPayment } from "@/services/payment.service";
-import { getPaymentMethodMeta } from "@/utils/payment-qr.util";
 
 const VAT_RATE = 0.08; // 8% VAT
 
@@ -117,8 +116,6 @@ export default function MenuCheckoutPage() {
   const afterDiscount = Math.max(0, subtotal + deliveryFee - discountAmount);
   const vatAmount = Math.round(afterDiscount * VAT_RATE);
   const total = afterDiscount + vatAmount;
-  const selectedBank = BANK_OPTIONS.find((item) => item.value === form.bankName) ?? BANK_OPTIONS[0];
-  const paymentMeta = getPaymentMethodMeta(form.paymentMethod, selectedBank.value);
 
   function setField<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setFormState((f) => ({ ...f, [key]: value }));

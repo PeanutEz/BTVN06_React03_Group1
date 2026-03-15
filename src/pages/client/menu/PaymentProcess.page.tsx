@@ -10,7 +10,6 @@ import {
   verifyPayment,
 } from "@/services/payment.service";
 import { PAYMENT_STATUS_CONFIG } from "@/types/delivery.types";
-import { getPaymentMethodMeta } from "@/utils/payment-qr.util";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", {
@@ -60,7 +59,6 @@ export default function PaymentProcessPage() {
 
   const order = foundOrder;
   const paymentCfg = PAYMENT_STATUS_CONFIG[order.paymentStatus];
-  const paymentMeta = getPaymentMethodMeta(order.paymentMethod, order.transaction?.bankName || order.bankName);
 
   async function handleConfirmPaid() {
     const currentOrder = order;
