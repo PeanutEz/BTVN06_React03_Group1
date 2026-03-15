@@ -10,6 +10,7 @@ import {
   verifyPayment,
 } from "@/services/payment.service";
 import { PAYMENT_STATUS_CONFIG } from "@/types/delivery.types";
+import { getPaymentMethodMeta } from "@/utils/payment-qr.util";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", {
@@ -59,6 +60,7 @@ export default function PaymentProcessPage() {
 
   const order = foundOrder;
   const paymentCfg = PAYMENT_STATUS_CONFIG[order.paymentStatus];
+  const paymentMeta = getPaymentMethodMeta(order.paymentMethod, order.transaction?.bankName || order.bankName);
 
   async function handleConfirmPaid() {
     const currentOrder = order;
@@ -206,12 +208,7 @@ export default function PaymentProcessPage() {
                 <div>
                   <p className="text-xs text-gray-400 mb-1">Phương thức</p>
 
-                  <p className="font-semibold text-gray-900">
-                    {order.paymentMethod === "BANK" && "🏦 Chuyển khoản / QR"}
-                    {order.paymentMethod === "MOMO" && "🟣 Ví MoMo"}
-                    {order.paymentMethod === "ZALOPAY" && "🔵 ZaloPay"}
-                    {order.paymentMethod === "SHOPEEPAY" && "🟠 ShopeePay"}
-                  </p>
+                  <p className="font-semibold text-gray-900">{`${paymentMeta.icon} ${paymentMeta.label}`}</p>
                 </div>
 
                 <div>
@@ -232,11 +229,29 @@ export default function PaymentProcessPage() {
                   </div>
                 )}
 
+                {order.paymentMethod === "BANK" && (order.transaction?.bankName || order.bankName) && (
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Ngân hàng</p>
+                    <p className="font-semibold text-gray-900">{order.transaction?.bankName || order.bankName}</p>
+                  </div>
+                )}
+
                 {order.transaction?.note && (
                   <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
                     {order.transaction.note}
                   </div>
                 )}
+
+                <div className="grid grid-cols-1 gap-2.5 text-sm">
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                    <span className="text-gray-500">Kiểu QR</span>
+                    <span className="font-semibold text-gray-900">QR tĩnh demo</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                    <span className="text-gray-500">Tham chiếu</span>
+                    <span className="font-mono text-xs font-semibold text-amber-700">{order.code}</span>
+                  </div>
+                </div>
 
                 {order.transaction?.deeplink && (
                   <a
@@ -254,7 +269,7 @@ export default function PaymentProcessPage() {
                     <img
                       src={order.transaction.qrCodeUrl}
                       alt="QR thanh toán"
-                      className="w-64 h-64 rounded-xl border bg-white object-cover"
+                      className="w-64 h-64 rounded-xl border bg-white object-contain p-2"
                     />
 
                     <p className="text-xs text-gray-500 mt-3 text-center">
