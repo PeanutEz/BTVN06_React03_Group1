@@ -42,12 +42,12 @@ export default function InventoryListPage() {
     change: string;
     reason: string;
   }>({ change: "", reason: "" });
-  const [adjusting, setAdjusting] = useState(false);
-
-  // ─── Inline edit quantity (quick edit trực tiếp trên bảng) ────────────────
-  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
-  const [inlineEditValue, setInlineEditValue] = useState("");
-  const [inlineEditing, setInlineEditing] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);  // ─── Batch inline edit (quantity + alert_threshold) ──────────────────────
+  // pendingEdits: { [inventoryId]: { quantity?: string; alert_threshold?: string } }
+  const [pendingEdits, setPendingEdits] = useState<
+    Record<string, { quantity?: string; alert_threshold?: string }>
+  >({});
+  const [batchSaving, setBatchSaving] = useState(false);
 
   // Detail modal
   const [viewingItem, setViewingItem] = useState<InventoryApiResponse | null>(
@@ -165,66 +165,99 @@ export default function InventoryListPage() {
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handlePageChange = (page: number) => {
+    setPendingEdits({});
     setCurrentPage(page);
     load(searchFranchise, page, statusFilter, isDeletedFilter);
   };
 
   const handleResetFilters = () => {
+    setPendingEdits({});
     setSearchFranchise("");
     setStatusFilter("");
     setIsDeletedFilter(false);
     setCurrentPage(1);
     load("", 1, "", false);
   };
-
   const handleOpenAdjust = (item: InventoryApiResponse) => {
     setAdjustTarget(item);
     setAdjustForm({ change: "", reason: "" });
   };
 
-  const handleInlineEdit = (item: InventoryApiResponse) => {
-    setInlineEditId(item.id);
-    setInlineEditValue(String(item.quantity));
+  // ─── Batch edit handlers ──────────────────────────────────────────────────
+  const handlePendingChange = (
+    id: string,
+    field: "quantity" | "alert_threshold",
+    value: string,
+  ) => {
+    setPendingEdits((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }));
   };
 
-  const handleInlineSave = async (item: InventoryApiResponse) => {
-    const newQty = Number(inlineEditValue);
-    if (isNaN(newQty) || newQty < 0) {
-      showError("Số lượng không hợp lệ");
-      return;
-    }
-    const change = newQty - item.quantity;
-    if (change === 0) {
-      setInlineEditId(null);
-      return;
-    }
-    setInlineEditing(true);
-    try {
-      // Fetch fresh item to get product_franchise_id (search endpoint may not include it)
-      const freshItem = await adminInventoryService.getInventoryById(item.id);
-      const dto: AdjustInventoryDto = {
-        product_franchise_id: freshItem.product_franchise_id,
-        change,
-        alert_threshold: freshItem.alert_threshold,
-        reason: "",
-      };
-      await adminInventoryService.adjustInventory(dto);
-      showSuccess("Cập nhật tồn kho thành công");
-      setInlineEditId(null);
-      await load(searchFranchise, currentPage, statusFilter, isDeletedFilter);
-    } catch (err: unknown) {
-      const errData = (err as { response?: { data?: Record<string, unknown> } })
-        ?.response?.data;
-      console.error("[Inline adjust] API error:", errData);
-      const msg =
-        (errData as { message?: string })?.message ||
-        (err instanceof Error ? err.message : null) ||
-        "Cập nhật thất bại";
-      showError(msg);
-    } finally {
-      setInlineEditing(false);
-    }
+  const handleDiscardEdits = () => {
+    setPendingEdits({});
   };
+
+  const handleBatchSave = async () => {
+    const entries = Object.entries(pendingEdits);
+    if (entries.length === 0) return;
+
+    setBatchSaving(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    await Promise.allSettled(
+      entries.map(async ([id, edit]) => {
+        const original = items.find((i) => i.id === id);
+        if (!original) return;
+
+        const newQty =
+          edit.quantity !== undefined
+            ? Number(edit.quantity)
+            : original.quantity;
+        const newThreshold =
+          edit.alert_threshold !== undefined
+            ? Number(edit.alert_threshold)
+            : original.alert_threshold;
+
+        if (isNaN(newQty) || newQty < 0 || isNaN(newThreshold) || newThreshold < 0) {
+          errorCount++;
+          return;
+        }
+
+        const change = newQty - original.quantity;
+        const thresholdChanged = newThreshold !== original.alert_threshold;
+
+        if (change === 0 && !thresholdChanged) return;
+
+        try {
+          const freshItem = await adminInventoryService.getInventoryById(id);
+          const dto: AdjustInventoryDto = {
+            product_franchise_id: freshItem.product_franchise_id,
+            change,
+            alert_threshold: newThreshold,
+            reason: "",
+          };
+          await adminInventoryService.adjustInventory(dto);
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+      }),
+    );
+
+    setBatchSaving(false);
+    setPendingEdits({});
+
+    if (successCount > 0)
+      showSuccess(`Đã lưu ${successCount} thay đổi thành công`);
+    if (errorCount > 0) showError(`${errorCount} thay đổi thất bại`);
+
+    await load(searchFranchise, currentPage, statusFilter, isDeletedFilter);
+  };
+
+  const hasPendingEdits = Object.keys(pendingEdits).length > 0;
 
   const handleAdjustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -519,6 +552,52 @@ export default function InventoryListPage() {
         </div>
       </div>
 
+      {/* ─── Batch Save Bar ─── */}
+      {hasPendingEdits && (
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-primary-200 bg-primary-50 px-5 py-3 shadow-sm animate-in slide-in-from-top-2 duration-200">
+          <div className="flex items-center gap-2 text-sm text-primary-800">
+            <svg className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            <span className="font-medium">
+              {Object.keys(pendingEdits).length} dòng có thay đổi chưa lưu
+            </span>
+            <span className="text-primary-600 text-xs">— Nhấn Lưu để áp dụng tất cả</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDiscardEdits}
+              disabled={batchSaving}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleBatchSave}
+              disabled={batchSaving}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-60"
+            >
+              {batchSaving ? (
+                <>
+                  <svg className="animate-spin size-3.5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Đang lưu...
+                </>
+              ) : (
+                <>
+                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Lưu tất cả
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
@@ -526,9 +605,8 @@ export default function InventoryListPage() {
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               <tr>
                 <th className="px-4 py-3">Sản phẩm</th>
-                <th className="px-4 py-3">Franchise</th>
-                <th className="px-4 py-3 text-right">Tồn kho</th>
-                <th className="px-4 py-3 text-right">Ngưỡng cảnh báo</th>
+                <th className="px-4 py-3">Franchise</th>                <th className="px-3 py-3 text-right">Tồn kho</th>
+                <th className="px-3 py-3 text-right">Ngưỡng cảnh báo</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Cập nhật</th>
                 <th className="px-4 py-3 text-right">Thao tác</th>
@@ -575,77 +653,64 @@ export default function InventoryListPage() {
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
                           {item.franchise_name ?? item.franchise_id}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right relative">
-                        {/* Số lượng — luôn render (giữ nguyên width cột) */}
-                        <span
-                          onClick={() =>
-                            !item.is_deleted &&
-                            inlineEditId !== item.id &&
-                            handleInlineEdit(item)
-                          }
-                          title={
-                            !item.is_deleted && inlineEditId !== item.id
-                              ? "Nhấn để chỉnh số lượng"
-                              : undefined
-                          }
-                          className={`font-semibold tabular-nums ${
-                            inlineEditId === item.id
-                              ? "invisible"
-                              : low && !item.is_deleted
-                                ? "text-amber-600"
-                                : "text-slate-800"
-                          } ${
-                            !item.is_deleted && inlineEditId !== item.id
-                              ? "cursor-pointer rounded px-1 hover:bg-slate-100 hover:ring-1 hover:ring-primary-300 transition-all"
-                              : ""
-                          }`}
-                        >
-                          {item.quantity.toLocaleString()}
-                        </span>
-                        {low &&
-                          !item.is_deleted &&
-                          inlineEditId !== item.id && (
-                            <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                        </span>                      </td>                      {/* ── Cột Tồn kho — batch inline input ── */}
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {low && !item.is_deleted && (
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 whitespace-nowrap">
                               ⚠ Thấp
                             </span>
                           )}
-                        {/* Input + nút ✓ — overlay toàn bộ td, không ảnh hưởng bố cục */}
-                        {inlineEditId === item.id && (
-                          <div className="absolute inset-0 flex items-center justify-end gap-1 px-4 z-10">
-                            {/* ✓ bên trái input, dùng onMouseDown+preventDefault để không blur input trước */}
-                            <button
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                handleInlineSave(item);
-                              }}
-                              disabled={inlineEditing}
-                              className="inline-flex items-center justify-center size-6 rounded bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 text-xs font-bold shadow-sm"
-                              title="Lưu"
-                            >
-                              ✓
-                            </button>
-                            <input
-                              type="number"
-                              min={0}
-                              value={inlineEditValue}
-                              onChange={(e) =>
-                                setInlineEditValue(e.target.value)
+                          <input
+                            type="number"
+                            min={0}
+                            disabled={item.is_deleted || batchSaving}
+                            value={
+                              pendingEdits[item.id]?.quantity !== undefined
+                                ? pendingEdits[item.id].quantity
+                                : item.quantity
+                            }
+                            onChange={(e) =>
+                              handlePendingChange(item.id, "quantity", e.target.value)
+                            }
+                            className={`w-20 rounded-lg border px-2 py-1.5 text-right text-sm tabular-nums font-semibold outline-none transition-all
+                              ${item.is_deleted
+                                ? "cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
+                                : pendingEdits[item.id]?.quantity !== undefined
+                                  ? "border-primary-500 bg-primary-50 text-primary-800 ring-2 ring-primary-500/20 shadow-sm"
+                                  : low
+                                    ? "border-amber-300 bg-amber-50 text-amber-700 hover:border-primary-400"
+                                    : "border-slate-300 bg-white text-slate-800 hover:border-primary-400"
                               }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleInlineSave(item);
-                                if (e.key === "Escape") setInlineEditId(null);
-                              }}
-                              onBlur={() => setInlineEditId(null)}
-                              autoFocus
-                              className="w-16 rounded border border-primary-400 px-2 py-1 text-right text-sm tabular-nums outline-none focus:ring-2 focus:ring-primary-500/20 bg-white shadow-sm"
-                            />
-                          </div>
-                        )}
+                            `}
+                          />
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-slate-600">
-                        {item.alert_threshold.toLocaleString()}
+                      {/* ── Cột Ngưỡng cảnh báo — batch inline input ── */}
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-end">
+                          <input
+                            type="number"
+                            min={0}
+                            disabled={item.is_deleted || batchSaving}
+                            value={
+                              pendingEdits[item.id]?.alert_threshold !== undefined
+                                ? pendingEdits[item.id].alert_threshold
+                                : item.alert_threshold
+                            }
+                            onChange={(e) =>
+                              handlePendingChange(item.id, "alert_threshold", e.target.value)
+                            }
+                            className={`w-20 rounded-lg border px-2 py-1.5 text-right text-sm tabular-nums outline-none transition-all
+                              ${item.is_deleted
+                                ? "cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
+                                : pendingEdits[item.id]?.alert_threshold !== undefined
+                                  ? "border-orange-500 bg-orange-50 text-orange-800 ring-2 ring-orange-500/20 shadow-sm"
+                                  : "border-slate-300 bg-white text-slate-600 hover:border-orange-400"
+                              }
+                            `}
+                          />
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         {item.is_deleted ? (
