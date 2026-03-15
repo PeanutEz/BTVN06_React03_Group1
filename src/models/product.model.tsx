@@ -234,6 +234,7 @@ export interface ProductQueryParams {
   search?: string; // Search by SKU or Name
   categoryId?: number;
   isActive?: boolean;
+  isDeleted?: boolean;
   minPrice?: string;
   maxPrice?: string;
 }

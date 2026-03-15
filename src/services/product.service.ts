@@ -106,7 +106,7 @@ export const adminProductService = {
       searchCondition: {
         keyword: params?.search ?? "",
         is_active: params?.isActive !== undefined ? params.isActive : "",
-        is_deleted: false,
+        is_deleted: params?.isDeleted ?? false,
         min_price: params?.minPrice ?? "",
         max_price: params?.maxPrice ?? "",
       },

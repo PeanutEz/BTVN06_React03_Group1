@@ -188,8 +188,6 @@ export default function MenuPage() {
   const categoriesReqKeyRef = useRef<string | null>(null);
   const productsReqKeyRef = useRef<string | null>(null);
   const franchisesLoadedRef = useRef<boolean>(false);
-  // Capture franchise at mount time to show loading immediately (before first fetch)
-  const initialFranchiseIdRef = useRef<string | null>(selectedFranchiseId);
 
   // BƯỚC 1 – LOAD FRANCHISE
   useEffect(() => {
@@ -240,8 +238,13 @@ export default function MenuPage() {
       return;
     }
 
-    // Avoid duplicate API call for the same franchiseId (ref-only guard, consistent with BƯỚC 3)
-    if (categoriesReqKeyRef.current === franchiseId) return;
+    // Avoid duplicate API call for the same franchiseId only when we already have data for it.
+    // (If user cleared selection then re-selected the same franchise, we should refetch.)
+    const alreadyLoadedThisFranchise =
+      categoriesReqKeyRef.current === franchiseId &&
+      categoriesLoadedForFranchiseId === franchiseId &&
+      categories.length > 0;
+    if (alreadyLoadedThisFranchise) return;
     categoriesReqKeyRef.current = franchiseId;
 
     let alive = true;
@@ -321,30 +324,17 @@ export default function MenuPage() {
 
   // Derived UI helpers
   const canShowMenu = selectedFranchise !== null;
-  const showLoadingSkeleton = loading === "products" || loading === "categories";
+  const showLoadingSkeleton = loading === "products";
 
+  // Show global loading screen while menu data is being fetched after franchise selection
   const showGlobalLoading = useLoadingStore((s) => s.show);
   const hideGlobalLoading = useLoadingStore((s) => s.hide);
-  const prevLoadingRef = useRef<LoadingPhase>(null);
-
-  // Hiện loading ngay khi mount nếu franchise đã được chọn từ trước (refresh / điều hướng vào /menu)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (initialFranchiseIdRef.current !== null) {
-      showGlobalLoading("Đang tải thực đơn...");
-    }
-    return () => hideGlobalLoading();
-  }, []);
-
-  // Chỉ ẩn overlay sau khi pha "products" hoàn tất (loading: products → null)
-  // Tránh ẩn sớm ở khoảng null ngắn giữa categories và products
   useEffect(() => {
     if (loading === "categories" || loading === "products") {
       showGlobalLoading("Đang tải thực đơn...");
-    } else if (loading === null && prevLoadingRef.current === "products") {
+    } else {
       hideGlobalLoading();
     }
-    prevLoadingRef.current = loading;
   }, [loading, showGlobalLoading, hideGlobalLoading]);
 
   // Count products per category (from the full product list)

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "../../../components";
 import type { ApiFranchise, CreateFranchisePayload } from "../../../services/store.service";
-import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise, updateFranchise, changeFranchiseStatus } from "../../../services/store.service";
-import { Link, useNavigate } from "react-router-dom"; import { ROUTER_URL } from "../../../routes/router.const";
+import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise, updateFranchise, changeFranchiseStatus, restoreFranchise } from "../../../services/store.service";
+import { useNavigate } from "react-router-dom"; import { ROUTER_URL } from "../../../routes/router.const";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 
@@ -41,6 +41,7 @@ const FranchiseListPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0); const [keyword, setKeyword] = useState("");
   const [isActive, setIsActive] = useState("");
+  const [isDeleted, setIsDeleted] = useState(false);
   const [viewingFranchise, setViewingFranchise] = useState<ApiFranchise | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -59,6 +60,7 @@ const FranchiseListPage = () => {
   const editLogoInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const lastIsActive = useRef<string | null>(null);
+  const lastIsDeleted = useRef<boolean | null>(null);
 
   const load = useCallback(async (page = currentPage) => {
     setLoading(true);
@@ -67,7 +69,7 @@ const FranchiseListPage = () => {
         searchCondition: {
           keyword,
           ...(isActive !== "" && { is_active: isActive }),
-          is_deleted: false,
+          is_deleted: isDeleted,
         },
         pageInfo: {
           pageNum: page,
@@ -83,7 +85,7 @@ const FranchiseListPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, keyword, isActive]);
+  }, [currentPage, keyword, isActive, isDeleted]);
 
   useEffect(() => {
     if (isActive === lastIsActive.current) return;
@@ -92,6 +94,13 @@ const FranchiseListPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
 
+  useEffect(() => {
+    if (isDeleted === lastIsDeleted.current) return;
+    lastIsDeleted.current = isDeleted;
+    load(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDeleted]);
+
   const handlePageChange = (page: number) => {
     load(page);
   };
@@ -99,6 +108,17 @@ const FranchiseListPage = () => {
   const handleSearch = () => {
     load(1);
   };
+  const handleRestore = async (f: ApiFranchise) => {
+    if (!confirm(`Bạn có chắc muốn khôi phục franchise "${f.name}"?`)) return;
+    try {
+      await restoreFranchise(f.id);
+      showSuccess(`Đã khôi phục franchise "${f.name}"`);
+      load(currentPage);
+    } catch {
+      showError("Khôi phục franchise thất bại");
+    }
+  };
+
   const handleDelete = async (f: ApiFranchise) => {
     if (!confirm(`Bạn có chắc muốn xóa franchise "${f.name}"? Hành động này không thể hoàn tác.`)) return;
     try {
@@ -254,6 +274,19 @@ const FranchiseListPage = () => {
             <option value="true">Hoạt động</option>
             <option value="false">Ngừng</option>
           </select>
+          <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
+            isDeleted
+              ? "border-red-400 bg-red-50 text-red-700"
+              : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+          }`}>
+            <input
+              type="checkbox"
+              checked={isDeleted}
+              onChange={(e) => { setIsDeleted(e.target.checked); setCurrentPage(1); }}
+              className="accent-red-500"
+            />
+            <span className="font-medium">Đã xóa</span>
+          </label>
           <Button onClick={handleSearch} loading={loading}>
             Tìm kiếm
           </Button>
@@ -276,7 +309,7 @@ const FranchiseListPage = () => {
             </thead>
             <tbody className="divide-y divide-slate-200">
               {franchises.map((f) => (
-                <tr key={f.id} className="hover:bg-slate-50">
+                <tr key={f.id} className={`${isDeleted ? "bg-red-50" : "hover:bg-slate-50"}`}>
                   <td className="px-4 py-3">
                     {f.logo_url ? (
                       <img
@@ -310,6 +343,18 @@ const FranchiseListPage = () => {
                     </span>
                   </td>                <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
+                      {isDeleted ? (
+                        <button
+                          title="Khôi phục franchise"
+                          onClick={() => handleRestore(f)}
+                          className="inline-flex items-center justify-center size-8 rounded-lg border border-emerald-200 bg-white text-emerald-600 hover:border-emerald-400 hover:bg-emerald-50 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        </button>
+                      ) : (
+                        <>
                       <button
                         title="Chỉnh sửa"
                         onClick={() => handleViewDetail(f)}
@@ -346,6 +391,8 @@ const FranchiseListPage = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -534,26 +581,8 @@ const FranchiseListPage = () => {
                   </svg>
                   Danh mục sản phẩm
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setViewingFranchise(null); navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE.replace(":id", viewingFranchise.id)}`); }}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                  </svg>
-                  Xem tồn kho
-                </button>
-                <Link
-                  to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_DETAIL.replace(":id", viewingFranchise.id)}`}
-                  onClick={() => setViewingFranchise(null)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                  Trang chi tiết
-                </Link>
+
+
               </div>
               <button
                 onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }}
