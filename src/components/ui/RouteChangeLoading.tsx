@@ -5,7 +5,7 @@ import logoHylux from "../../assets/logo-hylux.png";
 import { useLoadingStore } from "../../store/loading.store";
 
 const MAX_MS = 8000;
-const SKIP_PATHS = ["/", "/login", "/register", "/reset-password"];
+const SKIP_PATHS = ["/", "/login", "/register", "/reset-password", "/menu"];
 
 type RouteChangeLoadingProps = {
   minDurationMs?: number;
