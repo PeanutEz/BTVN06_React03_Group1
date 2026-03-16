@@ -111,10 +111,6 @@ const CustomerDetailPage = () => {
                 <p className="font-semibold text-slate-900">{customer.phone}</p>
               </div>
               <div>
-                <p className="text-slate-600">Mã khách hàng</p>
-                <p className="font-semibold text-primary-600 font-mono text-xs">{customer.id.slice(-12).toUpperCase()}</p>
-              </div>
-              <div>
                 <p className="text-slate-600">Xác thực</p>
                 <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                   customer.is_verified
