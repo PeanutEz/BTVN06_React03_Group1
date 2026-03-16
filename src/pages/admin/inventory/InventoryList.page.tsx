@@ -61,9 +61,6 @@ export default function InventoryListPage() {
   const [importErrors, setImportErrors] = useState<ImportRowError[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Batch update (selected rows)
-  const [batchUpdating, setBatchUpdating] = useState(false);
-
   // Export by franchise modal
   const [exportFranchiseOpen, setExportFranchiseOpen] = useState(false);
   const [exportMode, setExportMode] = useState<"all" | "franchise">("all");
@@ -280,12 +277,6 @@ export default function InventoryListPage() {
     XLSX.writeFile(wb, filename);
   };
 
-  const handleExportAll = () => {
-    if (items.length === 0) { showError("Không có dữ liệu để export"); return; }
-    buildExcelFromItems(items, `inventory_all_${Date.now()}.xlsx`);
-    showSuccess(`Đã export ${items.length} dòng`);
-  };
-
   const handleExportAllInventory = async () => {
     setExportFranchiseLoading(true);
     try {
@@ -417,7 +408,7 @@ export default function InventoryListPage() {
       [[
         "// Ghi chú: Chỉ chỉnh sửa 2 cột 'quantity' và 'alert_threshold'. Khớp sản phẩm theo 'product_name'.",
       ]],
-      { origin: { r: 0, c: 0 }, sheetRows: 1 },
+      { origin: { r: 0, c: 0 } },
     );
 
     const wb = XLSX.utils.book_new();
