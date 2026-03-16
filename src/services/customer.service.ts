@@ -145,12 +145,13 @@ export async function fetchCustomerById(id: string | number): Promise<CustomerDi
 // ==================== CUSTOMER-03: Create Item ====================
 // POST /api/customers — Token: YES — Role: ADMIN
 export async function createCustomer(
-  data: Omit<Customer, "id" | "created_at" | "updated_at">,
+  data: Omit<Customer, "id" | "created_at" | "updated_at"> & { password?: string },
 ): Promise<Customer> {
   const response = await apiClient.post<ApiResponse<ApiCustomer>>("/customers", {
     phone: data.phone,
     ...(data.email && { email: data.email }),
     name: data.name,
+    password: data.password,
     is_active: data.is_active,
   });
   const result = response.data;
