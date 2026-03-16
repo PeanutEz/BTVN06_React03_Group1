@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import {
   createShift,
   deleteShift,
@@ -24,6 +24,7 @@ const DEFAULT_FORM: CreateShiftPayload = {
 };
 
 const ShiftPage = () => {
+  const showConfirm = useConfirm();
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -137,7 +138,7 @@ const ShiftPage = () => {
   };
 
   const handleDelete = async (shift: Shift) => {
-    if (!confirm(`Bạn có chắc muốn xóa ca "${shift.name}"?`)) return;
+    if (!await showConfirm({ message: `Bạn có chắc muốn xóa ca "${shift.name}"?`, variant: "danger", confirmText: "Xóa" })) return;
     setSubmitting(true);
     try {
       await deleteShift(shift.id);
@@ -151,7 +152,7 @@ const ShiftPage = () => {
   };
 
   const handleRestore = async (shift: Shift) => {
-    if (!confirm(`Bạn có chắc muốn KHÔI PHỤC ca "${shift.name}"?`)) return;
+    if (!await showConfirm({ message: `Bạn có chắc muốn khôi phục ca "${shift.name}"?`, variant: "warning", confirmText: "Khôi phục" })) return;
     setSubmitting(true);
     try {
       await restoreShift(shift.id);
@@ -166,7 +167,7 @@ const ShiftPage = () => {
 
   const handleToggleStatus = async (shift: Shift) => {
     const action = shift.is_active ? "Vô hiệu hóa" : "Kích hoạt";
-    if (!confirm(`Bạn có chắc muốn ${action} ca "${shift.name}"?`)) return;
+    if (!await showConfirm({ message: `Bạn có chắc muốn ${action} ca "${shift.name}"?`, variant: "warning" })) return;
     setSubmitting(true);
     try {
       await changeShiftStatus(shift.id, !shift.is_active);
@@ -187,7 +188,7 @@ const ShiftPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Shift Management</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý ca làm việc</h1>
           <p className="text-xs sm:text-sm text-slate-600">Quản lý ca làm việc hệ thống</p>
         </div>
         <Button onClick={handleOpenCreate}>+ Tạo ca làm việc</Button>
@@ -269,9 +270,9 @@ const ShiftPage = () => {
                       {s.is_deleted ? (
                         <span className="text-xs text-red-500 font-medium">✕ Đã xóa</span>
                       ) : s.is_active ? (
-                        <span className="text-xs text-green-600">● Active</span>
+                        <span className="text-xs text-green-600">● Hoạt động</span>
                       ) : (
-                        <span className="text-xs text-amber-600">● Inactive</span>
+                        <span className="text-xs text-amber-600">● Không hoạt động</span>
                       )}
                     </div>
                   </td>
@@ -282,9 +283,9 @@ const ShiftPage = () => {
                     {s.is_deleted ? (
                       <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600">Đã xóa</span>
                     ) : s.is_active ? (
-                      <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Active</span>
+                      <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Hoạt động</span>
                     ) : (
-                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Inactive</span>
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Không hoạt động</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
