@@ -131,7 +131,7 @@ const InventoryByFranchisePage = () => {
                           {item.productName}
                         </p>
                         <p className="text-xs text-slate-500">
-                          ID: {item.productId}
+                          {item.sku}
                         </p>
                       </div>
                     </td>

@@ -92,6 +92,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
+    label: "Vouchers",
+    path: ROUTER_URL.ADMIN_ROUTES.VOUCHERS,
+    component: React.lazy(
+      () => import("../../pages/admin/voucher/VoucherList.page.tsx"),
+    ),
+  },
+  {
     label: "Product Franchises",
     path: ROUTER_URL.ADMIN_ROUTES.PRODUCT_FRANCHISES,
     component: React.lazy(
@@ -171,6 +178,14 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(
       () =>
         import("../../pages/admin/product-category-franchise/ProductCategoryFranchise.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
+    label: "Shifts",
+    path: ROUTER_URL.ADMIN_ROUTES.SHIFTS,
+    component: React.lazy(
+      () => import("../../pages/admin/shift/Shift.page.tsx"),
     ),
     isEnd: true,
   },

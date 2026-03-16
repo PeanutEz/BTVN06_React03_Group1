@@ -418,6 +418,28 @@ export interface SearchProductCategoryFranchiseDto {
   };
 }
 
+// Response item from GET /api/product-category-franchises/franchise/:franchiseId
+export interface ProductWithCategoriesResponse {
+  id: string;
+  is_active: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  product_franchise_id: string;
+  product_id: string;
+  product_name: string;
+  product_sku: string;
+  franchise_id: string;
+  franchise_name: string;
+  franchise_code: string;
+  size: string;
+  price_base: number;
+  categories: {
+    category_id: string;
+    category_name: string;
+  }[];
+}
+
 // Paginated response from POST /api/product-category-franchises/search
 export interface ProductCategoryFranchiseSearchResponse {
   data: ProductCategoryFranchiseApiResponse[];

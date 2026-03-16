@@ -3,8 +3,11 @@ import { adminProductService, categories } from "@/services/product.service";
 import type { Product, ProductQueryParams } from "@/models/product.model";
 import { toast } from "sonner";
 import { ProductModal } from "@/components/product";
+import { GlassSelect } from "@/components/ui";
+import { useConfirm } from "@/components/ui";
 
 export default function ProductListPage() {
+  const showConfirm = useConfirm();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -137,13 +140,19 @@ export default function ProductListPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this product?"))
+    if (!await showConfirm({ message: "Are you sure you want to delete this product?", variant: "danger" }))
       return;
 
     try {
       await adminProductService.deleteProduct(id.toString());
       toast.success("Product deleted successfully");
-      fetchProducts();
+      if (products.length <= 1 && pagination.page > 1) {
+        lastParamsRef.current = null;
+        setPagination((prev) => ({ ...prev, page: prev.page - 1 }));
+      } else {
+        lastParamsRef.current = null;
+        fetchProducts();
+      }
     } catch (error) {
       toast.error("Failed to delete product");
       console.error(error);
@@ -151,7 +160,7 @@ export default function ProductListPage() {
   };
 
   const handleRestore = async (id: number) => {
-    if (!window.confirm("Bạn có chắc muốn khôi phục sản phẩm này?")) return;
+    if (!await showConfirm({ message: "Bạn có chắc muốn khôi phục sản phẩm này?", variant: "warning" })) return;
     try {
       await adminProductService.restoreProduct(id.toString());
       toast.success("Khôi phục sản phẩm thành công");
@@ -252,15 +261,15 @@ export default function ProductListPage() {
             className="w-32 rounded-lg border border-slate-300 bg-white py-2 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
           />
           {/* Status dropdown */}
-          <select
+          <GlassSelect
             value={statusFilter === undefined ? "" : String(statusFilter)}
-            onChange={(e) => { setStatusFilter(e.target.value === "" ? undefined : e.target.value === "true"); setPagination((prev) => ({ ...prev, page: 1 })); }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
+            onChange={(v) => { setStatusFilter(v === "" ? undefined : v === "true"); setPagination((prev) => ({ ...prev, page: 1 })); }}
+            options={[
+              { value: "", label: "Tất cả trạng thái" },
+              { value: "true", label: "Active" },
+              { value: "false", label: "Inactive" },
+            ]}
+          />
           {/* Deleted filter */}
           <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
             isDeletedFilter
@@ -513,13 +522,25 @@ export default function ProductListPage() {
 
       {/* Product Detail Modal */}
       {viewingProduct && detailForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Glassmorphism backdrop */}
+          <div className="absolute inset-0 bg-black/25" />
+
+          <div
+            className="relative w-full max-w-xl rounded-2xl max-h-[90vh] overflow-y-auto"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
             {/* Sticky Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-white px-6 py-4">
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-white/[0.08] bg-white/[0.06] px-6 py-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Chi tiết sản phẩm</h2>
-                <p className="mt-0.5 text-xs text-slate-500 font-mono">{viewingProduct.sku}</p>
+                <h2 className="text-xl font-bold text-white/95">Chi tiết sản phẩm</h2>
+                <p className="mt-0.5 text-xs text-white/50 font-mono">{viewingProduct.sku}</p>
               </div>
               <div className="flex items-center gap-2">
                 {viewingProduct.isActive ? (
@@ -529,7 +550,7 @@ export default function ProductListPage() {
                 )}
                 <button
                   onClick={() => setViewingProduct(null)}
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -540,7 +561,7 @@ export default function ProductListPage() {
 
             <div className="space-y-5 p-6">
               {/* Main image */}
-              <div className="flex items-center gap-4 rounded-xl bg-slate-50 p-4">
+              <div className="flex items-center gap-4 rounded-xl bg-white/[0.06] p-4">
                 <img
                   src={viewingProduct.image_url || viewingProduct.image}
                   alt={viewingProduct.name}
@@ -548,22 +569,22 @@ export default function ProductListPage() {
                   onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/96x96?text=No+Image"; }}
                 />
                 <div className="leading-tight min-w-0">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Danh mục</p>
-                  <p className="text-sm text-slate-700">{getCategoryName(viewingProduct.categoryId)}</p>
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Danh mục</p>
+                  <p className="text-sm text-white/80">{getCategoryName(viewingProduct.categoryId)}</p>
                 </div>
               </div>
 
               {/* Extra images */}
               {viewingProduct.images && viewingProduct.images.length > 0 && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">🖼️ Ảnh phụ ({viewingProduct.images.length})</p>
+                <div className="rounded-xl border border-white/[0.12] bg-white/[0.06] p-4 space-y-2">
+                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">Ảnh phụ ({viewingProduct.images.length})</p>
                   <div className="flex flex-wrap gap-2">
                     {viewingProduct.images.map((url, idx) => (
                       <img
                         key={idx}
                         src={url}
                         alt={`extra-${idx}`}
-                        className="h-16 w-16 rounded-lg border-2 border-slate-200 object-cover"
+                        className="h-16 w-16 rounded-lg border-2 border-white/[0.12] object-cover"
                         onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/64x64?text=Err"; }}
                       />
                     ))}
@@ -573,63 +594,63 @@ export default function ProductListPage() {
 
               {/* Editable: Name */}
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">Tên sản phẩm <span className="text-red-500">*</span></label>
+                <label className="text-sm font-semibold text-white/80">Tên sản phẩm <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={detailForm.name}
                   onChange={(e) => setDetailForm((prev) => prev ? { ...prev, name: e.target.value } : prev)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               {/* Editable: Prices */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Giá thấp nhất (đ) <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-white/80">Giá thấp nhất (đ) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     value={detailForm.min_price}
                     onChange={(e) => setDetailForm((prev) => prev ? { ...prev, min_price: Number(e.target.value) } : prev)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Giá cao nhất (đ) <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-white/80">Giá cao nhất (đ) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     value={detailForm.max_price}
                     onChange={(e) => setDetailForm((prev) => prev ? { ...prev, max_price: Number(e.target.value) } : prev)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
               </div>
 
               {/* Editable: Description */}
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">Mô tả ngắn <span className="text-red-500">*</span></label>
+                <label className="text-sm font-semibold text-white/80">Mô tả ngắn <span className="text-red-500">*</span></label>
                 <textarea
                   rows={2}
                   value={detailForm.description}
                   onChange={(e) => setDetailForm((prev) => prev ? { ...prev, description: e.target.value } : prev)}
-                  className="w-full resize-none rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full resize-none rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               {/* Actions */}
-              <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-4">
+              <div className="flex flex-wrap gap-3 border-t border-white/[0.08] pt-4">
                 <button
                   onClick={handleDetailSave}
                   disabled={detailSaving}
                   className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-60"
                 >
                   {detailSaving && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
-                  {detailSaving ? "Đang lưu..." : "💾 Lưu thay đổi"}
+                  {detailSaving ? "Đang lưu..." : "Lưu thay đổi"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setViewingProduct(null)}
                   disabled={detailSaving}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+                  className="w-full rounded-lg border border-white/[0.15] px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.1] hover:text-white disabled:opacity-60"
                 >
                   Đóng
                 </button>

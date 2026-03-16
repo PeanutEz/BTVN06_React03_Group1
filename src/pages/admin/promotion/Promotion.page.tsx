@@ -403,160 +403,161 @@ export default function PromotionPage() {
             </div>
 
             {/* TABLE */}
-            <div className="bg-white border rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-slate-100">
-                        <tr>
-                            <th className="px-4 py-3 text-left">Chi Nhánh</th>
-                            <th className="px-4 py-3 text-left">Loại Giảm</th>
-                            <th className="px-4 py-3 text-left">Giá Trị</th>
-                            <th className="px-4 py-3 text-left">Ngày bắt đầu</th>
-                            <th className="px-4 py-3 text-left">Ngày kết thúc</th>
-                            <th className="px-4 py-3 text-left">Trạng Thái</th>
-                            <th className="px-4 py-3 text-right">Thao Tác</th>
-                        </tr>
-                    </thead>
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-100">
+                            <tr>
+                                <th className="px-4 py-3 text-left">Chi Nhánh</th>
+                                <th className="px-4 py-3 text-left">Loại Giảm</th>
+                                <th className="px-4 py-3 text-left">Giá Trị</th>
+                                <th className="px-4 py-3 text-left">Ngày bắt đầu</th>
+                                <th className="px-4 py-3 text-left">Ngày kết thúc</th>
+                                <th className="px-4 py-3 text-left">Trạng Thái</th>
+                                <th className="px-4 py-3 text-right">Thao Tác</th>
+                            </tr>
+                        </thead>
 
-                    <tbody>
-                        {!loading &&
-                            items.map((p) => (
-                                <tr key={p.id} className="border-t">
-                                    <td className="px-4 py-3">{p.franchise_name}</td>
+                        <tbody>
+                            {!loading &&
+                                items.map((p) => (
+                                    <tr key={p.id} className="border-t">
+                                        <td className="px-4 py-3">{p.franchise_name}</td>
 
-                                    <td className="px-4 py-3">
-                                        {p.type === "PERCENT" ? "Percent" : "Fixed"}
-                                    </td>
+                                        <td className="px-4 py-3">
+                                            {p.type === "PERCENT" ? "Percent" : "Fixed"}
+                                        </td>
 
-                                    <td className="px-4 py-3 text-green-600 font-semibold">
-                                        {formatDiscount(p)}
-                                    </td>
+                                        <td className="px-4 py-3 text-green-600 font-semibold">
+                                            {formatDiscount(p)}
+                                        </td>
 
-                                    <td className="px-4 py-3">
-                                        {new Date(p.start_date).toLocaleDateString()}
-                                    </td>
+                                        <td className="px-4 py-3">
+                                            {new Date(p.start_date).toLocaleDateString()}
+                                        </td>
 
-                                    <td className="px-4 py-3">
-                                        {new Date(p.end_date).toLocaleDateString()}
-                                    </td>
+                                        <td className="px-4 py-3">
+                                            {new Date(p.end_date).toLocaleDateString()}
+                                        </td>
 
-                                    <td className="px-4 py-3">
-                                        {p.is_deleted ? (
-                                            <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
-                                                Deleted
-                                            </span>
-                                        ) : p.is_active ? (
-                                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
-                                                Active
-                                            </span>
-                                        ) : (
-                                            <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
-                                                Inactive
-                                            </span>
-                                        )}
-                                    </td>
+                                        <td className="px-4 py-3">
+                                            {p.is_deleted ? (
+                                                <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
+                                                    Deleted
+                                                </span>
+                                            ) : p.is_active ? (
+                                                <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
+                                                    Active
+                                                </span>
+                                            ) : (
+                                                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
+                                                    Inactive
+                                                </span>
+                                            )}
+                                        </td>
 
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center justify-end gap-2">
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center justify-end gap-2">
 
-                                            {/* VIEW */}
-                                            <button
-                                                onClick={() => setViewItem(p)}
-                                                className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition"
-                                                title="Xem"
-                                            >
-                                                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0" />
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                        d="M2.458 12C3.732 7.943 7.523 5 12 5
+                                                {/* VIEW */}
+                                                <button
+                                                    onClick={() => setViewItem(p)}
+                                                    className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 transition"
+                                                    title="Xem"
+                                                >
+                                                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                            d="M2.458 12C3.732 7.943 7.523 5 12 5
           c4.478 0 8.268 2.943 9.542 7
           -1.274 4.057-5.064 7-9.542 7
           -4.477 0-8.268-2.943-9.542-7z"/>
-                                                </svg>
-                                            </button>
-
-                                            {/* EDIT */}
-                                            {!p.is_deleted && (
-                                                <button
-                                                    onClick={() => {
-                                                        setEditItem(p)
-
-                                                        setEditForm({
-                                                            name: p.name,
-                                                            type: p.type,
-                                                            value: p.value,
-                                                            start_date: p.start_date.slice(0, 16),
-                                                            end_date: p.end_date.slice(0, 16)
-                                                        })
-                                                    }}
-                                                    className="inline-flex items-center justify-center size-8 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition"
-                                                    title="Chỉnh sửa"
-                                                >
-                                                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M11 5h2m-1-1v2m-7 7h2m-1-1v2
-            m8-8l3 3m0 0l-9 9H6v-3l9-9z"/>
                                                     </svg>
                                                 </button>
-                                            )}
 
-                                            {/* DELETE / RESTORE */}
-                                            {p.is_deleted ? (
-                                                <button
-                                                    onClick={() => handleRestore(p)}
-                                                    className="inline-flex items-center justify-center size-8 rounded-lg border border-green-200 text-green-600 hover:bg-green-50 transition"
-                                                    title="Khôi phục"
-                                                >
-                                                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0
+                                                {/* EDIT */}
+                                                {!p.is_deleted && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditItem(p)
+
+                                                            setEditForm({
+                                                                name: p.name,
+                                                                type: p.type,
+                                                                value: p.value,
+                                                                start_date: p.start_date.slice(0, 16),
+                                                                end_date: p.end_date.slice(0, 16)
+                                                            })
+                                                        }}
+                                                        className="inline-flex items-center justify-center size-8 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition"
+                                                        title="Chỉnh sửa"
+                                                    >
+                                                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                d="M11 5h2m-1-1v2m-7 7h2m-1-1v2
+            m8-8l3 3m0 0l-9 9H6v-3l9-9z"/>
+                                                        </svg>
+                                                    </button>
+                                                )}
+
+                                                {/* DELETE / RESTORE */}
+                                                {p.is_deleted ? (
+                                                    <button
+                                                        onClick={() => handleRestore(p)}
+                                                        className="inline-flex items-center justify-center size-8 rounded-lg border border-green-200 text-green-600 hover:bg-green-50 transition"
+                                                        title="Khôi phục"
+                                                    >
+                                                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0
             004.582 9m0 0H9m11 11v-5h-.581
             m0 0a8.003 8.003 0 01-15.357-2
             m15.357 2H15"/>
-                                                    </svg>
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleDelete(p)}
-                                                    className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition"
-                                                    title="Xóa"
-                                                >
-                                                    <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                            d="M19 7l-.867 12.142A2 2 0
+                                                        </svg>
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleDelete(p)}
+                                                        className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition"
+                                                        title="Xóa"
+                                                    >
+                                                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                d="M19 7l-.867 12.142A2 2 0
             0116.138 21H7.862a2 2 0
             01-1.995-1.858L5 7m5
             4v6m4-6v6m1-10V4a1 1
             0 00-1-1h-4a1 1 0
             00-1 1v3M4 7h16"/>
-                                                    </svg>
-                                                </button>
-                                            )}
+                                                        </svg>
+                                                    </button>
+                                                )}
 
-                                        </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+
+                            {items.length === 0 && !loading && (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-6 text-slate-500">
+                                        Không có promotion
                                     </td>
                                 </tr>
-                            ))}
-
-                        {items.length === 0 && !loading && (
-                            <tr>
-                                <td colSpan={6} className="text-center py-6 text-slate-500">
-                                    Không có promotion
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-
-                <div className="px-4">
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        onPageChange={handlePageChange}
-                        totalItems={totalItems}
-                        itemsPerPage={ITEMS_PER_PAGE}
-                    />
+                            )}
+                        </tbody>
+                    </table>
                 </div>
+            </div>
+            <div className="px-4">
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                    totalItems={totalItems}
+                    itemsPerPage={ITEMS_PER_PAGE}
+                />
             </div>
             {/* CREATE MODAL */}
             {createOpen && (
