@@ -235,23 +235,24 @@ export default function CategoryListPage() {
           {/* Status filter */}
           <GlassSelect
             value={statusFilter}
-            onChange={(v) => { setStatusFilter(v); setCurrentPage(1); load(searchQuery, 1, v, parentFilter, isDeletedFilter); }}
-            options={[
-              { value: "", label: "Tất cả trạng thái" },
-              { value: "true", label: "Active" },
-              { value: "false", label: "Inactive" },
-            ]}
-          />
+            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, e.target.value, parentFilter, isDeletedFilter); }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+          >
+            <option value="">Tất cả trạng thái</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
 
           {/* Parent category filter */}
           <GlassSelect
             value={parentFilter}
-            onChange={(v) => { setParentFilter(v); setCurrentPage(1); load(searchQuery, 1, statusFilter, v, isDeletedFilter); }}
-            options={[
-              { value: "", label: "Tất cả danh mục cha" },
-              ...parentOptions.map((opt) => ({ value: opt.value, label: opt.name })),
-            ]}
-          />
+            onChange={(e) => { setParentFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, statusFilter, e.target.value, isDeletedFilter); }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+          >
+            <option value="">Tất cả danh mục cha</option>          {parentOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.name}</option>
+            ))}
+          </select>
 
           {/* Is deleted filter */}
           <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${

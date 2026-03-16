@@ -648,7 +648,7 @@ export default function InventoryListPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                          {item.franchise_name ?? "N/A"}
+                          {item.franchise_name ?? item.franchise_id}
                         </span>                      </td>                      {/* ── Cột Tồn kho — batch inline input ── */}
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-end gap-1.5">

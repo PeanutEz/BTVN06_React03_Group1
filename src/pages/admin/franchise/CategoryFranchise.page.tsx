@@ -234,7 +234,7 @@ export default function CategoryFranchisePage() {
         console.log("Current status:", cat.is_active);
         console.log("New status:", !cat.is_active);
 
-        if (!await showConfirm(`Bạn có muốn đổi trạng thái sang ${newStatus ? "Active" : "Inactive"}?`)) {
+        if (!confirm(`Bạn có muốn đổi trạng thái sang ${newStatus ? "Active" : "Inactive"}?`)) {
             console.log("User cancelled change status");
             return;
         }
