@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Button } from "../../../components";
+import { Button, GlassSelect, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { adminInventoryService } from "../../../services/inventory.service";
 import { adminProductFranchiseService } from "../../../services/product-franchise.service";
@@ -18,6 +18,7 @@ import { showSuccess, showError } from "../../../utils";
 const ITEMS_PER_PAGE = 10;
 
 export default function InventoryListPage() {
+  const showConfirm = useConfirm();
   const [items, setItems] = useState<InventoryApiResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -299,15 +300,15 @@ export default function InventoryListPage() {
 
   const handleDelete = async (item: InventoryApiResponse) => {
     if (
-      !confirm(
-        `Bạn có chắc muốn xóa inventory của "${item.product_name ?? item.product_id}"?`,
-      )
+      !await showConfirm({ message: `Bạn có chắc muốn xóa inventory của "${item.product_name ?? item.product_id}"?`, variant: "danger" })
     )
       return;
     try {
       await adminInventoryService.deleteInventory(item.id);
       showSuccess("Đã xóa inventory");
-      await load(searchFranchise, currentPage, statusFilter, isDeletedFilter);
+      const nextPage = items.length <= 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      setCurrentPage(nextPage);
+      await load(searchFranchise, nextPage, statusFilter, isDeletedFilter);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -320,9 +321,7 @@ export default function InventoryListPage() {
 
   const handleRestore = async (item: InventoryApiResponse) => {
     if (
-      !confirm(
-        `Bạn có chắc muốn khôi phục inventory của "${item.product_name ?? item.product_id}"?`,
-      )
+      !await showConfirm({ message: `Bạn có chắc muốn khôi phục inventory của "${item.product_name ?? item.product_id}"?`, variant: "warning" })
     )
       return;
     try {
@@ -525,15 +524,15 @@ export default function InventoryListPage() {
               </div>
             )}
           </div>
-          <select
+          <GlassSelect
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
+            onChange={(v) => setStatusFilter(v)}
+            options={[
+              { value: "", label: "Tất cả trạng thái" },
+              { value: "true", label: "Active" },
+              { value: "false", label: "Inactive" },
+            ]}
+          />
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm hover:bg-slate-50">
             <input
               type="checkbox"
@@ -645,14 +644,11 @@ export default function InventoryListPage() {
                           <p className="font-semibold text-slate-900">
                             {item.product_name ?? "—"}
                           </p>
-                          <p className="text-xs text-slate-400 font-mono">
-                            {item.product_id}
-                          </p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                          {item.franchise_name ?? item.franchise_id}
+                          {item.franchise_name ?? "N/A"}
                         </span>                      </td>                      {/* ── Cột Tồn kho — batch inline input ── */}
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-end gap-1.5">
@@ -842,15 +838,22 @@ export default function InventoryListPage() {
 
       {/* ─── Create Modal (INVENTORY-01) ─────────────────────────────────────── */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-md rounded-2xl shadow-2xl" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
+              <h2 className="text-lg font-semibold text-white/95">
                 Thêm inventory mới
               </h2>
               <button
                 onClick={() => setCreateOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
               >
                 <svg
                   className="size-5"
@@ -869,7 +872,7 @@ export default function InventoryListPage() {
             </div>
             <form onSubmit={handleCreateSubmit} className="space-y-4 px-6 py-5">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-white/80">
                   Product Franchise <span className="text-red-500">*</span>
                 </label>
                 <div ref={pfComboRef} className="relative">
@@ -886,7 +889,7 @@ export default function InventoryListPage() {
                       setPfComboOpen(true);
                     }}
                     onFocus={() => setPfComboOpen(true)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                   {createForm.product_franchise_id &&
                     (() => {
@@ -894,10 +897,10 @@ export default function InventoryListPage() {
                         (p) => p.id === createForm.product_franchise_id,
                       );
                       return selected ? (
-                        <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-primary-50 px-3 py-1.5 text-xs text-primary-700">
+                        <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-primary-300">
                           <span className="font-medium">
                             {productNameMap[selected.product_id] ??
-                              selected.product_id}{" "}
+                              "N/A"}{" "}
                             | Size: {selected.size} |{" "}
                             {selected.price_base.toLocaleString()}đ
                           </span>
@@ -918,9 +921,9 @@ export default function InventoryListPage() {
                       ) : null;
                     })()}
                   {pfComboOpen && (
-                    <div className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                    <div className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-white/[0.12] bg-white/[0.08] shadow-lg" style={{ backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)" }}>
                       {filteredPfOptions.length === 0 && (
-                        <p className="px-3 py-2 text-sm text-slate-400">
+                        <p className="px-3 py-2 text-sm text-white/40">
                           Không tìm thấy
                         </p>
                       )}
@@ -935,13 +938,13 @@ export default function InventoryListPage() {
                             setPfKeyword("");
                             setPfComboOpen(false);
                           }}
-                          className={`cursor-pointer px-3 py-2 text-sm hover:bg-primary-50 hover:text-primary-700 ${
+                          className={`cursor-pointer px-3 py-2 text-sm hover:bg-white/[0.1] hover:text-white ${
                             createForm.product_franchise_id === pf.id
-                              ? "bg-primary-50 font-medium text-primary-700"
-                              : "text-slate-700"
+                              ? "bg-white/[0.1] font-medium text-white"
+                              : "text-white/80"
                           }`}
                         >
-                          {productNameMap[pf.product_id] ?? pf.product_id} |
+                          {productNameMap[pf.product_id] ?? "N/A"} |
                           Size: {pf.size} | {pf.price_base.toLocaleString()}đ
                         </div>
                       ))}
@@ -950,7 +953,7 @@ export default function InventoryListPage() {
                 </div>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-white/80">
                   Số lượng ban đầu <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -961,14 +964,14 @@ export default function InventoryListPage() {
                   onChange={(e) =>
                     setCreateForm((f) => ({ ...f, quantity: e.target.value }))
                   }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   required
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-white/80">
                   Ngưỡng cảnh báo <span className="text-red-500">*</span>
-                  <span className="ml-1 text-xs font-normal text-slate-400">
+                  <span className="ml-1 text-xs font-normal text-white/40">
                     (cảnh báo khi tồn kho xuống dưới ngưỡng này)
                   </span>
                 </label>
@@ -983,7 +986,7 @@ export default function InventoryListPage() {
                       alert_threshold: e.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   required
                 />
               </div>
@@ -991,7 +994,7 @@ export default function InventoryListPage() {
                 <button
                   type="button"
                   onClick={() => setCreateOpen(false)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </button>
@@ -1006,15 +1009,22 @@ export default function InventoryListPage() {
 
       {/* ─── Adjust Modal ────────────────────────────────────────────────────── */}
       {adjustTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-md rounded-2xl shadow-2xl" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
+              <h2 className="text-lg font-semibold text-white/95">
                 Điều chỉnh tồn kho
               </h2>
               <button
                 onClick={() => setAdjustTarget(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
               >
                 <svg
                   className="size-5"
@@ -1032,24 +1042,24 @@ export default function InventoryListPage() {
               </button>
             </div>
             <form onSubmit={handleAdjustSubmit} className="space-y-4 px-6 py-5">
-              <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
-                <p className="font-semibold text-slate-800">
+              <div className="rounded-xl bg-white/[0.06] px-4 py-3 text-sm">
+                <p className="font-semibold text-white/95">
                   {adjustTarget.product_name ?? adjustTarget.product_id}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-white/50 mt-0.5">
                   {adjustTarget.franchise_name ?? adjustTarget.franchise_id}
                 </p>
-                <p className="mt-1.5 text-slate-700">
+                <p className="mt-1.5 text-white/80">
                   Tồn hiện tại:{" "}
-                  <span className="font-bold text-slate-900">
+                  <span className="font-bold text-white/95">
                     {adjustTarget.quantity.toLocaleString()}
                   </span>
                 </p>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-white/80">
                   Số thay đổi <span className="text-red-500">*</span>
-                  <span className="ml-1 text-xs font-normal text-slate-400">
+                  <span className="ml-1 text-xs font-normal text-white/40">
                     (dương = nhập thêm, âm = xuất bớt)
                   </span>
                 </label>
@@ -1060,14 +1070,14 @@ export default function InventoryListPage() {
                   onChange={(e) =>
                     setAdjustForm((f) => ({ ...f, change: e.target.value }))
                   }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   required
                 />
                 {adjustForm.change !== "" &&
                   !isNaN(Number(adjustForm.change)) && (
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-white/50">
                       Sau điều chỉnh:{" "}
-                      <span className="font-semibold text-slate-800">
+                      <span className="font-semibold text-white/95">
                         {(
                           adjustTarget.quantity + Number(adjustForm.change)
                         ).toLocaleString()}
@@ -1076,7 +1086,7 @@ export default function InventoryListPage() {
                   )}
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                <label className="mb-1.5 block text-sm font-medium text-white/80">
                   Lý do
                 </label>
                 <input
@@ -1086,14 +1096,14 @@ export default function InventoryListPage() {
                   onChange={(e) =>
                     setAdjustForm((f) => ({ ...f, reason: e.target.value }))
                   }
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setAdjustTarget(null)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </button>
@@ -1108,15 +1118,22 @@ export default function InventoryListPage() {
 
       {/* ─── View Detail Modal ───────────────────────────────────────────────── */}
       {viewingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-md rounded-2xl shadow-2xl" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
+              <h2 className="text-lg font-semibold text-white/95">
                 Chi tiết tồn kho
               </h2>
               <button
                 onClick={() => setViewingItem(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
               >
                 <svg
                   className="size-5"
@@ -1136,47 +1153,47 @@ export default function InventoryListPage() {
             <div className="space-y-4 px-6 py-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                     Sản phẩm
                   </p>
-                  <p className="mt-1 font-semibold text-slate-800">
+                  <p className="mt-1 font-semibold text-white/95">
                     {viewingItem.product_name ?? "—"}
                   </p>
-                  <p className="text-xs font-mono text-slate-400">
+                  <p className="text-xs font-mono text-white/40">
                     {viewingItem.product_id}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                     Franchise
                   </p>
-                  <p className="mt-1 text-slate-800">
+                  <p className="mt-1 text-white/95">
                     {viewingItem.franchise_name ?? viewingItem.franchise_id}
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                     Tồn kho
                   </p>
                   <p
-                    className={`mt-1 text-2xl font-bold tabular-nums ${isLow(viewingItem) && !viewingItem.is_deleted ? "text-amber-600" : "text-slate-900"}`}
+                    className={`mt-1 text-2xl font-bold tabular-nums ${isLow(viewingItem) && !viewingItem.is_deleted ? "text-amber-400" : "text-white/95"}`}
                   >
                     {viewingItem.quantity.toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                     Ngưỡng cảnh báo
                   </p>
-                  <p className="mt-1 text-2xl font-bold tabular-nums text-slate-500">
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-white/50">
                     {viewingItem.alert_threshold.toLocaleString()}
                   </p>
                 </div>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                   Trạng thái
                 </p>
                 <div className="mt-1">
@@ -1200,20 +1217,20 @@ export default function InventoryListPage() {
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+              <div className="grid grid-cols-2 gap-4 border-t border-white/[0.08] pt-3">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                     Ngày tạo
                   </p>
-                  <p className="mt-1 text-sm text-slate-700">
+                  <p className="mt-1 text-sm text-white/80">
                     {new Date(viewingItem.created_at).toLocaleString("vi-VN")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                     Cập nhật lúc
                   </p>
-                  <p className="mt-1 text-sm text-slate-700">
+                  <p className="mt-1 text-sm text-white/80">
                     {new Date(viewingItem.updated_at).toLocaleString("vi-VN")}
                   </p>
                 </div>
@@ -1232,7 +1249,7 @@ export default function InventoryListPage() {
                 )}
                 <button
                   onClick={() => setViewingItem(null)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Đóng
                 </button>
@@ -1244,20 +1261,27 @@ export default function InventoryListPage() {
 
       {/* ─── Logs Modal (INVENTORY-08) ────────────────────────────────────────── */}
       {logsItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-xl rounded-2xl shadow-2xl" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">
+                <h2 className="text-lg font-semibold text-white/95">
                   Lịch sử điều chỉnh
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-white/50 mt-0.5">
                   {logsItem.product_name ?? logsItem.product_id}
                 </p>
               </div>
               <button
                 onClick={() => setLogsItem(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
               >
                 <svg
                   className="size-5"
@@ -1281,7 +1305,7 @@ export default function InventoryListPage() {
                 </div>
               )}
               {!logsLoading && logs.length === 0 && (
-                <p className="py-8 text-center text-sm text-slate-500">
+                <p className="py-8 text-center text-sm text-white/50">
                   Không có lịch sử điều chỉnh
                 </p>
               )}
@@ -1290,7 +1314,7 @@ export default function InventoryListPage() {
                   {logs.map((log) => (
                     <div
                       key={log._id}
-                      className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm"
+                      className="rounded-xl border border-white/[0.08] bg-white/[0.06] px-4 py-3 text-sm"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
@@ -1300,29 +1324,26 @@ export default function InventoryListPage() {
                             {log.change > 0 ? "+" : ""}
                             {log.change.toLocaleString()}
                           </span>
-                          <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-600">
-                            {log.type}
+                          <span className="rounded-full bg-white/[0.1] px-2 py-0.5 text-xs text-white/70">
+                            {{ ADJUST: "Điều chỉnh", SALE: "Bán hàng", RECEIVE: "Nhập kho" }[log.type] ?? log.type}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-                            {log.reference_type}
+                          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-xs text-white/50">
+                            {{ MANUAL: "Thủ công", ORDER: "Đơn hàng" }[log.reference_type] ?? log.reference_type}
                           </span>
                         </div>
-                        <span className="text-xs text-slate-400 whitespace-nowrap">
+                        <span className="text-xs text-white/40 whitespace-nowrap">
                           {new Date(log.created_at).toLocaleString("vi-VN")}
                         </span>
                       </div>
-                      <p className="mt-1.5 text-xs text-slate-400 font-mono">
-                        by: {log.created_by}
-                      </p>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            <div className="flex justify-end border-t border-slate-100 px-6 py-4">
+            <div className="flex justify-end border-t border-white/[0.08] px-6 py-4">
               <button
                 onClick={() => setLogsItem(null)}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
               >
                 Đóng
               </button>

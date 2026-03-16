@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import type { LoyaltyRule, LoyaltyOverview } from "../../../models/loyalty.model";
 import { LOYALTY_TIER_LABELS } from "../../../models/customer.model";
 import {
@@ -11,6 +11,7 @@ import {
 import { showSuccess, showError } from "../../../utils";
 
 const LoyaltyManagementPage = () => {
+  const showConfirm = useConfirm();
   const [rule, setRule] = useState<LoyaltyRule | null>(null);
   const [overview, setOverview] = useState<LoyaltyOverview | null>(null);
   const [history, setHistory] = useState<any[]>([]);
@@ -53,7 +54,7 @@ const LoyaltyManagementPage = () => {
   const handleSaveRule = async () => {
     if (!editingRule) return;
 
-    if (!confirm("Bạn có chắc muốn thay đổi quy tắc tích điểm? Điều này sẽ ảnh hưởng đến tất cả khách hàng.")) {
+    if (!await showConfirm("Bạn có chắc muốn thay đổi quy tắc tích điểm? Điều này sẽ ảnh hưởng đến tất cả khách hàng.")) {
       return;
     }
 
@@ -185,7 +186,6 @@ const LoyaltyManagementPage = () => {
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               <tr>
-                <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">Franchise</th>
                 <th className="px-4 py-3">Mã đơn</th>
                 <th className="px-4 py-3">Loại</th>
@@ -197,9 +197,6 @@ const LoyaltyManagementPage = () => {
             <tbody className="divide-y divide-slate-200">
               {history.map((item) => (
                 <tr key={item.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <span className="font-semibold text-slate-900">{item.id}</span>
-                  </td>
                   <td className="px-4 py-3">
                     <div className="leading-tight">
                       <p className="font-semibold text-slate-900">{item.franchise_code || 'N/A'}</p>
@@ -254,17 +251,24 @@ const LoyaltyManagementPage = () => {
 
       {/* Rule Edit Modal */}
       {showRuleModal && editingRule && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
-          <div className="my-8 w-full max-w-full sm:max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative my-8 w-full max-w-full sm:max-w-5xl rounded-2xl" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
             {/* Modal Header */}
-            <div className="border-b border-slate-200 bg-slate-50 px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl">
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Chỉnh sửa quy tắc tích điểm</h2>
-              <p className="mt-1 text-sm text-slate-600">Cấu hình tỷ lệ tích điểm và hạng thành viên</p>
+            <div className="border-b border-white/[0.12] bg-white/[0.06] px-4 sm:px-8 py-4 sm:py-6 rounded-t-2xl">
+              <h2 className="text-xl sm:text-2xl font-bold text-white/95">Chỉnh sửa quy tắc tích điểm</h2>
+              <p className="mt-1 text-sm text-white/70">Cấu hình tỷ lệ tích điểm và hạng thành viên</p>
             </div>
-            
+
             <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
               {/* Points Per Amount */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-6">
+              <div className="rounded-xl border border-white/[0.12] bg-white/[0.06] p-6">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="flex size-12 items-center justify-center rounded-full bg-primary-600 text-white flex-shrink-0">
                     <svg className="size-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -272,13 +276,13 @@ const LoyaltyManagementPage = () => {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <label className="block text-base sm:text-lg font-bold text-slate-900 mb-2">
+                    <label className="block text-base sm:text-lg font-bold text-white/95 mb-2">
                       Tỷ lệ tích điểm cơ bản
                     </label>
                     <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                      <span className="text-sm font-semibold text-slate-700">Khách hàng nhận</span>
-                      <span className="text-2xl font-bold text-primary-600">1 điểm</span>
-                      <span className="text-sm font-semibold text-slate-700">cho mỗi</span>
+                      <span className="text-sm font-semibold text-white/80">Khách hàng nhận</span>
+                      <span className="text-2xl font-bold text-primary-400">1 điểm</span>
+                      <span className="text-sm font-semibold text-white/80">cho mỗi</span>
                       <input
                         type="number"
                         min="1"
@@ -290,14 +294,14 @@ const LoyaltyManagementPage = () => {
                             points_per_amount: 1 / Number(e.target.value),
                           })
                         }
-                        className="w-40 rounded-lg border border-slate-300 bg-white px-4 py-2 text-lg font-bold text-primary-600 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                        className="w-40 rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-lg font-bold text-primary-400 text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                       />
-                      <span className="text-2xl font-bold text-slate-700">VNĐ</span>
+                      <span className="text-2xl font-bold text-white/80">VNĐ</span>
                     </div>
-                    <p className="mt-3 text-sm text-slate-600 bg-white rounded-lg px-4 py-2 border border-slate-200">
+                    <p className="mt-3 text-sm text-white/70 bg-white/[0.06] rounded-lg px-4 py-2 border border-white/[0.12]">
                       💡 <span className="font-semibold">Ví dụ:</span> Đơn hàng{" "}
-                      <span className="font-bold text-primary-600">100.000 VNĐ</span> ={" "}
-                      <span className="font-bold text-green-600">
+                      <span className="font-bold text-primary-400">100.000 VNĐ</span> ={" "}
+                      <span className="font-bold text-green-400">
                         {Math.floor(100000 * editingRule.points_per_amount)} điểm
                       </span>
                     </p>
@@ -313,27 +317,27 @@ const LoyaltyManagementPage = () => {
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900">Cấu hình hạng thành viên</h3>
+                  <h3 className="text-xl font-bold text-white/95">Cấu hình hạng thành viên</h3>
                 </div>
-                
+
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   {editingRule.tier_rules.map((tierRule, index) => {
                     const tierColors = {
-                      SILVER: { border: "border-slate-200", bg: "bg-slate-50", badge: "bg-slate-200 text-slate-700" },
-                      GOLD: { border: "border-yellow-200", bg: "bg-yellow-50", badge: "bg-yellow-200 text-yellow-800" },
-                      PLATINUM: { border: "border-cyan-200", bg: "bg-cyan-50", badge: "bg-cyan-200 text-cyan-800" },
+                      SILVER: { border: "border-white/[0.15]", bg: "bg-white/[0.06]", badge: "bg-slate-200 text-slate-700" },
+                      GOLD: { border: "border-yellow-400/30", bg: "bg-yellow-400/[0.06]", badge: "bg-yellow-200 text-yellow-800" },
+                      PLATINUM: { border: "border-cyan-400/30", bg: "bg-cyan-400/[0.06]", badge: "bg-cyan-200 text-cyan-800" },
                     };
                     const colors = tierColors[tierRule.tier as keyof typeof tierColors];
-                    
+
                     return (
                       <div key={tierRule.tier} className={`rounded-xl border ${colors.border} ${colors.bg} p-5`}>
                         <div className={`inline-block rounded-full ${colors.badge} px-4 py-1.5 text-sm font-bold mb-4`}>
                           {LOYALTY_TIER_LABELS[tierRule.tier]}
                         </div>
-                        
+
                         <div className="space-y-4">
                           <div>
-                            <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-700">
+                            <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-white/80">
                               Điểm tối thiểu
                             </label>
                             <input
@@ -344,12 +348,12 @@ const LoyaltyManagementPage = () => {
                               onChange={(e) =>
                                 handleUpdateTierRule(index, "min_points", Number(e.target.value))
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-base font-bold outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                              className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-base font-bold outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             />
                           </div>
-                          
+
                           <div>
-                            <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-slate-700">
+                            <label className="mb-2 block text-xs font-bold uppercase tracking-wide text-white/80">
                               Quyền lợi
                             </label>
                             <textarea
@@ -363,9 +367,9 @@ const LoyaltyManagementPage = () => {
                                   e.target.value.split("\n").filter((b) => b.trim())
                                 )
                               }
-                              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                              className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                             />
-                            <p className="mt-1 text-xs text-slate-500">Mỗi dòng 1 quyền lợi</p>
+                            <p className="mt-1 text-xs text-white/50">Mỗi dòng 1 quyền lợi</p>
                           </div>
                         </div>
                       </div>
@@ -376,12 +380,12 @@ const LoyaltyManagementPage = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t border-slate-200 bg-slate-50 px-4 sm:px-8 py-4 sm:py-6 rounded-b-2xl flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="border-t border-white/[0.12] bg-white/[0.06] px-4 sm:px-8 py-4 sm:py-6 rounded-b-2xl flex flex-col sm:flex-row gap-3 sm:gap-4">
               <Button
                 onClick={() => setShowRuleModal(false)}
                 variant="outline"
                 disabled={loading}
-                className="flex-1 py-3 text-base font-semibold"
+                className="flex-1 py-3 text-base font-semibold border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
               >
                 Hủy bỏ
               </Button>

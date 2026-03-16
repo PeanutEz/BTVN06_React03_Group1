@@ -1,3 +1,5 @@
+export { GlassSelect } from "./GlassSelect";
+export { ConfirmProvider, useConfirm } from "./ConfirmDialog";
 export { Button } from "./button";
 export type { ButtonProps } from "./button";
 export { default as Pagination } from "./Pagination";
