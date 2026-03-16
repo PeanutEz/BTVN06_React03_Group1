@@ -83,5 +83,6 @@ export const ROUTER_URL = {
     ROLES: "roles",
     PROFILE: "profile",
     PRODUCT_CATEGORY_FRANCHISES: "product-category-franchises",
+    SHIFTS: "shifts",
   },
 } as const;
