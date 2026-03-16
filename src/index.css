@@ -321,6 +321,10 @@
   color: #f1f5f9 !important;
 }
 
+.admin-glass-theme input[type="time"] {
+  color-scheme: dark;
+}
+
 .admin-glass-theme input::placeholder,
 .admin-glass-theme select::placeholder,
 .admin-glass-theme textarea::placeholder {
