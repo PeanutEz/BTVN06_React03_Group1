@@ -5,6 +5,7 @@ import type {
   SearchProductCategoryFranchiseDto,
   ProductCategoryFranchiseSearchResponse,
   ReorderProductCategoryFranchiseDto,
+  ProductWithCategoriesResponse,
 } from "@/models/product.model";
 
 export const productCategoryFranchiseService = {
@@ -99,5 +100,17 @@ export const productCategoryFranchiseService = {
       "/product-category-franchises/reorder",
       dto,
     );
+  },
+
+  // PCF-08 — Get All Products by FranchiseId with Category
+  // GET /api/product-category-franchises/franchise/:franchiseId  |  Token: required
+  getProductsByFranchiseWithCategory: async (
+    franchiseId: string,
+  ): Promise<ProductWithCategoriesResponse[]> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: ProductWithCategoriesResponse[];
+    }>(`/product-category-franchises/franchise/${franchiseId}`);
+    return response.data.data;
   },
 };
