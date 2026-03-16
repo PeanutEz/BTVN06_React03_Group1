@@ -191,3 +191,29 @@ export async function getUserFranchiseRolesByUserId(
 	}
 	return (result as { data: UserFranchiseRole[] }).data;
 }
+
+// ==================== USER-FRANCHISE-ROLE-08: Get All Users by FranchiseId ====================
+// GET /api/user-franchise-roles/franchise/:franchiseId — Token: YES — Role: SYSTEM & FRANCHISE
+// Output: { success: true, data: UserByFranchise[] }
+
+export interface UserByFranchise {
+	value: string;
+	code: string;
+	name: string;
+	email: string;
+	phone: string;
+	image: string;
+}
+
+export async function getUsersByFranchiseId(
+	franchiseId: string,
+): Promise<UserByFranchise[]> {
+	const response = await apiClient.get<{ success: boolean; data: UserByFranchise[] }>(
+		`/user-franchise-roles/franchise/${franchiseId}`,
+	);
+	const result = response.data;
+	if (!result.success) {
+		throw new Error("Lấy danh sách user theo franchise thất bại");
+	}
+	return result.data;
+}

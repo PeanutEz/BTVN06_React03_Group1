@@ -166,4 +166,12 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
     isEnd: true,
   },
+  {
+    label: "Shifts",
+    path: ROUTER_URL.ADMIN_ROUTES.SHIFTS,
+    component: React.lazy(
+      () => import("../../pages/admin/shift/Shift.page.tsx"),
+    ),
+    isEnd: true,
+  },
 ];
