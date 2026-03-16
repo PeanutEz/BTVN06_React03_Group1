@@ -110,6 +110,7 @@ const ShiftPage = () => {
     if (!formData.name.trim()) { showError("Vui lòng nhập tên ca"); return; }
     if (!formData.start_time) { showError("Vui lòng nhập giờ bắt đầu"); return; }
     if (!formData.end_time) { showError("Vui lòng nhập giờ kết thúc"); return; }
+    if (formData.end_time <= formData.start_time) { showError("Giờ kết thúc phải lớn hơn giờ bắt đầu"); return; }
     setSubmitting(true);
     try {
       if (editingShift) {
