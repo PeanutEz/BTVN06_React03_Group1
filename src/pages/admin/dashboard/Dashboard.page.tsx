@@ -74,8 +74,6 @@ const DashboardPage = () => {
         fetchStores(),
         fetchLoyaltyOverview(),
       ]);
-      console.log("STORES:", stores);
-
       const completedPayments = payments.filter(
         (p) => p.status === "COMPLETED"
       );
@@ -112,8 +110,6 @@ const DashboardPage = () => {
 
       const pendingOrders = orders.filter((o) => o.status === "DRAFT" || o.status === "CONFIRMED").length;
       const completedOrders = orders.filter((o) => o.status === "COMPLETED").length;
-      console.log("ORDERS DATA:", orders);
-      console.log("ORDER ITEMS:", orders[0]?.items);
       const productMap: Record<string, TopProduct> = {};
 
       orders
@@ -384,7 +380,7 @@ const DashboardPage = () => {
                   {lowStocks.slice(0, 5).map((item) => (
                     <tr key={item._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                       <td className="py-1.5 font-medium text-white truncate max-w-[80px]">{item.store_name}</td>
-                      <td className="py-1.5 text-white/60 truncate max-w-[80px]">{item.store_name || "N/A"}</td>
+                      <td className="py-1.5 text-white/60 truncate max-w-[80px]" title={item.product_franchise_id}>{item.product_franchise_id?.slice(0, 8) || "N/A"}</td>
                       <td className="py-1.5 text-red-400 font-semibold">{item.quantity}</td>
                     </tr>
                   ))}
@@ -414,7 +410,7 @@ const DashboardPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {recentOrders.slice(0, 5).map((order) => {
+                {recentOrders.map((order) => {
                   const sc = statusColor(order.status);
                   return (
                     <tr key={order.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>

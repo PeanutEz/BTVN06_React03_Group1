@@ -70,9 +70,9 @@ const RoleListPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý Roles</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Quản lý vai trò</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Danh sách các vai trò trong hệ thống ({roles.length} roles)
+            Danh sách các vai trò trong hệ thống ({loading ? "..." : `${roles.length} vai trò`})
           </p>
         </div>
         <button

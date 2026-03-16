@@ -10,10 +10,12 @@ import {
 import { fetchOrderById, updateOrderStatus } from "../../../services/order.service";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
+import { useAuthStore } from "../../../store";
 
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [order, setOrder] = useState<OrderDisplay | null>(null);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -56,7 +58,8 @@ const OrderDetailPage = () => {
 
     setUpdating(true);
     try {
-      const updated = await updateOrderStatus(Number(id), newStatus, 1); // 1 = admin user id
+      const adminId = Number(user?.user?.id || user?.id || 1);
+      const updated = await updateOrderStatus(Number(id), newStatus, adminId);
       if (updated) {
         setOrder(updated);
         showSuccess("Cập nhật trạng thái thành công");
@@ -249,7 +252,7 @@ const OrderDetailPage = () => {
             <h2 className="mb-4 text-lg font-semibold text-slate-900">Thanh toán</h2>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-600">Phương thức:</span>
+                <span className="text-slate-600">Loại đơn:</span>
                 <span className="font-semibold text-slate-900">
                   {ORDER_TYPE_LABELS[order.type]}
                 </span>

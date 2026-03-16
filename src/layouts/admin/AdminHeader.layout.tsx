@@ -94,7 +94,7 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
             <h1 className="text-lg font-bold text-white">
               Hi, {displayName}!
             </h1>
-            <p className="text-xs text-white/50">Welcome back to your dashboard</p>
+            <p className="text-xs text-white/50">Chào mừng trở lại bảng điều khiển</p>
           </div>
         </div>
 
