@@ -239,7 +239,7 @@ const LoyaltyManagementPage = () => {
               ))}
               {history.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">
                     Chưa có lịch sử tích điểm
                   </td>
                 </tr>
@@ -395,7 +395,7 @@ const LoyaltyManagementPage = () => {
                 disabled={loading}
                 className="flex-1 py-3 text-base font-semibold"
               >
-                💾 Lưu thay đổi
+                Lưu thay đổi
               </Button>
             </div>
           </div>

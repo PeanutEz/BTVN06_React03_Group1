@@ -209,7 +209,7 @@ const OrderListPage = () => {
                 <th className="px-4 py-3">Cửa hàng</th>
                 <th className="px-4 py-3">Khách hàng</th>
                 <th className="px-4 py-3">Tổng tiền</th>
-                <th className="px-4 py-3">PT Thanh toán</th>
+                <th className="px-4 py-3">Loại đơn</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Ngày tạo</th>
                 <th className="px-4 py-3">Thao tác</th>
