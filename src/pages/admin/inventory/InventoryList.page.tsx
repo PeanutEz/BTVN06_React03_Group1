@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+﻿import { useEffect, useRef, useState, useCallback } from "react";
 import { Button, GlassSelect, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { adminInventoryService } from "../../../services/inventory.service";
@@ -55,7 +55,7 @@ export default function InventoryListPage() {
   >([]);
 
   // Checkbox selection
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [_selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Import errors
   const [importErrors, setImportErrors] = useState<ImportRowError[]>([]);
@@ -236,24 +236,6 @@ export default function InventoryListPage() {
     setIsDeletedFilter(false);
     setCurrentPage(1);
     load("", 1, "", false);
-  };
-
-  // ─── Checkbox handlers ────────────────────────────────────────────────────
-  const handleToggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const handleToggleSelectAll = () => {
-    if (selectedIds.size === items.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(items.map((i) => i.id)));
-    }
   };
 
   // ─── Export ───────────────────────────────────────────────────────────────
@@ -520,77 +502,6 @@ export default function InventoryListPage() {
 
     // Reset input so same file can be re-imported
     e.target.value = "";
-  };
-
-  // ─── Update selected rows ─────────────────────────────────────────────────
-  const handleUpdateSelected = async () => {
-    const idsToUpdate = Array.from(selectedIds);
-    if (idsToUpdate.length === 0) {
-      showError("Vui lòng chọn ít nhất 1 dòng để cập nhật");
-      return;
-    }
-
-    setBatchUpdating(true);
-    let successCount = 0;
-    let errorCount = 0;
-
-    await Promise.allSettled(
-      idsToUpdate.map(async (id) => {
-        const original = items.find((i) => i.id === id);
-        if (!original) return;
-
-        const edit = pendingEdits[id];
-        const newQty = edit?.quantity !== undefined ? Number(edit.quantity) : original.quantity;
-        const newThreshold = edit?.alert_threshold !== undefined ? Number(edit.alert_threshold) : original.alert_threshold;
-
-        if (isNaN(newQty) || newQty < 0 || isNaN(newThreshold) || newThreshold < 0) {
-          errorCount++;
-          return;
-        }
-
-        const change = newQty - original.quantity;
-        const thresholdChanged = newThreshold !== original.alert_threshold;
-
-        if (change === 0 && !thresholdChanged) {
-          successCount++;
-          return;
-        }
-
-        try {
-          const freshItem = await adminInventoryService.getInventoryById(id);
-          const dto: AdjustInventoryDto = {
-            product_franchise_id: freshItem.product_franchise_id,
-            change,
-            alert_threshold: newThreshold,
-            reason: "Batch update from import/selection",
-          };
-          await adminInventoryService.adjustInventory(dto);
-          successCount++;
-        } catch {
-          errorCount++;
-        }
-      }),
-    );
-
-    setBatchUpdating(false);
-
-    // Clear selection & edits for updated items
-    const updatedSet = new Set(idsToUpdate);
-    setPendingEdits((prev) => {
-      const next = { ...prev };
-      for (const id of idsToUpdate) delete next[id];
-      return next;
-    });
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      for (const id of updatedSet) next.delete(id);
-      return next;
-    });
-
-    if (successCount > 0) showSuccess(`Đã cập nhật ${successCount} dòng thành công`);
-    if (errorCount > 0) showError(`${errorCount} dòng cập nhật thất bại`);
-
-    await load(searchFranchise, currentPage, statusFilter, isDeletedFilter);
   };
 
   const handleOpenAdjust = (item: InventoryApiResponse) => {
