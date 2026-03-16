@@ -200,10 +200,10 @@ const DashboardPage = () => {
 
   const statusColor = (s: string) =>
     s === "COMPLETED" ? { bg: "rgba(74,222,128,0.15)", text: "text-green-300" }
-    : s === "CONFIRMED" ? { bg: "rgba(96,165,250,0.15)", text: "text-blue-300" }
-    : s === "PREPARING" ? { bg: "rgba(250,204,21,0.15)", text: "text-yellow-300" }
-    : s === "CANCELLED" ? { bg: "rgba(248,113,113,0.15)", text: "text-red-300" }
-    : { bg: "rgba(255,255,255,0.08)", text: "text-white/60" };
+      : s === "CONFIRMED" ? { bg: "rgba(96,165,250,0.15)", text: "text-blue-300" }
+        : s === "PREPARING" ? { bg: "rgba(250,204,21,0.15)", text: "text-yellow-300" }
+          : s === "CANCELLED" ? { bg: "rgba(248,113,113,0.15)", text: "text-red-300" }
+            : { bg: "rgba(255,255,255,0.08)", text: "text-white/60" };
 
   return (
     <div className="h-full flex flex-col gap-3 overflow-hidden">
