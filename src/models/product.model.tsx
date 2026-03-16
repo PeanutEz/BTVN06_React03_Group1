@@ -339,6 +339,7 @@ export interface ProductFranchiseApiResponse {
   created_at: string;
   updated_at: string;
   product_id: string;
+  product_name?: string;
   franchise_id: string;
   size: string;
   price_base: number;

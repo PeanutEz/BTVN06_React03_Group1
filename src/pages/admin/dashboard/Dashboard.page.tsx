@@ -6,6 +6,8 @@ import { fetchCustomers } from "../../../services/customer.service";
 import { fetchStores } from "../../../services/store.service";
 import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
 import { adminInventoryService } from "../../../services/inventory.service";
+import { adminProductService } from "../../../services/product.service";
+import { adminProductFranchiseService } from "../../../services/product-franchise.service";
 import type { OrderDisplay } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -25,6 +27,7 @@ type TopProduct = {
 type LowStockItem = {
   _id: string;
   product_franchise_id: string;
+  product_name?: string;
   quantity: number;
   alert_threshold: number;
   franchise_id: string;
@@ -81,6 +84,31 @@ const DashboardPage = () => {
         revenueByDate[dateKey] += p.amount;
       });
 
+      const [pfResult, productResult] = await Promise.all([
+        adminProductFranchiseService.searchProductFranchises({
+          searchCondition: { is_deleted: false, is_active: true },
+          pageInfo: { pageNum: 1, pageSize: 200 },
+        }),
+        adminProductService.searchProducts({
+          searchCondition: { is_deleted: false },
+          pageInfo: { pageNum: 1, pageSize: 200 },
+        }),
+      ]);
+
+      // product_id → name
+      const productNameMap: Record<string, string> = {};
+
+      for (const p of productResult.data) {
+        productNameMap[p.id] = p.name;
+      }
+
+      // product_franchise_id → product_id
+      const pfProductMap: Record<string, string> = {};
+
+      for (const pf of pfResult.data) {
+        pfProductMap[pf.id] = pf.product_id;
+      }
+
       const chartData: RevenueChart[] = Object.entries(revenueByDate)
         .map(([date, revenue]) => ({
           date,
@@ -129,10 +157,12 @@ const DashboardPage = () => {
 
       const lowStockResults = await Promise.all(
         stores.map(async (store: any) => {
-          try {
-            if (!store?.id) return [];
+          console.log("Checking store:", store.name, store.id);
 
+          try {
             const items = await adminInventoryService.getLowStockByFranchise(store.id);
+
+            console.log("Low stock items:", store.name, items);
 
             return items.map((item: any) => ({
               ...item,
@@ -146,7 +176,15 @@ const DashboardPage = () => {
         })
       );
 
-      const mergedLowStocks = lowStockResults.flat();
+      const mergedLowStocks = lowStockResults.flat().map((item) => {
+        const productId = pfProductMap[item.product_franchise_id];
+        const productName = productNameMap[productId];
+
+        return {
+          ...item,
+          product_name: productName || "Unknown product",
+        };
+      });
       setLowStocks(mergedLowStocks);
 
       setStats({
@@ -406,10 +444,31 @@ const DashboardPage = () => {
       </div>
 
       {/* Low Stock Alert */}
-      <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-red-700">
-          ⚠️ Cảnh báo tồn kho thấp
-        </h2>
+      <div
+        className={`rounded-2xl border bg-white p-6 shadow-sm ${lowStocks.length === 0
+          ? "border-green-200"
+          : "border-red-200"
+          }`}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2
+            className={`text-lg font-semibold ${lowStocks.length === 0
+                ? "text-green-700"
+                : "text-red-700"
+              }`}
+          >
+            {lowStocks.length === 0
+              ? "✓ Tồn kho ổn định"
+              : "⚠️ Cảnh báo tồn kho thấp"}
+          </h2>
+
+          <Link
+            to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.INVENTORIES}`}
+            className="text-sm font-semibold text-primary-600 hover:text-primary-700"
+          >
+            Xem chi tiết →
+          </Link>
+        </div>
 
         {lowStocks.length === 0 ? (
           <p className="text-sm text-slate-500">
@@ -421,8 +480,8 @@ const DashboardPage = () => {
               <thead>
                 <tr className="border-b text-left text-slate-500">
                   <th className="pb-3">#</th>
-                  <th className="pb-3">Store</th>
-                  <th className="pb-3">Product Franchise ID</th>
+                  <th className="pb-3">Chi Nhánh</th>
+                  <th className="pb-3">Tên sản phẩm</th>
                   <th className="pb-3">Tồn kho</th>
                   <th className="pb-3">Ngưỡng cảnh báo</th>
                 </tr>
@@ -438,7 +497,7 @@ const DashboardPage = () => {
                     </td>
 
                     <td className="py-3">
-                      {item.product_franchise_id}
+                      {item.product_name}
                     </td>
 
                     <td className="py-3 text-red-600 font-semibold">

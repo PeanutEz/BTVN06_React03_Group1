@@ -130,6 +130,14 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
+    label: "Promotions",
+    path: ROUTER_URL.ADMIN_ROUTES.PROMOTIONS,
+    component: React.lazy(
+      () => import("../../pages/admin/promotion/Promotion.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Inventories",
     path: ROUTER_URL.ADMIN_ROUTES.INVENTORIES,
     component: React.lazy(

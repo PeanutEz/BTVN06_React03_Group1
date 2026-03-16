@@ -79,6 +79,7 @@ export const ROUTER_URL = {
     INVENTORY_BY_FRANCHISE: "franchises/:id/inventory",
     CATEGORIES: "categories",
     CATEGORY_FRANCHISE: "franchises/:id/categories",
+    PROMOTIONS: "promotions",
     INVENTORIES: "inventories",
     ROLES: "roles",
     PROFILE: "profile",
