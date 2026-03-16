@@ -92,6 +92,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
+    label: "Vouchers",
+    path: ROUTER_URL.ADMIN_ROUTES.VOUCHERS,
+    component: React.lazy(
+      () => import("../../pages/admin/voucher/VoucherList.page.tsx"),
+    ),
+  },
+  {
     label: "Product Franchises",
     path: ROUTER_URL.ADMIN_ROUTES.PRODUCT_FRANCHISES,
     component: React.lazy(
