@@ -426,13 +426,13 @@ export default function ProductCategoryFranchisePage() {
                   <td className="px-4 py-3 text-slate-700">
                     {it.franchise_name ||
                       franchiseNameMap[it.franchise_id] ||
-                      it.franchise_id}
+                      "N/A"}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
-                    {it.category_name || it.category_id}
+                    {it.category_name || "N/A"}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
-                    {it.product_name || it.product_id}
+                    {it.product_name || "N/A"}
                   </td>
                   <td className="px-4 py-3 text-slate-500">{it.size}</td>
                   <td className="px-4 py-3 text-right font-medium text-slate-700">
@@ -534,14 +534,21 @@ export default function ProductCategoryFranchisePage() {
 
       {/* Create Modal */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-bold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
+            <h2 className="mb-4 text-lg font-bold text-white/95">
               Thêm Product vào Category Franchise
             </h2>
             <form onSubmit={submitCreate} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Category Franchise <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -552,21 +559,21 @@ export default function ProductCategoryFranchisePage() {
                       category_franchise_id: e.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white"
                   required
                 >
                   <option value="">-- Chọn category franchise --</option>
                   {categoryFranchises.map((cf) => (
                     <option key={cf.id} value={cf.id}>
-                      {cf.category_name || cf.category_id} —{" "}
-                      {cf.franchise_name || cf.franchise_id}
+                      {cf.category_name || "N/A"} —{" "}
+                      {cf.franchise_name || "N/A"}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Product Franchise <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -577,13 +584,13 @@ export default function ProductCategoryFranchisePage() {
                       product_franchise_id: e.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white"
                   required
                 >
                   <option value="">-- Chọn product franchise --</option>
                   {productFranchises.map((pf) => (
                     <option key={pf.id} value={pf.id}>
-                      {pf.product_id} — Size: {pf.size} —{" "}
+                        {pf.product_id || "N/A"} — Size: {pf.size} —{" "}
                       {pf.price_base.toLocaleString("vi-VN")}đ
                     </option>
                   ))}
@@ -591,7 +598,7 @@ export default function ProductCategoryFranchisePage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Display Order <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -604,7 +611,7 @@ export default function ProductCategoryFranchisePage() {
                       display_order: Number(e.target.value),
                     }))
                   }
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder-white/30 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
                   required
                 />
               </div>
@@ -614,6 +621,7 @@ export default function ProductCategoryFranchisePage() {
                   type="button"
                   variant="outline"
                   onClick={() => setCreateOpen(false)}
+                  className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
                 >
                   Hủy
                 </Button>
@@ -628,34 +636,39 @@ export default function ProductCategoryFranchisePage() {
 
       {/* Detail Modal */}
       {(detail || detailLoading) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="mb-4 text-lg font-bold text-slate-900">Chi tiết</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
+            <h2 className="mb-4 text-lg font-bold text-white/95">Chi tiết</h2>
             {detailLoading && (
-              <p className="text-sm text-slate-400">Đang tải...</p>
+              <p className="text-sm text-white/50">Đang tải...</p>
             )}
             {detail && (
               <div className="space-y-2 text-sm">
                 {(
                   [
-                    ["ID", detail.id],
                     [
                       "Franchise",
-                      `${detail.franchise_name} (${detail.franchise_id})`,
+                      detail.franchise_name || "N/A",
                     ],
                     [
                       "Category",
-                      `${detail.category_name} (${detail.category_id})`,
+                      detail.category_name || "N/A",
                     ],
                     [
                       "Product",
-                      `${detail.product_name} (${detail.product_id})`,
+                      detail.product_name || "N/A",
                     ],
                     ["Size", detail.size],
                     ["Price", `${detail.price_base.toLocaleString("vi-VN")}đ`],
                     ["Display Order", detail.display_order],
                     ["Status", detail.is_active ? "Active" : "Inactive"],
-                    ["Deleted", detail.is_deleted ? "Yes" : "No"],
                     [
                       "Created",
                       new Date(detail.created_at).toLocaleString("vi-VN"),
@@ -667,16 +680,16 @@ export default function ProductCategoryFranchisePage() {
                   ] as [string, string | number][]
                 ).map(([label, value]) => (
                   <div key={label} className="flex gap-2">
-                    <span className="w-32 flex-shrink-0 font-semibold text-slate-500">
+                    <span className="w-32 flex-shrink-0 font-semibold text-white/50">
                       {label}
                     </span>
-                    <span className="break-all text-slate-700">{value}</span>
+                    <span className="break-all text-white/90">{value}</span>
                   </div>
                 ))}
               </div>
             )}
             <div className="mt-4 flex justify-end">
-              <Button variant="outline" onClick={() => setDetail(null)}>
+              <Button variant="outline" onClick={() => setDetail(null)} className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]">
                 Đóng
               </Button>
             </div>
@@ -686,17 +699,24 @@ export default function ProductCategoryFranchisePage() {
 
       {/* Reorder Modal */}
       {reorderItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h2 className="mb-1 text-lg font-bold text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
+            <h2 className="mb-1 text-lg font-bold text-white/95">
               Đổi thứ tự hiển thị
             </h2>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-white/50">
               {reorderItem.product_name} — {reorderItem.category_name}
             </p>
             <form onSubmit={submitReorder} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Vị trí mới <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -704,7 +724,7 @@ export default function ProductCategoryFranchisePage() {
                   min={1}
                   value={newPosition}
                   onChange={(e) => setNewPosition(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder-white/30 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
                   autoFocus
                   required
                 />
@@ -714,6 +734,7 @@ export default function ProductCategoryFranchisePage() {
                   type="button"
                   variant="outline"
                   onClick={() => setReorderItem(null)}
+                  className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
                 >
                   Hủy
                 </Button>
