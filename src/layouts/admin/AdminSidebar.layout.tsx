@@ -139,6 +139,15 @@ const adminNav: Array<{
       </svg>
     ),
   },
+  {
+    label: "Shifts",
+    to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.SHIFTS}`,
+    icon: (
+      <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
 ];
 
 interface AdminSidebarProps {
@@ -252,31 +261,6 @@ const AdminSidebar = ({ }: AdminSidebarProps) => {
           );
         })}
       </nav>
-
-      {/* User profile card */}
-      <div className="px-4 pt-2 pb-3 shrink-0">
-        <div className="mx-1 mb-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
-        {user && (
-          <div
-            className="flex items-center gap-3 px-3 py-3 rounded-2xl"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <img
-              src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
-              alt={user.name}
-              className="size-9 rounded-xl object-cover shrink-0"
-              style={{ border: "2px solid rgba(255,255,255,0.15)" }}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white truncate">{user.name}</p>
-              <p className="text-xs text-white/45 truncate">{currentRole}</p>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Logout button */}
       <div className="px-4 pb-5 shrink-0">
