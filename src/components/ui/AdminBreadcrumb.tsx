@@ -67,20 +67,20 @@ const AdminBreadcrumb = () => {
   if (crumbs.length === 0) return null;
 
   return (
-    <nav className="mb-4 flex items-center gap-1.5 text-sm text-slate-500">
+    <nav className="mb-4 flex items-center gap-1.5 text-sm text-white/50">
       {crumbs.map((crumb, idx) => (
         <span key={idx} className="flex items-center gap-1.5">
           {idx > 0 && (
-            <svg className="size-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="size-3.5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           )}
           {crumb.to && idx < crumbs.length - 1 ? (
-            <Link to={crumb.to} className="hover:text-primary-600 transition-colors">
+            <Link to={crumb.to} className="hover:text-primary-400 transition-colors">
               {crumb.label}
             </Link>
           ) : (
-            <span className="font-medium text-slate-700">{crumb.label}</span>
+            <span className="font-medium text-white/80">{crumb.label}</span>
           )}
         </span>
       ))}

@@ -279,18 +279,32 @@ const OrderDetailPage = () => {
 
       {/* Status Update Modal */}
       {showStatusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <h2 className="mb-4 text-xl font-bold text-slate-900">Cập nhật trạng thái</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/25"
+           
+            onClick={() => setShowStatusModal(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
+            <h2 className="mb-4 text-xl font-bold text-white/95">Cập nhật trạng thái</h2>
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
+                <label className="mb-2 block text-sm font-semibold text-white/80">
                   Chọn trạng thái mới
                 </label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value as OrderStatus)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
                 >
                   <option value="DRAFT">Nháp</option>
                   <option value="CONFIRMED">Đã xác nhận</option>
@@ -312,7 +326,7 @@ const OrderDetailPage = () => {
                   onClick={() => setShowStatusModal(false)}
                   variant="outline"
                   disabled={updating}
-                  className="flex-1"
+                  className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </Button>

@@ -72,9 +72,7 @@ export default function LoyaltyDashboardPage() {
                         ? "gold"
                         : "purple"
                   }
-                >
-                  {dashboard.tier}
-                </Tag>
+                />
               }
             />
           </Card>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
@@ -23,6 +23,7 @@ const DEFAULT_CREATE: CreateProductFranchiseDto = {
 };
 
 export default function ProductFranchisePage() {
+  const showConfirm = useConfirm();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ProductFranchiseApiResponse[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -385,7 +386,7 @@ export default function ProductFranchisePage() {
   };
 
   const handleDelete = async (it: ProductFranchiseApiResponse) => {
-    if (!confirm("Bạn có chắc muốn xóa item này?")) return;
+    if (!await showConfirm({ message: "Bạn có chắc muốn xóa item này?", variant: "danger" })) return;
     try {
       await adminProductFranchiseService.deleteProductFranchise(it.id);
       showSuccess("Đã xóa");
@@ -396,7 +397,7 @@ export default function ProductFranchisePage() {
   };
 
   const handleRestore = async (it: ProductFranchiseApiResponse) => {
-    if (!confirm("Khôi phục item này?")) return;
+    if (!await showConfirm({ message: "Khôi phục item này?", variant: "warning" })) return;
     try {
       await adminProductFranchiseService.restoreProductFranchise(it.id);
       showSuccess("Đã khôi phục");
@@ -409,7 +410,7 @@ export default function ProductFranchisePage() {
   const handleToggleStatus = async (it: ProductFranchiseApiResponse) => {
     const next = !it.is_active;
     const action = next ? "Bật bán" : "Tắt bán";
-    if (!confirm(`${action} item này?`)) return;
+    if (!await showConfirm(`${action} item này?`)) return;
     try {
       await adminProductFranchiseService.changeProductFranchiseStatus(it.id, next);
       showSuccess("Đã cập nhật trạng thái");
@@ -449,8 +450,8 @@ export default function ProductFranchisePage() {
       </div>
 
       {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-4">
+      <div className="relative z-30 overflow-visible rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="relative overflow-visible grid gap-3 md:grid-cols-4">
           {/* Franchise combobox */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Franchise</label>
@@ -458,7 +459,7 @@ export default function ProductFranchisePage() {
               <button
                 type="button"
                 onClick={() => setFranchiseOpen((o) => !o)}
-                className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-300/40"
               >
                 <span className="truncate">
                   {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
@@ -468,14 +469,14 @@ export default function ProductFranchisePage() {
                 </svg>
               </button>
               {franchiseOpen && (
-                <div className="absolute left-0 right-0 z-20 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
+                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
                   <div className="border-b border-slate-200 px-3 py-2">
                     <input
                       autoFocus
                       value={franchiseKeyword}
                       onChange={(e) => setFranchiseKeyword(e.target.value)}
                       placeholder="Tìm theo tên hoặc mã..."
-                      className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                      className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-slate-400 focus:ring-1 focus:ring-slate-300/50"
                     />
                   </div>
                   <div className="max-h-64 overflow-y-auto py-1 text-sm">
@@ -488,7 +489,7 @@ export default function ProductFranchisePage() {
                         setFranchiseKeyword("");
                       }}
                       className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
-                        !filters.franchise_id ? "bg-primary-50 text-primary-700" : "text-slate-600 hover:bg-slate-50"
+                        !filters.franchise_id ? "bg-slate-100 text-slate-800" : "text-slate-600 hover:bg-slate-50"
                       }`}
                     >
                       -- Tất cả franchise --
@@ -506,7 +507,7 @@ export default function ProductFranchisePage() {
                             setFranchiseKeyword("");
                           }}
                           className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                            active ? "bg-primary-50 text-primary-700" : "text-slate-700 hover:bg-slate-50"
+                            active ? "bg-slate-100 text-slate-800" : "text-slate-700 hover:bg-slate-50"
                           }`}
                         >
                           <span className="truncate">{fr.name} ({fr.code})</span>
@@ -529,7 +530,7 @@ export default function ProductFranchisePage() {
               <button
                 type="button"
                 onClick={() => setProductOpen((o) => !o)}
-                className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-300/40"
               >
                 <span className="truncate">
                   {filters.product_id ? `${productNameMap[filters.product_id] || filters.product_id}` : "-- Tất cả product --"}
@@ -539,14 +540,14 @@ export default function ProductFranchisePage() {
                 </svg>
               </button>
               {productOpen && (
-                <div className="absolute left-0 right-0 z-20 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
+                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
                   <div className="border-b border-slate-200 px-3 py-2">
                     <input
                       autoFocus
                       value={productKeyword}
                       onChange={(e) => setProductKeyword(e.target.value)}
                       placeholder="Tìm theo tên hoặc SKU..."
-                      className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                      className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-slate-400 focus:ring-1 focus:ring-slate-300/50"
                     />
                   </div>
                   <div className="max-h-64 overflow-y-auto py-1 text-sm">
@@ -559,7 +560,7 @@ export default function ProductFranchisePage() {
                         setProductKeyword("");
                       }}
                       className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
-                        !filters.product_id ? "bg-primary-50 text-primary-700" : "text-slate-600 hover:bg-slate-50"
+                        !filters.product_id ? "bg-slate-100 text-slate-800" : "text-slate-600 hover:bg-slate-50"
                       }`}
                     >
                       -- Tất cả product --
@@ -577,7 +578,7 @@ export default function ProductFranchisePage() {
                             setProductKeyword("");
                           }}
                           className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                            active ? "bg-primary-50 text-primary-700" : "text-slate-700 hover:bg-slate-50"
+                            active ? "bg-slate-100 text-slate-800" : "text-slate-700 hover:bg-slate-50"
                           }`}
                         >
                           <span className="truncate">{p.name} — {p.SKU}</span>
@@ -674,7 +675,7 @@ export default function ProductFranchisePage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="relative z-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -691,12 +692,10 @@ export default function ProductFranchisePage() {
               {items.map((it) => (
                 <tr key={it.id} className={`${it.is_deleted && filters.is_deleted ? "bg-red-50" : "hover:bg-slate-50"}`}>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-900">{productNameMap[it.product_id] || it.product_id}</p>
-                    <p className="text-[11px] font-mono text-slate-400">{it.product_id}</p>
+                    <p className="font-semibold text-slate-900">{productNameMap[it.product_id] || "N/A"}</p>
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-semibold text-slate-900">{franchiseNameMap[it.franchise_id] || it.franchise_id}</p>
-                    <p className="text-[11px] font-mono text-slate-400">{it.franchise_id}</p>
+                    <p className="font-semibold text-slate-900">{franchiseNameMap[it.franchise_id] || "N/A"}</p>
                   </td>
                   <td className="px-4 py-3">
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{it.size}</span>
@@ -813,13 +812,20 @@ export default function ProductFranchisePage() {
 
       {/* Create Modal */}
       {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-xl rounded-2xl p-6" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Thêm sản phẩm vào Franchise</h2>
+                <h2 className="text-lg font-bold text-white/95">Thêm sản phẩm vào Franchise</h2>
               </div>
-              <button onClick={() => setCreateOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setCreateOpen(false)} className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1]">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -829,29 +835,29 @@ export default function ProductFranchisePage() {
             <form onSubmit={submitCreate} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Franchise *</label>
+                  <label className="text-sm font-semibold text-white/80">Franchise *</label>
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setCreateFranchiseOpen((o) => !o)}
-                      className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-left text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      className="flex w-full items-center justify-between rounded-lg border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition border focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                     >
                       <span className="truncate">
                         {createForm.franchise_id ? (franchiseNameMap[createForm.franchise_id] || createForm.franchise_id) : "-- Chọn franchise --"}
                       </span>
-                      <svg className="ml-2 size-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
                     {createFranchiseOpen && (
-                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
-                        <div className="border-b border-slate-200 px-3 py-2">
+                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.12] bg-white/[0.08] shadow-lg" style={{ backdropFilter: "blur(40px) saturate(180%)", WebkitBackdropFilter: "blur(40px) saturate(180%)" }}>
+                        <div className="border-b border-white/[0.12] px-3 py-2">
                           <input
                             autoFocus
                             value={createFranchiseKeyword}
                             onChange={(e) => setCreateFranchiseKeyword(e.target.value)}
                             placeholder="Tìm theo tên hoặc mã..."
-                            className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                            className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
                           />
                         </div>
                         <div className="max-h-64 overflow-y-auto py-1 text-sm">
@@ -864,13 +870,13 @@ export default function ProductFranchisePage() {
                                 setCreateFranchiseOpen(false);
                                 setCreateFranchiseKeyword("");
                               }}
-                              className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              className="flex w-full items-center px-3 py-2 text-left text-xs text-white/80 hover:bg-white/[0.1]"
                             >
                               <span className="truncate">{fr.name} ({fr.code})</span>
                             </button>
                           ))}
                           {createFranchiseOptions.length === 0 && (
-                            <div className="px-3 py-2 text-xs text-slate-400">Không tìm thấy franchise</div>
+                            <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise</div>
                           )}
                         </div>
                       </div>
@@ -879,29 +885,29 @@ export default function ProductFranchisePage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Product *</label>
+                  <label className="text-sm font-semibold text-white/80">Product *</label>
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setCreateProductOpen((o) => !o)}
-                      className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-left text-sm text-slate-700 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                     >
                       <span className="truncate">
                         {createForm.product_id ? (productNameMap[createForm.product_id] || createForm.product_id) : "-- Chọn product --"}
                       </span>
-                      <svg className="ml-2 size-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
                     {createProductOpen && (
-                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
-                        <div className="border-b border-slate-200 px-3 py-2">
+                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.12] bg-white/[0.08] shadow-lg" style={{ backdropFilter: "blur(40px) saturate(180%)", WebkitBackdropFilter: "blur(40px) saturate(180%)" }}>
+                        <div className="border-b border-white/[0.12] px-3 py-2">
                           <input
                             autoFocus
                             value={createProductKeyword}
                             onChange={(e) => setCreateProductKeyword(e.target.value)}
                             placeholder="Tìm theo tên hoặc SKU..."
-                            className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                            className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
                           />
                         </div>
                         <div className="max-h-64 overflow-y-auto py-1 text-sm">
@@ -914,24 +920,24 @@ export default function ProductFranchisePage() {
                                 setCreateProductOpen(false);
                                 setCreateProductKeyword("");
                               }}
-                              className="flex w-full items-center px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50"
+                              className="flex w-full items-center px-3 py-2 text-left text-xs text-white/80 hover:bg-white/[0.1]"
                             >
                               <span className="truncate">{p.name} — {p.SKU}</span>
                             </button>
                           ))}
                           {productLoading && (
-                            <div className="px-3 py-2 text-xs text-slate-400">
+                            <div className="px-3 py-2 text-xs text-white/40">
                               Đang tải...
                             </div>
                           )}
                           {createProductOptions.length === 0 && (
-                            <div className="px-3 py-2 text-xs text-slate-400">Không tìm thấy product</div>
+                            <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy product</div>
                           )}
                           {!productLoading && createProductOptions.length > 0 && productPage < productTotalPages && (
                             <button
                               type="button"
                               onClick={() => loadProducts(createProductKeyword.trim(), productPage + 1, true)}
-                              className="flex w-full items-center justify-center px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-50"
+                              className="flex w-full items-center justify-center px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-white/[0.1]"
                             >
                               Tải thêm
                             </button>
@@ -945,11 +951,11 @@ export default function ProductFranchisePage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Size *</label>
+                  <label className="text-sm font-semibold text-white/80">Size *</label>
                   <select
                     value={createForm.size}
                     onChange={(e) => setCreateForm((f) => ({ ...f, size: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   >
                     <option value="">-- Chọn size --</option>
                     <option value="S">S</option>
@@ -960,19 +966,19 @@ export default function ProductFranchisePage() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Price Base *</label>
+                  <label className="text-sm font-semibold text-white/80">Price Base *</label>
                   <input
                     value={String(createForm.price_base ?? "")}
                     onChange={(e) => setCreateForm((f) => ({ ...f, price_base: Number(e.target.value) }))}
                     placeholder="VD: 35000"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
               </div>
 
               <div className="flex gap-3 pt-1">
                 <Button type="submit" loading={creating} className="flex-1">Xác nhận</Button>
-                <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={creating} className="flex-1">Hủy</Button>
+                <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={creating} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Hủy</Button>
               </div>
             </form>
           </div>
@@ -981,56 +987,57 @@ export default function ProductFranchisePage() {
 
       {/* Detail Modal */}
       {detailId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Chi tiết</h2>
+                <h2 className="text-lg font-bold text-white/95">Chi tiết</h2>
               </div>
-              <button onClick={() => setDetailId(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setDetailId(null)} className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1]">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
             {detailLoading ? (
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+              <div className="flex items-center gap-2 text-sm text-white/50">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white/70" />
                 Đang tải...
               </div>
             ) : !detail ? (
-              <p className="text-sm text-slate-500">Không có dữ liệu</p>
+              <p className="text-sm text-white/50">Không có dữ liệu</p>
             ) : (
               <div className="space-y-3 text-sm">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs text-slate-500">ID</p>
-                  <p className="font-mono text-xs text-slate-700">{detail.id}</p>
+                <div className="rounded-xl border border-white/[0.12] px-4 py-3">
+                  <p className="text-xs text-white/50">Product</p>
+                  <p className="font-semibold text-white/95">{productNameMap[detail.product_id] || "N/A"}</p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs text-slate-500">Product</p>
-                  <p className="font-semibold text-slate-900">{productNameMap[detail.product_id] || detail.product_id}</p>
-                  <p className="font-mono text-[11px] text-slate-400">{detail.product_id}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-xs text-slate-500">Franchise</p>
-                  <p className="font-semibold text-slate-900">{franchiseNameMap[detail.franchise_id] || detail.franchise_id}</p>
-                  <p className="font-mono text-[11px] text-slate-400">{detail.franchise_id}</p>
+                <div className="rounded-xl border border-white/[0.12] px-4 py-3">
+                  <p className="text-xs text-white/50">Franchise</p>
+                  <p className="font-semibold text-white/95">{franchiseNameMap[detail.franchise_id] || "N/A"}</p>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                    <p className="text-xs text-slate-500">Size</p>
-                    <p className="font-semibold text-slate-900">{detail.size}</p>
+                  <div className="rounded-xl border border-white/[0.12] px-4 py-3">
+                    <p className="text-xs text-white/50">Size</p>
+                    <p className="font-semibold text-white/95">{detail.size}</p>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                    <p className="text-xs text-slate-500">Price base</p>
-                    <p className="font-semibold text-slate-900">{Number(detail.price_base).toLocaleString("vi-VN")} đ</p>
+                  <div className="rounded-xl border border-white/[0.12] px-4 py-3">
+                    <p className="text-xs text-white/50">Price base</p>
+                    <p className="font-semibold text-white/95">{Number(detail.price_base).toLocaleString("vi-VN")} đ</p>
                   </div>
                 </div>
               </div>
             )}
             <div className="mt-5 flex gap-3">
-              <Button variant="outline" onClick={() => { if (detail) openEdit(detail); setDetailId(null); }} disabled={!detail} className="flex-1">Sửa</Button>
-              <Button variant="outline" onClick={() => setDetailId(null)} className="flex-1">Đóng</Button>
+              <Button variant="outline" onClick={() => { if (detail) openEdit(detail); setDetailId(null); }} disabled={!detail} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Sửa</Button>
+              <Button variant="outline" onClick={() => setDetailId(null)} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Đóng</Button>
             </div>
           </div>
         </div>
@@ -1038,49 +1045,56 @@ export default function ProductFranchisePage() {
 
       {/* Edit Modal */}
       {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Cập nhật</h2>
+                <h2 className="text-lg font-bold text-white/95">Cập nhật</h2>
               </div>
-              <button onClick={() => setEditing(null)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setEditing(null)} className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1]">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              <p className="font-semibold text-slate-900">
+            <div className="mb-4 rounded-xl border border-white/[0.12] bg-white/[0.06] px-4 py-3 text-sm">
+              <p className="font-semibold text-white/95">
                 {productNameMap[editing.product_id] || editing.product_id} • {franchiseNameMap[editing.franchise_id] || editing.franchise_id}
               </p>
-              <p className="text-xs text-slate-500">Record: <span className="font-mono">{editing.id}</span></p>
+              <p className="text-xs text-white/50">Chỉnh sửa thông tin sản phẩm</p>
             </div>
 
             <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Size *</label>
+                  <label className="text-sm font-semibold text-white/80">Size *</label>
                   <input
                     value={editSize}
                     onChange={(e) => setEditSize(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Price base *</label>
+                  <label className="text-sm font-semibold text-white/80">Price base *</label>
                   <input
                     value={editPriceBase}
                     onChange={(e) => setEditPriceBase(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
               </div>
 
               <div className="flex gap-3 pt-1">
                 <Button onClick={submitUpdate} loading={updating} className="flex-1">Lưu</Button>
-                <Button variant="outline" onClick={() => setEditing(null)} disabled={updating} className="flex-1">Hủy</Button>
+                <Button variant="outline" onClick={() => setEditing(null)} disabled={updating} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Hủy</Button>
               </div>
             </div>
           </div>
@@ -1089,14 +1103,21 @@ export default function ProductFranchisePage() {
 
       {/* Menu by franchise modal (API-08) */}
       {menuOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div className="relative w-full max-w-3xl rounded-2xl p-6" style={{
+            background: "rgba(255, 255, 255, 0.12)",
+            backdropFilter: "blur(40px) saturate(200%)",
+            WebkitBackdropFilter: "blur(40px) saturate(200%)",
+            border: "1px solid rgba(255, 255, 255, 0.25)",
+            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          }}>
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Menu theo Franchise</h2>
-                <p className="mt-0.5 text-xs text-slate-500">GET /api/product-franchises/franchise/:franchiseId</p>
+                <h2 className="text-lg font-bold text-white/95">Menu theo Franchise</h2>
+                <p className="mt-0.5 text-xs text-white/50">Danh sách sản phẩm theo chi nhánh</p>
               </div>
-              <button onClick={() => setMenuOpen(false)} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <button onClick={() => setMenuOpen(false)} className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1]">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1105,11 +1126,11 @@ export default function ProductFranchisePage() {
 
             <div className="grid gap-3 md:grid-cols-3">
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Franchise</label>
+                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Franchise</label>
                 <select
                   value={menuFranchiseId}
                   onChange={(e) => setMenuFranchiseId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 >
                   <option value="">-- Chọn franchise --</option>
                   {franchises.map((f) => (
@@ -1118,8 +1139,8 @@ export default function ProductFranchisePage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">onlyActive</label>
-                <label className="mt-1 flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">onlyActive</label>
+                <label className="mt-1 flex items-center gap-2 rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90">
                   <input type="checkbox" checked={menuOnlyActive} onChange={(e) => setMenuOnlyActive(e.target.checked)} />
                   Chỉ lấy item active
                 </label>
@@ -1132,32 +1153,31 @@ export default function ProductFranchisePage() {
             </div>
 
             {menuItems && (
-              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
-                <div className="bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.12]">
+                <div className="bg-white/[0.06] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/50">
                   Kết quả ({menuItems.length})
                 </div>
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-white/[0.08]">
                   {menuItems.map((m) => (
                     <div key={m.id} className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-900">
-                          {productNameMap[m.product_id] || m.product_id} • Size: {m.size}
+                        <p className="truncate font-semibold text-white/95">
+                          {productNameMap[m.product_id] || "N/A"} • Size: {m.size}
                         </p>
-                        <p className="text-xs text-slate-500">
-                          Price: {Number(m.price_base).toLocaleString("vi-VN")} đ •{" "}
-                          <span className="font-mono">{m.id}</span>
+                        <p className="text-xs text-white/50">
+                          Price: {Number(m.price_base).toLocaleString("vi-VN")} đ
                         </p>
                       </div>
                       <div className="flex gap-2">
                         <button
                           onClick={() => openDetail(m.id)}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
+                          className="rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/[0.1] hover:text-white"
                         >
                           Chi tiết
                         </button>
                         <button
                           onClick={() => openEdit(m)}
-                          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
+                          className="rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/[0.1] hover:text-white"
                         >
                           Sửa
                         </button>
@@ -1165,7 +1185,7 @@ export default function ProductFranchisePage() {
                     </div>
                   ))}
                   {menuItems.length === 0 && (
-                    <div className="px-4 py-6 text-center text-sm text-slate-500">Không có dữ liệu</div>
+                    <div className="px-4 py-6 text-center text-sm text-white/50">Không có dữ liệu</div>
                   )}
                 </div>
               </div>
