@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+﻿import { useEffect, useRef, useState, useCallback } from "react";
 import { Button, GlassSelect, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { adminInventoryService } from "../../../services/inventory.service";
@@ -14,8 +14,27 @@ import type {
 } from "../../../models/inventory.model";
 import type { ProductFranchiseApiResponse } from "../../../models/product.model";
 import { showSuccess, showError } from "../../../utils";
+import * as XLSX from "xlsx";
 
 const ITEMS_PER_PAGE = 10;
+
+// ─── Import validation error type ──────────────────────────────────────────
+interface ImportRowError {
+  row: number; // 1-based row index (relative to data rows)
+  field: "quantity" | "alert_threshold";
+  message: string;
+}
+
+interface ImportPreviewRow {
+  id: string;
+  product_name: string;
+  franchise_name: string;
+  old_quantity: number;
+  new_quantity: number;
+  old_threshold: number;
+  new_threshold: number;
+  matched: boolean;
+}
 
 export default function InventoryListPage() {
   const showConfirm = useConfirm();
@@ -34,6 +53,35 @@ export default function InventoryListPage() {
   const [franchiseOptions, setFranchiseOptions] = useState<
     FranchiseSelectItem[]
   >([]);
+
+  // Checkbox selection
+  const [_selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Import errors
+  const [importErrors, setImportErrors] = useState<ImportRowError[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Export by franchise modal
+  const [exportFranchiseOpen, setExportFranchiseOpen] = useState(false);
+  const [exportMode, setExportMode] = useState<"all" | "franchise">("all");
+  const [exportFranchiseId, setExportFranchiseId] = useState("");
+  const [exportFranchiseKeyword, setExportFranchiseKeyword] = useState("");
+  const [exportFranchiseComboOpen, setExportFranchiseComboOpen] = useState(false);
+  const [exportFranchiseLoading, setExportFranchiseLoading] = useState(false);
+  const exportFranchiseComboRef = useRef<HTMLDivElement>(null);
+
+  // Import preview modal
+  const [importPreviewOpen, setImportPreviewOpen] = useState(false);
+  const [importPreviewRows, setImportPreviewRows] = useState<ImportPreviewRow[]>([]);
+
+  // Import modal (select franchise first)
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFranchiseId, setImportFranchiseId] = useState("");
+  const [importFranchiseKeyword, setImportFranchiseKeyword] = useState("");
+  const [importFranchiseComboOpen, setImportFranchiseComboOpen] = useState(false);
+  const [importFranchiseLoading, setImportFranchiseLoading] = useState(false);
+  const [importItems, setImportItems] = useState<InventoryApiResponse[]>([]);
+  const importFranchiseComboRef = useRef<HTMLDivElement>(null);
 
   // Adjust modal
   const [adjustTarget, setAdjustTarget] = useState<InventoryApiResponse | null>(
@@ -159,6 +207,12 @@ export default function InventoryListPage() {
       ) {
         setPfComboOpen(false);
       }
+      if (
+        exportFranchiseComboRef.current &&
+        !exportFranchiseComboRef.current.contains(e.target as Node)
+      ) {
+        setExportFranchiseComboOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -167,18 +221,289 @@ export default function InventoryListPage() {
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handlePageChange = (page: number) => {
     setPendingEdits({});
+    setSelectedIds(new Set());
+    setImportErrors([]);
     setCurrentPage(page);
     load(searchFranchise, page, statusFilter, isDeletedFilter);
   };
 
   const handleResetFilters = () => {
     setPendingEdits({});
+    setSelectedIds(new Set());
+    setImportErrors([]);
     setSearchFranchise("");
     setStatusFilter("");
     setIsDeletedFilter(false);
     setCurrentPage(1);
     load("", 1, "", false);
   };
+
+  // ─── Export ───────────────────────────────────────────────────────────────
+  const buildExcelFromItems = (dataToExport: InventoryApiResponse[], filename: string) => {
+    const rows = dataToExport.map((item, idx) => ({
+      STT: idx + 1,
+      product_name: item.product_name ?? "",
+      franchise_name: item.franchise_name ?? "",
+      quantity: item.quantity,
+      alert_threshold: item.alert_threshold,
+      is_active: item.is_active ? "Active" : "Inactive",
+      updated_at: new Date(item.updated_at).toLocaleString("vi-VN"),
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const colWidths = Object.keys(rows[0]).map((key) => ({
+      wch: Math.max(key.length, ...rows.map((r) => String(r[key as keyof typeof r]).length)) + 2,
+    }));
+    ws["!cols"] = colWidths;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleExportAllInventory = async () => {
+    setExportFranchiseLoading(true);
+    try {
+      const PAGE_SIZE = 100;
+      let page = 1;
+      let allData: InventoryApiResponse[] = [];
+      while (true) {
+        const result = await adminInventoryService.searchInventories({
+          searchCondition: { is_deleted: false },
+          pageInfo: { pageNum: page, pageSize: PAGE_SIZE },
+        });
+        allData = allData.concat(result.data);
+        if (page >= result.pageInfo.totalPages) break;
+        page++;
+      }
+      if (allData.length === 0) { showError("Không có dữ liệu tồn kho"); return; }
+      buildExcelFromItems(allData, `inventory_all_franchises_${Date.now()}.xlsx`);
+      showSuccess(`Đã export ${allData.length} dòng (tất cả franchise)`);
+      setExportFranchiseOpen(false);
+    } catch {
+      showError("Export thất bại");
+    } finally {
+      setExportFranchiseLoading(false);
+    }
+  };
+
+  const handleExportByFranchise = async () => {
+    if (!exportFranchiseId) { showError("Vui lòng chọn franchise"); return; }
+    setExportFranchiseLoading(true);
+    try {
+      // Fetch all pages for the franchise
+      const PAGE_SIZE = 100;
+      let page = 1;
+      let allData: InventoryApiResponse[] = [];
+      while (true) {
+        const result = await adminInventoryService.searchInventories({
+          searchCondition: { franchise_id: exportFranchiseId, is_deleted: false },
+          pageInfo: { pageNum: page, pageSize: PAGE_SIZE },
+        });
+        allData = allData.concat(result.data);
+        if (page >= result.pageInfo.totalPages) break;
+        page++;
+      }
+      if (allData.length === 0) { showError("Không có dữ liệu tồn kho cho franchise này"); return; }
+      const franchiseName = franchiseOptions.find((f) => f.value === exportFranchiseId)?.name ?? exportFranchiseId;
+      buildExcelFromItems(allData, `inventory_${franchiseName}_${Date.now()}.xlsx`);
+      showSuccess(`Đã export ${allData.length} dòng cho franchise "${franchiseName}"`);
+      setExportFranchiseOpen(false);
+      setExportFranchiseId("");
+      setExportFranchiseKeyword("");
+    } catch {
+      showError("Export thất bại");
+    } finally {
+      setExportFranchiseLoading(false);
+    }
+  };
+
+  // ─── Download import template ─────────────────────────────────────────────
+  const handleImportConfirm = async () => {
+    if (!importFranchiseId) { showError("Vui lòng chọn franchise"); return; }
+    setImportFranchiseLoading(true);
+    try {
+      const PAGE_SIZE = 100;
+      let page = 1;
+      let allData: InventoryApiResponse[] = [];
+      while (true) {
+        const result = await adminInventoryService.searchInventories({
+          searchCondition: { franchise_id: importFranchiseId, is_deleted: false },
+          pageInfo: { pageNum: page, pageSize: PAGE_SIZE },
+        });
+        allData = allData.concat(result.data);
+        if (page >= result.pageInfo.totalPages) break;
+        page++;
+      }
+      setImportItems(allData);
+      setImportModalOpen(false);
+      fileInputRef.current?.click();
+    } catch {
+      showError("Lấy dữ liệu tồn kho thất bại");
+    } finally {
+      setImportFranchiseLoading(false);
+    }
+  };
+
+  // ─── Download import template ─────────────────────────────────────────────
+  const handleDownloadTemplate = () => {
+    // Use current table rows as reference data (read-only product/franchise info)
+    // User only needs to fill in quantity and alert_threshold
+    const templateRows =
+      items.length > 0
+        ? items.map((item, idx) => ({
+            STT: idx + 1,
+            product_name: item.product_name ?? "",
+            franchise_name: item.franchise_name ?? "",
+            quantity: item.quantity,          // ← chỉnh sửa cột này
+            alert_threshold: item.alert_threshold, // ← chỉnh sửa cột này
+          }))
+        : [
+            {
+              STT: 1,
+              product_name: "Tên sản phẩm (chỉ tham khảo)",
+              franchise_name: "Tên franchise (chỉ tham khảo)",
+              quantity: 100,
+              alert_threshold: 10,
+            },
+            {
+              STT: 2,
+              product_name: "Tên sản phẩm (chỉ tham khảo)",
+              franchise_name: "Tên franchise (chỉ tham khảo)",
+              quantity: 50,
+              alert_threshold: 5,
+            },
+          ];
+
+    const ws = XLSX.utils.json_to_sheet(templateRows);
+
+    // Style column widths
+    ws["!cols"] = [
+      { wch: 6 },  // STT
+      { wch: 28 }, // product_name
+      { wch: 24 }, // franchise_name
+      { wch: 14 }, // quantity
+      { wch: 18 }, // alert_threshold
+    ];
+
+    // Add a note row at the top to guide user
+    XLSX.utils.sheet_add_aoa(
+      ws,
+      [[
+        "// Ghi chú: Chỉ chỉnh sửa 2 cột 'quantity' và 'alert_threshold'. Khớp sản phẩm theo 'product_name'.",
+      ]],
+      { origin: { r: 0, c: 0 } },
+    );
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inventory_Template");
+    XLSX.writeFile(wb, "inventory_import_template.xlsx");
+  };
+
+  // ─── Import with validation ───────────────────────────────────────────────
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const jsonRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+
+        if (jsonRows.length === 0) {
+          showError("File import không có dữ liệu");
+          return;
+        }
+
+        // Validate each row — check quantity first then alert_threshold (left to right)
+        const errors: ImportRowError[] = [];
+        const validRows: { product_name: string; quantity: number; alert_threshold: number }[] = [];
+
+        for (let i = 0; i < jsonRows.length; i++) {
+          const row = jsonRows[i];
+          const rowNum = i + 1;
+          const rowProductName = String(row["product_name"] ?? "").trim();
+          let rowHasError = false;
+
+          // Validate quantity (left to right — check quantity first)
+          const rawQty = row["quantity"];
+          const qty = Number(rawQty);
+          if (rawQty === undefined || rawQty === null || rawQty === "" || isNaN(qty)) {
+            errors.push({
+              row: rowNum,
+              field: "quantity",
+              message: `Row ${String(rowNum).padStart(2, "0")}, lỗi chỉ được nhập data số ở field quantity`,
+            });
+            rowHasError = true;
+          } else if (qty < 0) {
+            errors.push({
+              row: rowNum,
+              field: "quantity",
+              message: `Row ${String(rowNum).padStart(2, "0")}, lỗi data ở field quantity phải >= 0`,
+            });
+            rowHasError = true;
+          }
+
+          // Validate alert_threshold
+          const rawThreshold = row["alert_threshold"];
+          const threshold = Number(rawThreshold);
+          if (rawThreshold === undefined || rawThreshold === null || rawThreshold === "" || isNaN(threshold)) {
+            errors.push({
+              row: rowNum,
+              field: "alert_threshold",
+              message: `Row ${String(rowNum).padStart(2, "0")}, lỗi chỉ được nhập data số ở field alert_threshold`,
+            });
+            rowHasError = true;
+          } else if (threshold < 0) {
+            errors.push({
+              row: rowNum,
+              field: "alert_threshold",
+              message: `Row ${String(rowNum).padStart(2, "0")}, lỗi data ở field alert_threshold phải >= 0`,
+            });
+            rowHasError = true;
+          }
+
+          if (!rowHasError) {
+            validRows.push({ product_name: rowProductName, quantity: qty, alert_threshold: threshold });
+          }
+        }
+
+        // 4.4: If any error → don't import, keep original data
+        if (errors.length > 0) {
+          setImportErrors(errors);
+          showError(`Import thất bại: ${errors.length} lỗi`);
+        } else {
+          // 4.5: All rows OK → build preview
+          setImportErrors([]);
+          const previewRows: ImportPreviewRow[] = validRows.map((vr) => {
+            const match = importItems.find(
+              (item) => (item.product_name ?? "").trim() === vr.product_name,
+            );
+            return {
+              id: match?.id ?? "",
+              product_name: vr.product_name,
+              franchise_name: match?.franchise_name ?? "",
+              old_quantity: match?.quantity ?? 0,
+              new_quantity: vr.quantity,
+              old_threshold: match?.alert_threshold ?? 0,
+              new_threshold: vr.alert_threshold,
+              matched: !!match,
+            };
+          });
+          setImportPreviewRows(previewRows);
+          setImportPreviewOpen(true);
+        }
+      } catch {
+        showError("Không thể đọc file. Vui lòng kiểm tra định dạng Excel/CSV.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+
+    // Reset input so same file can be re-imported
+    e.target.value = "";
+  };
+
   const handleOpenAdjust = (item: InventoryApiResponse) => {
     setAdjustTarget(item);
     setAdjustForm({ change: "", reason: "" });
@@ -198,6 +523,7 @@ export default function InventoryListPage() {
 
   const handleDiscardEdits = () => {
     setPendingEdits({});
+    setImportErrors([]);
   };
 
   const handleBatchSave = async () => {
@@ -447,11 +773,85 @@ export default function InventoryListPage() {
             )}
           </p>
         </div>
-        <Button onClick={handleOpenCreate}>+ Thêm mới</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+          {/* Download template */}
+          <button
+            onClick={handleDownloadTemplate}
+            title="Tải file mẫu Excel để import"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
+          >
+            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Tải mẫu
+          </button>
+          {/* Import */}
+          <button
+            onClick={() => { setImportModalOpen(true); setImportFranchiseId(""); setImportFranchiseKeyword(""); }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Import
+          </button>
+          {/* Export */}
+          <button
+            onClick={() => { setExportFranchiseOpen(true); setExportMode("all"); setExportFranchiseId(""); setExportFranchiseKeyword(""); }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export
+          </button>
+          <Button onClick={handleOpenCreate}>+ Thêm mới</Button>
+        </div>
       </div>
 
+      {/* ─── Import Errors ─── */}
+      {importErrors.length > 0 && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <svg className="size-5 text-red-500 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-red-800 mb-2">
+                  Import thất bại — {importErrors.length} lỗi được phát hiện:
+                </p>
+                <div className="space-y-1">
+                  {importErrors.map((err, idx) => (
+                    <p key={idx} className="text-sm text-red-700">
+                      {err.message}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setImportErrors([])}
+              className="rounded-lg p-1 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors shrink-0"
+            >
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filter Bar */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="relative z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-3">
           <div
             ref={franchiseComboRef}
@@ -488,7 +888,7 @@ export default function InventoryListPage() {
               </span>
             )}
             {franchiseComboOpen && (
-              <div className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+              <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                 <div
                   className="cursor-pointer px-3 py-2 text-sm text-slate-400 hover:bg-slate-50"
                   onMouseDown={() => {
@@ -1347,6 +1747,388 @@ export default function InventoryListPage() {
               >
                 Đóng
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Import Preview Modal ──────────────────────────────────────────────── */}
+      {importPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 shrink-0">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Preview Import</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {importPreviewRows.filter((r) => r.matched).length} / {importPreviewRows.length} dòng khớp — xem lại trước khi áp dụng
+                </p>
+              </div>
+              <button
+                onClick={() => setImportPreviewOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="overflow-auto flex-1 px-6 py-4">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    <th className="px-3 py-2 rounded-tl-lg">Sản phẩm</th>
+                    <th className="px-3 py-2">Franchise</th>
+                    <th className="px-3 py-2 text-center">Số lượng cũ</th>
+                    <th className="px-3 py-2 text-center">Số lượng mới</th>
+                    <th className="px-3 py-2 text-center">Ngưỡng cũ</th>
+                    <th className="px-3 py-2 text-center rounded-tr-lg">Ngưỡng mới</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {importPreviewRows.map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className={row.matched ? "hover:bg-slate-50" : "bg-red-50"}
+                    >
+                      <td className="px-3 py-2 font-medium text-slate-800">
+                        {row.product_name || <span className="italic text-slate-400">—</span>}
+                        {!row.matched && (
+                          <span className="ml-2 text-xs text-red-500 font-normal">không khớp</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">{row.franchise_name || "—"}</td>
+                      <td className="px-3 py-2 text-center text-slate-500">{row.matched ? row.old_quantity : "—"}</td>
+                      <td className={`px-3 py-2 text-center font-semibold ${
+                        row.matched && row.new_quantity !== row.old_quantity
+                          ? "text-primary-700"
+                          : "text-slate-700"
+                      }`}>
+                        {row.new_quantity}
+                      </td>
+                      <td className="px-3 py-2 text-center text-slate-500">{row.matched ? row.old_threshold : "—"}</td>
+                      <td className={`px-3 py-2 text-center font-semibold ${
+                        row.matched && row.new_threshold !== row.old_threshold
+                          ? "text-primary-700"
+                          : "text-slate-700"
+                      }`}>
+                        {row.new_threshold}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => setImportPreviewOpen(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => {
+                  const newPending: Record<string, { quantity?: string; alert_threshold?: string }> = {};
+                  const newSelected = new Set<string>();
+                  for (const row of importPreviewRows) {
+                    if (row.matched && row.id) {
+                      newPending[row.id] = {
+                        quantity: String(row.new_quantity),
+                        alert_threshold: String(row.new_threshold),
+                      };
+                      newSelected.add(row.id);
+                    }
+                  }
+                  setPendingEdits(newPending);
+                  setSelectedIds(newSelected);
+                  setImportPreviewOpen(false);
+                  showSuccess(`Đã áp dụng ${newSelected.size} dòng — kiểm tra lại và nhấn Cập nhật`);
+                }}
+                disabled={importPreviewRows.filter((r) => r.matched).length === 0}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Áp dụng ({importPreviewRows.filter((r) => r.matched).length} dòng)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Import Modal ─────────────────────────────────────────────────────── */}
+      {importModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Import tồn kho</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Chọn franchise trước khi import file</p>
+              </div>
+              <button
+                onClick={() => setImportModalOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                  Franchise <span className="text-red-500">*</span>
+                </label>
+                <div ref={importFranchiseComboRef} className="relative">
+                  <input
+                    type="text"
+                    placeholder="Tìm franchise..."
+                    value={importFranchiseKeyword}
+                    onChange={(e) => {
+                      setImportFranchiseKeyword(e.target.value);
+                      setImportFranchiseId("");
+                      setImportFranchiseComboOpen(true);
+                    }}
+                    onFocus={() => setImportFranchiseComboOpen(true)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                  {importFranchiseId && (
+                    <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-primary-50 px-3 py-1.5 text-xs text-primary-700">
+                      <span className="font-medium">
+                        {franchiseOptions.find((f) => f.value === importFranchiseId)?.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => { setImportFranchiseId(""); setImportFranchiseKeyword(""); }}
+                        className="ml-auto text-primary-400 hover:text-primary-700"
+                      >✕</button>
+                    </div>
+                  )}
+                  {importFranchiseComboOpen && (
+                    <div className="absolute z-30 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {franchiseOptions
+                        .filter((f) => f.name.toLowerCase().includes(importFranchiseKeyword.toLowerCase()))
+                        .length === 0 && (
+                        <p className="px-3 py-2 text-sm text-slate-400">Không tìm thấy</p>
+                      )}
+                      {franchiseOptions
+                        .filter((f) => f.name.toLowerCase().includes(importFranchiseKeyword.toLowerCase()))
+                        .map((f) => (
+                          <div
+                            key={f.value}
+                            onMouseDown={() => {
+                              setImportFranchiseId(f.value);
+                              setImportFranchiseKeyword(f.name);
+                              setImportFranchiseComboOpen(false);
+                            }}
+                            className={`cursor-pointer px-3 py-2 text-sm hover:bg-primary-50 hover:text-primary-700 ${
+                              importFranchiseId === f.value ? "bg-primary-50 font-medium text-primary-700" : "text-slate-700"
+                            }`}
+                          >
+                            {f.name}
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setImportModalOpen(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleImportConfirm}
+                  disabled={!importFranchiseId || importFranchiseLoading}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {importFranchiseLoading ? (
+                    <>
+                      <svg className="animate-spin size-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Đang tải...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      Chọn file Import
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Export Modal ─────────────────────────────────────────────────────── */}
+      {exportFranchiseOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Export tồn kho</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Chọn phạm vi dữ liệu muốn export</p>
+              </div>
+              <button
+                onClick={() => setExportFranchiseOpen(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              {/* Mode cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExportMode("all")}
+                  className={`rounded-xl border-2 p-4 text-left transition-all ${
+                    exportMode === "all"
+                      ? "border-primary-500 bg-primary-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className={`mb-1.5 inline-flex size-8 items-center justify-center rounded-lg ${
+                    exportMode === "all" ? "bg-primary-100" : "bg-slate-100"
+                  }`}>
+                    <svg className={`size-4 ${exportMode === "all" ? "text-primary-600" : "text-slate-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  </div>
+                  <p className={`text-sm font-semibold ${exportMode === "all" ? "text-primary-800" : "text-slate-700"}`}>
+                    Tất cả
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">Toàn bộ franchise</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExportMode("franchise")}
+                  className={`rounded-xl border-2 p-4 text-left transition-all ${
+                    exportMode === "franchise"
+                      ? "border-primary-500 bg-primary-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className={`mb-1.5 inline-flex size-8 items-center justify-center rounded-lg ${
+                    exportMode === "franchise" ? "bg-primary-100" : "bg-slate-100"
+                  }`}>
+                    <svg className={`size-4 ${exportMode === "franchise" ? "text-primary-600" : "text-slate-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+                    </svg>
+                  </div>
+                  <p className={`text-sm font-semibold ${exportMode === "franchise" ? "text-primary-800" : "text-slate-700"}`}>
+                    Theo franchise
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">Chọn 1 franchise</p>
+                </button>
+              </div>
+
+              {/* Franchise picker — only when mode = franchise */}
+              {exportMode === "franchise" && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
+                    Franchise <span className="text-red-500">*</span>
+                  </label>
+                  <div ref={exportFranchiseComboRef} className="relative">
+                    <input
+                      type="text"
+                      placeholder="Tìm franchise..."
+                      value={exportFranchiseKeyword}
+                      onChange={(e) => {
+                        setExportFranchiseKeyword(e.target.value);
+                        setExportFranchiseId("");
+                        setExportFranchiseComboOpen(true);
+                      }}
+                      onFocus={() => setExportFranchiseComboOpen(true)}
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    />
+                    {exportFranchiseId && (
+                      <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-primary-50 px-3 py-1.5 text-xs text-primary-700">
+                        <span className="font-medium">
+                          {franchiseOptions.find((f) => f.value === exportFranchiseId)?.name}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => { setExportFranchiseId(""); setExportFranchiseKeyword(""); }}
+                          className="ml-auto text-primary-400 hover:text-primary-700"
+                        >✕</button>
+                      </div>
+                    )}
+                    {exportFranchiseComboOpen && (
+                      <div className="absolute z-30 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                        {franchiseOptions
+                          .filter((f) => f.name.toLowerCase().includes(exportFranchiseKeyword.toLowerCase()))
+                          .length === 0 && (
+                          <p className="px-3 py-2 text-sm text-slate-400">Không tìm thấy</p>
+                        )}
+                        {franchiseOptions
+                          .filter((f) => f.name.toLowerCase().includes(exportFranchiseKeyword.toLowerCase()))
+                          .map((f) => (
+                            <div
+                              key={f.value}
+                              onMouseDown={() => {
+                                setExportFranchiseId(f.value);
+                                setExportFranchiseKeyword(f.name);
+                                setExportFranchiseComboOpen(false);
+                              }}
+                              className={`cursor-pointer px-3 py-2 text-sm hover:bg-primary-50 hover:text-primary-700 ${
+                                exportFranchiseId === f.value ? "bg-primary-50 font-medium text-primary-700" : "text-slate-700"
+                              }`}
+                            >
+                              {f.name}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setExportFranchiseOpen(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={exportMode === "all" ? handleExportAllInventory : handleExportByFranchise}
+                  disabled={(exportMode === "franchise" && !exportFranchiseId) || exportFranchiseLoading}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {exportFranchiseLoading ? (
+                    <>
+                      <svg className="animate-spin size-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Đang tải...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                      Export
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
