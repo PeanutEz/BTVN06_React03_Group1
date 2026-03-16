@@ -235,7 +235,8 @@ export default function CategoryListPage() {
           {/* Status filter */}
           <GlassSelect
             value={statusFilter}
-            onChange={(v) => { setStatusFilter(v); setCurrentPage(1); load(searchQuery, 1, v, parentFilter, isDeletedFilter); }}
+            onChange={(value) => { setStatusFilter(value); setCurrentPage(1); load(searchQuery, 1, value, parentFilter, isDeletedFilter); }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             options={[
               { value: "", label: "Tất cả trạng thái" },
               { value: "true", label: "Active" },
@@ -246,7 +247,8 @@ export default function CategoryListPage() {
           {/* Parent category filter */}
           <GlassSelect
             value={parentFilter}
-            onChange={(v) => { setParentFilter(v); setCurrentPage(1); load(searchQuery, 1, statusFilter, v, isDeletedFilter); }}
+            onChange={(value) => { setParentFilter(value); setCurrentPage(1); load(searchQuery, 1, statusFilter, value, isDeletedFilter); }}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             options={[
               { value: "", label: "Tất cả danh mục cha" },
               ...parentOptions.map((opt) => ({ value: opt.value, label: opt.name })),
