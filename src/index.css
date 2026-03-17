@@ -2,6 +2,705 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Glassmorphism Utility Classes ===== */
+.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glass-sidebar {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-header {
+  background: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(30px) saturate(150%);
+  -webkit-backdrop-filter: blur(30px) saturate(150%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-table-header {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.glass-hover:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Admin video background overlay */
+.admin-video-overlay {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 23, 42, 0.30) 0%,
+    rgba(15, 23, 42, 0.18) 50%,
+    rgba(15, 23, 42, 0.30) 100%
+  );
+}
+
+/* ===== Admin Single-Screen Layout =====
+   Forces all admin pages to fit within one viewport (no page-level scroll).
+   The table card stretches to fill remaining height, overflow handled internally.
+*/
+
+/* Page wrapper — fill parent flex container */
+.admin-glass-theme .space-y-6,
+.admin-glass-theme .space-y-3,
+.admin-glass-theme .p-6 {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* space-y gap fix (since we switched to flex, disable Tailwind's margin-top) */
+.admin-glass-theme .space-y-6 {
+  gap: 0.75rem !important;
+}
+.admin-glass-theme .space-y-3 {
+  gap: 0.5rem !important;
+}
+.admin-glass-theme .space-y-6 > * + *,
+.admin-glass-theme .space-y-3 > * + * {
+  margin-top: 0 !important;
+}
+
+/* The table card (last major section) stretches to fill remaining space */
+.admin-glass-theme .space-y-6 > .overflow-hidden.rounded-2xl,
+.admin-glass-theme .space-y-3 > .overflow-hidden.rounded-2xl,
+.admin-glass-theme .space-y-6 > .bg-white.rounded-lg,
+.admin-glass-theme .space-y-3 > .bg-white.rounded-lg,
+.admin-glass-theme .p-6 > .overflow-hidden,
+.admin-glass-theme .p-6 > .bg-white.rounded-lg {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+/* Table scroll container fills the card */
+.admin-glass-theme .overflow-x-auto {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+}
+
+/* Header + filter sections stay compact */
+.admin-glass-theme .space-y-6 > .flex:first-child,
+.admin-glass-theme .space-y-3 > .flex:first-child,
+.admin-glass-theme .space-y-6 > .rounded-2xl.border.p-4,
+.admin-glass-theme .space-y-3 > .rounded-2xl.border.p-3,
+.admin-glass-theme .space-y-3 > .rounded-2xl.border.p-4,
+.admin-glass-theme .space-y-6 > .rounded-2xl.border.p-4.sm\:p-6,
+.admin-glass-theme .p-6 > .flex:first-child,
+.admin-glass-theme .p-6 > .rounded-2xl.border.p-4 {
+  flex-shrink: 0 !important;
+}
+
+/* Pagination stays at bottom */
+.admin-glass-theme .space-y-6 .px-4:last-child,
+.admin-glass-theme .space-y-3 .px-4:last-child,
+.admin-glass-theme .p-6 .px-4:last-child,
+.admin-glass-theme .border-t.px-4 {
+  flex-shrink: 0 !important;
+}
+
+/* ===== Admin Glass Theme — Global Overrides =====
+   Scoped under .admin-glass-theme so only admin pages are affected.
+   Converts light Tailwind utility classes to dark glassmorphism equivalents.
+*/
+
+/* --- Backgrounds --- */
+.admin-glass-theme .bg-white {
+  background: rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+/* Dropdown panels — solid black */
+.admin-glass-theme .absolute.z-20.rounded-lg,
+.admin-glass-theme .absolute.z-30.rounded-lg {
+  background: #000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7) !important;
+}
+
+.admin-glass-theme .bg-slate-50,
+.admin-glass-theme .bg-slate-100,
+.admin-glass-theme .bg-gray-50,
+.admin-glass-theme .bg-gray-100 {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.admin-glass-theme .bg-green-50,
+.admin-glass-theme .bg-green-100 {
+  background: rgba(74, 222, 128, 0.1) !important;
+}
+
+.admin-glass-theme .bg-blue-50,
+.admin-glass-theme .bg-blue-100 {
+  background: rgba(96, 165, 250, 0.1) !important;
+}
+
+.admin-glass-theme .bg-red-50,
+.admin-glass-theme .bg-red-100 {
+  background: rgba(248, 113, 113, 0.1) !important;
+}
+
+.admin-glass-theme .bg-yellow-50,
+.admin-glass-theme .bg-yellow-100 {
+  background: rgba(250, 204, 21, 0.1) !important;
+}
+
+.admin-glass-theme .bg-purple-50,
+.admin-glass-theme .bg-purple-100 {
+  background: rgba(168, 85, 247, 0.1) !important;
+}
+
+.admin-glass-theme .bg-orange-50,
+.admin-glass-theme .bg-orange-100 {
+  background: rgba(251, 146, 60, 0.1) !important;
+}
+
+/* --- Borders --- */
+.admin-glass-theme .border-slate-200,
+.admin-glass-theme .border-slate-300,
+.admin-glass-theme .border-gray-200,
+.admin-glass-theme .border-gray-300 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.admin-glass-theme .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+.admin-glass-theme .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-glass-theme .border-red-200 {
+  border-color: rgba(248, 113, 113, 0.25) !important;
+}
+
+/* --- Text colors (dark → light) --- */
+.admin-glass-theme .text-slate-900,
+.admin-glass-theme .text-gray-900 {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.admin-glass-theme .text-slate-800,
+.admin-glass-theme .text-gray-800 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.admin-glass-theme .text-slate-700,
+.admin-glass-theme .text-gray-700 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.admin-glass-theme .text-slate-600,
+.admin-glass-theme .text-gray-600 {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.admin-glass-theme .text-slate-500,
+.admin-glass-theme .text-gray-500 {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.admin-glass-theme .text-slate-400,
+.admin-glass-theme .text-gray-400 {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Colored text adjustments for dark bg */
+.admin-glass-theme .text-blue-700 { color: #93c5fd !important; }
+.admin-glass-theme .text-blue-900 { color: #ffffff !important; }
+.admin-glass-theme .text-green-700 { color: #86efac !important; }
+.admin-glass-theme .text-green-900 { color: #ffffff !important; }
+.admin-glass-theme .text-red-700 { color: #fca5a5 !important; }
+.admin-glass-theme .text-red-600 { color: #f87171 !important; }
+.admin-glass-theme .text-red-900 { color: #ffffff !important; }
+.admin-glass-theme .text-yellow-700 { color: #fde047 !important; }
+.admin-glass-theme .text-yellow-900 { color: #ffffff !important; }
+.admin-glass-theme .text-purple-700 { color: #c4b5fd !important; }
+.admin-glass-theme .text-purple-900 { color: #ffffff !important; }
+.admin-glass-theme .text-orange-700 { color: #fdba74 !important; }
+.admin-glass-theme .text-orange-900 { color: #ffffff !important; }
+
+/* --- Hover states --- */
+.admin-glass-theme .hover\:bg-slate-50:hover,
+.admin-glass-theme .hover\:bg-gray-50:hover,
+.admin-glass-theme .hover\:bg-slate-100:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.admin-glass-theme .hover\:bg-red-50:hover {
+  background: rgba(248, 113, 113, 0.1) !important;
+}
+
+/* Override gradient backgrounds used in stat cards */
+.admin-glass-theme [class*="bg-gradient-to-br"] {
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+}
+
+/* Hover border overrides for action buttons */
+.admin-glass-theme .hover\:border-primary-400:hover {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+.admin-glass-theme .hover\:text-primary-600:hover {
+  color: #f87171 !important;
+}
+.admin-glass-theme .hover\:border-indigo-400:hover {
+  border-color: rgba(129, 140, 248, 0.4) !important;
+}
+.admin-glass-theme .hover\:border-amber-400:hover {
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+.admin-glass-theme .hover\:border-amber-500:hover {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+}
+.admin-glass-theme .hover\:border-green-400:hover {
+  border-color: rgba(74, 222, 128, 0.4) !important;
+}
+.admin-glass-theme .hover\:border-emerald-500:hover {
+  border-color: rgba(52, 211, 153, 0.5) !important;
+}
+.admin-glass-theme .hover\:border-red-400:hover {
+  border-color: rgba(248, 113, 113, 0.4) !important;
+}
+
+/* Hover text color overrides */
+.admin-glass-theme .hover\:text-slate-600:hover {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+.admin-glass-theme .hover\:bg-slate-100:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* --- Shadows (remove light shadows, add dark glass shadows) --- */
+.admin-glass-theme .shadow-sm {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+/* --- Rings and focus states --- */
+.admin-glass-theme .ring-slate-200,
+.admin-glass-theme .ring-slate-300 {
+  --tw-ring-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+.admin-glass-theme .focus\:ring-slate-200:focus,
+.admin-glass-theme .focus\:ring-slate-300:focus {
+  --tw-ring-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* --- Inputs & form elements --- */
+.admin-glass-theme input,
+.admin-glass-theme select,
+.admin-glass-theme textarea {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #f1f5f9 !important;
+}
+
+.admin-glass-theme input[type="time"] {
+  color-scheme: dark;
+}
+
+.admin-glass-theme input::placeholder,
+.admin-glass-theme select::placeholder,
+.admin-glass-theme textarea::placeholder {
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.admin-glass-theme input:focus,
+.admin-glass-theme select:focus,
+.admin-glass-theme textarea:focus {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.admin-glass-theme select option {
+  background: #1e293b !important;
+  color: #f1f5f9 !important;
+}
+
+/* --- Buttons --- */
+.admin-glass-theme .bg-primary-600,
+.admin-glass-theme .bg-primary-500 {
+  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+}
+
+/* --- Tables: make card-like containers glassmorphic --- */
+.admin-glass-theme .rounded-2xl.border {
+  background: rgba(255, 255, 255, 0.06) !important;
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.admin-glass-theme .rounded-xl.border {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.admin-glass-theme .rounded-lg.border {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* --- Status badges (keep colorful but semi-transparent) --- */
+.admin-glass-theme .bg-green-100 { background: rgba(74, 222, 128, 0.15) !important; }
+.admin-glass-theme .bg-blue-100 { background: rgba(96, 165, 250, 0.15) !important; }
+.admin-glass-theme .bg-red-100 { background: rgba(248, 113, 113, 0.15) !important; }
+.admin-glass-theme .bg-yellow-100 { background: rgba(250, 204, 21, 0.12) !important; }
+.admin-glass-theme .bg-gray-100 { background: rgba(255, 255, 255, 0.08) !important; }
+
+/* --- Amber / emerald / indigo / primary bg/border overrides --- */
+.admin-glass-theme .bg-amber-50,
+.admin-glass-theme .bg-amber-100 {
+  background: rgba(245, 158, 11, 0.1) !important;
+}
+
+.admin-glass-theme .bg-emerald-50,
+.admin-glass-theme .bg-emerald-100 {
+  background: rgba(52, 211, 153, 0.1) !important;
+}
+
+.admin-glass-theme .bg-indigo-50,
+.admin-glass-theme .bg-indigo-100 {
+  background: rgba(129, 140, 248, 0.1) !important;
+}
+
+.admin-glass-theme .bg-primary-100 {
+  background: rgba(239, 68, 68, 0.12) !important;
+}
+
+.admin-glass-theme .border-amber-200,
+.admin-glass-theme .border-amber-300 {
+  border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+.admin-glass-theme .border-emerald-300 {
+  border-color: rgba(52, 211, 153, 0.25) !important;
+}
+
+.admin-glass-theme .border-indigo-200 {
+  border-color: rgba(129, 140, 248, 0.25) !important;
+}
+
+.admin-glass-theme .border-green-200 {
+  border-color: rgba(74, 222, 128, 0.25) !important;
+}
+
+.admin-glass-theme .text-amber-600 { color: #fbbf24 !important; }
+.admin-glass-theme .text-amber-800 { color: #fbbf24 !important; }
+.admin-glass-theme .text-emerald-600 { color: #6ee7b7 !important; }
+.admin-glass-theme .text-indigo-500 { color: #a5b4fc !important; }
+.admin-glass-theme .text-primary-700 { color: #fca5a5 !important; }
+.admin-glass-theme .text-green-600 { color: #86efac !important; }
+
+/* --- Hover states for action buttons --- */
+.admin-glass-theme .hover\:bg-primary-50:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.admin-glass-theme .hover\:bg-indigo-50:hover {
+  background: rgba(129, 140, 248, 0.1) !important;
+}
+
+.admin-glass-theme .hover\:bg-amber-50:hover {
+  background: rgba(245, 158, 11, 0.1) !important;
+}
+
+.admin-glass-theme .hover\:bg-emerald-50:hover {
+  background: rgba(52, 211, 153, 0.1) !important;
+}
+
+.admin-glass-theme .hover\:bg-green-50:hover {
+  background: rgba(74, 222, 128, 0.1) !important;
+}
+
+/* Row highlight for deleted items */
+.admin-glass-theme .bg-red-50\/60 {
+  background: rgba(248, 113, 113, 0.06) !important;
+}
+
+/* --- Avatar ring override --- */
+.admin-glass-theme .ring-slate-100 {
+  --tw-ring-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-glass-theme .ring-primary-200 {
+  --tw-ring-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+/* --- Disabled input styling --- */
+.admin-glass-theme input:disabled,
+.admin-glass-theme select:disabled,
+.admin-glass-theme textarea:disabled {
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ===== Admin Glass Modals — Complete System =====
+   Auto-applies bright glass theme to ALL modals inside .admin-glass-theme
+   Modals are BRIGHTER than background so they visually pop out.
+*/
+
+/* Overlay — dark + blur to push modal forward */
+.admin-glass-theme .fixed.inset-0 {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Modal box — dark glass, frosted */
+.admin-glass-theme .fixed.inset-0 .bg-white,
+.admin-glass-theme .fixed.inset-0 > div > .rounded-2xl,
+.admin-glass-theme .fixed.inset-0 > .rounded-2xl,
+.admin-glass-theme [role="dialog"] .bg-white {
+  background: rgba(15, 23, 42, 0.55) !important;
+  backdrop-filter: blur(40px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow:
+    0 30px 70px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Modal headings — bright white */
+.admin-glass-theme .fixed.inset-0 h2,
+.admin-glass-theme .fixed.inset-0 h3 {
+  color: #fff !important;
+}
+
+/* Modal labels */
+.admin-glass-theme .fixed.inset-0 label {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Modal paragraph text */
+.admin-glass-theme .fixed.inset-0 p {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+.admin-glass-theme .fixed.inset-0 .font-semibold,
+.admin-glass-theme .fixed.inset-0 .font-bold {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+/* Modal inputs — brighter glass effect */
+.admin-glass-theme .fixed.inset-0 input,
+.admin-glass-theme .fixed.inset-0 select,
+.admin-glass-theme .fixed.inset-0 textarea,
+.admin-glass-theme [role="dialog"] input,
+.admin-glass-theme [role="dialog"] select,
+.admin-glass-theme [role="dialog"] textarea {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.admin-glass-theme .fixed.inset-0 input::placeholder,
+.admin-glass-theme .fixed.inset-0 textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.admin-glass-theme .fixed.inset-0 input:focus,
+.admin-glass-theme .fixed.inset-0 select:focus,
+.admin-glass-theme .fixed.inset-0 textarea:focus {
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-glass-theme .fixed.inset-0 input:disabled,
+.admin-glass-theme .fixed.inset-0 select:disabled,
+.admin-glass-theme [role="dialog"] input:disabled,
+.admin-glass-theme [role="dialog"] select:disabled {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Modal select options (native dropdown) */
+.admin-glass-theme .fixed.inset-0 select option {
+  background: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Modal inner cards / info boxes — slightly brighter than modal bg */
+.admin-glass-theme .fixed.inset-0 .bg-slate-50,
+.admin-glass-theme .fixed.inset-0 .bg-slate-100,
+.admin-glass-theme .fixed.inset-0 .bg-gray-50,
+.admin-glass-theme .fixed.inset-0 .bg-gray-100 {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+}
+
+/* Modal inner info cards (detail view) */
+.admin-glass-theme .fixed.inset-0 .rounded-xl.border {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+/* Modal inner form fields (inputs, selects, dropdowns) — dark solid */
+.admin-glass-theme .fixed.inset-0 .rounded-lg.border {
+  background: rgba(0, 0, 0, 0.55) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Modal dividers */
+.admin-glass-theme .fixed.inset-0 .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+.admin-glass-theme .fixed.inset-0 .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.admin-glass-theme .fixed.inset-0 .border-t,
+.admin-glass-theme .fixed.inset-0 .border-b {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Modal outline/ghost buttons */
+.admin-glass-theme .fixed.inset-0 button.border-slate-200,
+.admin-glass-theme .fixed.inset-0 button.border-slate-300,
+.admin-glass-theme .fixed.inset-0 .border.text-slate-700 {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+.admin-glass-theme .fixed.inset-0 button.border-slate-200:hover,
+.admin-glass-theme .fixed.inset-0 button.border-slate-300:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+}
+
+/* Modal close buttons */
+.admin-glass-theme .fixed.inset-0 .hover\:bg-slate-100:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Modal table heads */
+.admin-glass-theme .fixed.inset-0 thead {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+.admin-glass-theme .fixed.inset-0 th {
+  color: rgba(255, 255, 255, 0.55) !important;
+}
+.admin-glass-theme .fixed.inset-0 td {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Modal hover rows */
+.admin-glass-theme .fixed.inset-0 .hover\:bg-slate-50:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Modal backdrop overlay (for split-backdrop modals) */
+.admin-glass-theme .fixed.inset-0 > .absolute.inset-0 {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* --- Missing primary color overrides --- */
+.admin-glass-theme .bg-primary-50 {
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.admin-glass-theme .text-primary-800 {
+  color: #fca5a5 !important;
+}
+
+.admin-glass-theme .border-primary-200 {
+  border-color: rgba(239, 68, 68, 0.25) !important;
+}
+
+/* --- Missing hover text override --- */
+.admin-glass-theme .hover\:text-slate-700:hover {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* --- Missing divide override --- */
+.admin-glass-theme .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* --- Tailwind opacity modifier variants --- */
+.admin-glass-theme .bg-amber-50\/50 {
+  background: rgba(245, 158, 11, 0.06) !important;
+}
+
+.admin-glass-theme .hover\:bg-slate-50\/80:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* --- Absolute-positioned dropdowns: solid dark bg --- */
+.admin-glass-theme .absolute.bg-white {
+  background: #1e293b !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* --- Badges/pills: boost bg-slate-100 visibility --- */
+.admin-glass-theme span.bg-slate-100,
+.admin-glass-theme code.bg-slate-100,
+.admin-glass-theme .rounded.bg-slate-100,
+.admin-glass-theme .rounded-full.bg-slate-100,
+.admin-glass-theme .rounded-md.bg-slate-100,
+.admin-glass-theme .rounded-lg.bg-slate-100 {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* --- Scrollbar for glass theme --- */
+.admin-glass-theme ::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+.admin-glass-theme ::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.45);
+  border-radius: 10px;
+}
+.admin-glass-theme ::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.80);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.admin-glass-theme ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.95);
+}
+/* Override generic overflow-y-auto scrollbar inside admin theme */
+.admin-glass-theme .overflow-y-auto::-webkit-scrollbar-track,
+.admin-glass-theme .overflow-y-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.45);
+  border-radius: 10px;
+}
+.admin-glass-theme .overflow-y-auto::-webkit-scrollbar-thumb,
+.admin-glass-theme .overflow-y-scroll::-webkit-scrollbar-thumb {
+  background: rgba(71, 85, 105, 0.80);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.admin-glass-theme .overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.admin-glass-theme .overflow-y-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.95);
+}
+
 :root {
   font-family: 'Inter', system-ui, sans-serif;
   color: #f1f5f9;

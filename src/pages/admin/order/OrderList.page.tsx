@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "../../../components";
+import { Button, GlassSelect } from "../../../components";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_TYPE_LABELS } from "../../../models/order.model";
 import { fetchOrders, filterOrders, searchOrders } from "../../../services/order.service";
@@ -137,34 +137,32 @@ const OrderListPage = () => {
 
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">Cửa hàng</label>
-            <select
+            <GlassSelect
               value={storeFilter}
-              onChange={(e) => setStoreFilter(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="">Tất cả</option>
-              {stores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.code} - {store.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setStoreFilter(v)}
+              className="w-full"
+              options={[
+                { value: "", label: "Tất cả" },
+                ...stores.map((store) => ({ value: store.id, label: `${store.code} - ${store.name}` })),
+              ]}
+            />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">Trạng thái</label>
-            <select
+            <GlassSelect
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as OrderStatus | "")}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="">Tất cả</option>
-              <option value="DRAFT">Nháp</option>
-              <option value="CONFIRMED">Đã xác nhận</option>
-              <option value="PREPARING">Đang chuẩn bị</option>
-              <option value="COMPLETED">Hoàn thành</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </select>
+              onChange={(v) => setStatusFilter(v as OrderStatus | "")}
+              className="w-full"
+              options={[
+                { value: "", label: "Tất cả" },
+                { value: "DRAFT", label: "Nháp" },
+                { value: "CONFIRMED", label: "Đã xác nhận" },
+                { value: "PREPARING", label: "Đang chuẩn bị" },
+                { value: "COMPLETED", label: "Hoàn thành" },
+                { value: "CANCELLED", label: "Đã hủy" },
+              ]}
+            />
           </div>
 
           <div className="space-y-2">
@@ -211,7 +209,7 @@ const OrderListPage = () => {
                 <th className="px-4 py-3">Cửa hàng</th>
                 <th className="px-4 py-3">Khách hàng</th>
                 <th className="px-4 py-3">Tổng tiền</th>
-                <th className="px-4 py-3">PT Thanh toán</th>
+                <th className="px-4 py-3">Loại đơn</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Ngày tạo</th>
                 <th className="px-4 py-3">Thao tác</th>
