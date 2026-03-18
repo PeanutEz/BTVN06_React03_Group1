@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { voucherService } from "@/services/voucher.service";
 import type { Voucher, UpdateVoucherDto } from "@/models/voucher.model";
@@ -87,6 +87,9 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
       });
     }
   }, [voucher]);
+
+  const startDateRef = useRef<HTMLInputElement>(null);
+  const endDateRef = useRef<HTMLInputElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -221,25 +224,51 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Thời gian bắt đầu <span className="text-red-500">*</span></label>
-                <input
-                  type="datetime-local"
-                  name="start_date"
-                  value={formData.start_date}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    ref={startDateRef}
+                    type="datetime-local"
+                    name="start_date"
+                    value={formData.start_date}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&::-webkit-calendar-picker-indicator]:hidden"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => startDateRef.current?.showPicker()}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary-500 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="12" cy="12" r="10" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Thời gian kết thúc <span className="text-red-500">*</span></label>
-                <input
-                  type="datetime-local"
-                  name="end_date"
-                  value={formData.end_date}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    ref={endDateRef}
+                    type="datetime-local"
+                    name="end_date"
+                    value={formData.end_date}
+                    onChange={handleChange}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&::-webkit-calendar-picker-indicator]:hidden"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => endDateRef.current?.showPicker()}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary-500 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="12" cy="12" r="10" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -264,7 +293,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1 text-gray-500">Sản phẩm áp dụng (Tùy chọn)</label>
+                  <label className="block text-sm font-semibold text-gray-500 mb-1">Sản phẩm áp dụng (Tùy chọn)</label>
                   <select
                     name="product_franchise_id"
                     value={formData.product_franchise_id}

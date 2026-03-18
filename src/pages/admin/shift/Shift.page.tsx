@@ -138,6 +138,14 @@ const ShiftPage = () => {
     }
   };
 
+  const extractErrMsg = (err: unknown, fallback: string) =>
+    (err as { response?: { data?: { message?: string; errors?: { message: string }[] } } })
+      ?.response?.data?.message ||
+    (err as { response?: { data?: { errors?: { message: string }[] } } })
+      ?.response?.data?.errors?.[0]?.message ||
+    (err instanceof Error ? err.message : null) ||
+    fallback;
+
   const handleDelete = async (shift: Shift) => {
     if (!await showConfirm({ message: `Bạn có chắc muốn xóa ca "${shift.name}"?`, variant: "danger", confirmText: "Xóa" })) return;
     setSubmitting(true);
@@ -145,8 +153,8 @@ const ShiftPage = () => {
       await deleteShift(shift.id);
       showSuccess(`Đã xóa ca "${shift.name}"`);
       await load();
-    } catch {
-      showError("Xóa ca làm việc thất bại");
+    } catch (err) {
+      showError(extractErrMsg(err, "Xóa ca làm việc thất bại"));
     } finally {
       setSubmitting(false);
     }
@@ -174,8 +182,8 @@ const ShiftPage = () => {
       await changeShiftStatus(shift.id, !shift.is_active);
       showSuccess(`Đã ${action} ca "${shift.name}"`);
       await load();
-    } catch {
-      showError(`${action} ca làm việc thất bại`);
+    } catch (err) {
+      showError(extractErrMsg(err, `${action} ca làm việc thất bại`));
     } finally {
       setSubmitting(false);
     }
@@ -266,16 +274,7 @@ const ShiftPage = () => {
               {shifts.map((s) => (
                 <tr key={s.id} className={`hover:bg-slate-50 ${s.is_deleted ? "bg-red-50/60 opacity-75" : ""}`}>
                   <td className="px-4 py-3">
-                    <div className="leading-tight">
-                      <p className="font-semibold text-slate-900">{s.name}</p>
-                      {s.is_deleted ? (
-                        <span className="text-xs text-red-500 font-medium">✕ Đã xóa</span>
-                      ) : s.is_active ? (
-                        <span className="text-xs text-green-600">● Hoạt động</span>
-                      ) : (
-                        <span className="text-xs text-amber-600">● Không hoạt động</span>
-                      )}
-                    </div>
+                    <p className="font-semibold text-slate-900">{s.name}</p>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{getFranchiseName(s.franchise_id)}</td>
                   <td className="px-4 py-3 text-slate-700">{s.start_time}</td>
@@ -442,30 +441,48 @@ const ShiftPage = () => {
 
               {/* Times */}
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Giờ bắt đầu <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.start_time}
-                    onChange={(e) => setFormData((p) => ({ ...p, start_time: e.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Giờ kết thúc <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="time"
-                    value={formData.end_time}
-                    onChange={(e) => setFormData((p) => ({ ...p, end_time: e.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  />
-                </div>
+                {(["start_time", "end_time"] as const).map((field) => (
+                  <div key={field}>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">
+                      {field === "start_time" ? "Giờ bắt đầu" : "Giờ kết thúc"}{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-1">
+                      <select
+                        value={formData[field] ? formData[field].split(":")[0] : ""}
+                        onChange={(e) => {
+                          const mm = formData[field] ? formData[field].split(":")[1] : "00";
+                          setFormData((p) => ({ ...p, [field]: `${e.target.value}:${mm ?? "00"}` }));
+                        }}
+                        required
+                        className="w-1/2 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      >
+                        <option value="">Giờ</option>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={String(i).padStart(2, "0")}>
+                            {String(i).padStart(2, "0")}h
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={formData[field] ? formData[field].split(":")[1] : ""}
+                        onChange={(e) => {
+                          const hh = formData[field] ? formData[field].split(":")[0] : "00";
+                          setFormData((p) => ({ ...p, [field]: `${hh ?? "00"}:${e.target.value}` }));
+                        }}
+                        required
+                        className="w-1/2 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      >
+                        <option value="">Phút</option>
+                        {Array.from({ length: 60 }, (_, i) => (
+                          <option key={i} value={String(i).padStart(2, "0")}>
+                            {String(i).padStart(2, "0")}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="flex gap-3 pt-2">
