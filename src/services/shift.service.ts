@@ -130,11 +130,11 @@ export async function updateShift(
 // Output: { success, data: null }
 
 export async function deleteShift(id: string): Promise<void> {
-	const response = await apiClient.delete<{ success: boolean; data: null }>(
+	const response = await apiClient.delete<{ success: boolean; data: null; message?: string }>(
 		`/shifts/${id}`,
 	);
 	if (!response.data.success) {
-		throw new Error("Xóa ca làm việc thất bại");
+		throw new Error(response.data.message || "Xóa ca làm việc thất bại");
 	}
 }
 
@@ -156,12 +156,12 @@ export async function restoreShift(id: string): Promise<void> {
 // Output: { success, data: null }
 
 export async function changeShiftStatus(id: string, is_active: boolean): Promise<void> {
-	const response = await apiClient.patch<{ success: boolean; data: null }>(
+	const response = await apiClient.patch<{ success: boolean; data: null; message?: string }>(
 		`/shifts/${id}/status`,
-		{ is_active },
+		{ id, is_active },
 	);
 	if (!response.data.success) {
-		throw new Error("Đổi trạng thái ca làm việc thất bại");
+		throw new Error(response.data.message || "Đổi trạng thái ca làm việc thất bại");
 	}
 }
 

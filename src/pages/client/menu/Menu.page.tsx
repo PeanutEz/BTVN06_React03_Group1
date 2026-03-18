@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { clientService } from "@/services/client.service";
 import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/models/store.model";
 import type { ClientProductListItem } from "@/models/product.model.tsx";
 import { useDeliveryStore } from "@/store/delivery.store";
-import { useMenuCartTotals } from "@/store/menu-cart.store";
+import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
+import { useAuthStore } from "@/store/auth.store";
 import { useLoadingStore } from "@/store/loading.store";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import MenuProductModal from "@/components/menu/MenuProductModal";
 import type { MenuProduct } from "@/types/menu.types";
+import { cartClient } from "@/services/cart.client";
 
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -69,7 +72,7 @@ function toMenuProduct(p: ClientProductListItem, franchiseId: string): MenuProdu
       isFeatured: false,
     } as MenuProduct,
     // Extra metadata for MenuProductModal to fetch real detail from API
-    { _apiFranchiseId: franchiseId, _apiProductId: p.product_id, _apiCategoryName: p.category_name },
+    { _apiFranchiseId: franchiseId, _apiProductId: p.product_id, _apiCategoryName: p.category_name, _apiSizes: p.sizes },
   );
 }
 
@@ -389,7 +392,22 @@ export default function MenuPage() {
   const openBranchPicker = () => {
     setShowBranchPicker(true);
   };
-  const { itemCount, total } = useMenuCartTotals();
+  const { itemCount: localItemCount, total: localTotal } = useMenuCartTotals();
+
+  const cartId = useMenuCartStore((s) => s.cartId);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+
+  const { data: apiCart } = useQuery({
+    queryKey: ["cart-detail", cartId],
+    queryFn: () => cartClient.getCartDetail(cartId!),
+    enabled: !!cartId && isLoggedIn,
+    staleTime: 10_000,
+  });
+
+  const apiItemCount = (apiCart?.items ?? []).reduce((s, i) => s + (i.quantity ?? 1), 0);
+  const apiTotal = apiCart?.total_amount ?? 0;
+  const itemCount = apiItemCount > 0 ? apiItemCount : localItemCount;
+  const total = apiTotal > 0 ? apiTotal : localTotal;
 
   return (
     <>

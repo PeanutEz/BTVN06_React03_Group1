@@ -1,14 +1,45 @@
-﻿import { useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
+import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useAuthStore } from "@/store/auth.store";
 import { isBranchOpen } from "@/services/branch.service";
 import { ROUTER_URL } from "@/routes/router.const";
+import { cartClient, type ApiCartItem, type CartApiData } from "@/services/cart.client";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
+
+interface DisplayCartItem {
+  key: string;
+  apiItemId?: string;
+  name: string;
+  image: string;
+  size?: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  note?: string;
+}
+
+function apiItemToDisplay(item: ApiCartItem, idx: number): DisplayCartItem {
+  const qty = item.quantity ?? 1;
+  const price = item.price_snapshot ?? item.price ?? 0;
+  return {
+    key: item._id ?? item.id ?? `api-${idx}`,
+    apiItemId: item._id ?? item.id,
+    name: item.product_name_snapshot ?? item.name ?? "Sản phẩm",
+    image: item.image_url ?? "",
+    size: item.size,
+    quantity: qty,
+    unitPrice: price,
+    lineTotal: item.line_total ?? price * qty,
+    note: item.note,
+  };
+}
 
 interface MenuOrderPanelProps {
   visible?: boolean;
@@ -22,20 +53,14 @@ export default function MenuOrderPanel({
   onOpenBranchPicker,
 }: MenuOrderPanelProps) {
   const navigate = useNavigate();
-  const items = useMenuCartStore((s) => s.items);
-  const updateQuantity = useMenuCartStore((s) => s.updateQuantity);
-  const removeItem = useMenuCartStore((s) => s.removeItem);
-  const user = useAuthStore((s) => s.user);
+  const queryClient = useQueryClient();
 
-  function handleCheckout() {
-    if (!user) {
-      toast.error("Vui lòng đăng nhập để đặt hàng", {
-        description: "Giỏ hàng và cửa hàng của bạn sẽ được giữ nguyên.",
-      });
-      return;
-    }
-    navigate(ROUTER_URL.MENU_CHECKOUT);
-  }
+  const cartId = useMenuCartStore((s) => s.cartId);
+  const setCartId = useMenuCartStore((s) => s.setCartId);
+  const localItems = useMenuCartStore((s) => s.items);
+  const user = useAuthStore((s) => s.user);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const resolved = useRef(false);
 
   const {
     orderMode,
@@ -47,13 +72,100 @@ export default function MenuOrderPanel({
     estimatedDeliveryMins,
   } = useDeliveryStore();
 
+  // Always fetch active cart on mount to ensure cartId is correct
+  useEffect(() => {
+    if (!isLoggedIn || !user || resolved.current) return;
+    const customerId = String(
+      (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? (user as any)?._id ?? ""
+    );
+    if (!customerId) return;
+    resolved.current = true;
+    cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" })
+      .then((carts) => {
+        const first = (carts as CartApiData[])[0];
+        const id = first?._id ?? first?.id;
+        if (id) setCartId(String(id));
+      })
+      .catch(() => {});
+  }, [isLoggedIn, user, setCartId]);
+
+  // Fetch cart detail from API when cartId exists
+  const { data: apiCart, isLoading: cartLoading } = useQuery({
+    queryKey: ["cart-detail", cartId],
+    queryFn: () => cartClient.getCartDetail(cartId!),
+    enabled: !!cartId && isLoggedIn,
+    refetchOnWindowFocus: true,
+    staleTime: 10_000,
+  });
+
+  const apiItems: DisplayCartItem[] = (apiCart?.items ?? []).map(apiItemToDisplay);
+  const hasApiItems = apiItems.length > 0;
+
+  // Use API items when available, fallback to local items
+  const displayItems: DisplayCartItem[] = hasApiItems
+    ? apiItems
+    : localItems.map((li) => ({
+        key: li.cartKey,
+        name: li.name,
+        image: li.image,
+        size: li.options.size,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        lineTotal: li.unitPrice * li.quantity,
+        note: li.note,
+      }));
+
+  const itemCount = displayItems.reduce((s, i) => s + i.quantity, 0);
+  const subtotal = hasApiItems
+    ? (apiCart?.total_amount ?? displayItems.reduce((s, i) => s + i.lineTotal, 0))
+    : displayItems.reduce((s, i) => s + i.lineTotal, 0);
+  const deliveryFee = orderMode === "DELIVERY" ? currentDeliveryFee : 0;
+  const total = subtotal + deliveryFee;
+
+  async function handleUpdateQuantity(item: DisplayCartItem, newQty: number) {
+    if (newQty < 1) {
+      handleRemoveItem(item);
+      return;
+    }
+    if (item.apiItemId) {
+      try {
+        await cartClient.updateCartItemQuantity({ cart_item_id: item.apiItemId, quantity: newQty });
+        queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+      } catch {
+        toast.error("Không thể cập nhật số lượng");
+      }
+    } else {
+      useMenuCartStore.getState().updateQuantity(item.key, newQty);
+    }
+  }
+
+  async function handleRemoveItem(item: DisplayCartItem) {
+    if (item.apiItemId) {
+      try {
+        await cartClient.deleteCartItem(item.apiItemId);
+        queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+        toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
+      } catch {
+        toast.error("Không thể xóa sản phẩm");
+      }
+    } else {
+      useMenuCartStore.getState().removeItem(item.key);
+      toast.success("Đã xóa sản phẩm");
+    }
+  }
+
+  function handleCheckout() {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để đặt hàng", {
+        description: "Giỏ hàng và cửa hàng của bạn sẽ được giữ nguyên.",
+      });
+      return;
+    }
+    navigate(ROUTER_URL.MENU_CHECKOUT);
+  }
+
   const displayName = orderMode === "PICKUP" ? selectedFranchiseName : selectedBranch?.name ?? null;
   const hasLocation = orderMode === "PICKUP" ? !!selectedFranchiseName : !!selectedBranch;
-
-  const { itemCount, subtotal, total } = useMenuCartTotals(
-    orderMode === "DELIVERY" ? currentDeliveryFee : 0,
-  );
-
   const branchOpen = selectedBranch ? isBranchOpen(selectedBranch) : false;
 
   const disabledReason = !hasLocation
@@ -62,13 +174,14 @@ export default function MenuOrderPanel({
     ? "Cửa hàng đang đóng cửa"
     : orderMode === "DELIVERY" && !isReadyToOrder
     ? "Địa chỉ chưa xác nhận"
-    : items.length === 0
+    : displayItems.length === 0
     ? "Chưa có món"
     : null;
 
-  const canCheckout = !disabledReason && items.length > 0;
+  const canCheckout = !disabledReason && displayItems.length > 0;
 
-  if (items.length === 0) {
+  // Empty state
+  if (displayItems.length === 0 && !cartLoading) {
     return (
       <div className={cn("flex flex-col h-full", !visible && "hidden lg:flex")}>
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 shrink-0">
@@ -85,6 +198,20 @@ export default function MenuOrderPanel({
           <div className="text-5xl mb-3">🛒</div>
           <p className="font-semibold text-gray-700 mb-1 text-sm">Giỏ hàng trống</p>
           <p className="text-xs text-gray-400">Chọn đồ uống từ menu để đặt hàng nhé!</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state
+  if (cartLoading && displayItems.length === 0) {
+    return (
+      <div className={cn("flex flex-col h-full", !visible && "hidden lg:flex")}>
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-100 shrink-0">
+          <h2 className="font-bold text-gray-900 text-sm">Đơn hàng của bạn</h2>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-xs text-gray-400">Đang tải giỏ hàng...</p>
         </div>
       </div>
     );
@@ -116,28 +243,33 @@ export default function MenuOrderPanel({
           </button>
         )}
         <div className="divide-y divide-gray-50">
-          {items.map((item) => (
-            <div key={item.cartKey} className="px-4 py-3 flex gap-3">
-              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-50 shrink-0">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-              </div>
+          {displayItems.map((item) => (
+            <div key={item.key} className="px-4 py-3 flex gap-3">
+              {item.image && (
+                <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-50 shrink-0">
+                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 text-xs truncate">{item.name}</p>
                 <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">
-                  Size {item.options.size} · {item.options.sugar} đường · {item.options.ice}
-                  {item.options.toppings.length > 0 && ` · ${item.options.toppings.map((t) => t.name).join(", ")}`}
+                  {item.size && `Size ${item.size}`}
+                  {item.note && ` · ${item.note}`}
                 </p>
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center gap-0.5 border border-gray-200 rounded-lg overflow-hidden">
-                    <button onClick={() => item.quantity > 1 ? updateQuantity(item.cartKey, item.quantity - 1) : removeItem(item.cartKey)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs">
+                    <button
+                      onClick={() => item.quantity > 1 ? handleUpdateQuantity(item, item.quantity - 1) : handleRemoveItem(item)}
+                      className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs"
+                    >
                       {item.quantity === 1 ? (
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       ) : "−"}
                     </button>
                     <span className="w-5 text-center text-[11px] font-semibold select-none">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.cartKey, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs">+</button>
+                    <button onClick={() => handleUpdateQuantity(item, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-xs">+</button>
                   </div>
-                  <span className="text-xs font-bold text-gray-900">{fmt(item.unitPrice * item.quantity)}</span>
+                  <span className="text-xs font-bold text-gray-900">{fmt(item.lineTotal)}</span>
                 </div>
               </div>
             </div>

@@ -1,19 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
+import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useAuthStore } from "@/store/auth.store";
-import { isBranchOpen } from "@/services/branch.service";
-import BranchPickerModal from "@/components/menu/BranchPickerModal";
-import MenuProductModal from "@/components/menu/MenuProductModal";
 import { ROUTER_URL } from "@/routes/router.const";
-import type { PlacedOrder, PaymentMethod, AppliedPromo } from "@/types/delivery.types";
-import type { MenuCartItem, MenuProduct } from "@/types/menu.types";
-import { createPayment } from "@/services/payment.service";
-
-const VAT_RATE = 0.08; // 8% VAT
+import type { PaymentMethod, AppliedPromo } from "@/types/delivery.types";
+import { cartClient, type CartApiData, type ApiCartItem } from "@/services/cart.client";
+import { orderClient } from "@/services/order.client";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -38,14 +34,6 @@ function InputField({
   );
 }
 
-// ─── Mock promo codes ─────────────────────────────────────────────────────
-const MOCK_PROMOS: Record<string, { label: string; type: "percent" | "fixed" | "freeship"; value: number }> = {
-  "MOMO10": { label: "Giảm 10% (MoMo)", type: "percent", value: 10 },
-  "HYLUX50K": { label: "Giảm 50.000đ", type: "fixed", value: 50000 },
-  "FREESHIP": { label: "Miễn phí giao hàng", type: "freeship", value: 0 },
-  "WELCOME20": { label: "Giảm 20% đơn đầu", type: "percent", value: 20 },
-};
-
 const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string; desc: string }[] = [
   { value: "CASH",      label: "Tiền mặt (COD)",      icon: "💵", desc: "Thanh toán khi nhận hàng" },
   { value: "MOMO",      label: "Ví MoMo",              icon: "🟣", desc: "Thanh toán qua MoMo" },
@@ -54,24 +42,115 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string; icon: string; desc
   { value: "BANK",      label: "Thẻ NH / Chuyển khoản", icon: "🏦", desc: "QR code / tài khoản ngân hàng" },
 ];
 
+interface DisplayItem {
+  key: string;
+  apiItemId?: string;
+  name: string;
+  image: string;
+  size?: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+}
+
 export default function MenuCheckoutPage() {
   const navigate = useNavigate();
-  const items = useMenuCartStore((s) => s.items);
-  const updateQuantity = useMenuCartStore((s) => s.updateQuantity);
-  const removeItem = useMenuCartStore((s) => s.removeItem);
+  const queryClient = useQueryClient();
+  const localItems = useMenuCartStore((s) => s.items);
+  const cartId = useMenuCartStore((s) => s.cartId);
+  const setCartId = useMenuCartStore((s) => s.setCartId);
   const clearCart = useMenuCartStore((s) => s.clearCart);
 
-  const {
-    orderMode, selectedBranch, deliveryAddress,
-    currentDeliveryFee, estimatedPrepMins, estimatedDeliveryMins,
-    placeOrder, updateOrderPayment,
-  } = useDeliveryStore();
+  const { selectedFranchiseName } = useDeliveryStore();
   const user = useAuthStore((s) => s.user);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const resolved = useRef(false);
 
-  const branchOpen = selectedBranch ? isBranchOpen(selectedBranch) : false;
-  const { itemCount, subtotal } = useMenuCartTotals(
-    orderMode === "DELIVERY" ? currentDeliveryFee : 0,
-  );
+  // Always fetch active cart on mount to ensure cartId is correct
+  useEffect(() => {
+    if (!isLoggedIn || !user || resolved.current) return;
+    const customerId = String(
+      (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? (user as any)?._id ?? ""
+    );
+    if (!customerId) return;
+    resolved.current = true;
+    cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" })
+      .then((carts) => {
+        const first = (carts as CartApiData[])[0];
+        const id = first?._id ?? first?.id;
+        if (id) setCartId(String(id));
+      })
+      .catch(() => {});
+  }, [isLoggedIn, user, setCartId]);
+
+  // Fetch cart detail from API
+  const { data: apiCart } = useQuery({
+    queryKey: ["cart-detail", cartId],
+    queryFn: () => cartClient.getCartDetail(cartId!),
+    enabled: !!cartId && isLoggedIn,
+    staleTime: 10_000,
+  });
+
+  const apiItems: DisplayItem[] = (apiCart?.items ?? []).map((item: ApiCartItem, idx: number) => {
+    const qty = item.quantity ?? 1;
+    const price = item.price_snapshot ?? item.price ?? 0;
+    return {
+      key: item._id ?? item.id ?? `api-${idx}`,
+      apiItemId: item._id ?? item.id,
+      name: item.product_name_snapshot ?? item.name ?? "Sản phẩm",
+      image: item.image_url ?? "",
+      size: item.size,
+      quantity: qty,
+      unitPrice: price,
+      lineTotal: item.line_total ?? price * qty,
+    };
+  });
+
+  const hasApiItems = apiItems.length > 0;
+
+  const items: DisplayItem[] = hasApiItems
+    ? apiItems
+    : localItems.map((li) => ({
+        key: li.cartKey,
+        name: li.name,
+        image: li.image,
+        size: li.options.size,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        lineTotal: li.unitPrice * li.quantity,
+      }));
+
+  const itemCount = items.reduce((s, i) => s + i.quantity, 0);
+  const subtotal = hasApiItems
+    ? (apiCart?.total_amount ?? items.reduce((s, i) => s + i.lineTotal, 0))
+    : items.reduce((s, i) => s + i.lineTotal, 0);
+
+  async function handleUpdateQuantity(item: DisplayItem, newQty: number) {
+    if (newQty < 1) {
+      handleRemoveItem(item);
+      return;
+    }
+    if (item.apiItemId) {
+      try {
+        await cartClient.updateCartItemQuantity({ cart_item_id: item.apiItemId, quantity: newQty });
+        queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+      } catch { toast.error("Không thể cập nhật số lượng"); }
+    } else {
+      useMenuCartStore.getState().updateQuantity(item.key, newQty);
+    }
+  }
+
+  async function handleRemoveItem(item: DisplayItem) {
+    if (item.apiItemId) {
+      try {
+        await cartClient.deleteCartItem(item.apiItemId);
+        queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+        toast.success("Đã xóa sản phẩm");
+      } catch { toast.error("Không thể xóa sản phẩm"); }
+    } else {
+      useMenuCartStore.getState().removeItem(item.key);
+    }
+  }
 
   // ─── Promo code state ───────────────────────────────────────────────────
   const [promoInput, setPromoInput] = useState("");
@@ -79,11 +158,7 @@ export default function MenuCheckoutPage() {
   const [promoError, setPromoError] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
 
-  // ─── Edit item modal state ───────────────────────────────────────────────
-  const [editingItem, setEditingItem] = useState<MenuCartItem | null>(null);
-
   // ─── Form state ──────────────────────────────────────────────────────────
-  const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [form, setFormState] = useState({
     name: user?.name ?? "",
     phone: "",
@@ -95,19 +170,12 @@ export default function MenuCheckoutPage() {
   const [isOrdering, setIsOrdering] = useState(false);
 
   // ─── Derived totals ──────────────────────────────────────────────────────
-  const deliveryFee = appliedPromo?.code === "FREESHIP"
-    ? 0
-    : (orderMode === "DELIVERY" ? currentDeliveryFee : 0);
-
-  const discountAmount = appliedPromo
-    ? appliedPromo.code === "FREESHIP"
-      ? currentDeliveryFee
-      : appliedPromo.discountAmount
+  const discountAmount = appliedPromo && appliedPromo.code !== "FREESHIP"
+    ? appliedPromo.discountAmount
     : 0;
 
-  const afterDiscount = Math.max(0, subtotal + deliveryFee - discountAmount);
-  const vatAmount = Math.round(afterDiscount * VAT_RATE);
-  const total = afterDiscount + vatAmount;
+  const afterDiscount = Math.max(0, subtotal - discountAmount);
+  const total = afterDiscount;
 
   function setField<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setFormState((f) => ({ ...f, [key]: value }));
@@ -115,30 +183,27 @@ export default function MenuCheckoutPage() {
   }
 
   async function applyPromo() {
-    if (!promoInput.trim()) return;
+    if (!promoInput.trim() || !cartId) return;
     setPromoLoading(true);
     setPromoError("");
-    await new Promise((r) => setTimeout(r, 600)); // simulate API
-    const code = promoInput.trim().toUpperCase();
-    const promo = MOCK_PROMOS[code];
-    if (!promo) {
+    try {
+      await cartClient.applyVoucher(cartId, promoInput.trim());
+      setAppliedPromo({ code: promoInput.trim().toUpperCase(), label: promoInput.trim().toUpperCase(), discountAmount: 0 });
+      setPromoInput("");
+      toast.success(`Áp dụng mã thành công!`);
+    } catch {
       setPromoError("Mã giảm giá không hợp lệ hoặc đã hết hạn");
+    } finally {
       setPromoLoading(false);
-      return;
     }
-    let discountAmt = 0;
-    if (promo.type === "percent") discountAmt = Math.round(subtotal * promo.value / 100);
-    else if (promo.type === "fixed") discountAmt = Math.min(promo.value, subtotal);
-    else discountAmt = currentDeliveryFee; // freeship
-    setAppliedPromo({ code, label: promo.label, discountAmount: discountAmt });
-    setPromoInput("");
-    setPromoLoading(false);
-    toast.success(`Áp dụng mã "${code}" thành công!`);
   }
 
-  function removePromo() {
+  async function removePromo() {
     setAppliedPromo(null);
     setPromoError("");
+    if (cartId) {
+      try { await cartClient.removeVoucher(cartId); } catch { /* ignore */ }
+    }
   }
 
   function validate(): boolean {
@@ -150,99 +215,48 @@ export default function MenuCheckoutPage() {
     return Object.keys(e).length === 0;
   }
 
-  const canPlace =
-    !!selectedBranch && branchOpen && items.length > 0 &&
-    (orderMode === "PICKUP" || !!deliveryAddress.rawAddress) &&
-    termsAccepted;
+  const canPlace = items.length > 0 && !!cartId && termsAccepted;
 
-  const blockReason = !selectedBranch
-    ? "Vui lòng chọn cửa hàng trước khi đặt hàng"
-    : !branchOpen
-    ? "Cửa hàng đang đóng cửa"
-    : orderMode === "DELIVERY" && !deliveryAddress.rawAddress
-    ? "Chưa xác nhận địa chỉ giao hàng"
+  const blockReason = items.length === 0
+    ? "Giỏ hàng trống"
+    : !cartId
+    ? "Không tìm thấy giỏ hàng. Vui lòng thêm sản phẩm từ menu."
     : !termsAccepted
     ? "Vui lòng đồng ý điều khoản để tiếp tục"
     : null;
 
   async function handleOrder() {
-    if (!validate() || !canPlace || !selectedBranch || isOrdering) return;
+    if (!validate() || !canPlace || !cartId || isOrdering) return;
 
     setIsOrdering(true);
-
     try {
-      const orderId = `ORD-${Date.now()}`;
-      const orderCode = `WBS${Math.floor(100000 + Math.random() * 900000)}`;
-      const now = new Date().toISOString();
+      // Step 1: Update cart with customer info (phone, note)
+      await cartClient.updateCart(cartId, {
+        phone: form.phone.trim(),
+        message: form.note.trim() || undefined,
+      });
 
-      const order: PlacedOrder = {
-        id: orderId,
-        code: orderCode,
-        branchId: selectedBranch.id,
-        branchName: selectedBranch.name,
-        mode: orderMode,
-        status: "PENDING",
-        customerName: form.name.trim(),
-        customerPhone: form.phone.trim(),
-        ...(orderMode === "DELIVERY" && deliveryAddress.rawAddress
-          ? { deliveryAddress: deliveryAddress.rawAddress }
-          : {}),
-        paymentMethod: form.paymentMethod,
-        paymentStatus: form.paymentMethod === "CASH" ? "UNPAID" : "PENDING",
-        ...(appliedPromo ? { promo: appliedPromo } : {}),
-        vatAmount,
-        items: items.map((item) => ({
-          cartKey: item.cartKey,
-          productId: item.productId,
-          name: item.name,
-          image: item.image,
-          options: item.options,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-        })),
-        subtotal,
-        deliveryFee,
-        total,
-        ...(form.note.trim() ? { note: form.note.trim() } : {}),
-        prepTimeMins: estimatedPrepMins,
-        deliveryTimeMins: estimatedDeliveryMins,
-        createdAt: now,
-        statusUpdatedAt: now,
-      };
+      // Step 2: Checkout the cart via real API
+      await cartClient.checkoutCart(cartId);
 
-      placeOrder(order);
+      // Step 3: Get the created order via cart ID
+      const order = await orderClient.getOrderByCartId(cartId);
+      const orderId = order?._id ?? order?.id ?? "";
 
-      if (form.paymentMethod === "CASH") {
-        clearCart();
-        toast.success("Đặt hàng thành công! Thanh toán khi nhận hàng 🎉");
-        navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId));
+      clearCart();
+
+      if (!orderId) {
+        toast.success("Đặt hàng thành công!");
+        navigate(ROUTER_URL.MENU);
         return;
       }
 
-      const payment = await createPayment({
-        orderId,
-        method: form.paymentMethod,
-        amount: total,
-      });
-
-      updateOrderPayment(orderId, payment.status, {
-        transactionId: payment.transactionId,
-        provider: form.paymentMethod,
-        status: payment.status,
-        amount: total,
-        createdAt: new Date().toISOString(),
-        qrCodeUrl: payment.qrCodeUrl,
-        deeplink: payment.deeplink,
-        paymentUrl: payment.paymentUrl,
-        note: payment.note,
-      });
-
-      clearCart();
-      toast.success("Đã tạo giao dịch thanh toán");
-      navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", orderId));
-    } catch (error) {
+      toast.success("Đặt hàng thành công! 🎉");
+      navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", String(orderId)));
+    } catch (error: unknown) {
       console.error(error);
-      toast.error("Không thể khởi tạo thanh toán. Vui lòng thử lại.");
+      const msg = (error as any)?.response?.data?.message ?? "Không thể đặt hàng. Vui lòng thử lại.";
+      toast.error(msg);
     } finally {
       setIsOrdering(false);
     }
@@ -264,31 +278,6 @@ export default function MenuCheckoutPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {showBranchPicker && (
-        <BranchPickerModal onClose={() => { toast.success("Đã cập nhật phương thức nhận hàng"); setShowBranchPicker(false); }} />
-      )}
-      {editingItem && (() => {
-        const product: MenuProduct = {
-          id: editingItem.productId,
-          name: editingItem.name,
-          image: editingItem.image,
-          price: editingItem.basePrice,
-          sku: "",
-          description: "",
-          content: "",
-          images: [],
-          categoryId: 0,
-          rating: 0,
-          reviewCount: 0,
-          isAvailable: true,
-        };
-        return (
-          <MenuProductModal
-            product={product}
-            onClose={() => setEditingItem(null)}
-          />
-        );
-      })()}
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8">
         <nav className="flex items-center gap-2 text-sm text-gray-400 mb-6">
           <Link to={ROUTER_URL.HOME} className="hover:text-gray-600">Trang chủ</Link>
@@ -302,74 +291,22 @@ export default function MenuCheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
           <div className="space-y-6">
 
-            {/* RECEIVING INFORMATION */}
+            {/* FRANCHISE INFORMATION */}
             <section className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">{orderMode === "PICKUP" ? "🏪" : "🛵"}</span>
-                  <h2 className="font-semibold text-gray-900">
-                    {orderMode === "PICKUP" ? "Điểm lấy hàng" : "Địa chỉ giao hàng"}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setShowBranchPicker(true)}
-                  className="text-xs text-amber-600 hover:text-amber-700 font-semibold border border-amber-200 hover:border-amber-400 px-3 py-1.5 rounded-lg hover:bg-amber-50 transition-all"
-                >
-                  Thay đổi
-                </button>
+              <div className="flex items-center px-5 py-4 border-b border-gray-50 gap-2">
+                <span className="text-xl">🏪</span>
+                <h2 className="font-semibold text-gray-900">Cửa hàng phục vụ</h2>
               </div>
-              {!selectedBranch ? (
-                <div className="px-5 py-6 flex flex-col items-center gap-3 text-center">
-                  <span className="text-4xl">📍</span>
-                  <p className="text-gray-500 text-sm">Chưa chọn cửa hàng hoặc địa chỉ</p>
-                  <button onClick={() => setShowBranchPicker(true)} className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all">
-                    Chọn ngay
-                  </button>
+              <div className="px-5 py-4 flex gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-2xl shrink-0">🍵</div>
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-gray-900">{selectedFranchiseName ?? "Hylux"}</p>
+                  <p className="text-xs text-emerald-600 font-medium">✓ Đơn hàng sẽ được xử lý tại cửa hàng này</p>
+                  {cartId && (
+                    <p className="text-xs text-gray-400 font-mono">Cart: {cartId.slice(-8)}</p>
+                  )}
                 </div>
-              ) : orderMode === "PICKUP" ? (
-                <div className="px-5 py-4 flex gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl shrink-0">🏪</div>
-                  <div className="space-y-0.5">
-                    <p className="font-semibold text-gray-900">{selectedBranch.name}</p>
-                    <p className="text-sm text-gray-500">{selectedBranch.address}</p>
-                    <p className="text-sm text-gray-400">{selectedBranch.openingHours.open} – {selectedBranch.openingHours.close}</p>
-                    <span className={cn("inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full mt-1", branchOpen ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600")}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                      {branchOpen ? "Đang mở cửa" : "Đóng cửa"}
-                    </span>
-                    <p className="text-xs text-gray-400 mt-1">⏱ Chuẩn bị: ~{estimatedPrepMins} phút</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="px-5 py-4 space-y-3">
-                  <div className="flex gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-lg shrink-0">📍</div>
-                    <div>
-                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-0.5">Địa chỉ giao</p>
-                      <p className="font-semibold text-gray-900 text-sm">{deliveryAddress.rawAddress || "—"}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center text-lg shrink-0">🏪</div>
-                    <div>
-                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-0.5">Cửa hàng xử lý</p>
-                      <p className="font-semibold text-gray-900 text-sm">{selectedBranch.name}</p>
-                      <p className="text-xs text-gray-400">{selectedBranch.address}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 pt-1">
-                    {[{ label: "Chuẩn bị", value: `${estimatedPrepMins} phút` },
-                      { label: "Giao hàng", value: `${estimatedDeliveryMins} phút` },
-                      { label: "Tổng", value: `${estimatedPrepMins + estimatedDeliveryMins} phút` }
-                    ].map((item) => (
-                      <div key={item.label} className="bg-gray-50 rounded-xl px-3 py-2 text-center">
-                        <p className="text-[10px] text-gray-400">{item.label}</p>
-                        <p className="text-xs font-bold text-gray-900">{item.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              </div>
             </section>
 
             {/* Cart items */}
@@ -379,27 +316,18 @@ export default function MenuCheckoutPage() {
                 <Link to={ROUTER_URL.MENU} className="text-sm text-amber-600 hover:text-amber-700 font-medium">+ Thêm món</Link>
               </div>
               {items.map((item) => (
-                <div key={item.cartKey} className="px-5 py-4 flex gap-4 group">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 shrink-0">
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                  </div>
+                <div key={item.key} className="px-5 py-4 flex gap-4 group">
+                  {item.image && (
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 shrink-0">
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold text-gray-900 text-sm truncate">{item.name}</p>
                       <div className="flex items-center gap-1 shrink-0">
-                        {/* Edit icon ✏️ */}
                         <button
-                          onClick={() => setEditingItem(item)}
-                          title="Chỉnh sửa"
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-all"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        {/* Delete icon 🗑️ */}
-                        <button
-                          onClick={() => removeItem(item.cartKey)}
+                          onClick={() => handleRemoveItem(item)}
                           title="Xóa"
                           className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                         >
@@ -409,28 +337,20 @@ export default function MenuCheckoutPage() {
                         </button>
                       </div>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      Size {item.options.size} • {item.options.sugar} — {item.options.ice}
-                      {item.options.toppings.length > 0 && ` • ${
-                        Object.entries(
-                          item.options.toppings.reduce<Record<string, number>>(
-                            (acc, t) => ({ ...acc, [t.name]: (acc[t.name] ?? 0) + 1 }),
-                            {}
-                          )
-                        ).map(([name, qty]) => qty > 1 ? `${name} x${qty}` : name).join(", ")
-                      }`}
-                    </p>
+                    {item.size && (
+                      <p className="text-xs text-gray-400 mt-0.5">Size {item.size}</p>
+                    )}
                     <div className="flex items-center justify-between mt-2.5">
                       <div className="flex items-center gap-1 border border-gray-200 rounded-lg overflow-hidden">
-                        <button onClick={() => item.quantity > 1 ? updateQuantity(item.cartKey, item.quantity - 1) : removeItem(item.cartKey)}
+                        <button onClick={() => item.quantity > 1 ? handleUpdateQuantity(item, item.quantity - 1) : handleRemoveItem(item)}
                           className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm">
                           {item.quantity === 1 ? "×" : "−"}
                         </button>
                         <span className="w-6 text-center text-xs font-semibold select-none">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.cartKey, item.quantity + 1)}
+                        <button onClick={() => handleUpdateQuantity(item, item.quantity + 1)}
                           className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm">+</button>
                       </div>
-                      <span className="text-sm font-bold text-gray-900">{fmt(item.unitPrice * item.quantity)}</span>
+                      <span className="text-sm font-bold text-gray-900">{fmt(item.lineTotal)}</span>
                     </div>
                   </div>
                 </div>
@@ -489,7 +409,7 @@ export default function MenuCheckoutPage() {
                 </div>
               )}
               {promoError && <p className="mt-1.5 text-xs text-red-500">{promoError}</p>}
-              <p className="mt-2 text-xs text-gray-400">Thử: MOMO10 · HYLUX50K · FREESHIP · WELCOME20</p>
+              <p className="mt-2 text-xs text-gray-400">Nhập mã voucher để được giảm giá</p>
             </section>
 
             {/* Payment */}
@@ -517,14 +437,10 @@ export default function MenuCheckoutPage() {
           <div className="space-y-4">
             <div className="bg-white rounded-2xl border border-gray-100 p-5 sticky top-24">
               <h2 className="font-semibold text-gray-900 mb-4">Tóm tắt đơn hàng</h2>
-              {selectedBranch && (
-                <div className={cn("mb-4 p-3 rounded-xl text-sm", orderMode === "PICKUP" ? "bg-blue-50 border border-blue-100" : "bg-emerald-50 border border-emerald-100")}>
-                  <p className="font-semibold text-gray-900 text-xs uppercase tracking-wide mb-1">
-                    {orderMode === "PICKUP" ? "🏪 Điểm lấy hàng" : "🛵 Giao tới"}
-                  </p>
-                  <p className="text-gray-700 text-xs leading-relaxed">
-                    {orderMode === "PICKUP" ? selectedBranch.address : (deliveryAddress.rawAddress || selectedBranch.name)}
-                  </p>
+              {selectedFranchiseName && (
+                <div className="mb-4 p-3 rounded-xl text-sm bg-amber-50 border border-amber-100">
+                  <p className="font-semibold text-gray-900 text-xs uppercase tracking-wide mb-1">🏪 Cửa hàng</p>
+                  <p className="text-gray-700 text-xs leading-relaxed">{selectedFranchiseName}</p>
                 </div>
               )}
               <div className="space-y-2.5 text-sm">
@@ -532,28 +448,15 @@ export default function MenuCheckoutPage() {
                   <span>Tạm tính ({itemCount} món)</span>
                   <span>{fmt(subtotal)}</span>
                 </div>
-                {orderMode === "DELIVERY" && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Phí giao hàng</span>
-                    {deliveryFee === 0
-                      ? <span className="text-emerald-600 font-medium">Miễn phí</span>
-                      : <span>{fmt(deliveryFee)}</span>
-                    }
-                  </div>
-                )}
                 {appliedPromo && appliedPromo.code !== "FREESHIP" && (
                   <div className="flex justify-between text-emerald-600">
                     <span>Giảm giá ({appliedPromo.code})</span>
                     <span>-{fmt(discountAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-gray-500 text-xs">
-                  <span>Thuế VAT (8%)</span>
-                  <span>{fmt(vatAmount)}</span>
-                </div>
                 <div className="h-px bg-gray-100" />
                 <div className="flex justify-between font-bold text-base text-gray-900">
-                  <span>Tổng tiền <span className="text-xs font-normal text-gray-400">(Đã bao gồm VAT)</span></span>
+                  <span>Tổng tiền</span>
                   <span className="text-amber-600">{fmt(total)}</span>
                 </div>
               </div>

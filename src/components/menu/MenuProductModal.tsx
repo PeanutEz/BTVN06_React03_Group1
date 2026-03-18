@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useMenuCartStore } from "@/store/menu-cart.store";
+import { useAuthStore } from "@/store/auth.store";
+import { cartClient } from "@/services/cart.client";
 import {
-  MENU_SIZES,
   SUGAR_LEVELS,
   ICE_LEVELS,
   TOPPINGS,
   type MenuProduct,
-  type MenuSize,
   type SugarLevel,
   type IceLevel,
   type Topping,
@@ -30,31 +31,46 @@ interface MenuProductModalProps {
   onClose: () => void;
 }
 
+interface ApiSize {
+  product_franchise_id: string;
+  size: string;
+  price: number;
+  is_available: boolean;
+}
+
 export default function MenuProductModal({ product, onClose }: MenuProductModalProps) {
+  const queryClient = useQueryClient();
   const addItem = useMenuCartStore((s) => s.addItem);
+  const setCartId = useMenuCartStore((s) => s.setCartId);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const user = useAuthStore((s) => s.user);
 
   const [tab, setTab] = useState<"order" | "content">("order");
-  const [size, setSize] = useState<MenuSize>("M");
+  const [selectedSize, setSelectedSize] = useState<ApiSize | null>(null);
   const [sugar, setSugar] = useState<SugarLevel>("100%");
   const [ice, setIce] = useState<IceLevel>("Đá vừa");
   const [toppingQtys, setToppingQtys] = useState<Record<string, number>>({});
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
 
   // Reset state when product changes
   useEffect(() => {
     if (product) {
       setTab("order");
-      setSize("M");
       setSugar("100%");
       setIce("Đá vừa");
       setToppingQtys({});
       setQuantity(1);
       setNote("");
+      // Auto-select first available size from list-level sizes
+      const listSizes: ApiSize[] = (product as any)._apiSizes ?? [];
+      const firstAvailable = listSizes.find((s) => s.is_available) ?? listSizes[0] ?? null;
+      setSelectedSize(firstAvailable);
     }
   }, [product?.id]);
 
-  // Fetch full product detail from API (CLIENT-05)
+  // Fetch full product detail from API (CLIENT-05) to get real sizes
   const [productDetail, setProductDetail] = useState<any>(null);
   useEffect(() => {
     if (!product) {
@@ -70,7 +86,20 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
       try {
         const { clientService } = await import("@/services/client.service");
         const detail = await clientService.getProductDetail(apiFranchiseId, apiProductId);
-        if (!cancelled) setProductDetail(detail);
+        if (!cancelled) {
+          setProductDetail(detail);
+          // Update selectedSize from detail sizes (more accurate than list-level data)
+          if (detail?.sizes?.length) {
+            const detailSizes: ApiSize[] = detail.sizes;
+            setSelectedSize((prev) => {
+              // Keep selection if product_franchise_id still exists in detail
+              if (prev && detailSizes.some((s) => s.product_franchise_id === prev.product_franchise_id)) {
+                return detailSizes.find((s) => s.product_franchise_id === prev.product_franchise_id) ?? prev;
+              }
+              return detailSizes.find((s) => s.is_available) ?? detailSizes[0] ?? null;
+            });
+          }
+        }
       } catch (err) {
         console.error("Failed to fetch product detail:", err);
       }
@@ -94,9 +123,37 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
   const displayContent = productDetail?.content || product.content;
   const displayImage = productDetail?.image_url || product.image;
 
-  const sizeDelta = MENU_SIZES.find((s) => s.value === size)?.priceDelta ?? 0;
+  // Real sizes from API detail (preferred) or fallback to list-level sizes
+  const displaySizesRaw: ApiSize[] = productDetail?.sizes ?? (product as any)._apiSizes ?? [];
+  // API đôi khi trả duplicate size (vd: "M" 2 lần). Dedupe theo `size`, ưu tiên item available.
+  const displaySizes: ApiSize[] = (() => {
+    const bySize = new Map<string, ApiSize>();
+    for (const s of displaySizesRaw) {
+      const key = String(s.size ?? "").trim();
+      if (!key) continue;
+      const prev = bySize.get(key);
+      if (!prev) {
+        bySize.set(key, s);
+        continue;
+      }
+      // Prefer available size; if both same availability, keep the first.
+      if (!prev.is_available && s.is_available) {
+        bySize.set(key, s);
+      }
+    }
+    // Keep a stable, user-friendly order
+    const order = ["S", "M", "L"];
+    return Array.from(bySize.values()).sort((a, b) => {
+      const ai = order.indexOf(String(a.size).toUpperCase());
+      const bi = order.indexOf(String(b.size).toUpperCase());
+      if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      return a.price - b.price;
+    });
+  })();
+
   const toppingTotal = TOPPINGS.reduce((sum, t) => sum + t.price * (toppingQtys[t.id] ?? 0), 0);
-  const unitPrice = product.price + sizeDelta + toppingTotal;
+  const basePrice = selectedSize?.price ?? product.price;
+  const unitPrice = basePrice + toppingTotal;
   const totalPrice = unitPrice * quantity;
 
   // Derive category info from API-enriched product or fallback
@@ -113,20 +170,67 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
     });
   }
 
-  function handleAddToCart() {
-    if (!product) return;
+  async function handleAddToCart() {
+    if (!product || isAdding) return;
+    if (!isLoggedIn) {
+      toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
+      return;
+    }
+
+    const franchiseId = (product as any)._apiFranchiseId as string | undefined;
+    const productFranchiseId = selectedSize?.product_franchise_id;
+
+    if (!franchiseId || !productFranchiseId) {
+      toast.error("Không thể xác định sản phẩm. Vui lòng thử lại.");
+      return;
+    }
+
+    setIsAdding(true);
+
+    // Save to local store immediately for instant UI feedback
     const toppingsFlat: Topping[] = TOPPINGS.flatMap((t) =>
       Array(toppingQtys[t.id] ?? 0).fill(t)
     );
-    addItem(product, { size, sugar, ice, toppings: toppingsFlat, note: note.trim() || undefined }, quantity);
+    addItem(
+      { ...product, price: basePrice },
+      { size: (selectedSize?.size ?? "M") as any, sugar, ice, toppings: toppingsFlat, note: note.trim() || undefined },
+      quantity,
+    );
+
+    // Then call API to persist to backend
+    try {
+      await cartClient.addProduct({
+        franchise_id: franchiseId,
+        product_franchise_id: productFranchiseId,
+        quantity,
+        note: note.trim() || undefined,
+      });
+
+      // Resolve cart ID from backend
+      const customerId = String((user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? "");
+      if (customerId) {
+        try {
+          const carts = await cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" });
+          const first = (carts as any[])[0];
+          const resolvedId = first?._id ?? first?.id;
+          if (resolvedId) setCartId(String(resolvedId));
+        } catch { /* keep existing cartId */ }
+      }
+
+      // Refetch cart detail so all cart UIs update from API
+      queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+    } catch (err) {
+      console.error("Add to cart API failed (saved locally):", err);
+    }
+
     const toppingDesc = TOPPINGS
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
     toast.success(`Đã thêm "${product.name}" vào giỏ!`, {
-      description: `Size ${size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""
-        }${note.trim() ? ` • "${note.trim()}"` : ""}`,
+      description: `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`,
     });
+    setIsAdding(false);
     onClose();
   }
 
@@ -235,28 +339,35 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
         <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
           {tab === "order" ? (
             <>
-              {/* Size */}
+              {/* Size – from real API (product_franchise_id) */}
               <div>
                 <SectionLabel>Chọn size</SectionLabel>
-                <div className="flex gap-2">
-                  {MENU_SIZES.map((s) => (
-                    <button
-                      key={s.value}
-                      onClick={() => setSize(s.value)}
-                      className={cn(
-                        "flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all duration-150",
-                        size === s.value
-                          ? "border-amber-500 bg-amber-50 text-amber-700 ring-2 ring-amber-200"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
-                      )}
-                    >
-                      <div>{s.value}</div>
-                      <div className="text-[10px] font-normal mt-0.5 opacity-70">
-                        {s.priceDelta > 0 ? `+${fmt(s.priceDelta)}` : "Cơ bản"}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                {displaySizes.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-2">Đang tải kích cỡ...</p>
+                ) : (
+                  <div className="flex gap-2 flex-wrap">
+                    {displaySizes.map((s) => (
+                      <button
+                        key={s.product_franchise_id}
+                        onClick={() => s.is_available && setSelectedSize(s)}
+                        disabled={!s.is_available}
+                        className={cn(
+                          "flex-1 min-w-[72px] py-2.5 rounded-xl border text-sm font-semibold transition-all duration-150",
+                          !s.is_available
+                            ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                            : selectedSize?.product_franchise_id === s.product_franchise_id
+                            ? "border-amber-500 bg-amber-50 text-amber-700 ring-2 ring-amber-200"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
+                        )}
+                      >
+                        <div>{s.size}</div>
+                        <div className="text-[10px] font-normal mt-0.5 opacity-70">
+                          {fmt(s.price)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Sugar */}
@@ -410,12 +521,30 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
             {/* Add to cart */}
             <button
               onClick={handleAddToCart}
-              className="flex-1 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white py-2.5 rounded-xl font-semibold transition-all duration-150 text-sm shadow-sm shadow-amber-200"
+              disabled={isAdding || !selectedSize}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold transition-all duration-150 text-sm",
+                isAdding || !selectedSize
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200",
+              )}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              Thêm vào giỏ · {fmt(totalPrice)}
+              {isAdding ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  Đang thêm...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Thêm vào giỏ · {fmt(totalPrice)}
+                </>
+              )}
             </button>
           </div>
         </div>

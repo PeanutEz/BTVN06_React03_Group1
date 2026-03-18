@@ -9,7 +9,6 @@ import LandingLayout from "../layouts/landing/Landing.layout";
 import AdminLayout from "../layouts/admin/Admin.layout";
 import AdminGuard from "./guard/AdminGuard";
 import AuthGuard from "./guard/AuthGuard";
-import ReceivingGuard from "./guard/ReceivingGuard";
 import { ROUTER_URL } from "./router.const";
 import { CLIENT_MENU } from "./client/Client.menu";
 import { ADMIN_MENU } from "./admin/Admin.menu";
@@ -68,15 +67,13 @@ function AppRoutes() {
           {/* Menu – public: guests can browse; auth required to add to cart (handled in-page) */}
           <Route path={ROUTER_URL.MENU} element={<MenuPage />} />
 
-          {/* Menu checkout & order status – auth + receiving method both required */}
+          {/* Menu checkout & order status – auth required only */}
           <Route element={<AuthGuard />}>
-            <Route element={<ReceivingGuard />}>
-              <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPage />} />
-              <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
-              <Route path={ROUTER_URL.PAYMENT_PROCESS} element={<PaymentProcessPage />} />
-              <Route path={ROUTER_URL.PAYMENT_SUCCESS} element={<PaymentSuccessPage />} />
-              <Route path={ROUTER_URL.PAYMENT_FAILED} element={<PaymentFailedPage />} />
-            </Route>
+            <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPage />} />
+            <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
+            <Route path={ROUTER_URL.PAYMENT_PROCESS} element={<PaymentProcessPage />} />
+            <Route path={ROUTER_URL.PAYMENT_SUCCESS} element={<PaymentSuccessPage />} />
+            <Route path={ROUTER_URL.PAYMENT_FAILED} element={<PaymentFailedPage />} />
           </Route>
 
           {/* Inbox – auth required */}
@@ -93,17 +90,19 @@ function AppRoutes() {
               <Route key={item.path} path={item.path} element={<item.component />} />
             ))}
 
-            <Route path="customer" element={<CustomerAccountLayout />}>
-              <Route path="account" element={<CustomerProfilePage />} />
-              <Route path="change-password" element={<CustomerChangePasswordPage />} />
-              <Route path="address-book" element={<CustomerAddressBookPage />} />
-              <Route path="membership" element={<LoyaltyDashboardPage />} />
-              <Route path="vouchers" element={<LoyaltyPointsPage />} />
-              <Route path="order" element={<CustomerOrdersPage />} />
-              <Route path="cart" element={<CartPage />} />
-              <Route path="product-favorite" element={<CustomerFavoritesPage />} />
-              <Route path="ordered" element={<CustomerOrdersPage />} />
-              <Route path="support" element={<ContactPage />} />
+            <Route element={<AuthGuard />}>
+              <Route path="customer" element={<CustomerAccountLayout />}>
+                <Route path="account" element={<CustomerProfilePage />} />
+                <Route path="change-password" element={<CustomerChangePasswordPage />} />
+                <Route path="address-book" element={<CustomerAddressBookPage />} />
+                <Route path="membership" element={<LoyaltyDashboardPage />} />
+                <Route path="vouchers" element={<LoyaltyPointsPage />} />
+                <Route path="order" element={<CustomerOrdersPage />} />
+                <Route path="cart" element={<CartPage />} />
+                <Route path="product-favorite" element={<CustomerFavoritesPage />} />
+                <Route path="ordered" element={<CustomerOrdersPage />} />
+                <Route path="support" element={<ContactPage />} />
+              </Route>
             </Route>
           </Route>
 

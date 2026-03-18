@@ -4,6 +4,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { customerLoginAndGetProfile, resendToken } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
 import { useLoadingStore } from "../../../store/loading.store";
+import { useMenuCartStore } from "../../../store/menu-cart.store";
+import { cartClient, type CartApiData } from "../../../services/cart.client";
 import type { AuthCredentials } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
@@ -81,6 +83,20 @@ const LoginPage = () => {
     try {
       const profile = await customerLoginAndGetProfile(values);
       login(profile);
+
+      // Restore cart from API after login
+      const customerId = String(
+        (profile as any)?.user?.id ?? (profile as any)?.user?._id ?? (profile as any)?.id ?? ""
+      );
+      if (customerId) {
+        try {
+          const carts = await cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" });
+          const first = (carts as CartApiData[])[0];
+          const id = first?._id ?? first?.id;
+          if (id) useMenuCartStore.getState().setCartId(String(id));
+        } catch { /* cart restore is best-effort */ }
+      }
+
       showSuccess("Đăng nhập thành công");
       const redirectTo = (location.state as { from?: Location })?.from?.pathname;
       if (redirectTo) { navigate(redirectTo, { replace: true }); return; }

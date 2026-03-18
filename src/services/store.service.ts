@@ -117,7 +117,7 @@ export const fetchStores = async (): Promise<ApiFranchise[]> => {
 		},
 		pageInfo: {
 			pageNum: 1,
-			pageSize: 10
+			pageSize: 100
 		}
 	};
 

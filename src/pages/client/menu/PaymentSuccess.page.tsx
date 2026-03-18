@@ -1,23 +1,33 @@
-import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { ROUTER_URL } from "@/routes/router.const";
-import { useDeliveryStore } from "@/store/delivery.store";
+import { orderClient } from "@/services/order.client";
+import { paymentClient } from "@/services/payment.client";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
 export default function PaymentSuccessPage() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { hydrate, placedOrders } = useDeliveryStore();
 
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+  const { data: order } = useQuery({
+    queryKey: ["payment-success-order", orderId],
+    queryFn: () => orderClient.getOrderById(orderId!),
+    enabled: !!orderId,
+  });
 
-  const order = placedOrders.find((o) => o.id === orderId);
+  const { data: payment } = useQuery({
+    queryKey: ["payment-success-payment", orderId],
+    queryFn: () => paymentClient.getPaymentByOrderId(orderId!),
+    enabled: !!orderId,
+  });
 
   if (!order) {
-    return null;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center text-gray-500">Đang tải...</div>
+      </div>
+    );
   }
 
   return (
@@ -30,15 +40,15 @@ export default function PaymentSuccessPage() {
         </p>
 
         <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-4 text-left">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-500">Mã giao dịch</span>
-            <span className="font-mono font-semibold text-gray-900">
-              {order.transaction?.transactionId}
-            </span>
-          </div>
+          {payment?.provider_txn_id && (
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-gray-500">Mã giao dịch</span>
+              <span className="font-mono font-semibold text-gray-900">{payment.provider_txn_id}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-500">Số tiền</span>
-            <span className="font-semibold text-gray-900">{fmt(order.total)}</span>
+            <span className="font-semibold text-gray-900">{fmt(payment?.amount ?? order.total_amount)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Trạng thái</span>
@@ -48,7 +58,7 @@ export default function PaymentSuccessPage() {
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            to={ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", order.id)}
+            to={ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId!)}
             className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold"
           >
             Xem trạng thái đơn hàng

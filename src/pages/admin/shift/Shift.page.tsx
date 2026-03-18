@@ -110,6 +110,7 @@ const ShiftPage = () => {
     if (!formData.name.trim()) { showError("Vui lòng nhập tên ca"); return; }
     if (!formData.start_time) { showError("Vui lòng nhập giờ bắt đầu"); return; }
     if (!formData.end_time) { showError("Vui lòng nhập giờ kết thúc"); return; }
+    if (formData.end_time <= formData.start_time) { showError("Giờ kết thúc phải lớn hơn giờ bắt đầu"); return; }
     setSubmitting(true);
     try {
       if (editingShift) {
@@ -137,6 +138,14 @@ const ShiftPage = () => {
     }
   };
 
+  const extractErrMsg = (err: unknown, fallback: string) =>
+    (err as { response?: { data?: { message?: string; errors?: { message: string }[] } } })
+      ?.response?.data?.message ||
+    (err as { response?: { data?: { errors?: { message: string }[] } } })
+      ?.response?.data?.errors?.[0]?.message ||
+    (err instanceof Error ? err.message : null) ||
+    fallback;
+
   const handleDelete = async (shift: Shift) => {
     if (!await showConfirm({ message: `Bạn có chắc muốn xóa ca "${shift.name}"?`, variant: "danger", confirmText: "Xóa" })) return;
     setSubmitting(true);
@@ -144,8 +153,8 @@ const ShiftPage = () => {
       await deleteShift(shift.id);
       showSuccess(`Đã xóa ca "${shift.name}"`);
       await load();
-    } catch {
-      showError("Xóa ca làm việc thất bại");
+    } catch (err) {
+      showError(extractErrMsg(err, "Xóa ca làm việc thất bại"));
     } finally {
       setSubmitting(false);
     }
@@ -173,8 +182,8 @@ const ShiftPage = () => {
       await changeShiftStatus(shift.id, !shift.is_active);
       showSuccess(`Đã ${action} ca "${shift.name}"`);
       await load();
-    } catch {
-      showError(`${action} ca làm việc thất bại`);
+    } catch (err) {
+      showError(extractErrMsg(err, `${action} ca làm việc thất bại`));
     } finally {
       setSubmitting(false);
     }

@@ -1,76 +1,103 @@
 // Order Types
 export type OrderType = "POS" | "ONLINE";
-export type OrderStatus = "DRAFT" | "CONFIRMED" | "PREPARING" | "COMPLETED" | "CANCELLED";
+export type OrderStatus = "DRAFT" | "CONFIRMED" | "PREPARING" | "READY_FOR_PICKUP" | "COMPLETED" | "CANCELLED";
 
 // OrderItem - Chi tiết sản phẩm trong đơn hàng
 export interface OrderItem {
-  id: number;
-  order_id: number;
-  product_franchise_id: number;
-  product_name_snapshot: string; // Tên tại thời điểm mua
-  price_snapshot: number; // Giá tại thời điểm mua
+  _id?: string;
+  id?: string | number;
+  order_id?: string | number;
+  product_franchise_id?: string | number;
+  product_id?: string | number;
+  product_name_snapshot: string;
+  product_name?: string; // Alternative field name from backend
+  price_snapshot: number;
+  price?: number; // Alternative field name from backend
   quantity: number;
-  line_total: number; // price × quantity
-  is_deleted: boolean; // default false
-  created_at: string;
-  updated_at: string;
+  line_total: number;
+  subtotal?: number; // Alternative field name from backend
+  is_deleted?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: unknown;
 }
 
 // Order - Đơn hàng
 export interface Order {
-  id: number;
-  code: string; // unique
-  franchise_id: number;
-  customer_id: number;
-  type: OrderType; // POS/ONLINE
-  status: OrderStatus; // DRAFT / CONFIRMED / PREPARING / COMPLETED / CANCELLED
-  total_amount: number; // Tổng tiền snapshot, không tính lại từ product
-  confirmed_at?: string; // timestamp - Chốt đơn
-  completed_at?: string; // timestamp - Hoàn tất
-  cancelled_at?: string; // timestamp - Huỷ
-  created_by?: number; // nullable -> Staff tạo (POS)
-  is_deleted: boolean; // default false
+  _id?: string;
+  id?: string | number;
+  code: string;
+  franchise_id?: string | number;
+  customer_id?: string | number;
+  type: OrderType;
+  status: OrderStatus;
+  total_amount: number;
+  subtotal_amount?: number; // Subtotal from backend
+  final_amount?: number; // Final amount from backend (often used instead of total_amount)
+  confirmed_at?: string;
+  completed_at?: string;
+  cancelled_at?: string;
+  created_by?: string | number;
+  is_deleted?: boolean;
   created_at: string;
-  updated_at: string;
-  
-  // Relations (optional, for display purposes)
-  items?: OrderItem[];
+  updated_at?: string;
+
+  // Backend fields (alternative formats)
+  customer_name?: string; // Direct field from backend
+  franchise_name?: string; // Direct field from backend
+  phone?: string; // Customer phone
+  loyalty_points_used?: number;
+  loyalty_discount?: number;
+  voucher_discount?: number;
+  voucher_type?: string;
+  voucher_value?: number;
+  promotion_discount?: number;
+  promotion_type?: string;
+  promotion_value?: number;
+
+  items?: OrderItem[]; // Standard format
+  order_items?: OrderItem[]; // Backend format
   franchise?: {
-    id: number;
-    code: string;
+    _id?: string;
+    id?: string | number;
+    code?: string;
     name: string;
   };
   customer?: {
-    id: number;
+    _id?: string;
+    id?: string | number;
     name: string;
-    phone: string;
+    phone?: string;
     email?: string;
   };
   created_by_user?: {
-    id: number;
+    _id?: string;
+    id?: string | number;
     name: string;
   };
+  [key: string]: unknown;
 }
 
-// OrderStatusLog - Lịch sử thay đổi trạng thái đơn hàng
+// OrderStatusLog
 export interface OrderStatusLog {
-  id: number;
-  order_id: number;
+  _id?: string;
+  id?: string | number;
+  order_id?: string | number;
   from_status: OrderStatus;
   to_status: OrderStatus;
-  changed_by: number;
-  note?: string; // nullable -> optional
-  created_at: string;
-  updated_at: string;
-  
-  // Relations (optional)
+  changed_by?: string | number;
+  note?: string;
+  created_at?: string;
+  updated_at?: string;
+
   changed_by_user?: {
-    id: number;
+    _id?: string;
+    id?: string | number;
     name: string;
   };
 }
 
-// Display model for UI
+// Display model for UI — alias for Order (kept for backward compat)
 export interface OrderDisplay extends Order {
   status_history?: OrderStatusLog[];
 }
@@ -84,6 +111,7 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   DRAFT: "Nháp",
   CONFIRMED: "Đã xác nhận",
   PREPARING: "Đang chuẩn bị",
+  READY_FOR_PICKUP: "Sẵn sàng lấy hàng",
   COMPLETED: "Hoàn thành",
   CANCELLED: "Đã hủy",
 };
@@ -92,6 +120,7 @@ export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
   DRAFT: "bg-gray-50 text-gray-700 border-gray-200",
   CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
   PREPARING: "bg-yellow-50 text-yellow-700 border-yellow-200",
+  READY_FOR_PICKUP: "bg-amber-50 text-amber-700 border-amber-200",
   COMPLETED: "bg-green-50 text-green-700 border-green-200",
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
 };
