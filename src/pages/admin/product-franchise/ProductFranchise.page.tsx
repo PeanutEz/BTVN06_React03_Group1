@@ -4,7 +4,6 @@ import Pagination from "../../../components/ui/Pagination";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
 import { adminProductService } from "../../../services/product.service";
-import type { ProductApiResponse, SearchProductDto } from "../../../models/product.model";
 import type {
   CreateProductFranchiseDto,
   ProductFranchiseApiResponse,
@@ -31,14 +30,9 @@ export default function ProductFranchisePage() {
   const [totalItems, setTotalItems] = useState(0);
 
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
-  // Product options are loaded lazily (search + load more)
-  const [products, setProducts] = useState<ProductApiResponse[]>([]);
   // Cache for product names used in table (covers items not in `products` list)
   const [productNameById, setProductNameById] = useState<Record<string, string>>({});
   const [productNameFailedIds, setProductNameFailedIds] = useState<Record<string, true>>({});
-  const [productPage, setProductPage] = useState(1);
-  const [productTotalPages, setProductTotalPages] = useState(1);
-  const [productLoading, setProductLoading] = useState(false);
   // Products loaded by franchise (API-08) for filter + create comboboxes
   const [filterPFProducts, setFilterPFProducts] = useState<{ product_id: string; name: string }[]>([]);
   const [filterPFLoading, setFilterPFLoading] = useState(false);
@@ -148,11 +142,10 @@ export default function ProductFranchisePage() {
 
   const productNameMap = useMemo(() => {
     const map: Record<string, string> = { ...productNameById };
-    products.forEach((p) => { map[p.id] = p.name; });
     filterPFProducts.forEach((p) => { map[p.product_id] = p.name; });
     createPFProducts.forEach((p) => { map[p.product_id] = p.name; });
     return map;
-  }, [products, productNameById, filterPFProducts, createPFProducts]);
+  }, [productNameById, filterPFProducts, createPFProducts]);
 
   const franchiseNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -186,33 +179,6 @@ export default function ProductFranchisePage() {
       setFranchises(frs);
     } catch (err) {
       console.error("[ProductFranchise] loadSelects error:", err);
-    }
-  };
-
-  const loadProducts = async (keyword = "", page = 1, append = false) => {
-    setProductLoading(true);
-    try {
-      const dto: SearchProductDto = {
-        searchCondition: { keyword, is_active: "", is_deleted: false },
-        pageInfo: { pageNum: page, pageSize: 20 },
-      };
-      const res = await adminProductService.searchProducts(dto);
-      setProductPage(res.pageInfo.pageNum);
-      setProductTotalPages(res.pageInfo.totalPages);
-      setProducts((prev) => (append ? [...prev, ...res.data] : res.data));
-      // Warm cache for table rendering
-      setProductNameById((prev) => {
-        const next = { ...prev };
-        res.data.forEach((p) => {
-          if (p?.id && p?.name) next[p.id] = p.name;
-        });
-        return next;
-      });
-    } catch (err) {
-      console.error("[ProductFranchise] loadProducts error:", err);
-      showError("Không thể tải danh sách product");
-    } finally {
-      setProductLoading(false);
     }
   };
 

@@ -52,7 +52,7 @@ export default function ProductCategoryFranchisePage() {
   const [categoryFranchises, setCategoryFranchises] = useState<
     CategoryFranchiseApiResponse[]
   >([]);
-  const [productFranchises, setProductFranchises] = useState<
+  const [_productFranchises, setProductFranchises] = useState<
     ProductFranchiseApiResponse[]
   >([]);
 
@@ -86,12 +86,6 @@ export default function ProductCategoryFranchisePage() {
     useState<ProductCategoryFranchiseApiResponse | null>(null);
   const [newPosition, setNewPosition] = useState<string>("");
   const [reordering, setReordering] = useState(false);
-
-  // PCF-08 browse panel
-  const [browseFranchiseId, setBrowseFranchiseId] = useState("");
-  const [browseOpen, setBrowseOpen] = useState(false);
-  const [browseLoading, setBrowseLoading] = useState(false);
-  const [browseItems, setBrowseItems] = useState<ProductWithCategoriesResponse[]>([]);
 
   // create modal - products by franchise (PCF-08)
   const [createPFItems, setCreatePFItems] = useState<ProductWithCategoriesResponse[]>([]);
@@ -295,21 +289,6 @@ export default function ProductCategoryFranchisePage() {
     setCreateForm((f) => ({ ...f, product_franchise_id: "" }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createForm.category_franchise_id]);
-
-  const loadBrowseByFranchise = async () => {
-    if (!browseFranchiseId) { showError("Vui lòng chọn franchise"); return; }
-    setBrowseLoading(true);
-    setBrowseItems([]);
-    try {
-      const res = await productCategoryFranchiseService.getProductsByFranchiseWithCategory(browseFranchiseId);
-      setBrowseItems(res);
-      setBrowseOpen(true);
-    } catch {
-      showError("Lấy dữ liệu thất bại");
-    } finally {
-      setBrowseLoading(false);
-    }
-  };
 
   const submitReorder = async (e: React.FormEvent) => {
     e.preventDefault();
