@@ -145,6 +145,8 @@ export default function ShiftAssignmentPage() {
     const loadUsers = async (franchiseId: string) => {
         try {
             const res = await getUsersByFranchiseId(franchiseId);
+            console.log("=== USERS API RESPONSE ===");
+            console.log(res);
             setUsers(res || []);
         } catch (err) {
             console.log("load users error", err);
@@ -196,6 +198,13 @@ export default function ShiftAssignmentPage() {
     const getEndTime = (shiftId: string) => {
         return shiftMap[shiftId]?.end_time || "";
     };
+    const userMap = useMemo(() => {
+        return Object.fromEntries(users.map(u => [u.value, u]));
+    }, [users]);
+    const getUserEmail = (userId: string) => {
+        return userMap[userId]?.email || "-";
+    };
+
     const handleReset = () => {
         setSearchName("");
         setFilterFranchise("");
@@ -461,7 +470,14 @@ export default function ShiftAssignmentPage() {
 
                                         <td className="p-3 text-right space-x-2">
                                             <button
-                                                onClick={() => setViewing(s)}
+                                                onClick={() => {
+                                                    setViewing(s);
+
+                                                    const shift = shiftMap[s.shift_id];
+                                                    if (shift?.franchise_id) {
+                                                        loadUsers(shift.franchise_id);
+                                                    }
+                                                }}
                                                 className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
                                                 title="Xem chi tiết"
                                             >
@@ -682,6 +698,11 @@ export default function ShiftAssignmentPage() {
                             <div>
                                 <span className="font-medium">User: </span>
                                 {viewing.user_name}
+                            </div>
+
+                            <div>
+                                <span className="font-medium">Email: </span>
+                                {getUserEmail(viewing.user_id)}
                             </div>
 
                             {/* SHIFT */}
