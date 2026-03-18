@@ -189,4 +189,12 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
     isEnd: true,
   },
+  {
+    label: "Shift Assignments",
+    path: ROUTER_URL.ADMIN_ROUTES.SHIFT_ASSIGNMENTS,
+    component: React.lazy(
+      () => import("../../pages/admin/shift-assignment/ShiftAssignment.page.tsx"),
+    ),
+    isEnd: true,
+  },
 ];

@@ -143,12 +143,7 @@ export async function deleteShift(id: string): Promise<void> {
 // Output: { success, data: null }
 
 export async function restoreShift(id: string): Promise<void> {
-	const response = await apiClient.patch<{ success: boolean; data: null }>(
-		`/shifts/${id}/restore`,
-	);
-	if (!response.data.success) {
-		throw new Error("Khôi phục ca làm việc thất bại");
-	}
+	await apiClient.patch(`/shifts/${id}/restore`);
 }
 
 // ==================== SHIFT-07: Change Status Item ====================
