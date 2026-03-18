@@ -238,7 +238,7 @@ export default function VoucherListPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {vouchers.map((v) => (
-                  <tr key={v.id} className={`transition-colors ${isDeletedFilter ? "bg-red-50/50" : "hover:bg-slate-50/70"}`}>
+                  <tr key={v.id} className={`hover:bg-slate-50 transition-colors ${isDeletedFilter ? "bg-red-50/60 opacity-75" : ""}`}>
                     <td className="px-5 py-4 align-top">
                       <div className="font-mono font-semibold text-primary-700 text-sm bg-primary-50 inline-block px-2 py-0.5 rounded border border-primary-100 mb-1.5">
                         {v.code}
