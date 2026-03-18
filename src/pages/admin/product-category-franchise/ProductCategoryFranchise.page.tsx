@@ -13,6 +13,7 @@ import type {
   ReorderProductCategoryFranchiseDto,
   CategoryFranchiseApiResponse,
   ProductFranchiseApiResponse,
+  ProductWithCategoriesResponse,
 } from "../../../models/product.model";
 import { showError, showSuccess } from "../../../utils";
 
@@ -85,6 +86,17 @@ export default function ProductCategoryFranchisePage() {
     useState<ProductCategoryFranchiseApiResponse | null>(null);
   const [newPosition, setNewPosition] = useState<string>("");
   const [reordering, setReordering] = useState(false);
+
+  // PCF-08 browse panel
+  const [browseFranchiseId, setBrowseFranchiseId] = useState("");
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [browseLoading, setBrowseLoading] = useState(false);
+  const [browseItems, setBrowseItems] = useState<ProductWithCategoriesResponse[]>([]);
+
+  // create modal - products by franchise (PCF-08)
+  const [createPFItems, setCreatePFItems] = useState<ProductWithCategoriesResponse[]>([]);
+  const [createPFLoading, setCreatePFLoading] = useState(false);
+  const [createFranchiseId, setCreateFranchiseId] = useState("");
 
   const hasRun = useRef(false);
   const isInitialized = useRef(false);
@@ -260,6 +272,45 @@ export default function ProductCategoryFranchisePage() {
     }
   };
 
+  // Reset category + product when franchise changes in create modal
+  useEffect(() => {
+    setCreateForm((f) => ({ ...f, category_franchise_id: "", product_franchise_id: "" }));
+    setCreatePFItems([]);
+    if (!createFranchiseId) return;
+    setCreatePFLoading(true);
+    productCategoryFranchiseService
+      .getProductsByFranchiseWithCategory(createFranchiseId)
+      .then((res) => setCreatePFItems(res))
+      .catch(() => showError("Không thể tải sản phẩm"))
+      .finally(() => setCreatePFLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createFranchiseId]);
+
+  // Load PCF-08 when category franchise changes in create modal
+  useEffect(() => {
+    if (!createForm.category_franchise_id) {
+      setCreateForm((f) => ({ ...f, product_franchise_id: "" }));
+      return;
+    }
+    setCreateForm((f) => ({ ...f, product_franchise_id: "" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createForm.category_franchise_id]);
+
+  const loadBrowseByFranchise = async () => {
+    if (!browseFranchiseId) { showError("Vui lòng chọn franchise"); return; }
+    setBrowseLoading(true);
+    setBrowseItems([]);
+    try {
+      const res = await productCategoryFranchiseService.getProductsByFranchiseWithCategory(browseFranchiseId);
+      setBrowseItems(res);
+      setBrowseOpen(true);
+    } catch {
+      showError("Lấy dữ liệu thất bại");
+    } finally {
+      setBrowseLoading(false);
+    }
+  };
+
   const submitReorder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reorderItem) return;
@@ -302,12 +353,11 @@ export default function ProductCategoryFranchisePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => load(1)} loading={loading}>
-            Tải lại
-          </Button>
           <Button
             onClick={() => {
               setCreateForm({ ...DEFAULT_CREATE });
+              setCreateFranchiseId("");
+              setCreatePFItems([]);
               setCreateOpen(true);
             }}
           >
@@ -549,6 +599,25 @@ export default function ProductCategoryFranchisePage() {
             <form onSubmit={submitCreate} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                  Franchise <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={createFranchiseId}
+                  onChange={(e) => setCreateFranchiseId(e.target.value)}
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white"
+                  required
+                >
+                  <option value="">-- Chọn franchise --</option>
+                  {franchises.map((fr) => (
+                    <option key={fr.value} value={fr.value}>
+                      {fr.name} ({fr.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Category Franchise <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -559,16 +628,20 @@ export default function ProductCategoryFranchisePage() {
                       category_franchise_id: e.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white"
+                  disabled={!createFranchiseId}
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                 >
-                  <option value="">-- Chọn category franchise --</option>
-                  {categoryFranchises.map((cf) => (
-                    <option key={cf.id} value={cf.id}>
-                      {cf.category_name || "N/A"} —{" "}
-                      {cf.franchise_name || "N/A"}
-                    </option>
-                  ))}
+                  <option value="">
+                    {!createFranchiseId ? "-- Chọn franchise trước --" : "-- Chọn category franchise --"}
+                  </option>
+                  {categoryFranchises
+                    .filter((cf) => !createFranchiseId || cf.franchise_id === createFranchiseId)
+                    .map((cf) => (
+                      <option key={cf.id} value={cf.id}>
+                        {cf.category_name || "N/A"}
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -584,14 +657,20 @@ export default function ProductCategoryFranchisePage() {
                       product_franchise_id: e.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white"
+                  disabled={!createFranchiseId || createPFLoading}
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                 >
-                  <option value="">-- Chọn product franchise --</option>
-                  {productFranchises.map((pf) => (
-                    <option key={pf.id} value={pf.id}>
-                        {pf.product_id || "N/A"} — Size: {pf.size} —{" "}
-                      {pf.price_base.toLocaleString("vi-VN")}đ
+                  <option value="">
+                    {!createFranchiseId
+                      ? "-- Chọn franchise trước --"
+                      : createPFLoading
+                        ? "Đang tải..."
+                        : "-- Chọn product franchise --"}
+                  </option>
+                  {createPFItems.map((pf) => (
+                    <option key={pf.product_franchise_id} value={pf.product_franchise_id}>
+                      {pf.product_name} — Size: {pf.size} — {pf.price_base.toLocaleString("vi-VN")}đ
                     </option>
                   ))}
                 </select>

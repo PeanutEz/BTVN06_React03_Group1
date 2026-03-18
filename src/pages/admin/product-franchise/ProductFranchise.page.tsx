@@ -39,6 +39,11 @@ export default function ProductFranchisePage() {
   const [productPage, setProductPage] = useState(1);
   const [productTotalPages, setProductTotalPages] = useState(1);
   const [productLoading, setProductLoading] = useState(false);
+  // Products loaded by franchise (API-08) for filter + create comboboxes
+  const [filterPFProducts, setFilterPFProducts] = useState<{ product_id: string; name: string }[]>([]);
+  const [filterPFLoading, setFilterPFLoading] = useState(false);
+  const [createPFProducts, setCreatePFProducts] = useState<{ product_id: string; name: string }[]>([]);
+  const [createPFLoading, setCreatePFLoading] = useState(false);
 
   // filters
   const [filters, setFilters] = useState<{
@@ -123,7 +128,11 @@ export default function ProductFranchisePage() {
     return franchises.filter((f) => (f.name || "").toLowerCase().includes(k) || (f.code || "").toLowerCase().includes(k));
   }, [franchises, franchiseKeyword]);
 
-  const productOptions = useMemo(() => products, [products]);
+  const productOptions = useMemo(() => {
+    if (!productKeyword.trim()) return filterPFProducts;
+    const k = productKeyword.trim().toLowerCase();
+    return filterPFProducts.filter((p) => p.name.toLowerCase().includes(k));
+  }, [filterPFProducts, productKeyword]);
 
   const createFranchiseOptions = useMemo(() => {
     if (!createFranchiseKeyword.trim()) return franchises;
@@ -131,13 +140,19 @@ export default function ProductFranchisePage() {
     return franchises.filter((f) => (f.name || "").toLowerCase().includes(k) || (f.code || "").toLowerCase().includes(k));
   }, [franchises, createFranchiseKeyword]);
 
-  const createProductOptions = useMemo(() => products, [products]);
+  const createProductOptions = useMemo(() => {
+    if (!createProductKeyword.trim()) return createPFProducts;
+    const k = createProductKeyword.trim().toLowerCase();
+    return createPFProducts.filter((p) => p.name.toLowerCase().includes(k));
+  }, [createPFProducts, createProductKeyword]);
 
   const productNameMap = useMemo(() => {
     const map: Record<string, string> = { ...productNameById };
     products.forEach((p) => { map[p.id] = p.name; });
+    filterPFProducts.forEach((p) => { map[p.product_id] = p.name; });
+    createPFProducts.forEach((p) => { map[p.product_id] = p.name; });
     return map;
-  }, [products, productNameById]);
+  }, [products, productNameById, filterPFProducts, createPFProducts]);
 
   const franchiseNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -251,35 +266,55 @@ export default function ProductFranchisePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, productNameFailedIds, productNameMap]);
 
-  // Debounced product search for filter combobox
+  // Load products by franchise for filter bar (API-08)
   useEffect(() => {
-    if (!productOpen) return;
-    const t = window.setTimeout(() => {
-      loadProducts(productKeyword.trim(), 1, false);
-    }, 250);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productKeyword, productOpen]);
-
-  // Debounced product search for create modal combobox
-  useEffect(() => {
-    if (!createProductOpen) return;
-    const t = window.setTimeout(() => {
-      loadProducts(createProductKeyword.trim(), 1, false);
-    }, 250);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createProductKeyword, createProductOpen]);
-
-  // Initial product load when first open any product dropdown
-  useEffect(() => {
-    if (productOpen || createProductOpen) {
-      if (products.length === 0 && !productLoading) {
-        loadProducts("", 1, false);
-      }
+    if (!filters.franchise_id) {
+      setFilterPFProducts([]);
+      return;
     }
+    setFilterPFLoading(true);
+    adminProductFranchiseService
+      .getProductsByFranchise(filters.franchise_id, true)
+      .then((res) => {
+        const seen = new Set<string>();
+        const unique: { product_id: string; name: string }[] = [];
+        res.forEach((pf) => {
+          if (!seen.has(pf.product_id)) {
+            seen.add(pf.product_id);
+            unique.push({ product_id: pf.product_id, name: pf.product_name || pf.product_id });
+          }
+        });
+        setFilterPFProducts(unique);
+      })
+      .catch(() => showError("Không thể tải sản phẩm của franchise"))
+      .finally(() => setFilterPFLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productOpen, createProductOpen]);
+  }, [filters.franchise_id]);
+
+  // Load products by franchise for create modal (API-08)
+  useEffect(() => {
+    if (!createForm.franchise_id) {
+      setCreatePFProducts([]);
+      return;
+    }
+    setCreatePFLoading(true);
+    adminProductFranchiseService
+      .getProductsByFranchise(createForm.franchise_id, true)
+      .then((res) => {
+        const seen = new Set<string>();
+        const unique: { product_id: string; name: string }[] = [];
+        res.forEach((pf) => {
+          if (!seen.has(pf.product_id)) {
+            seen.add(pf.product_id);
+            unique.push({ product_id: pf.product_id, name: pf.product_name || pf.product_id });
+          }
+        });
+        setCreatePFProducts(unique);
+      })
+      .catch(() => showError("Không thể tải sản phẟm của franchise"))
+      .finally(() => setCreatePFLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createForm.franchise_id]);
 
   const load = async (pageNum = currentPage) => {
     setLoading(true);
@@ -483,7 +518,7 @@ export default function ProductFranchisePage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setFilters((f) => ({ ...f, franchise_id: "" }));
+                        setFilters((f) => ({ ...f, franchise_id: "", product_id: "" }));
                         setCurrentPage(1);
                         setFranchiseOpen(false);
                         setFranchiseKeyword("");
@@ -501,7 +536,7 @@ export default function ProductFranchisePage() {
                           key={fr.value}
                           type="button"
                           onClick={() => {
-                            setFilters((f) => ({ ...f, franchise_id: fr.value }));
+                            setFilters((f) => ({ ...f, franchise_id: fr.value, product_id: "" }));
                             setCurrentPage(1);
                             setFranchiseOpen(false);
                             setFranchiseKeyword("");
@@ -529,24 +564,33 @@ export default function ProductFranchisePage() {
             <div className="relative">
               <button
                 type="button"
+                disabled={!filters.franchise_id}
                 onClick={() => setProductOpen((o) => !o)}
-                className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-300/40"
+                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm outline-none transition ${
+                  filters.franchise_id
+                    ? "border-slate-300 bg-white text-slate-700 focus:border-slate-400 focus:ring-2 focus:ring-slate-300/40"
+                    : "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed"
+                }`}
               >
                 <span className="truncate">
-                  {filters.product_id ? `${productNameMap[filters.product_id] || filters.product_id}` : "-- Tất cả product --"}
+                  {filters.product_id
+                    ? (productNameMap[filters.product_id] || filters.product_id)
+                    : filters.franchise_id
+                      ? "-- Tất cả product --"
+                      : "Chọn franchise trước"}
                 </span>
                 <svg className="ml-2 size-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {productOpen && (
+              {productOpen && filters.franchise_id && (
                 <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
                   <div className="border-b border-slate-200 px-3 py-2">
                     <input
                       autoFocus
                       value={productKeyword}
                       onChange={(e) => setProductKeyword(e.target.value)}
-                      placeholder="Tìm theo tên hoặc SKU..."
+                      placeholder="Tìm theo tên sản phẩm..."
                       className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-slate-400 focus:ring-1 focus:ring-slate-300/50"
                     />
                   </div>
@@ -565,14 +609,17 @@ export default function ProductFranchisePage() {
                     >
                       -- Tất cả product --
                     </button>
+                    {filterPFLoading && (
+                      <div className="px-3 py-2 text-xs text-slate-400">Đang tải...</div>
+                    )}
                     {productOptions.map((p) => {
-                      const active = filters.product_id === p.id;
+                      const active = filters.product_id === p.product_id;
                       return (
                         <button
-                          key={p.id}
+                          key={p.product_id}
                           type="button"
                           onClick={() => {
-                            setFilters((f) => ({ ...f, product_id: p.id }));
+                            setFilters((f) => ({ ...f, product_id: p.product_id }));
                             setCurrentPage(1);
                             setProductOpen(false);
                             setProductKeyword("");
@@ -581,26 +628,12 @@ export default function ProductFranchisePage() {
                             active ? "bg-slate-100 text-slate-800" : "text-slate-700 hover:bg-slate-50"
                           }`}
                         >
-                          <span className="truncate">{p.name} — {p.SKU}</span>
+                          <span className="truncate">{p.name}</span>
                         </button>
                       );
                     })}
-                    {productLoading && (
-                      <div className="px-3 py-2 text-xs text-slate-400">
-                        Đang tải...
-                      </div>
-                    )}
-                    {productOptions.length === 0 && (
+                    {!filterPFLoading && productOptions.length === 0 && (
                       <div className="px-3 py-2 text-xs text-slate-400">Không tìm thấy product</div>
-                    )}
-                    {!productLoading && productOptions.length > 0 && productPage < productTotalPages && (
-                      <button
-                        type="button"
-                        onClick={() => loadProducts(productKeyword.trim(), productPage + 1, true)}
-                        className="flex w-full items-center justify-center px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-50"
-                      >
-                        Tải thêm
-                      </button>
                     )}
                   </div>
                 </div>
@@ -866,7 +899,7 @@ export default function ProductFranchisePage() {
                               key={fr.value}
                               type="button"
                               onClick={() => {
-                                setCreateForm((f) => ({ ...f, franchise_id: fr.value }));
+                                setCreateForm((f) => ({ ...f, franchise_id: fr.value, product_id: "" }));
                                 setCreateFranchiseOpen(false);
                                 setCreateFranchiseKeyword("");
                               }}
@@ -889,58 +922,56 @@ export default function ProductFranchisePage() {
                   <div className="relative">
                     <button
                       type="button"
+                      disabled={!createForm.franchise_id}
                       onClick={() => setCreateProductOpen((o) => !o)}
-                      className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm outline-none transition ${
+                        createForm.franchise_id
+                          ? "border-white/[0.15] bg-white/[0.08] text-white/90 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                          : "border-white/[0.08] bg-white/[0.04] text-white/40 cursor-not-allowed"
+                      }`}
                     >
                       <span className="truncate">
-                        {createForm.product_id ? (productNameMap[createForm.product_id] || createForm.product_id) : "-- Chọn product --"}
+                        {createForm.product_id
+                          ? (productNameMap[createForm.product_id] || createForm.product_id)
+                          : createForm.franchise_id
+                            ? "-- Chọn product --"
+                            : "Chọn franchise trước"}
                       </span>
                       <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                       </svg>
                     </button>
-                    {createProductOpen && (
+                    {createProductOpen && createForm.franchise_id && (
                       <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.12] bg-white/[0.08] shadow-lg" style={{ backdropFilter: "blur(40px) saturate(180%)", WebkitBackdropFilter: "blur(40px) saturate(180%)" }}>
                         <div className="border-b border-white/[0.12] px-3 py-2">
                           <input
                             autoFocus
                             value={createProductKeyword}
                             onChange={(e) => setCreateProductKeyword(e.target.value)}
-                            placeholder="Tìm theo tên hoặc SKU..."
+                            placeholder="Tìm theo tên sản phẩm..."
                             className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
                           />
                         </div>
                         <div className="max-h-64 overflow-y-auto py-1 text-sm">
+                          {createPFLoading && (
+                            <div className="px-3 py-2 text-xs text-white/40">Đang tải...</div>
+                          )}
                           {createProductOptions.map((p) => (
                             <button
-                              key={p.id}
+                              key={p.product_id}
                               type="button"
                               onClick={() => {
-                                setCreateForm((f) => ({ ...f, product_id: p.id }));
+                                setCreateForm((f) => ({ ...f, product_id: p.product_id }));
                                 setCreateProductOpen(false);
                                 setCreateProductKeyword("");
                               }}
                               className="flex w-full items-center px-3 py-2 text-left text-xs text-white/80 hover:bg-white/[0.1]"
                             >
-                              <span className="truncate">{p.name} — {p.SKU}</span>
+                              <span className="truncate">{p.name}</span>
                             </button>
                           ))}
-                          {productLoading && (
-                            <div className="px-3 py-2 text-xs text-white/40">
-                              Đang tải...
-                            </div>
-                          )}
-                          {createProductOptions.length === 0 && (
+                          {!createPFLoading && createProductOptions.length === 0 && (
                             <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy product</div>
-                          )}
-                          {!productLoading && createProductOptions.length > 0 && productPage < productTotalPages && (
-                            <button
-                              type="button"
-                              onClick={() => loadProducts(createProductKeyword.trim(), productPage + 1, true)}
-                              className="flex w-full items-center justify-center px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-white/[0.1]"
-                            >
-                              Tải thêm
-                            </button>
                           )}
                         </div>
                       </div>
