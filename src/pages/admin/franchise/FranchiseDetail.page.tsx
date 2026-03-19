@@ -151,17 +151,13 @@ const FranchiseDetailPage = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Chi tiết Franchise</h1>
           <p className="text-xs sm:text-sm text-slate-600">Thông tin chi nhánh & tóm tắt tồn kho</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => navigate(`/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_EDIT.replace(":id", id!)}`)}>
-            Chỉnh sửa
-          </Button>
+        </div>        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             className="text-red-600 border-red-200 hover:bg-red-50"
             onClick={async () => {
               if (!id) return;
-              if (!await showConfirm({ message: "Bạn có chắc muốn xóa franchise này?", variant: "danger" })) return;
+              if (!await showConfirm({ message: "Bạn có chắc muốn xóa franchise này?", title: "Xóa franchise", variant: "danger", confirmText: "Xóa" })) return;
               try {
                 await deleteFranchise(id);
                 showSuccess("Xóa franchise thành công");
@@ -182,10 +178,14 @@ const FranchiseDetailPage = () => {
               }
               loading={togglingStatus}
               onClick={async () => {
-                if (!id || !franchise) return;
-                const newStatus = !franchise.is_active;
-                const action = newStatus ? "kích hoạt" : "ngừng hoạt động";
-                if (!await showConfirm(`Bạn có chắc muốn ${action} franchise này?`)) return;
+                if (!id || !franchise) return;                const newStatus = !franchise.is_active;
+                const action = newStatus ? "Kích hoạt" : "Ngừng hoạt động";
+                if (!await showConfirm({
+                  message: `Bạn có chắc muốn ${action.toLowerCase()} franchise này?`,
+                  title: `${action} franchise`,
+                  variant: newStatus ? "info" : "warning",
+                  confirmText: action,
+                })) return;
                 setTogglingStatus(true);
                 try {
                   await changeFranchiseStatus(id, newStatus);

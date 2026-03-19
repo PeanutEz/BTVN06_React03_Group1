@@ -201,9 +201,8 @@ export default function VoucherListPage() {
           onClick={() => {
             setAppliedSearchCode(searchCode);
             setPagination((prev) => ({ ...prev, page: 1 }));
-          }}
-          disabled={loading}
-          className="rounded-lg bg-slate-800 px-5 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-60 whitespace-nowrap"
+          }}          disabled={loading}
+          className="rounded-lg bg-primary-500 hover:bg-primary-600 px-5 py-2 text-sm font-medium text-white shadow-md transition-colors disabled:opacity-60 whitespace-nowrap"
         >
           Tìm kiếm
         </button>

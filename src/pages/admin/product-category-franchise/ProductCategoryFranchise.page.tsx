@@ -90,7 +90,52 @@ export default function ProductCategoryFranchisePage() {
   // create modal - products by franchise (PCF-08)
   const [createPFItems, setCreatePFItems] = useState<ProductWithCategoriesResponse[]>([]);
   const [createPFLoading, setCreatePFLoading] = useState(false);
-  const [createFranchiseId, setCreateFranchiseId] = useState("");
+  const [createFranchiseId, setCreateFranchiseId] = useState("");  // filter franchise combobox
+  const [filterFranchiseOpen, setFilterFranchiseOpen] = useState(false);
+  const [filterFranchiseKeyword, setFilterFranchiseKeyword] = useState("");
+  const filterFranchiseRef = useRef<HTMLDivElement>(null);
+
+  // create franchise combobox
+  const [createFranchiseOpen, setCreateFranchiseOpen] = useState(false);
+  const [createFranchiseKeyword, setCreateFranchiseKeyword] = useState("");
+  const createFranchiseRef = useRef<HTMLDivElement>(null);
+
+  // click-outside handlers
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (filterFranchiseRef.current && !filterFranchiseRef.current.contains(e.target as Node)) {
+        setFilterFranchiseOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (createFranchiseRef.current && !createFranchiseRef.current.contains(e.target as Node)) {
+        setCreateFranchiseOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filteredFranchiseOptions = useMemo(() => {
+    if (!filterFranchiseKeyword.trim()) return franchises;
+    const k = filterFranchiseKeyword.trim().toLowerCase();
+    return franchises.filter(
+      (f) => (f.name || "").toLowerCase().includes(k) || (f.code || "").toLowerCase().includes(k)
+    );
+  }, [franchises, filterFranchiseKeyword]);
+
+  const createFranchiseOptions = useMemo(() => {
+    if (!createFranchiseKeyword.trim()) return franchises;
+    const k = createFranchiseKeyword.trim().toLowerCase();
+    return franchises.filter(
+      (f) => (f.name || "").toLowerCase().includes(k) || (f.code || "").toLowerCase().includes(k)
+    );
+  }, [franchises, createFranchiseKeyword]);
 
   const hasRun = useRef(false);
   const isInitialized = useRef(false);
@@ -343,41 +388,86 @@ export default function ProductCategoryFranchisePage() {
             + Thêm mới
           </Button>
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-4">
+      </div>      {/* Filters */}
+      <div className="relative z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="grid gap-3 md:grid-cols-4">          {/* Franchise custom combobox */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Franchise
             </label>
-            <select
-              value={filters.franchise_id}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, franchise_id: e.target.value }))
-              }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="">-- Tất cả --</option>
-              {franchises.map((fr) => (
-                <option key={fr.value} value={fr.value}>
-                  {fr.name} ({fr.code})
-                </option>
-              ))}
-            </select>
+            <div className="relative" ref={filterFranchiseRef}>
+              <button
+                type="button"
+                onClick={() => setFilterFranchiseOpen((o) => !o)}
+                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              >
+                <span className="truncate">
+                  {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả --"}
+                </span>
+                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {filterFranchiseOpen && (
+                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
+                  <div className="border-b border-white/[0.12] px-3 py-2">
+                    <input
+                      autoFocus
+                      value={filterFranchiseKeyword}
+                      onChange={(e) => setFilterFranchiseKeyword(e.target.value)}
+                      placeholder="Tìm theo tên hoặc mã..."
+                      className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                    />
+                  </div>
+                  <div className="max-h-64 overflow-y-auto py-1 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilters((f) => ({ ...f, franchise_id: "" }));
+                        setFilterFranchiseOpen(false);
+                        setFilterFranchiseKeyword("");
+                      }}
+                      className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
+                        !filters.franchise_id ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"
+                      }`}
+                    >
+                      -- Tất cả --
+                    </button>
+                    {filteredFranchiseOptions.map((fr) => (
+                      <button
+                        key={fr.value}
+                        type="button"
+                        onClick={() => {
+                          setFilters((f) => ({ ...f, franchise_id: fr.value }));
+                          setFilterFranchiseOpen(false);
+                          setFilterFranchiseKeyword("");
+                        }}
+                        className={`flex w-full items-center px-3 py-2 text-left text-xs ${
+                          filters.franchise_id === fr.value ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"
+                        }`}
+                      >
+                        <span className="truncate">{fr.name} ({fr.code})</span>
+                      </button>
+                    ))}
+                    {filteredFranchiseOptions.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* Trạng thái custom combobox */}
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Trạng thái
             </label>
             <select
               value={filters.is_active}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, is_active: e.target.value }))
-              }
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              onChange={(e) => setFilters((f) => ({ ...f, is_active: e.target.value }))}
+              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white appearance-none"
+              style={{ colorScheme: "dark" }}
             >
               <option value="">-- Tất cả --</option>
               <option value="true">Active</option>
@@ -575,24 +665,57 @@ export default function ProductCategoryFranchisePage() {
             <h2 className="mb-4 text-lg font-bold text-white/95">
               Thêm Product vào Category Franchise
             </h2>
-            <form onSubmit={submitCreate} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
+            <form onSubmit={submitCreate} className="space-y-4">              <div className="space-y-1.5">                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Franchise <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={createFranchiseId}
-                  onChange={(e) => setCreateFranchiseId(e.target.value)}
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white"
-                  required
-                >
-                  <option value="">-- Chọn franchise --</option>
-                  {franchises.map((fr) => (
-                    <option key={fr.value} value={fr.value}>
-                      {fr.name} ({fr.code})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative" ref={createFranchiseRef}>
+                  <button
+                    type="button"
+                    onClick={() => setCreateFranchiseOpen((o) => !o)}
+                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  >
+                    <span className="truncate">
+                      {createFranchiseId ? (franchiseNameMap[createFranchiseId] || createFranchiseId) : "-- Chọn franchise --"}
+                    </span>
+                    <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {createFranchiseOpen && (
+                    <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
+                      <div className="border-b border-white/[0.12] px-3 py-2">
+                        <input
+                          autoFocus
+                          value={createFranchiseKeyword}
+                          onChange={(e) => setCreateFranchiseKeyword(e.target.value)}
+                          placeholder="Tìm theo tên hoặc mã..."
+                          className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                        />
+                      </div>
+                      <div className="max-h-56 overflow-y-auto py-1 text-sm">
+                        {createFranchiseOptions.map((fr) => (
+                          <button
+                            key={fr.value}
+                            type="button"
+                            onClick={() => {
+                              setCreateFranchiseId(fr.value);
+                              setCreateFranchiseOpen(false);
+                              setCreateFranchiseKeyword("");
+                            }}
+                            className={`flex w-full items-center px-3 py-2 text-left text-xs ${
+                              createFranchiseId === fr.value ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"
+                            }`}
+                          >
+                            <span className="truncate">{fr.name} ({fr.code})</span>
+                          </button>
+                        ))}
+                        {createFranchiseOptions.length === 0 && (
+                          <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -606,9 +729,8 @@ export default function ProductCategoryFranchisePage() {
                       ...f,
                       category_franchise_id: e.target.value,
                     }))
-                  }
-                  disabled={!createFranchiseId}
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  }                  disabled={!createFranchiseId}
+                  className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                 >
                   <option value="">
@@ -635,9 +757,8 @@ export default function ProductCategoryFranchisePage() {
                       ...f,
                       product_franchise_id: e.target.value,
                     }))
-                  }
-                  disabled={!createFranchiseId || createPFLoading}
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 [&>option]:bg-slate-900 [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  }                  disabled={!createFranchiseId || createPFLoading}
+                  className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   required
                 >
                   <option value="">
