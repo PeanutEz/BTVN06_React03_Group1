@@ -34,7 +34,7 @@ const MenuPage = React.lazy(() => import("../pages/client/menu/Menu.page"));
 const MenuCheckoutPage = React.lazy(() => import("../pages/client/menu/MenuCheckout.page"));
 function MenuCheckoutPageWithKey() {
   const location = useLocation();
-  return <MenuCheckoutPage key={location.key} checkoutKey={location.key} />;
+  return <MenuCheckoutPage key={location.key} />;
 }
 const OrderStatusPage = React.lazy(() => import("../pages/client/menu/OrderStatus.page"));
 const PaymentProcessPage = React.lazy(() => import("../pages/client/menu/PaymentProcess.page"));

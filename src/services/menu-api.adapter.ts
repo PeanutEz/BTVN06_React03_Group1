@@ -63,12 +63,19 @@ export function mapClientProductToMenuProduct(
     item: ClientProductListItem,
     franchiseId: string,
 ): MenuProduct {
+    type SizeWithPrice = {
+        price: number;
+        price_base?: number;
+        is_available?: boolean;
+        [k: string]: unknown;
+    };
+
     // API có thể trả price_base thay vì price trong sizes
-    const sizesWithPrice = (item.sizes || []).map((s: { price?: number; price_base?: number; [k: string]: unknown }) => ({
+    const sizesWithPrice: SizeWithPrice[] = (item.sizes || []).map((s: { price?: number; price_base?: number; is_available?: boolean; [k: string]: unknown }) => ({
         ...s,
         price: Number(s?.price ?? (s as any)?.price_base ?? 0),
     }));
-    const availableSizes = sizesWithPrice.filter((s: { is_available?: boolean }) => s.is_available);
+    const availableSizes = sizesWithPrice.filter((s) => s.is_available);
     const cheapest = availableSizes.length > 0
         ? availableSizes.reduce((min: { price: number }, s: { price: number }) => (s.price < min.price ? s : min), availableSizes[0])
         : sizesWithPrice[0];
