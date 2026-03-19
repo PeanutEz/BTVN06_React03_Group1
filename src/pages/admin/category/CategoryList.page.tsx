@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Button, GlassSelect, useConfirm } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { categoryService } from "../../../services/category.service";
 import type { CategoryApiResponse, CreateCategoryDto, CategorySelectItem } from "../../../models/product.model";
@@ -181,17 +181,7 @@ export default function CategoryListPage() {
       setSubmitting(false);
     }
   };
-
-  const handleResetFilters = () => {
-    setSearchQuery("");
-    setStatusFilter("");
-    setParentFilter("");
-    setIsDeletedFilter(false);
-    setCurrentPage(1);
-    load("", 1, "", "", false);
-  };
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  // ─── Render─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -208,13 +198,11 @@ export default function CategoryListPage() {
           </p>
         </div>
         <Button onClick={handleOpenCreate}>+ Tạo danh mục</Button>
-      </div>
-
-      {/* Filter Bar */}
+      </div>      {/* Filter Bar */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           {/* Search keyword */}
-          <div className="relative min-w-[200px] flex-1">
+          <div className="relative min-w-[220px] flex-1">
             <svg
               className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -233,33 +221,39 @@ export default function CategoryListPage() {
           </div>
 
           {/* Status filter */}
-          <GlassSelect
-            value={statusFilter}
-            onChange={(value) => { setStatusFilter(value); setCurrentPage(1); load(searchQuery, 1, value, parentFilter, isDeletedFilter); }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            options={[
-              { value: "", label: "Tất cả trạng thái" },
-              { value: "true", label: "Active" },
-              { value: "false", label: "Inactive" },
-            ]}
-          />
+          <div className="min-w-[150px]">
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, e.target.value, parentFilter, isDeletedFilter); }}
+              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white appearance-none"
+              style={{ colorScheme: "dark" }}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
 
           {/* Parent category filter */}
-          <GlassSelect
-            value={parentFilter}
-            onChange={(value) => { setParentFilter(value); setCurrentPage(1); load(searchQuery, 1, statusFilter, value, isDeletedFilter); }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            options={[
-              { value: "", label: "Tất cả danh mục cha" },
-              ...parentOptions.map((opt) => ({ value: opt.value, label: opt.name })),
-            ]}
-          />
+          <div className="min-w-[180px]">
+            <select
+              value={parentFilter}
+              onChange={(e) => { setParentFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, statusFilter, e.target.value, isDeletedFilter); }}
+              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white appearance-none"
+              style={{ colorScheme: "dark" }}
+            >
+              <option value="">Tất cả danh mục cha</option>
+              {parentOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.name}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Is deleted filter */}
           <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
             isDeletedFilter
-              ? "border-red-400 bg-red-50 text-red-700"
-              : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+              ? "border-red-400 bg-red-900/40 text-red-300"
+              : "border-white/[0.15] bg-slate-800 text-white/60 hover:bg-slate-700"
           }`}>
             <input
               type="checkbox"
@@ -268,17 +262,9 @@ export default function CategoryListPage() {
               className="accent-red-500"
             />
             <span className="font-medium">Đã xóa</span>
-          </label>
-
-          <Button onClick={handleSearch} loading={loading}>
+          </label>          <Button onClick={handleSearch} loading={loading}>
             Tìm kiếm
           </Button>
-          <button
-            onClick={handleResetFilters}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
-          >
-            Đặt lại
-          </button>
         </div>
       </div>
 

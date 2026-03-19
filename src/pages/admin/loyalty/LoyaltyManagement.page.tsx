@@ -100,11 +100,7 @@ const LoyaltyManagementPage = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý chương trình thành viên</h1>
           <p className="text-xs sm:text-sm text-slate-600">Cấu hình quy tắc tích điểm và hạng thành viên</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={loadData} loading={loading}>
-            Làm mới
-          </Button>
+        </div>        <div className="flex flex-wrap gap-2">
           <Button onClick={handleOpenRuleModal}>Chỉnh sửa quy tắc</Button>
         </div>
       </div>

@@ -285,10 +285,19 @@ export async function updateFranchise(id: string, data: CreateFranchisePayload):
 // DELETE /api/franchises/:id — Token: YES — Role: ADMIN
 // Output: { success: true, data: null }
 export async function deleteFranchise(id: string): Promise<void> {
-	const response = await apiClient.delete<ApiResponse<null>>(`/franchises/${id}`);
-	const result = response.data;
-	if (!result.success) {
-		throw new Error("Xóa franchise thất bại");
+	if (!id) throw new Error("ID franchise không hợp lệ");
+	try {
+		const response = await apiClient.delete<ApiResponse<null>>(`/franchises/${id}`);
+		const result = response.data;
+		if (!result.success) {
+			const msg = (result as { message?: string }).message || "Xóa franchise thất bại";
+			throw new Error(msg);
+		}
+	} catch (error) {
+		if (error instanceof AxiosError && error.response?.data) {
+			throw new Error(extractApiErrorMessage(error.response.data, "Xóa franchise thất bại"));
+		}
+		throw error;
 	}
 }
 
@@ -296,10 +305,19 @@ export async function deleteFranchise(id: string): Promise<void> {
 // PATCH /api/franchises/:id/restore — Token: YES — Role: ADMIN
 // Output: { success: true, data: null }
 export async function restoreFranchise(id: string): Promise<void> {
-	const response = await apiClient.patch<ApiResponse<null>>(`/franchises/${id}/restore`);
-	const result = response.data;
-	if (!result.success) {
-		throw new Error("Khôi phục franchise thất bại");
+	if (!id) throw new Error("ID franchise không hợp lệ");
+	try {
+		const response = await apiClient.patch<ApiResponse<null>>(`/franchises/${id}/restore`);
+		const result = response.data;
+		if (!result.success) {
+			const msg = (result as { message?: string }).message || "Khôi phục franchise thất bại";
+			throw new Error(msg);
+		}
+	} catch (error) {
+		if (error instanceof AxiosError && error.response?.data) {
+			throw new Error(extractApiErrorMessage(error.response.data, "Khôi phục franchise thất bại"));
+		}
+		throw error;
 	}
 }
 
@@ -308,12 +326,31 @@ export async function restoreFranchise(id: string): Promise<void> {
 // Input: { is_active: boolean }
 // Output: { success: true, data: null }
 export async function changeFranchiseStatus(id: string, isActive: boolean): Promise<void> {
-	const response = await apiClient.patch<ApiResponse<null>>(`/franchises/${id}/status`, {
-		is_active: isActive,
-	});
-	const result = response.data;
-	if (!result.success) {
-		throw new Error("Thay đổi trạng thái franchise thất bại");
+	if (!id) throw new Error("ID franchise không hợp lệ");
+	try {
+		// Try RESTful: PATCH /franchises/:id/status
+		const response = await apiClient.patch<ApiResponse<null>>(`/franchises/${id}/status`, {
+			is_active: isActive,
+		});
+		const result = response.data;
+		if (!result.success) {
+			const msg = (result as { message?: string }).message || "Thay đổi trạng thái franchise thất bại";
+			throw new Error(msg);
+		}
+	} catch (err) {
+		// Fallback: PATCH /franchises/status with { id, is_active } in body (some backends use this)
+		if (err instanceof AxiosError && (err.response?.status === 404 || err.response?.status === 405)) {
+			const response2 = await apiClient.patch<ApiResponse<null>>("/franchises/status", {
+				id,
+				is_active: isActive,
+			});
+			if (!response2.data.success) {
+				const msg2 = (response2.data as { message?: string }).message || "Thay đổi trạng thái franchise thất bại";
+				throw new Error(msg2);
+			}
+			return;
+		}
+		throw err;
 	}
 }
 
