@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { RouteChangeLoading } from "../components";
 import ScrollToTopOnNavigate from "../components/ui/ScrollToTopOnNavigate";
 import LoadingLayout from "../layouts/Loading.layout";
@@ -32,6 +32,10 @@ const ContactPage = React.lazy(() => import("../pages/client/Contact.page"));
 const CustomerChangePasswordPage = React.lazy(() => import("../pages/client/customer/CustomerChangePassword.page"));
 const MenuPage = React.lazy(() => import("../pages/client/menu/Menu.page"));
 const MenuCheckoutPage = React.lazy(() => import("../pages/client/menu/MenuCheckout.page"));
+function MenuCheckoutPageWithKey() {
+  const location = useLocation();
+  return <MenuCheckoutPage key={location.key} checkoutKey={location.key} />;
+}
 const OrderStatusPage = React.lazy(() => import("../pages/client/menu/OrderStatus.page"));
 const PaymentProcessPage = React.lazy(() => import("../pages/client/menu/PaymentProcess.page"));
 const PaymentSuccessPage = React.lazy(() => import("../pages/client/menu/PaymentSuccess.page"));
@@ -69,7 +73,7 @@ function AppRoutes() {
 
           {/* Menu checkout & order status – auth required only */}
           <Route element={<AuthGuard />}>
-            <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPage />} />
+            <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPageWithKey />} />
             <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
             <Route path={ROUTER_URL.PAYMENT_PROCESS} element={<PaymentProcessPage />} />
             <Route path={ROUTER_URL.PAYMENT_SUCCESS} element={<PaymentSuccessPage />} />

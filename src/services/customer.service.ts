@@ -191,6 +191,40 @@ export async function deleteCustomer(id: string | number): Promise<boolean> {
   return true;
 }
 
+// ==================== CUSTOMER AUTH: Get Current Profile ====================
+// GET /api/customer-auth — Token: YES — Role: CUSTOMER
+export async function getCurrentCustomerProfile(): Promise<CustomerDisplay | null> {
+  try {
+    const response = await apiClient.get<ApiResponse<ApiCustomer>>("/customer-auth");
+    const result = response.data;
+    if (!result.success) return null;
+    return normalizeCustomer((result as { data: ApiCustomer }).data);
+  } catch {
+    return null;
+  }
+}
+
+// ==================== CUSTOMER AUTH: Update Current Profile ====================
+// PUT /api/customer-auth — Token: YES — Role: CUSTOMER
+export async function updateCurrentCustomerProfile(data: {
+  name?: string;
+  phone?: string;
+  address?: string;
+  avatar_url?: string;
+}): Promise<CustomerDisplay | null> {
+  try {
+    const response = await apiClient.put<ApiResponse<ApiCustomer>>("/customer-auth", data);
+    const result = response.data;
+    if (!result.success) {
+      throw new Error(result.message || "Cập nhật profile thất bại");
+    }
+    return normalizeCustomer((result as { data: ApiCustomer }).data);
+  } catch (error) {
+    console.error("Update profile error:", error);
+    throw error;
+  }
+}
+
 // ==================== fetchCustomerFranchises ====================
 export async function fetchCustomerFranchises(customerId: number): Promise<CustomerFranchise[]> {
   try {

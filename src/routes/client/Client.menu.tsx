@@ -19,14 +19,6 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: true,
 	},
 	{
-		label: "Giỏ hàng",
-		path: ROUTER_URL.CART,
-		component: React.lazy(() => import("../../pages/client/Cart.page")),
-		isEnd: true,
-		showInNav: false,
-	},
-
-	{
 		label: "Menu",
 		path: ROUTER_URL.MENU,
 		component: React.lazy(() => import("@/pages/client/menu/Menu.page")),

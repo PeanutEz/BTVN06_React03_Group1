@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { cartClient } from "@/services/cart.client";
+import { buildCartSelectionNote } from "@/utils/cartSelectionNote.util";
 import {
   SUGAR_LEVELS,
   ICE_LEVELS,
@@ -14,6 +16,7 @@ import {
   type IceLevel,
   type Topping,
 } from "@/types/menu.types";
+import { clientService } from "@/services/client.service";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -29,6 +32,36 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 interface MenuProductModalProps {
   product: MenuProduct | null;
   onClose: () => void;
+  // When editing from cart, prefill sugar/ice/toppings/size/note.
+  initialSelection?: {
+    size?: string;
+    productFranchiseId?: string; // _api product_franchise_id of chosen size
+    sugar?: SugarLevel;
+    ice?: IceLevel;
+    toppings?: Topping[]; // Flattened toppings array (each entry = one unit)
+    note?: string;
+  };
+  initialQuantity?: number;
+  // If provided, remove the old local cart entry before adding the updated one.
+  replaceLocalCartKey?: string;
+  // If provided, remove the old API cart item before adding the updated one.
+  replaceApiItemId?: string;
+  // Khi sửa item API: truyền cartId để refetch cart sau khi xóa, tránh duplicate (xóa xong mới thêm).
+  replaceCartId?: string;
+
+  // Used by cart pages to keep item position stable after edit (delete+add can change backend ordering).
+  onSaved?: (payload: {
+    replacedApiItemId?: string;
+    fingerprint: {
+      apiProductId?: string;
+      apiProductFranchiseId?: string;
+      size?: string;
+      sugar?: SugarLevel;
+      ice?: IceLevel;
+      toppings?: Array<{ name: string; quantity: number }>;
+      note?: string;
+    };
+  }) => void;
 }
 
 interface ApiSize {
@@ -38,10 +71,21 @@ interface ApiSize {
   is_available: boolean;
 }
 
-export default function MenuProductModal({ product, onClose }: MenuProductModalProps) {
+export default function MenuProductModal({
+  product,
+  onClose,
+  initialSelection,
+  initialQuantity,
+  replaceLocalCartKey,
+  replaceApiItemId,
+  replaceCartId,
+  onSaved,
+}: MenuProductModalProps) {
   const queryClient = useQueryClient();
   const addItem = useMenuCartStore((s) => s.addItem);
+  const replaceItemAt = useMenuCartStore((s) => s.replaceItemAt);
   const setCartId = useMenuCartStore((s) => s.setCartId);
+  const setCarts = useMenuCartStore((s) => s.setCarts);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const user = useAuthStore((s) => s.user);
 
@@ -54,21 +98,67 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
   const [note, setNote] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
+  // Fetch toppings from API
+  const [apiToppings, setApiToppings] = useState<Topping[]>([]);
+  const [isFetchingToppings, setIsFetchingToppings] = useState(false);
+  const desiredToppingsByNameRef = useRef<Record<string, number>>({});
+  const initialToppingQtysRef = useRef<Record<string, number> | null>(null);
+
   // Reset state when product changes
   useEffect(() => {
     if (product) {
       setTab("order");
-      setSugar("100%");
-      setIce("Đá vừa");
+      setSugar(initialSelection?.sugar ?? "100%");
+      setIce(initialSelection?.ice ?? "Đá vừa");
+      setNote(initialSelection?.note ?? "");
+      setQuantity(initialQuantity ?? 1);
+
+      // Prefill toppings quantities by topping name (diacritics-insensitive).
+      // API toppings ids may differ from what is stored in cart, so we map by name.
+      const norm = (s: unknown) =>
+        String(s ?? "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .trim()
+          .toLowerCase();
+      const desiredByName: Record<string, number> = {};
+      for (const t of initialSelection?.toppings ?? []) {
+        const key = norm(t.name);
+        if (!key) continue;
+        desiredByName[key] = (desiredByName[key] ?? 0) + 1;
+      }
+      desiredToppingsByNameRef.current = desiredByName;
       setToppingQtys({});
-      setQuantity(1);
-      setNote("");
+
       // Auto-select first available size from list-level sizes
       const listSizes: ApiSize[] = (product as any)._apiSizes ?? [];
-      const firstAvailable = listSizes.find((s) => s.is_available) ?? listSizes[0] ?? null;
+      const desiredProductFranchiseId = initialSelection?.productFranchiseId;
+      const desiredSizeLabel = initialSelection?.size?.trim().toUpperCase();
+      const desiredByProductFranchiseId =
+        desiredProductFranchiseId && listSizes.some((s) => s.product_franchise_id === desiredProductFranchiseId)
+          ? listSizes.find((s) => s.product_franchise_id === desiredProductFranchiseId) ?? null
+          : null;
+
+      const desiredBySizeLabel =
+        !desiredByProductFranchiseId && desiredSizeLabel
+          ? (() => {
+              const matches = listSizes.filter((s) => String(s.size ?? "").trim().toUpperCase() === desiredSizeLabel);
+              return matches.length ? (matches.find((s) => s.is_available) ?? matches[0]) : null;
+            })()
+          : null;
+
+      const firstAvailable = desiredByProductFranchiseId ?? desiredBySizeLabel ?? listSizes.find((s) => s.is_available) ?? listSizes[0] ?? null;
       setSelectedSize(firstAvailable);
     }
-  }, [product?.id]);
+  }, [
+    product?.id,
+    initialQuantity,
+    initialSelection?.productFranchiseId,
+    initialSelection?.size,
+    initialSelection?.sugar,
+    initialSelection?.ice,
+    initialSelection?.note,
+  ]);
 
   // Fetch full product detail from API (CLIENT-05) to get real sizes
   const [productDetail, setProductDetail] = useState<any>(null);
@@ -107,6 +197,104 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
     return () => { cancelled = true; };
   }, [product?.id]);
 
+  // When editing cart items, ensure the selected size matches the cart selection,
+  // even if product detail was already fetched for the same product.
+  useEffect(() => {
+    if (!productDetail?.sizes?.length) return;
+    if (!initialSelection?.size && !initialSelection?.productFranchiseId) return;
+
+    const detailSizes: ApiSize[] = productDetail.sizes;
+    const desiredProductFranchiseId = initialSelection?.productFranchiseId;
+    const desiredSizeLabel = initialSelection?.size?.trim().toUpperCase();
+
+    setSelectedSize((prev) => {
+      // Prefer match by product_franchise_id when provided.
+      if (desiredProductFranchiseId && detailSizes.some((s) => s.product_franchise_id === desiredProductFranchiseId)) {
+        return detailSizes.find((s) => s.product_franchise_id === desiredProductFranchiseId) ?? prev;
+      }
+
+      // Otherwise fall back to match by size label.
+      if (desiredSizeLabel) {
+        const bySize = detailSizes.filter((s) => String(s.size ?? "").trim().toUpperCase() === desiredSizeLabel);
+        if (bySize.length) return (bySize.find((s) => s.is_available) ?? bySize[0]) as any;
+      }
+
+      return prev;
+    });
+  }, [productDetail, initialSelection?.productFranchiseId, initialSelection?.size]);
+
+  // Fetch topping products from API
+  useEffect(() => {
+    if (!product) {
+      setApiToppings([]);
+      return;
+    }
+    const franchiseId = (product as any)?._apiFranchiseId;
+    if (!franchiseId) return;
+
+    let cancelled = false;
+    setIsFetchingToppings(true);
+
+    (async () => {
+      try {
+        const toppingProducts = await clientService.getToppingsByFranchise(franchiseId);
+        if (!cancelled) {
+          // Map API products to Topping format with product_franchise_id
+          const mappedToppings: Topping[] = toppingProducts.flatMap((p) => {
+            // Use first available size or first size (guard missing/empty sizes)
+            const sizes = (p as any).sizes ?? [];
+            const availableSize = sizes.find((s: any) => s.is_available) ?? sizes[0];
+            if (!availableSize) return [];
+
+            // Find matching topping from TOPPINGS constant by name similarity
+            const matchingTopping = TOPPINGS.find((t) =>
+              p.name.toLowerCase().includes(t.name.toLowerCase()) ||
+              t.name.toLowerCase().includes(p.name.toLowerCase())
+            );
+
+            return [{
+              id: p.product_id,
+              name: p.name,
+              price: availableSize.price,
+              emoji: matchingTopping?.emoji ?? "➕",
+              product_franchise_id: availableSize.product_franchise_id,
+            }];
+          });
+
+          setApiToppings(mappedToppings);
+          // Prefill topping quantities by matching name (ids can differ between cached cart and API response).
+          const desiredByName = desiredToppingsByNameRef.current;
+          const normalize = (s: unknown) =>
+            String(s ?? "")
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .trim()
+              .toLowerCase();
+          const nextQtys: Record<string, number> = {};
+          for (const t of mappedToppings) {
+            const key = normalize(t.name);
+            nextQtys[t.id] = desiredByName[key] ?? 0;
+          }
+          setToppingQtys(nextQtys);
+          initialToppingQtysRef.current = nextQtys;
+        }
+      } catch (err) {
+        console.error("Failed to fetch toppings:", err);
+        if (!cancelled) {
+          // Don't fallback to static "fake api" toppings.
+          setApiToppings([]);
+          setToppingQtys({});
+        }
+      } finally {
+        if (!cancelled) {
+          setIsFetchingToppings(false);
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [product?.id]);
+
   // Lock body scroll
   useEffect(() => {
     if (product) {
@@ -123,25 +311,26 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
   const displayContent = productDetail?.content || product.content;
   const displayImage = productDetail?.image_url || product.image;
 
+  // Chuẩn hóa giá size: API có thể trả price_base thay vì price
+  const sizePrice = (s: ApiSize & { price_base?: number }) => Number(s?.price ?? (s as any)?.price_base ?? 0);
   // Real sizes from API detail (preferred) or fallback to list-level sizes
-  const displaySizesRaw: ApiSize[] = productDetail?.sizes ?? (product as any)._apiSizes ?? [];
-  // API đôi khi trả duplicate size (vd: "M" 2 lần). Dedupe theo `size`, ưu tiên item available.
+  const displaySizesRaw: (ApiSize & { price_base?: number })[] = productDetail?.sizes ?? (product as any)._apiSizes ?? [];
+  // API đôi khi trả duplicate size (vd: "M" 2 lần). Dedupe theo `size`, ưu tiên item available; chuẩn hóa price.
   const displaySizes: ApiSize[] = (() => {
     const bySize = new Map<string, ApiSize>();
     for (const s of displaySizesRaw) {
       const key = String(s.size ?? "").trim();
       if (!key) continue;
+      const normalized: ApiSize = { ...s, price: sizePrice(s) };
       const prev = bySize.get(key);
       if (!prev) {
-        bySize.set(key, s);
+        bySize.set(key, normalized);
         continue;
       }
-      // Prefer available size; if both same availability, keep the first.
       if (!prev.is_available && s.is_available) {
-        bySize.set(key, s);
+        bySize.set(key, normalized);
       }
     }
-    // Keep a stable, user-friendly order
     const order = ["S", "M", "L"];
     return Array.from(bySize.values()).sort((a, b) => {
       const ai = order.indexOf(String(a.size).toUpperCase());
@@ -151,13 +340,16 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
     });
   })();
 
-  const toppingTotal = TOPPINGS.reduce((sum, t) => sum + t.price * (toppingQtys[t.id] ?? 0), 0);
-  const basePrice = selectedSize?.price ?? product.price;
+  const toppingTotal = apiToppings.reduce((sum, t) => sum + t.price * (toppingQtys[t.id] ?? 0), 0);
+  const basePrice = selectedSize ? sizePrice(selectedSize as ApiSize & { price_base?: number }) : product.price;
   const unitPrice = basePrice + toppingTotal;
   const totalPrice = unitPrice * quantity;
 
   // Derive category info from API-enriched product or fallback
   const categoryName = (product as any)._apiCategoryName ?? "";
+
+  // Use API toppings only (no static fallback)
+  const displayToppings = apiToppings;
 
   function changeToppingQty(topping: Topping, delta: number) {
     setToppingQtys((prev) => {
@@ -178,6 +370,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
     }
 
     const franchiseId = (product as any)._apiFranchiseId as string | undefined;
+    const franchiseName = (product as any)._apiFranchiseName as string | undefined;
     const productFranchiseId = selectedSize?.product_franchise_id;
 
     if (!franchiseId || !productFranchiseId) {
@@ -187,57 +380,264 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
 
     setIsAdding(true);
 
+    const isEditingApi = !!replaceApiItemId;
+    const initSizeLabel = initialSelection?.size?.trim().toUpperCase();
+    const initProductFranchiseId = initialSelection?.productFranchiseId;
+    const initSugar = initialSelection?.sugar;
+    const initIce = initialSelection?.ice;
+    const initNote = (initialSelection?.note ?? "").trim();
+
+    const currentSizeLabel = selectedSize?.size?.trim().toUpperCase();
+    const currentProductFranchiseId = selectedSize?.product_franchise_id;
+
+    const sizeChanged = (() => {
+      if (initProductFranchiseId && currentProductFranchiseId) {
+        return initProductFranchiseId !== currentProductFranchiseId;
+      }
+      if (initSizeLabel && currentSizeLabel) {
+        return initSizeLabel !== currentSizeLabel;
+      }
+      return false;
+    })();
+
+    const sugarChanged = initSugar !== undefined ? initSugar !== sugar : false;
+    const iceChanged = initIce !== undefined ? initIce !== ice : false;
+    const noteChanged = initNote !== note.trim();
+
+    const quantityChanged = initialQuantity !== undefined ? initialQuantity !== quantity : false;
+
+    const initToppingQtys = initialToppingQtysRef.current;
+    const toppingsChanged = (() => {
+      if (!initToppingQtys) return true;
+      const keys = new Set([...Object.keys(initToppingQtys), ...Object.keys(toppingQtys)]);
+      for (const k of keys) {
+        if ((initToppingQtys[k] ?? 0) !== (toppingQtys[k] ?? 0)) return true;
+      }
+      return false;
+    })();
+
+    const computeFingerprintFromCurrentSelection = () => {
+      const currentToppingsFlat: Topping[] = displayToppings.flatMap((t) =>
+        Array(toppingQtys[t.id] ?? 0).fill(t),
+      );
+      const currentUserNote = note.trim() || undefined;
+      const currentApiNote = buildCartSelectionNote({
+        sugar,
+        ice,
+        toppings: currentToppingsFlat,
+        userNote: currentUserNote,
+      });
+
+      const map = new Map<string, number>();
+      for (const t of currentToppingsFlat) {
+        map.set(t.name, (map.get(t.name) ?? 0) + 1);
+      }
+      const toppingAgg = Array.from(map.entries()).map(([name, quantity]) => ({
+        name,
+        quantity,
+      }));
+
+      return {
+        apiProductId: (product as any)?._apiProductId as string | undefined,
+        apiProductFranchiseId: selectedSize?.product_franchise_id as string | undefined,
+        size: selectedSize?.size,
+        sugar,
+        ice,
+        toppings: toppingAgg.length ? toppingAgg : undefined,
+        note: currentApiNote,
+      };
+    };
+
+    // Chỉ dùng in-place khi không có topping MỚI (thêm topping mới có thể khiến API tạo dòng riêng → duplicate).
+    // Khi có topping mới (prevQty === 0, nextQty > 0) luôn dùng delete+add để thay thế 1 item bằng 1 item.
+    const hasNewTopping =
+      initToppingQtys &&
+      displayToppings.some((t) => (initToppingQtys[t.id] ?? 0) === 0 && (toppingQtys[t.id] ?? 0) > 0);
+
+    // Optimistic UX: for API edit, if only topping qty/quantity changed (no new toppings, size/sugar/ice/note unchanged),
+    // update in-place via option endpoints instead of delete+add.
+    if (
+      isEditingApi &&
+      !sizeChanged &&
+      !sugarChanged &&
+      !iceChanged &&
+      !noteChanged &&
+      initToppingQtys &&
+      (toppingsChanged || quantityChanged) &&
+      displayToppings.length > 0 &&
+      replaceApiItemId &&
+      !hasNewTopping
+    ) {
+      try {
+        const cart_item_id = replaceApiItemId;
+        const ops: Promise<any>[] = [];
+
+        for (const t of displayToppings) {
+          const prevQty = initToppingQtys[t.id] ?? 0;
+          const nextQty = toppingQtys[t.id] ?? 0;
+          if (prevQty === nextQty) continue;
+          const option_product_franchise_id = t.product_franchise_id;
+          if (!option_product_franchise_id) continue;
+
+          if (nextQty <= 0) {
+            ops.push(cartClient.removeOption({ cart_item_id, option_product_franchise_id }));
+          } else {
+            ops.push(
+              cartClient.updateOption({
+                cart_item_id,
+                option_product_franchise_id,
+                quantity: nextQty,
+              }),
+            );
+          }
+        }
+
+        if (quantityChanged) {
+          ops.push(cartClient.updateCartItemQuantity({ cart_item_id, quantity }));
+        }
+
+        await Promise.all(ops);
+        if (replaceCartId) {
+          queryClient.invalidateQueries({ queryKey: ["cart-detail", replaceCartId] });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+        }
+        toast.success(`Đã cập nhật "${product.name}" trong giỏ!`);
+        onSaved?.({
+          replacedApiItemId: replaceApiItemId,
+          fingerprint: computeFingerprintFromCurrentSelection(),
+        });
+        setIsAdding(false);
+        onClose();
+        return;
+      } catch (err) {
+        console.error("Update cart item in-place failed:", err);
+        // Fallback to delete+add flow below.
+      }
+    }
+
     // Save to local store immediately for instant UI feedback
-    const toppingsFlat: Topping[] = TOPPINGS.flatMap((t) =>
+    const toppingsFlat: Topping[] = displayToppings.flatMap((t) =>
       Array(toppingQtys[t.id] ?? 0).fill(t)
     );
-    addItem(
-      { ...product, price: basePrice },
-      { size: (selectedSize?.size ?? "M") as any, sugar, ice, toppings: toppingsFlat, note: note.trim() || undefined },
-      quantity,
-    );
+    const userNote = note.trim() || undefined;
+    const apiNote = buildCartSelectionNote({
+      sugar,
+      ice,
+      toppings: toppingsFlat,
+      userNote,
+    });
+    // Editing from cart:
+    // Use replace-in-place for local store to keep item order stable in UI.
+
+    // 2) remove old API cart item (if any) before creating a new one
+    // (we already tried in-place updates above when possible)
+    if (replaceApiItemId) {
+      try {
+        await cartClient.deleteCartItem(replaceApiItemId);
+        if (replaceCartId) {
+          await queryClient.fetchQuery({
+            queryKey: ["cart-detail", replaceCartId],
+            queryFn: () => cartClient.getCartDetail(replaceCartId),
+          });
+        }
+      } catch {
+        toast.error("Không thể cập nhật giỏ hàng (xóa item cũ thất bại).");
+        setIsAdding(false);
+        return;
+      }
+    }
+
+    const storeProduct = { ...product, price: basePrice };
+    const storeOptions = {
+      size: (selectedSize?.size ?? "M") as any,
+      sugar,
+      ice,
+      toppings: toppingsFlat,
+      note: userNote,
+      franchiseId,
+      franchiseName,
+      productFranchiseId,
+    };
+
+    if (replaceLocalCartKey) {
+      replaceItemAt(replaceLocalCartKey, storeProduct, storeOptions, quantity);
+    } else if (!replaceApiItemId) {
+      addItem(storeProduct, storeOptions, quantity);
+    }
+
+    // Build options array for API (topping products)
+    const apiOptions = displayToppings
+      .filter((t) => (toppingQtys[t.id] ?? 0) > 0 && t.product_franchise_id)
+      .map((t) => ({
+        product_franchise_id: t.product_franchise_id!,
+        quantity: toppingQtys[t.id] ?? 1,
+      }));
 
     // Then call API to persist to backend
     try {
-      await cartClient.addProduct({
+      const apiCart = await cartClient.addProduct({
         franchise_id: franchiseId,
         product_franchise_id: productFranchiseId,
         quantity,
-        note: note.trim() || undefined,
+        note: apiNote,
+        options: apiOptions.length > 0 ? apiOptions : undefined,
       });
 
-      // Resolve cart ID from backend
-      const customerId = String((user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? "");
+      const customerId = String(
+        (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? "",
+      );
+      const resolvedId = (apiCart as any)?._id ?? (apiCart as any)?.id;
+      if (resolvedId) {
+        setCartId(String(resolvedId));
+      }
       if (customerId) {
         try {
           const carts = await cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" });
-          const first = (carts as any[])[0];
-          const resolvedId = first?._id ?? first?.id;
+          const entries = (carts as any[]).map((c: any) => ({
+            cartId: String(c._id ?? c.id ?? ""),
+            franchise_id: c.franchise_id,
+            franchise_name: c.franchise_name ?? c?.franchise?.name,
+          })).filter((e: any) => e.cartId);
+          if (entries.length) setCarts(entries);
+          else if (resolvedId) setCartId(String(resolvedId));
+        } catch {
           if (resolvedId) setCartId(String(resolvedId));
-        } catch { /* keep existing cartId */ }
+        }
       }
 
-      // Refetch cart detail so all cart UIs update from API
-      queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+      if (replaceCartId) {
+        queryClient.invalidateQueries({ queryKey: ["cart-detail", replaceCartId] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
+
+      if (replaceApiItemId) {
+        onSaved?.({
+          replacedApiItemId: replaceApiItemId,
+          fingerprint: computeFingerprintFromCurrentSelection(),
+        });
+      }
     } catch (err) {
       console.error("Add to cart API failed (saved locally):", err);
     }
 
-    const toppingDesc = TOPPINGS
+    const toppingDesc = displayToppings
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
-    toast.success(`Đã thêm "${product.name}" vào giỏ!`, {
+      toast.success(`Đã cập nhật "${product.name}" trong giỏ!`, {
       description: `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`,
     });
     setIsAdding(false);
     onClose();
   }
 
-  return (
+  const modal = (
     /* Backdrop */
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
@@ -428,51 +828,62 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
               {/* Toppings */}
               <div>
                 <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
-                <div className="grid grid-cols-2 gap-2">
-                  {TOPPINGS.map((topping) => {
-                    const qty = toppingQtys[topping.id] ?? 0;
-                    return (
-                      <div
-                        key={topping.id}
-                        className={cn(
-                          "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
-                          qty > 0
-                            ? "border-amber-500 bg-amber-50"
-                            : "border-gray-200 bg-white",
-                        )}
-                      >
-                        <span className="shrink-0 text-base">{topping.emoji}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>{topping.name}</div>
-                          <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => changeToppingQty(topping, -1)}
-                            disabled={qty === 0}
-                            className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-30 border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                {isFetchingToppings ? (
+                  <div className="text-xs text-gray-400 py-2">Đang tải topping...</div>
+                ) : (
+                  displayToppings.length === 0 ? (
+                    <div className="text-xs text-gray-400 py-2">Không có topping để chọn</div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {displayToppings.map((topping) => {
+                        const qty = toppingQtys[topping.id] ?? 0;
+                        return (
+                          <div
+                            key={topping.id}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
+                              qty > 0 ? "border-amber-500 bg-amber-50" : "border-gray-200 bg-white",
+                            )}
                           >
-                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M20 12H4" />
-                            </svg>
-                          </button>
-                          <span className={cn("w-4 text-center font-semibold text-xs", qty > 0 ? "text-amber-700" : "text-gray-400")}>
-                            {qty}
-                          </span>
-                          <button
-                            onClick={() => changeToppingQty(topping, 1)}
-                            disabled={qty >= 3}
-                            className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-30 border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                          >
-                            <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                            <span className="shrink-0 text-base">{topping.emoji}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>
+                                {topping.name}
+                              </div>
+                              <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => changeToppingQty(topping, -1)}
+                                disabled={qty === 0}
+                                className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                                title="Giảm topping"
+                              >
+                                <span className="text-sm font-semibold text-gray-700 leading-none">−</span>
+                              </button>
+                              <span
+                                className={cn(
+                                  "w-5 text-center font-semibold text-sm tabular-nums",
+                                  qty > 0 ? "text-amber-800" : "text-gray-600",
+                                )}
+                              >
+                                {qty}
+                              </span>
+                              <button
+                                onClick={() => changeToppingQty(topping, 1)}
+                                disabled={qty >= 3}
+                                className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                                title="Tăng topping"
+                              >
+                                <span className="text-sm font-semibold text-gray-700 leading-none">+</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )
+                )}
               </div>
             </>
           ) : (
@@ -551,4 +962,7 @@ export default function MenuProductModal({ product, onClose }: MenuProductModalP
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(modal, document.body);
 }

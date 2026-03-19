@@ -71,10 +71,13 @@ export interface CartApiData {
   _id?: string;
   id?: string;
   franchise_id?: string;
+  franchise_name?: string;
   customer_id?: string;
   status?: string;
   items?: ApiCartItem[];
   total_amount?: number;
+  voucher?: string;
+  discount_amount?: number;
   [key: string]: unknown;
 }
 

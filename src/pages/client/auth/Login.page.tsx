@@ -91,9 +91,12 @@ const LoginPage = () => {
       if (customerId) {
         try {
           const carts = await cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" });
-          const first = (carts as CartApiData[])[0];
-          const id = first?._id ?? first?.id;
-          if (id) useMenuCartStore.getState().setCartId(String(id));
+          const entries = (carts as CartApiData[]).map((c) => ({
+            cartId: String(c._id ?? c.id ?? ""),
+            franchise_id: c.franchise_id,
+            franchise_name: c.franchise_name ?? (c as any)?.franchise?.name,
+          })).filter((e) => e.cartId);
+          if (entries.length) useMenuCartStore.getState().setCarts(entries);
         } catch { /* cart restore is best-effort */ }
       }
 

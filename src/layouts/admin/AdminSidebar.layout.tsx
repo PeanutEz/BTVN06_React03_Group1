@@ -186,6 +186,19 @@ const adminNav: Array<{
         </svg>
       ),
     },
+    {
+      label: "Shift Assignments",
+      to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.SHIFT_ASSIGNMENTS}`,
+      icon: (
+        <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8.25 6.75h7.5M8.25 12h7.5M8.25 17.25h4.5M4.5 3.75h15a2.25 2.25 0 012.25 2.25v12a2.25 2.25 0 01-2.25 2.25h-15A2.25 2.25 0 012.25 18V6A2.25 2.25 0 014.5 3.75z"
+          />
+        </svg>
+      ),
+    },
   ];
 
 interface AdminSidebarProps {
