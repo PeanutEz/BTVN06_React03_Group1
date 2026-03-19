@@ -5,7 +5,7 @@ import { loginAndGetProfile, switchContextAndGetProfile, type UserProfile, type 
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
-import { showSuccess, showError } from "../../../utils";
+import { showSuccess } from "../../../utils";
 import logoHylux from "../../../assets/logo-hylux.png";
 import FranchisePickerModal from "../../../components/admin/FranchisePickerModal";
 
@@ -52,8 +52,10 @@ const AdminLoginPage = () => {
   const [isSwitching, setIsSwitching] = useState(false);
   const [ripples, setRipples] = useState<RippleItem[]>([]);
   const rippleId = useRef(0);
+  const [apiErrors, setApiErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const [showPassword, setShowPassword] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<AuthCredentials>();
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<AuthCredentials>();
 
   useEffect(() => {
     const allowedRoles = ["admin", "system", "manager", "staff"];
@@ -81,19 +83,18 @@ const AdminLoginPage = () => {
       const redirectTo = (location.state as { from?: Location })?.from?.pathname;
       navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Chuyển context thất bại");
+      setApiErrors({ general: err instanceof Error ? err.message : "Chuyển context thất bại" });
     } finally {
       setIsSwitching(false);
     }
-  };
-
-  const onSubmit = async (values: AuthCredentials) => {
+  };  const onSubmit = async (values: AuthCredentials) => {
+    setApiErrors({});
     try {
       const profile = await loginAndGetProfile(values);
       const allowedRoles = ["admin", "system", "manager", "staff"];
       const hasAdminAccess = profile.roles?.some(r => allowedRoles.includes((r.role ?? "").toString().toLowerCase()));
       if (!hasAdminAccess) {
-        showError(`Bạn không có quyền truy cập admin. Role: ${profile.roles?.map(r => r.role).join(", ") || "không có"}`);
+        setApiErrors({ general: `Bạn không có quyền truy cập admin. Role: ${profile.roles?.map(r => r.role).join(", ") || "không có"}` });
         return;
       }
       const allRoles = profile.roles || [];
@@ -104,7 +105,22 @@ const AdminLoginPage = () => {
         setShowFranchisePicker(true);
       }
     } catch (error) {
-      showError(error instanceof Error ? error.message : "Đăng nhập thất bại");
+      const errData = (error as { response?: { data?: { message?: string; errors?: Array<{ field?: string; message?: string }> } } })?.response?.data;      if (errData?.errors?.length) {
+        const mapped: { email?: string; password?: string; general?: string } = {};
+        const pickMsg = (field: string) => {
+          const fieldErrs = errData.errors!.filter(e => e.field === field);
+          // ưu tiên lỗi "empty" trước, nếu không có thì lấy cái đầu tiên
+          return (fieldErrs.find(e => e.message?.toLowerCase().includes("empty")) ?? fieldErrs[0])?.message;
+        };
+        mapped.email = pickMsg("email");
+        mapped.password = pickMsg("password");
+        // lỗi không thuộc email/password
+        const other = errData.errors!.find(e => e.field !== "email" && e.field !== "password");
+        if (other) mapped.general = other.message;
+        setApiErrors(mapped);
+      } else {
+        setApiErrors({ general: errData?.message || (error instanceof Error ? error.message : "Đăng nhập thất bại") });
+      }
     }
   };
 
@@ -142,13 +158,12 @@ const AdminLoginPage = () => {
             }}
           />
         ))}
-      </div>
-
-      {/* ── Card ── */}
-      <div className="animate-card-pop relative z-10" style={{ width: 400, height: 480 }}>
-        <div
-          className="animate-water-morph absolute inset-0 flex flex-col items-center justify-center overflow-hidden"
+      </div>      {/* ── Card ── */}
+      <div className="animate-card-pop relative z-10" style={{ width: 400 }}>        <div
+          className="animate-water-morph flex flex-col items-center justify-center"
           style={{
+            padding: "36px 24px",
+            minHeight: 480,
             background: "rgba(15,11,5,0.82)",
             backdropFilter: "blur(26px)",
             WebkitBackdropFilter: "blur(26px)",
@@ -185,44 +200,95 @@ const AdminLoginPage = () => {
             ADMIN PORTAL
           </div>
 
-          {/* Form */}
-          <form
+          {/* Form */}          <form
             onSubmit={handleSubmit(onSubmit)}
             style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, width: 250 }}
-          >
-            <div style={{ width: "100%", position: "relative", paddingBottom: 14 }}>
+          >            <div style={{ width: "100%" }}>
               <input
                 type="email"
                 placeholder="Email"
                 autoComplete="email"
-                style={INPUT_STYLE}
+                style={{
+                  ...INPUT_STYLE,
+                  ...(apiErrors.email ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
+                }}
                 onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
-                {...register("email", { required: "Email không hợp lệ" })}
-                onBlur={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
+                {...register("email")}
+                onBlur={e => { e.currentTarget.style.border = apiErrors.email ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
               />
-              {errors.email && (
-                <p style={{ position: "absolute", bottom: 2, left: 14, fontSize: 10, color: GOLD_LIGHT, pointerEvents: "none", lineHeight: 1 }}>
-                  {errors.email.message}
+              {apiErrors.email && (
+                <p style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1 }}>
+                  {apiErrors.email}
+                </p>
+              )}
+            </div>            <div style={{ width: "100%" }}>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Mật khẩu"
+                  autoComplete="current-password"
+                  style={{
+                    ...INPUT_STYLE,
+                    paddingRight: 40,
+                    ...(apiErrors.password ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
+                  }}
+                  onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
+                  {...register("password")}
+                  onBlur={e => { e.currentTarget.style.border = apiErrors.password ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                    color: "rgba(201,162,39,0.6)",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {apiErrors.password && (
+                <p style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1 }}>
+                  {apiErrors.password}
                 </p>
               )}
             </div>
 
-            <div style={{ width: "100%", position: "relative", paddingBottom: 14 }}>
-              <input
-                type="password"
-                placeholder="Mật khẩu"
-                autoComplete="current-password"
-                style={INPUT_STYLE}
-                onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
-                {...register("password", { required: "Vui lòng nhập mật khẩu" })}
-                onBlur={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
-              />
-              {errors.password && (
-                <p style={{ position: "absolute", bottom: 2, left: 14, fontSize: 10, color: GOLD_LIGHT, pointerEvents: "none", lineHeight: 1 }}>
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
+            {/* General API Error */}
+            {apiErrors.general && (
+              <div style={{
+                width: "100%",
+                padding: "8px 14px",
+                borderRadius: 10,
+                background: "rgba(220,38,38,0.15)",
+                border: "1px solid rgba(220,38,38,0.4)",
+                fontSize: 11,
+                color: "#fca5a5",
+                lineHeight: 1.5,
+                textAlign: "center",
+              }}>
+                {apiErrors.general}
+              </div>
+            )}
 
             <button
               type="submit"
