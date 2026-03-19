@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { clientService } from "@/services/client.service";
 import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/models/store.model";
 import type { ClientProductListItem } from "@/models/product.model.tsx";
 import { useDeliveryStore } from "@/store/delivery.store";
-import { useMenuCartTotals } from "@/store/menu-cart.store";
+import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
+import { useAuthStore } from "@/store/auth.store";
 import { useLoadingStore } from "@/store/loading.store";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import MenuProductModal from "@/components/menu/MenuProductModal";
 import type { MenuProduct } from "@/types/menu.types";
+import { cartClient } from "@/services/cart.client";
 
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -46,7 +49,7 @@ function EmptyState({
 
 
 // Convert API product to MenuProduct shape expected by MenuProductModal/cart store
-function toMenuProduct(p: ClientProductListItem, franchiseId: string): MenuProduct {
+function toMenuProduct(p: ClientProductListItem, franchiseId: string, franchiseName?: string): MenuProduct {
   const available = p.sizes.filter((s) => s.is_available);
   const baseSize = available[0] ?? p.sizes[0];
   // Hash string ID deterministically to a positive integer
@@ -69,7 +72,13 @@ function toMenuProduct(p: ClientProductListItem, franchiseId: string): MenuProdu
       isFeatured: false,
     } as MenuProduct,
     // Extra metadata for MenuProductModal to fetch real detail from API
-    { _apiFranchiseId: franchiseId, _apiProductId: p.product_id, _apiCategoryName: p.category_name },
+    {
+      _apiFranchiseId: franchiseId,
+      _apiFranchiseName: franchiseName,
+      _apiProductId: p.product_id,
+      _apiCategoryName: p.category_name,
+      _apiSizes: p.sizes,
+    },
   );
 }
 
@@ -380,7 +389,8 @@ export default function MenuPage() {
   // BƯỚC 4 – Click "Thêm vào giỏ" on a product card
   function handleAddProduct(p: ClientProductListItem) {
     const franchiseId = selectedFranchise?.id ?? "";
-    setAddToCartProduct(toMenuProduct(p, franchiseId));
+    const franchiseName = selectedFranchise?.name;
+    setAddToCartProduct(toMenuProduct(p, franchiseId, franchiseName));
   }
 
 
@@ -389,7 +399,22 @@ export default function MenuPage() {
   const openBranchPicker = () => {
     setShowBranchPicker(true);
   };
-  const { itemCount, total } = useMenuCartTotals();
+  const { itemCount: localItemCount, total: localTotal } = useMenuCartTotals();
+
+  const cartId = useMenuCartStore((s) => s.cartId);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+
+  const { data: apiCart } = useQuery({
+    queryKey: ["cart-detail", cartId],
+    queryFn: () => cartClient.getCartDetail(cartId!),
+    enabled: !!cartId && isLoggedIn,
+    staleTime: 10_000,
+  });
+
+  const apiItemCount = (apiCart?.items ?? []).reduce((s, i) => s + (i.quantity ?? 1), 0);
+  const apiTotal = apiCart?.total_amount ?? 0;
+  const itemCount = apiItemCount > 0 ? apiItemCount : localItemCount;
+  const total = apiTotal > 0 ? apiTotal : localTotal;
 
   return (
     <>
@@ -501,7 +526,8 @@ export default function MenuPage() {
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3 px-3">
                   Danh mục
                 </p>
-                <nav className="space-y-0.5">
+                <div className="max-h-[640px] overflow-y-auto pr-1">
+                  <nav className="space-y-0.5">
                   {loading === "categories" && categories.length === 0 ? (
                     <div className="space-y-1.5 animate-pulse px-3">
                       {Array.from({ length: 6 }).map((_, i) => (
@@ -565,7 +591,8 @@ export default function MenuPage() {
                       })}
                     </>
                   )}
-                </nav>
+                  </nav>
+                </div>
 
                 {canShowMenu && (
                   <div className="mt-6 mx-3 p-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
@@ -641,8 +668,11 @@ export default function MenuPage() {
             </div>
 
             {/* ── RIGHT: Cart / Order Panel (desktop sticky) ── */}
-            <aside className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden" style={{ maxHeight: "calc(100vh - 10rem)" }}>
-              <MenuOrderPanel onOpenBranchPicker={openBranchPicker} />
+            <aside
+              className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-0"
+              style={{ height: "calc(100vh - 10rem)", maxHeight: "calc(100vh - 10rem)" }}
+            >
+              <MenuOrderPanel />
             </aside>
           </div>
         </div>
@@ -678,10 +708,9 @@ export default function MenuPage() {
       {showOrderPanel && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowOrderPanel(false)} />
-          <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden">
+          <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden min-h-0">
             <MenuOrderPanel
               onRequestClose={() => setShowOrderPanel(false)}
-              onOpenBranchPicker={() => { setShowOrderPanel(false); openBranchPicker(); }}
             />
           </div>
         </div>
