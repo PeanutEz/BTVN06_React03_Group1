@@ -1,5 +1,6 @@
 export * from "./localstorage.util";
 export * from "./toast.util";
+export * from "./cartSelectionNote.util";
 
 /** Format ISO date string as Vietnamese relative time (e.g. "3 phút trước") */
 export function formatTimeAgo(isoString: string): string {

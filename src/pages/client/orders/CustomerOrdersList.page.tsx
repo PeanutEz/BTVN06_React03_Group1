@@ -1,33 +1,75 @@
-// KAN-87: Customer Orders List
+// KAN-87: Customer Orders List — dùng API customer
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Table, Tag, DatePicker, Select, Button } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useNavigate } from "react-router-dom";
 import { type Dayjs } from "dayjs";
-import { getCustomerOrders } from "../../../services/mockApi";
+import { orderClient } from "../../../services/order.client";
+import { useAuthStore } from "../../../store/auth.store";
 import { CURRENT_CUSTOMER_ID } from "../../../mocks/data";
-import type { OrderWithRelations, OrderStatus } from "../../../types/models";
+import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
-} from "../../../types/models";
+} from "../../../models/order.model";
+import { ROUTER_URL } from "../../../routes/router.const";
 
 const { RangePicker } = DatePicker;
 
 export default function CustomerOrdersListPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const customerId = String(user?.user?.id ?? user?.id ?? CURRENT_CUSTOMER_ID);
   const [statusFilter, setStatusFilter] = useState<OrderStatus | undefined>();
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null]);
 
-  const { data: orders, isLoading } = useQuery({
-    queryKey: ["customer-orders", CURRENT_CUSTOMER_ID, statusFilter, dateRange],
-    queryFn: () =>
-      getCustomerOrders(CURRENT_CUSTOMER_ID, {
+  const { data: rawOrders = [], isLoading } = useQuery({
+    queryKey: ["customer-orders", customerId, statusFilter, dateRange],
+    queryFn: async () => {
+      const result = await orderClient.getOrdersByCustomerId(customerId, {
         status: statusFilter,
-        dateFrom: dateRange[0]?.toISOString(),
-        dateTo: dateRange[1]?.toISOString(),
-      }),
+      });
+      console.log("🔍 [CustomerOrdersList] API Response:", result);
+      return result;
+    },
+  });
+
+  // Fix: Use final_amount or subtotal_amount as fallback for total_amount
+  const orders = rawOrders.map((order) => {
+    // Backend stores price in final_amount, not total_amount
+    const finalAmount = order.final_amount ?? 0;
+    const subtotalAmount = order.subtotal_amount ?? 0;
+    let calculatedTotal = order.total_amount ?? finalAmount ?? subtotalAmount ?? 0;
+
+    // Backend returns order_items instead of items - normalize it
+    const items = order.order_items ?? order.items ?? [];
+
+    // If still 0 but has items, calculate from items
+    if (calculatedTotal === 0 && items.length > 0) {
+      calculatedTotal = items.reduce(
+        (sum, item) => sum + (item.line_total ?? (item.price_snapshot * item.quantity)),
+        0
+      );
+    }
+
+    console.log(
+      `💰 [CustomerOrdersList] ${order.code}: total=${order.total_amount}, final=${finalAmount}, subtotal=${subtotalAmount}, used=${calculatedTotal}, items=${items.length}`
+    );
+
+    // Normalize order structure
+    return {
+      ...order,
+      total_amount: calculatedTotal,
+      items, // Ensure items is available for UI
+      customer: order.customer ?? {
+        name: order.customer_name ?? "N/A",
+        phone: order.phone,
+      },
+      franchise: order.franchise ?? {
+        name: order.franchise_name ?? "N/A",
+      },
+    };
   });
 
   const formatCurrency = (amount: number) => {
@@ -46,7 +88,7 @@ export default function CustomerOrdersListPage() {
     setDateRange([null, null]);
   };
 
-  const columns: ColumnsType<OrderWithRelations> = [
+  const columns: ColumnsType<OrderDisplay> = [
     {
       title: "Mã đơn",
       dataIndex: "code",
@@ -70,7 +112,7 @@ export default function CustomerOrdersListPage() {
       key: "status",
       width: 150,
       render: (status: OrderStatus) => (
-        <Tag color={ORDER_STATUS_COLORS[status]}>
+        <Tag className={ORDER_STATUS_COLORS[status]}>
           {ORDER_STATUS_LABELS[status]}
         </Tag>
       ),
@@ -90,7 +132,7 @@ export default function CustomerOrdersListPage() {
       render: (_, record) => (
         <Button
           type="link"
-          onClick={() => navigate(`/orders/${record.id}`)}
+          onClick={() => navigate(`${ROUTER_URL.ORDER_DETAIL.replace(":id", String(record.id))}`)}
         >
           Xem chi tiết
         </Button>
@@ -120,6 +162,7 @@ export default function CustomerOrdersListPage() {
               { label: ORDER_STATUS_LABELS.DRAFT, value: "DRAFT" },
               { label: ORDER_STATUS_LABELS.CONFIRMED, value: "CONFIRMED" },
               { label: ORDER_STATUS_LABELS.PREPARING, value: "PREPARING" },
+              { label: ORDER_STATUS_LABELS.READY_FOR_PICKUP, value: "READY_FOR_PICKUP" },
               { label: ORDER_STATUS_LABELS.COMPLETED, value: "COMPLETED" },
               { label: ORDER_STATUS_LABELS.CANCELLED, value: "CANCELLED" },
             ]}

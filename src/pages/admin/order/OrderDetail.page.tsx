@@ -27,12 +27,14 @@ const OrderDetailPage = () => {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await fetchOrderById(Number(id));
+      const data = await fetchOrderById(id); // Pass ID as string, service handles both
       if (!data) {
         showError("Không tìm thấy đơn hàng");
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`);
         return;
       }
+      console.log("📦 [Admin OrderDetail] Loaded order:", data);
+      console.log("📦 [Admin OrderDetail] Items count:", data.items?.length ?? 0);
       setOrder(data);
       setNewStatus(data.status);
     } catch (error) {
@@ -58,8 +60,8 @@ const OrderDetailPage = () => {
 
     setUpdating(true);
     try {
-      const adminId = Number(user?.user?.id || user?.id || 1);
-      const updated = await updateOrderStatus(Number(id), newStatus, adminId);
+      const adminId = user?.user?.id || user?.id || "1";
+      const updated = await updateOrderStatus(id, newStatus, adminId); // Pass ID as string
       if (updated) {
         setOrder(updated);
         showSuccess("Cập nhật trạng thái thành công");
@@ -127,11 +129,15 @@ const OrderDetailPage = () => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-600">Mã cửa hàng:</span>
-                <span className="font-semibold text-primary-600">{order.franchise?.code || 'N/A'}</span>
+                <span className="font-semibold text-primary-600">
+                  {String(order.franchise?.code || order.franchise_code || 'N/A')}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-600">Tên cửa hàng:</span>
-                <span className="font-semibold text-slate-900">{order.franchise?.name || 'N/A'}</span>
+                <span className="font-semibold text-slate-900">
+                  {order.franchise?.name || order.franchise_name || 'N/A'}
+                </span>
               </div>
               {order.created_by_user && (
                 <div className="flex justify-between">
@@ -148,15 +154,21 @@ const OrderDetailPage = () => {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-600">Tên:</span>
-                <span className="font-semibold text-slate-900">{order.customer?.name || 'N/A'}</span>
+                <span className="font-semibold text-slate-900">
+                  {order.customer?.name || order.customer_name || 'N/A'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-600">Email:</span>
-                <span className="font-semibold text-slate-900">{order.customer?.email || 'N/A'}</span>
+                <span className="font-semibold text-slate-900">
+                  {String(order.customer?.email || order.email || 'N/A')}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-600">Số điện thoại:</span>
-                <span className="font-semibold text-slate-900">{order.customer?.phone || 'N/A'}</span>
+                <span className="font-semibold text-slate-900">
+                  {order.customer?.phone || order.phone || 'N/A'}
+                </span>
               </div>
             </div>
           </div>
@@ -202,19 +214,30 @@ const OrderDetailPage = () => {
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-lg font-semibold text-slate-900">Sản phẩm</h2>
             <div className="space-y-4">
-              {order.items && order.items.map((item) => (
-                <div key={item.id} className="flex gap-4 border-b border-slate-100 pb-4 last:border-b-0">
-                  <div className="flex-1">
-                    <p className="font-semibold text-slate-900">{item.product_name_snapshot}</p>
-                    <p className="text-sm text-slate-600">
-                      {formatCurrency(item.price_snapshot)} x {item.quantity}
-                    </p>
+              {(order.items ?? []).length === 0 && (
+                <p className="text-sm text-slate-500">Chưa có sản phẩm</p>
+              )}
+              {(order.items ?? []).map((item, idx) => {
+                // Normalize item fields - backend might use different field names
+                const productName = item.product_name_snapshot ?? item.product_name ?? "Sản phẩm";
+                const price = item.price_snapshot ?? item.price ?? 0;
+                const qty = item.quantity ?? 0;
+                const lineTotal = item.line_total ?? item.subtotal ?? (price * qty);
+
+                return (
+                  <div key={item._id ?? item.id ?? `item-${idx}`} className="flex gap-4 border-b border-slate-100 pb-4 last:border-b-0">
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-900">{productName}</p>
+                      <p className="text-sm text-slate-600">
+                        {formatCurrency(price)} x {qty}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-slate-900">{formatCurrency(lineTotal)}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-slate-900">{formatCurrency(item.line_total)}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -238,7 +261,7 @@ const OrderDetailPage = () => {
                       {ORDER_STATUS_LABELS[history.to_status]}
                     </span>
                     <p className="mt-1 text-xs text-slate-500">
-                      {new Date(history.created_at).toLocaleString("vi-VN")}
+                      {history.created_at ? new Date(history.created_at).toLocaleString("vi-VN") : "N/A"}
                     </p>
                     {history.note && <p className="mt-1 text-sm text-slate-600">{history.note}</p>}
                   </div>
@@ -257,11 +280,51 @@ const OrderDetailPage = () => {
                   {ORDER_TYPE_LABELS[order.type]}
                 </span>
               </div>
+
+              {/* Subtotal */}
+              {order.subtotal_amount && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Tạm tính:</span>
+                  <span className="text-slate-900">{formatCurrency(order.subtotal_amount)}</span>
+                </div>
+              )}
+
+              {/* Promotion Discount */}
+              {(order.promotion_discount ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-green-600">
+                    Khuyến mãi {order.promotion_type && `(${order.promotion_type})`}
+                  </span>
+                  <span className="text-green-600">-{formatCurrency(order.promotion_discount ?? 0)}</span>
+                </div>
+              )}
+
+              {/* Voucher Discount */}
+              {(order.voucher_discount ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-green-600">
+                    Voucher {order.voucher_type && `(${order.voucher_type})`}
+                  </span>
+                  <span className="text-green-600">-{formatCurrency(order.voucher_discount ?? 0)}</span>
+                </div>
+              )}
+
+              {/* Loyalty Discount */}
+              {(order.loyalty_discount ?? 0) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-green-600">
+                    Điểm thưởng ({order.loyalty_points_used ?? 0} điểm)
+                  </span>
+                  <span className="text-green-600">-{formatCurrency(order.loyalty_discount ?? 0)}</span>
+                </div>
+              )}
+
+              {/* Final Total */}
               <div className="border-t border-slate-200 pt-3">
                 <div className="flex justify-between">
                   <span className="font-semibold text-slate-900">Tổng cộng:</span>
                   <span className="text-lg font-bold text-primary-600">
-                    {formatCurrency(order.total_amount)}
+                    {formatCurrency(order.final_amount ?? order.total_amount)}
                   </span>
                 </div>
               </div>

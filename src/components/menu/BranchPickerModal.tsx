@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import type { OrderMode } from "@/types/delivery.types";
 import { useDeliveryStore } from "@/store/delivery.store";
-import { useMenuCartStore } from "@/store/menu-cart.store";
+
 import { useAddressStore } from "@/store/address.store";
 import { useAuthStore } from "@/store/auth.store";
 import { clientService } from "@/services/client.service";
@@ -29,7 +29,6 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
     setSelectedFranchiseId,
   } = useDeliveryStore();
 
-  const clearCart = useMenuCartStore((s) => s.clearCart);
   const { addresses, add: addAddress } = useAddressStore();
   const user = useAuthStore((s) => s.user);
 
@@ -53,7 +52,7 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
       pendingConfirm.current = false;
       setLoadingAddrId(null);
       if (validationResult?.isValid && validationResult.nearestBranch) {
-        setSelectedBranch(validationResult.nearestBranch, clearCart);
+        setSelectedBranch(validationResult.nearestBranch);
         onClose();
       }
     }
@@ -101,9 +100,6 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
   }
 
   function handleSelectPickupFranchise(id: string, name: string) {
-    if (id !== selectedFranchiseId) {
-      clearCart();
-    }
     setSelectedFranchiseId(id, name);
     setOrderMode("PICKUP");
     onClose();

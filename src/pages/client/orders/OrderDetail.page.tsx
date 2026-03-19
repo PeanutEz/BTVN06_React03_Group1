@@ -1,25 +1,39 @@
-// KAN-88: Order Detail
+// KAN-88: Order Detail — API: Get Order by Id, Get Payment by OrderId, Get Delivery by OrderId
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, Tag, Button, Descriptions, Table, Divider } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { getOrderDetail } from "../../../services/mockApi";
-import type { OrderItem } from "../../../types/models";
+import { orderClient } from "../../../services/order.client";
+import { paymentClient } from "../../../services/payment.client";
+import { deliveryClient } from "../../../services/delivery.client";
+import type { OrderItem } from "../../../models/order.model";
 import {
   ORDER_TYPE_LABELS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
-} from "../../../types/models";
+} from "../../../models/order.model";
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const orderId = id ? parseInt(id, 10) : 0;
+  const orderId = id ?? "";
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["order-detail", orderId],
-    queryFn: () => getOrderDetail(orderId),
+    queryFn: () => orderClient.getOrderById(orderId),
+    enabled: !!orderId,
+  });
+
+  const { data: payment } = useQuery({
+    queryKey: ["payment-by-order", orderId],
+    queryFn: () => paymentClient.getPaymentByOrderId(orderId),
+    enabled: !!orderId,
+  });
+
+  const { data: delivery } = useQuery({
+    queryKey: ["delivery-by-order", orderId],
+    queryFn: () => deliveryClient.getDeliveryByOrderId(orderId),
     enabled: !!orderId,
   });
 
@@ -100,7 +114,7 @@ export default function OrderDetailPage() {
             <p className="text-gray-600 mt-1">Mã đơn: {order.code}</p>
           </div>
         </div>
-        <Tag color={ORDER_STATUS_COLORS[order.status]} className="text-base px-4 py-1">
+        <Tag className={`text-base px-4 py-1 ${ORDER_STATUS_COLORS[order.status]}`}>
           {ORDER_STATUS_LABELS[order.status]}
         </Tag>
       </div>
@@ -118,7 +132,7 @@ export default function OrderDetailPage() {
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
-              <Tag color={ORDER_STATUS_COLORS[order.status]}>
+              <Tag className={ORDER_STATUS_COLORS[order.status]}>
                 {ORDER_STATUS_LABELS[order.status]}
               </Tag>
             </Descriptions.Item>
@@ -157,13 +171,47 @@ export default function OrderDetailPage() {
             </Descriptions.Item>
           </Descriptions>
         </Card>
+
+        {/* Payment (API: Get Payment by OrderId) */}
+        <Card title="Thanh toán" className="shadow-sm">
+          {payment != null && typeof payment === "object" ? (
+            <Descriptions column={1} bordered>
+              {Object.entries(payment as Record<string, unknown>).map(([key, value]) =>
+                value == null || (typeof value === "object" && !(value instanceof Date)) ? null : (
+                  <Descriptions.Item key={key} label={key}>
+                    {String(value)}
+                  </Descriptions.Item>
+                )
+              )}
+            </Descriptions>
+          ) : (
+            <p className="text-gray-500 text-sm">Chưa có thông tin thanh toán</p>
+          )}
+        </Card>
+
+        {/* Delivery (API: Get Delivery by OrderId) */}
+        <Card title="Giao hàng" className="shadow-sm">
+          {delivery != null && typeof delivery === "object" ? (
+            <Descriptions column={1} bordered>
+              {Object.entries(delivery as Record<string, unknown>).map(([key, value]) =>
+                value == null || (typeof value === "object" && !(value instanceof Date)) ? null : (
+                  <Descriptions.Item key={key} label={key}>
+                    {String(value)}
+                  </Descriptions.Item>
+                )
+              )}
+            </Descriptions>
+          ) : (
+            <p className="text-gray-500 text-sm">Chưa có thông tin giao hàng</p>
+          )}
+        </Card>
       </div>
 
       {/* Order Items */}
       <Card title="Danh sách sản phẩm" className="shadow-sm">
         <Table
           columns={itemColumns}
-          dataSource={order.items}
+          dataSource={order.items ?? []}
           rowKey="id"
           pagination={false}
         />

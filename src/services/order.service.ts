@@ -1,463 +1,225 @@
-import type { Order, OrderItem, OrderStatus, OrderType, OrderDisplay, OrderStatusLog } from "../models/order.model";
+/**
+ * Order Service for Admin Panel - REAL API Implementation
+ * Replaces mock data with actual API calls via orderClient
+ */
+import type { OrderDisplay, OrderStatus, OrderType } from "../models/order.model";
+import { orderClient } from "./order.client";
 
-// Mock data
-const mockOrders: Order[] = [
-  {
-    id: 1,
-    code: "ORD001",
-    franchise_id: 1,
-    customer_id: 1,
-    type: "POS",
-    status: "COMPLETED",
-    total_amount: 180000,
-    confirmed_at: "2026-02-01T10:35:00Z",
-    completed_at: "2026-02-01T11:00:00Z",
-    created_by: 5, // Staff ID
-    is_deleted: false,
-    created_at: "2026-02-01T10:30:00Z",
-    updated_at: "2026-02-01T11:00:00Z",
-  },
-  {
-    id: 2,
-    code: "ORD002",
-    franchise_id: 2,
-    customer_id: 2,
-    type: "ONLINE",
-    status: "COMPLETED",
-    total_amount: 275000,
-    confirmed_at: "2026-01-30T14:25:00Z",
-    completed_at: "2026-01-31T09:15:00Z",
-    created_by: 6, // Staff ID
-    is_deleted: false,
-    created_at: "2026-01-30T14:20:00Z",
-    updated_at: "2026-01-31T09:15:00Z",
-  },
-  {
-    id: 3,
-    code: "ORD003",
-    franchise_id: 3,
-    customer_id: 3,
-    type: "POS",
-    status: "CONFIRMED",
-    total_amount: 60000,
-    confirmed_at: "2026-02-02T08:50:00Z",
-    created_by: 6, // Staff ID
-    is_deleted: false,
-    created_at: "2026-02-02T08:45:00Z",
-    updated_at: "2026-02-02T08:50:00Z",
-  },
-  {
-    id: 4,
-    code: "ORD004",
-    franchise_id: 1,
-    customer_id: 1,
-    type: "ONLINE",
-    status: "PREPARING",
-    total_amount: 145000,
-    confirmed_at: "2026-02-03T15:30:00Z",
-    created_by: 5, // Staff ID
-    is_deleted: false,
-    created_at: "2026-02-03T15:20:00Z",
-    updated_at: "2026-02-03T15:35:00Z",
-  },
-  {
-    id: 5,
-    code: "ORD005",
-    franchise_id: 2,
-    customer_id: 2,
-    type: "POS",
-    status: "DRAFT",
-    total_amount: 95000,
-    created_by: 5,
-    is_deleted: false,
-    created_at: "2026-02-04T09:00:00Z",
-    updated_at: "2026-02-04T09:00:00Z",
-  },
-];
+/**
+ * Normalize order data from API to match UI expectations
+ */
+const normalizeOrder = (order: any): OrderDisplay => {
+  // Backend uses order_items instead of items
+  const items = order.order_items ?? order.items ?? [];
 
-const mockOrderItems: OrderItem[] = [
-  {
-    id: 1,
-    order_id: 1,
-    product_franchise_id: 1,
-    product_name_snapshot: "Cà phê Phin Việt Nam (Vừa)",
-    price_snapshot: 45000,
-    quantity: 2,
-    line_total: 90000,
-    is_deleted: false,
-    created_at: "2026-02-01T10:30:00Z",
-    updated_at: "2026-02-01T10:30:00Z",
-  },
-  {
-    id: 2,
-    order_id: 1,
-    product_franchise_id: 2,
-    product_name_snapshot: "Bánh Croissant",
-    price_snapshot: 35000,
-    quantity: 1,
-    line_total: 35000,
-    is_deleted: false,
-    created_at: "2026-02-01T10:30:00Z",
-    updated_at: "2026-02-01T10:30:00Z",
-  },
-  {
-    id: 3,
-    order_id: 1,
-    product_franchise_id: 3,
-    product_name_snapshot: "Trà Sữa Trân Châu Đường Đen (Size L)",
-    price_snapshot: 55000,
-    quantity: 1,
-    line_total: 55000,
-    is_deleted: false,
-    created_at: "2026-02-01T10:30:00Z",
-    updated_at: "2026-02-01T10:30:00Z",
-  },
-  {
-    id: 4,
-    order_id: 2,
-    product_franchise_id: 4,
-    product_name_snapshot: "Caramel Macchiato (Size L)",
-    price_snapshot: 65000,
-    quantity: 2,
-    line_total: 130000,
-    is_deleted: false,
-    created_at: "2026-01-30T14:20:00Z",
-    updated_at: "2026-01-30T14:20:00Z",
-  },
-  {
-    id: 5,
-    order_id: 2,
-    product_franchise_id: 5,
-    product_name_snapshot: "Tiramisu",
-    price_snapshot: 45000,
-    quantity: 2,
-    line_total: 90000,
-    is_deleted: false,
-    created_at: "2026-01-30T14:20:00Z",
-    updated_at: "2026-01-30T14:20:00Z",
-  },
-  {
-    id: 6,
-    order_id: 2,
-    product_franchise_id: 6,
-    product_name_snapshot: "Freeze Socola (Size L)",
-    price_snapshot: 55000,
-    quantity: 1,
-    line_total: 55000,
-    is_deleted: false,
-    created_at: "2026-01-30T14:20:00Z",
-    updated_at: "2026-01-30T14:20:00Z",
-  },
-  {
-    id: 7,
-    order_id: 3,
-    product_franchise_id: 7,
-    product_name_snapshot: "Cà phê Đen Đá (Vừa)",
-    price_snapshot: 35000,
-    quantity: 1,
-    line_total: 35000,
-    is_deleted: false,
-    created_at: "2026-02-02T08:45:00Z",
-    updated_at: "2026-02-02T08:45:00Z",
-  },
-  {
-    id: 8,
-    order_id: 3,
-    product_franchise_id: 8,
-    product_name_snapshot: "Bánh Mì Pate",
-    price_snapshot: 25000,
-    quantity: 1,
-    line_total: 25000,
-    is_deleted: false,
-    created_at: "2026-02-02T08:45:00Z",
-    updated_at: "2026-02-02T08:45:00Z",
-  },
-  {
-    id: 9,
-    order_id: 4,
-    product_franchise_id: 1,
-    product_name_snapshot: "Latte (Size M)",
-    price_snapshot: 55000,
-    quantity: 2,
-    line_total: 110000,
-    is_deleted: false,
-    created_at: "2026-02-03T15:20:00Z",
-    updated_at: "2026-02-03T15:20:00Z",
-  },
-  {
-    id: 10,
-    order_id: 4,
-    product_franchise_id: 2,
-    product_name_snapshot: "Bánh Mousse Dâu",
-    price_snapshot: 35000,
-    quantity: 1,
-    line_total: 35000,
-    is_deleted: false,
-    created_at: "2026-02-03T15:20:00Z",
-    updated_at: "2026-02-03T15:20:00Z",
-  },
-  {
-    id: 11,
-    order_id: 5,
-    product_franchise_id: 3,
-    product_name_snapshot: "Trà Đào Cam Sả (Size M)",
-    price_snapshot: 45000,
-    quantity: 1,
-    line_total: 45000,
-    is_deleted: false,
-    created_at: "2026-02-04T09:00:00Z",
-    updated_at: "2026-02-04T09:00:00Z",
-  },
-  {
-    id: 12,
-    order_id: 5,
-    product_franchise_id: 4,
-    product_name_snapshot: "Americano (Size M)",
-    price_snapshot: 50000,
-    quantity: 1,
-    line_total: 50000,
-    is_deleted: false,
-    created_at: "2026-02-04T09:00:00Z",
-    updated_at: "2026-02-04T09:00:00Z",
-  },
-];
+  // Use final_amount if total_amount is 0
+  const totalAmount = order.total_amount || order.final_amount || order.subtotal_amount || 0;
 
-const mockOrderStatusLogs: OrderStatusLog[] = [
-  {
-    id: 1,
-    order_id: 1,
-    from_status: "DRAFT",
-    to_status: "CONFIRMED",
-    changed_by: 5,
-    created_at: "2026-02-01T10:35:00Z",
-    updated_at: "2026-02-01T10:35:00Z",
-  },
-  {
-    id: 2,
-    order_id: 1,
-    from_status: "CONFIRMED",
-    to_status: "PREPARING",
-    changed_by: 5,
-    created_at: "2026-02-01T10:40:00Z",
-    updated_at: "2026-02-01T10:40:00Z",
-  },
-  {
-    id: 3,
-    order_id: 1,
-    from_status: "PREPARING",
-    to_status: "COMPLETED",
-    changed_by: 5,
-    created_at: "2026-02-01T11:00:00Z",
-    updated_at: "2026-02-01T11:00:00Z",
-  },
-  {
-    id: 4,
-    order_id: 2,
-    from_status: "DRAFT",
-    to_status: "CONFIRMED",
-    changed_by: 1,
-    created_at: "2026-01-30T14:25:00Z",
-    updated_at: "2026-01-30T14:25:00Z",
-  },
-  {
-    id: 5,
-    order_id: 2,
-    from_status: "CONFIRMED",
-    to_status: "PREPARING",
-    changed_by: 1,
-    created_at: "2026-01-30T15:00:00Z",
-    updated_at: "2026-01-30T15:00:00Z",
-  },
-  {
-    id: 6,
-    order_id: 2,
-    from_status: "PREPARING",
-    to_status: "COMPLETED",
-    changed_by: 1,
-    created_at: "2026-01-31T09:15:00Z",
-    updated_at: "2026-01-31T09:15:00Z",
-  },
-  {
-    id: 7,
-    order_id: 3,
-    from_status: "DRAFT",
-    to_status: "CONFIRMED",
-    changed_by: 6,
-    created_at: "2026-02-02T08:50:00Z",
-    updated_at: "2026-02-02T08:50:00Z",
-  },
-  {
-    id: 8,
-    order_id: 4,
-    from_status: "DRAFT",
-    to_status: "CONFIRMED",
-    changed_by: 1,
-    created_at: "2026-02-03T15:30:00Z",
-    updated_at: "2026-02-03T15:30:00Z",
-  },
-  {
-    id: 9,
-    order_id: 4,
-    from_status: "CONFIRMED",
-    to_status: "PREPARING",
-    changed_by: 1,
-    created_at: "2026-02-03T15:35:00Z",
-    updated_at: "2026-02-03T15:35:00Z",
-  },
-  {
-    id: 10,
-    order_id: 5,
-    from_status: "DRAFT",
-    to_status: "DRAFT",
-    changed_by: 5,
-    note: "Đơn hàng mới tạo",
-    created_at: "2026-02-04T09:00:00Z",
-    updated_at: "2026-02-04T09:00:00Z",
-  },
-];
-
-export const fetchOrders = async (): Promise<OrderDisplay[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return mockOrders.map(order => ({
-    ...order,
-    items: mockOrderItems.filter(item => item.order_id === order.id && !item.is_deleted),
-    status_history: mockOrderStatusLogs.filter(log => log.order_id === order.id),
-    franchise: order.franchise_id === 1 
-      ? { id: 1, code: "WBS-HN-01", name: "WBS Coffee Hoàn Kiếm" }
-      : order.franchise_id === 2
-        ? { id: 2, code: "WBS-HCM-01", name: "WBS Coffee Quận 1" }
-        : { id: 3, code: "WBS-DN-01", name: "WBS Coffee Hải Châu" },
-    customer: order.customer_id === 1
-      ? { id: 1, name: "Nguyễn Văn An", phone: "0901234567", email: "nguyenvanan@email.com" }
-      : order.customer_id === 2
-        ? { id: 2, name: "Trần Thị Bình", phone: "0912345678", email: "tranthibinh@email.com" }
-        : { id: 3, name: "Lê Hoàng Công", phone: "0923456789", email: "lehoangcong@email.com" },
-    created_by_user: order.created_by 
-      ? order.created_by === 5
-        ? { id: 5, name: "Phạm Minh Đức (NV)" }
-        : { id: 6, name: "Võ Thị Em (NV)" }
-      : undefined,
-  }));
-};
-
-// Helper function to map Order to OrderDisplay with all relations
-const mapOrderToDisplay = (order: Order): OrderDisplay => {
   return {
     ...order,
-    items: mockOrderItems.filter(item => item.order_id === order.id && !item.is_deleted),
-    status_history: mockOrderStatusLogs.filter(log => log.order_id === order.id),
-    franchise: order.franchise_id === 1 
-      ? { id: 1, code: "WBS-HN-01", name: "WBS Coffee Hoàn Kiếm" }
-      : order.franchise_id === 2
-        ? { id: 2, code: "WBS-HCM-01", name: "WBS Coffee Quận 1" }
-        : { id: 3, code: "WBS-DN-01", name: "WBS Coffee Hải Châu" },
-    customer: order.customer_id === 1
-      ? { id: 1, name: "Nguyễn Văn An", phone: "0901234567", email: "nguyenvanan@email.com" }
-      : order.customer_id === 2
-        ? { id: 2, name: "Trần Thị Bình", phone: "0912345678", email: "tranthibinh@email.com" }
-        : { id: 3, name: "Lê Hoàng Công", phone: "0923456789", email: "lehoangcong@email.com" },
-    created_by_user: order.created_by 
-      ? order.created_by === 5
-        ? { id: 5, name: "Phạm Minh Đức (NV)" }
-        : { id: 6, name: "Võ Thị Em (NV)" }
-      : undefined,
+    total_amount: totalAmount,
+    items, // Normalize to items
+    customer: order.customer ?? {
+      name: order.customer_name ?? "N/A",
+      phone: order.phone,
+      email: order.email,
+    },
+    franchise: order.franchise ?? {
+      name: order.franchise_name ?? "N/A",
+      code: order.franchise_code,
+    },
   };
 };
 
-export const fetchOrderById = async (id: number): Promise<OrderDisplay | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const order = mockOrders.find((o) => o.id === id);
-  if (!order) return null;
-  return mapOrderToDisplay(order);
+/**
+ * Fetch all orders for a franchise
+ * @param franchiseId - The franchise ID to get orders for
+ */
+export const fetchOrdersByFranchise = async (franchiseId: string): Promise<OrderDisplay[]> => {
+  try {
+    const orders = await orderClient.getOrdersByFranchiseId(franchiseId);
+    return orders.map(normalizeOrder);
+  } catch (error) {
+    console.error("Error fetching orders by franchise:", error);
+    return [];
+  }
 };
 
-export const createOrder = async (data: Omit<Order, "id" | "code" | "created_at" | "updated_at">): Promise<Order> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  const newOrder: Order = {
-    ...data,
-    id: mockOrders.length + 1,
-    code: `ORD${String(mockOrders.length + 1).padStart(3, "0")}`,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  mockOrders.push(newOrder);
-  return newOrder;
-};
-
-export const updateOrderStatus = async (
-  id: number,
-  status: OrderStatus,
-  changedBy: number,
-  note?: string
-): Promise<OrderDisplay | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  const order = mockOrders.find((o) => o.id === id);
-  if (!order) return null;
-
-  const oldStatus = order.status;
-  order.status = status;
-  order.updated_at = new Date().toISOString();
-
-  // Update timestamp based on status
-  if (status === "CONFIRMED") {
-    order.confirmed_at = new Date().toISOString();
-  } else if (status === "COMPLETED") {
-    order.completed_at = new Date().toISOString();
-  } else if (status === "CANCELLED") {
-    order.cancelled_at = new Date().toISOString();
+/**
+ * Fetch all orders (for backwards compatibility - uses first franchise from user)
+ * @deprecated Use fetchOrdersByFranchise with specific franchiseId instead
+ */
+export const fetchOrders = async (): Promise<OrderDisplay[]> => {
+  // Try to get user's franchise ID from localStorage
+  const userRaw = localStorage.getItem("auth_user");
+  if (userRaw) {
+    try {
+      const user = JSON.parse(userRaw);
+      const franchiseId = user?.roles?.[0]?.franchise_id;
+      if (franchiseId) {
+        return fetchOrdersByFranchise(franchiseId);
+      }
+    } catch (error) {
+      console.error("Error parsing user data:", error);
+    }
   }
 
-  // Create status log
-  const statusLog: OrderStatusLog = {
-    id: mockOrderStatusLogs.length + 1,
-    order_id: order.id,
-    from_status: oldStatus,
-    to_status: status,
-    changed_by: changedBy,
-    note,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-  mockOrderStatusLogs.push(statusLog);
-
-  // Return full order display with all relations
-  return mapOrderToDisplay(order);
+  // Fallback: return empty array if no franchise ID found
+  console.warn("No franchise ID found in user data");
+  return [];
 };
 
-export const searchOrders = async (query: string): Promise<OrderDisplay[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const lowerQuery = query.toLowerCase();
-  const filtered = mockOrders.filter(
-    (order) =>
-      order.code.toLowerCase().includes(lowerQuery) ||
-      order.id.toString().includes(query)
-  );
-  return filtered.map(order => ({
-    ...order,
-    items: mockOrderItems.filter(item => item.order_id === order.id && !item.is_deleted),
-    status_history: mockOrderStatusLogs.filter(log => log.order_id === order.id),
-  }));
+/**
+ * Fetch a single order by ID
+ */
+export const fetchOrderById = async (id: number | string): Promise<OrderDisplay | null> => {
+  try {
+    const order = await orderClient.getOrderById(id);
+    if (!order) return null;
+    console.log("📦 [Admin OrderService] Raw order from API:", order);
+    const normalized = normalizeOrder(order);
+    console.log("📦 [Admin OrderService] Normalized order:", normalized);
+    return normalized;
+  } catch (error) {
+    console.error("Error fetching order by ID:", error);
+    return null;
+  }
 };
 
+/**
+ * Search orders by code or customer name
+ * Note: API might not support text search, so we filter client-side
+ */
+export const searchOrders = async (query: string, franchiseId?: string): Promise<OrderDisplay[]> => {
+  try {
+    // First get all orders for the franchise
+    let orders: OrderDisplay[] = [];
+
+    if (franchiseId) {
+      orders = await fetchOrdersByFranchise(franchiseId);
+    } else {
+      orders = await fetchOrders();
+    }
+
+    // Filter client-side by code or customer name
+    const lowerQuery = query.toLowerCase();
+    return orders.filter(
+      (order) =>
+        order.code?.toLowerCase().includes(lowerQuery) ||
+        order.customer?.name?.toLowerCase().includes(lowerQuery) ||
+        order.customer_name?.toLowerCase().includes(lowerQuery) ||
+        order.customer?.phone?.includes(query) ||
+        order.phone?.includes(query) ||
+        order.customer?.email?.toLowerCase().includes(lowerQuery)
+    );
+  } catch (error) {
+    console.error("Error searching orders:", error);
+    return [];
+  }
+};
+
+/**
+ * Filter orders by various criteria
+ * Note: API might not support all filters, so we filter client-side
+ */
 export const filterOrders = async (
   status?: OrderStatus,
   type?: OrderType,
-  franchiseId?: number,
+  franchiseId?: number | string,
   startDate?: string,
   endDate?: string
 ): Promise<OrderDisplay[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  const filtered = mockOrders.filter((order) => {
-    if (status && order.status !== status) return false;
-    if (type && order.type !== type) return false;
-    if (franchiseId && order.franchise_id !== franchiseId) return false;
-    if (startDate && new Date(order.created_at) < new Date(startDate)) return false;
-    if (endDate && new Date(order.created_at) > new Date(endDate)) return false;
-    return true;
-  });
-  return filtered.map(order => ({
-    ...order,
-    items: mockOrderItems.filter(item => item.order_id === order.id && !item.is_deleted),
-    status_history: mockOrderStatusLogs.filter(log => log.order_id === order.id),
-  }));
+  try {
+    // First get all orders
+    let orders: OrderDisplay[] = [];
+
+    if (franchiseId) {
+      orders = await fetchOrdersByFranchise(String(franchiseId));
+    } else {
+      orders = await fetchOrders();
+    }
+
+    // Filter client-side
+    return orders.filter((order) => {
+      if (status && order.status !== status) return false;
+      if (type && order.type !== type) return false;
+      if (startDate && new Date(order.created_at) < new Date(startDate)) return false;
+      if (endDate && new Date(order.created_at) > new Date(endDate)) return false;
+      return true;
+    });
+  } catch (error) {
+    console.error("Error filtering orders:", error);
+    return [];
+  }
+};
+
+/**
+ * Update order status to PREPARING
+ */
+export const updateOrderToPreparing = async (orderId: number | string): Promise<OrderDisplay | null> => {
+  try {
+    return await orderClient.setPreparing(orderId);
+  } catch (error) {
+    console.error("Error updating order to preparing:", error);
+    return null;
+  }
+};
+
+/**
+ * Update order status to READY_FOR_PICKUP
+ */
+export const updateOrderToReadyForPickup = async (
+  orderId: number | string,
+  staffId?: string
+): Promise<OrderDisplay | null> => {
+  try {
+    return await orderClient.setReadyForPickup(orderId, staffId ? { staff_id: staffId } : undefined);
+  } catch (error) {
+    console.error("Error updating order to ready for pickup:", error);
+    return null;
+  }
+};
+
+/**
+ * Generic update order status function (for backwards compatibility)
+ * Note: API only supports specific status transitions
+ */
+export const updateOrderStatus = async (
+  id: number | string,
+  status: OrderStatus,
+  changedBy?: number | string,
+  _note?: string
+): Promise<OrderDisplay | null> => {
+  try {
+    // Map status to appropriate API call
+    switch (status) {
+      case "PREPARING":
+        return await updateOrderToPreparing(id);
+      case "READY_FOR_PICKUP":
+        return await updateOrderToReadyForPickup(id, changedBy ? String(changedBy) : undefined);
+      default:
+        // For other statuses, we might need additional API endpoints
+        console.warn(`Status ${status} update not yet implemented via API`);
+        return await fetchOrderById(id);
+    }
+  } catch (error) {
+    console.error("Error updating order status:", error);
+    return null;
+  }
+};
+
+/**
+ * Create a new order
+ * Note: This might need to be implemented via cart checkout flow
+ */
+export const createOrder = async (_data: unknown): Promise<unknown> => {
+  try {
+    // Orders are typically created via cart checkout
+    // This function is kept for backwards compatibility but might not be used
+    console.warn("createOrder: Orders should be created via cart checkout flow");
+    return null;
+  } catch (error) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
 };
