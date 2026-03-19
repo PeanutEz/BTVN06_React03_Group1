@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import ReactDOM from "react-dom";
 import { Button } from "../../../components";
 import { TimeSelect } from "../../../components/ui/TimeSelect";
 import Pagination from "../../../components/ui/Pagination";
@@ -38,12 +39,19 @@ export default function PromotionPage() {
         { value: string; label: string }[]
     >([]);    const [franchiseKeyword, setFranchiseKeyword] = useState("");
     const [franchiseComboOpen, setFranchiseComboOpen] = useState(false);
-    const franchiseComboRef = useRef<HTMLDivElement>(null);
-
-    // create modal franchise combobox
+    const franchiseComboRef = useRef<HTMLDivElement>(null);    // create modal franchise combobox
     const [createFranchiseOpen, setCreateFranchiseOpen] = useState(false);
-    const [createFranchiseKeyword, setCreateFranchiseKeyword] = useState("");
-    const createFranchiseRef = useRef<HTMLDivElement>(null);
+    const [createFranchiseKeyword, setCreateFranchiseKeyword] = useState("");    // portal refs for create modal franchise dropdown
+    const createFranchiseTriggerRef = useRef<HTMLButtonElement>(null);
+    const createFranchiseDropdownRef = useRef<HTMLDivElement>(null);
+    const [createFranchiseRect, setCreateFranchiseRect] = useState<DOMRect | null>(null);
+
+    const openCreateFranchise = useCallback(() => {
+        if (createFranchiseTriggerRef.current)
+            setCreateFranchiseRect(createFranchiseTriggerRef.current.getBoundingClientRect());
+        setCreateFranchiseOpen(true);
+    }, []);
+    const closeCreateFranchise = useCallback(() => { setCreateFranchiseOpen(false); setCreateFranchiseKeyword(""); }, []);
 
     // franchise name map for display
     const franchiseNameMap = franchiseOptions.reduce<Record<string, string>>((acc, f) => {
@@ -159,24 +167,24 @@ export default function PromotionPage() {
         load(searchFranchise, 1, statusFilter, typeFilter, isDeletedFilter);
     }, [searchFranchise, statusFilter, typeFilter, isDeletedFilter]);    useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
-            if (
-                franchiseComboRef.current &&
-                !franchiseComboRef.current.contains(e.target as Node)
-            ) {
+            if (franchiseComboRef.current && !franchiseComboRef.current.contains(e.target as Node))
                 setFranchiseComboOpen(false);
-            }
-            if (
-                createFranchiseRef.current &&
-                !createFranchiseRef.current.contains(e.target as Node)
-            ) {
-                setCreateFranchiseOpen(false);
-            }
         };
-
         document.addEventListener("mousedown", handleClickOutside);
-        return () =>
-            document.removeEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    // click-outside for create franchise portal dropdown
+    useEffect(() => {
+        if (!createFranchiseOpen) return;
+        const handler = (e: MouseEvent) => {
+            const t = e.target as Node;
+            if (!createFranchiseTriggerRef.current?.contains(t) && !createFranchiseDropdownRef.current?.contains(t))
+                closeCreateFranchise();
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, [createFranchiseOpen, closeCreateFranchise]);
 
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
@@ -490,14 +498,22 @@ export default function PromotionPage() {
 
                                         <td className="px-4 py-3 text-green-600 font-semibold">
                                             {formatDiscount(p)}
+                                        </td>                                        <td className="px-4 py-3 whitespace-nowrap text-xs">
+                                            <div className="font-medium text-slate-700">
+                                                {new Date(p.start_date).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                                            </div>
+                                            <div className="text-slate-400">
+                                                {new Date(p.start_date).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                                            </div>
                                         </td>
 
-                                        <td className="px-4 py-3">
-                                            {new Date(p.start_date).toLocaleDateString()}
-                                        </td>
-
-                                        <td className="px-4 py-3">
-                                            {new Date(p.end_date).toLocaleDateString()}
+                                        <td className="px-4 py-3 whitespace-nowrap text-xs">
+                                            <div className="font-medium text-slate-700">
+                                                {new Date(p.end_date).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                                            </div>
+                                            <div className="text-slate-400">
+                                                {new Date(p.end_date).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                                            </div>
                                         </td>
 
                                         <td className="px-4 py-3">
@@ -652,73 +668,58 @@ export default function PromotionPage() {
                                     className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder-white/30 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
                                     required
                                 />
-                            </div>
-
-                            {/* FRANCHISE */}
-                            <div className="relative z-30 space-y-1.5">
+                            </div>                            {/* FRANCHISE */}
+                            <div className="space-y-1.5">
                                 <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Chi nhánh <span className="text-red-400">*</span></label>
-                                <div className="relative" ref={createFranchiseRef}>
+                                <div className="relative">
                                     <button
+                                        ref={createFranchiseTriggerRef}
                                         type="button"
-                                        onClick={() => setCreateFranchiseOpen((o) => !o)}
-                                        className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                                        onClick={() => createFranchiseOpen ? closeCreateFranchise() : openCreateFranchise()}
+                                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
                                     >
-                                        <span className="truncate">
+                                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.franchise_id ? "#f1f5f9" : "#94a3b8" }}>
                                             {createForm.franchise_id
                                                 ? (franchiseOptions.find(f => f.value === createForm.franchise_id)?.name || createForm.franchise_id)
                                                 : "-- Chọn chi nhánh --"}
                                         </span>
-                                        <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
+                                        <svg style={{ width: 16, height: 16, flexShrink: 0, marginLeft: 8, color: "#94a3b8", transform: createFranchiseOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                                            fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                                     </button>
-                                    {createFranchiseOpen && (
-                                        <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
-                                            <div className="border-b border-white/[0.12] px-3 py-2">
-                                                <input
-                                                    autoFocus
-                                                    value={createFranchiseKeyword}
-                                                    onChange={(e) => setCreateFranchiseKeyword(e.target.value)}
-                                                    placeholder="Tìm theo tên hoặc mã..."
-                                                    className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
-                                                />
+
+                                    {createFranchiseOpen && createFranchiseRect && ReactDOM.createPortal(
+                                        <div ref={createFranchiseDropdownRef} style={{ position: "fixed", top: createFranchiseRect.bottom + 4, left: createFranchiseRect.left, width: createFranchiseRect.width, zIndex: 99999, background: "#1e293b", border: "1px solid #475569", borderRadius: 8, boxShadow: "0 10px 40px rgba(0,0,0,0.7)", overflow: "hidden" }}>
+                                            <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
+                                                <input autoFocus value={createFranchiseKeyword} onChange={(e) => setCreateFranchiseKeyword(e.target.value)} placeholder="Tìm theo tên hoặc mã..."
+                                                    style={{ width: "100%", boxSizing: "border-box", background: "#0f172a", border: "1px solid #475569", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#f1f5f9", outline: "none" }} />
                                             </div>
-                                            <div className="max-h-56 overflow-y-auto py-1">
-                                                <button
-                                                    type="button"
-                                                    onMouseDown={() => {
-                                                        setCreateForm({ ...createForm, franchise_id: "", product_franchise_id: "" });
-                                                        setProductOptions([]);
-                                                        setCreateFranchiseKeyword("");
-                                                        setCreateFranchiseOpen(false);
-                                                    }}
-                                                    className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${!createForm.franchise_id ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"}`}
-                                                >
+                                            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                                                <button type="button" onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={() => { setCreateForm({ ...createForm, franchise_id: "", product_franchise_id: "" }); setProductOptions([]); closeCreateFranchise(); }}
+                                                    style={{ display: "flex", width: "100%", padding: "8px 12px", boxSizing: "border-box", background: !createForm.franchise_id ? "#334155" : "transparent", color: !createForm.franchise_id ? "#f1f5f9" : "#94a3b8", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer", textAlign: "left" }}>
                                                     -- Chọn chi nhánh --
                                                 </button>
                                                 {filteredCreateFranchiseOptions.map((f) => (
-                                                    <button
-                                                        key={f.value}
-                                                        type="button"
-                                                        onMouseDown={async () => {
+                                                    <button key={f.value} type="button" onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={async () => {
                                                             setCreateForm({ ...createForm, franchise_id: f.value, product_franchise_id: "" });
-                                                            setCreateFranchiseKeyword("");
-                                                            setCreateFranchiseOpen(false);
+                                                            closeCreateFranchise();
                                                             try {
                                                                 const products = await adminProductFranchiseService.getProductsByFranchise(f.value);
                                                                 setProductOptions(products.map((p) => ({ value: p.id, label: `${p.product_name} (${p.size})` })));
                                                             } catch { showError("Không tải được product"); }
                                                         }}
-                                                        className={`flex w-full items-center px-3 py-2 text-left text-xs ${createForm.franchise_id === f.value ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"}`}
-                                                    >
-                                                        <span className="truncate">{f.name} ({f.code})</span>
+                                                        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", boxSizing: "border-box", background: createForm.franchise_id === f.value ? "#334155" : "transparent", color: createForm.franchise_id === f.value ? "#f1f5f9" : "#cbd5e1", fontSize: 13, border: "none", cursor: "pointer", textAlign: "left" }}>
+                                                        <span style={{ fontFamily: "monospace", color: "#64748b", fontSize: 10, flexShrink: 0 }}>{f.code}</span>
+                                                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                                                     </button>
                                                 ))}
                                                 {filteredCreateFranchiseOptions.length === 0 && (
-                                                    <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy chi nhánh</div>
+                                                    <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Không tìm thấy chi nhánh</div>
                                                 )}
                                             </div>
-                                        </div>
+                                        </div>,
+                                        document.body
                                     )}
                                 </div>
                             </div>
