@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { TimeSelect } from "@/components/ui/TimeSelect";
 import { voucherService } from "@/services/voucher.service";
 import type { Voucher, UpdateVoucherDto } from "@/models/voucher.model";
 import { fetchFranchiseSelect } from "@/services/store.service";
@@ -85,11 +86,23 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
         franchise_id: "",
         product_franchise_id: ""
       });
-    }
-  }, [voucher]);
+    }  }, [voucher]);
 
-  const startDateRef = useRef<HTMLInputElement>(null);
-  const endDateRef = useRef<HTMLInputElement>(null);
+  // Split datetime-local into date + time parts for display
+  const startDatePart = formData.start_date ? formData.start_date.substring(0, 10) : "";
+  const startTimePart = formData.start_date ? formData.start_date.substring(11, 16) : "";
+  const endDatePart = formData.end_date ? formData.end_date.substring(0, 10) : "";
+  const endTimePart = formData.end_date ? formData.end_date.substring(11, 16) : "";
+
+  const handleDateTimePart = (field: "start_date" | "end_date", part: "date" | "time", val: string) => {
+    setFormData((prev) => {
+      const current = prev[field] || "T";
+      const [d, t] = current.includes("T") ? current.split("T") : [current.substring(0, 10), current.substring(11, 16)];
+      const newDate = part === "date" ? val : (d || "");
+      const newTime = part === "time" ? val : (t || "00:00");
+      return { ...prev, [field]: newDate && newTime ? `${newDate}T${newTime}` : newDate ? `${newDate}T00:00` : "" };
+    });
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -219,57 +232,98 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
                 required
               />
-            </div>
+            </div>            {/* DATE RANGE */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">⏱ Thời gian áp dụng</p>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Thời gian bắt đầu <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input
-                    ref={startDateRef}
-                    type="datetime-local"
-                    name="start_date"
-                    value={formData.start_date}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&::-webkit-calendar-picker-indicator]:hidden"
-                    required
+              {/* Start */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Bắt đầu <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Date picker */}
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                    </span>                    <input
+                      type="date"
+                      value={startDatePart}
+                      onChange={(e) => handleDateTimePart("start_date", "date", e.target.value)}
+                      max={endDatePart || undefined}
+                      className="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      required
+                    />
+                  </div>                  {/* Time picker */}
+                  <TimeSelect
+                    value={startTimePart}
+                    onChange={(val) => handleDateTimePart("start_date", "time", val)}
                   />
-                  <button
-                    type="button"
-                    onClick={() => startDateRef.current?.showPicker()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary-500 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <circle cx="12" cy="12" r="10" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
-                    </svg>
-                  </button>
                 </div>
+                {startDatePart && (
+                  <p className="text-xs text-primary-600 font-medium pl-1">
+                    ✓ {new Date(`${startDatePart}T${startTimePart || "00:00"}`).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" })}
+                  </p>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Thời gian kết thúc <span className="text-red-500">*</span></label>
-                <div className="relative">
-                  <input
-                    ref={endDateRef}
-                    type="datetime-local"
-                    name="end_date"
-                    value={formData.end_date}
-                    onChange={handleChange}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&::-webkit-calendar-picker-indicator]:hidden"
-                    required
+
+              {/* Arrow */}
+              <div className="flex items-center gap-2 px-1">
+                <div className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs font-semibold text-slate-400">đến</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              {/* End */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Kết thúc <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                    </span>                    <input
+                      type="date"
+                      value={endDatePart}
+                      onChange={(e) => handleDateTimePart("end_date", "date", e.target.value)}
+                      min={startDatePart || undefined}
+                      className="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      required
+                    />
+                  </div>                  <TimeSelect
+                    value={endTimePart}
+                    onChange={(val) => handleDateTimePart("end_date", "time", val)}
                   />
-                  <button
-                    type="button"
-                    onClick={() => endDateRef.current?.showPicker()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary-500 transition-colors"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <circle cx="12" cy="12" r="10" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
-                    </svg>
-                  </button>
                 </div>
+                {endDatePart && (
+                  <p className="text-xs text-primary-600 font-medium pl-1">
+                    ✓ {new Date(`${endDatePart}T${endTimePart || "00:00"}`).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" })}
+                  </p>
+                )}
               </div>
+
+              {/* Duration preview */}
+              {startDatePart && endDatePart && new Date(formData.end_date) > new Date(formData.start_date) && (
+                <div className="rounded-lg bg-primary-50 border border-primary-200 px-3 py-2 text-xs text-primary-700 font-medium">
+                  🗓 Thời gian hiệu lực:{" "}
+                  {(() => {
+                    const diff = new Date(formData.end_date).getTime() - new Date(formData.start_date).getTime();
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    return days > 0 ? `${days} ngày${hours > 0 ? ` ${hours} giờ` : ""}` : `${hours} giờ`;
+                  })()}
+                </div>
+              )}
+              {startDatePart && endDatePart && new Date(formData.end_date) <= new Date(formData.start_date) && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600 font-medium">
+                  ⚠ Ngày kết thúc phải sau ngày bắt đầu
+                </div>
+              )}
             </div>
 
             {!voucher && (

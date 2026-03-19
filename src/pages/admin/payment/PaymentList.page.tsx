@@ -77,13 +77,9 @@ const PaymentListPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý thanh toán</h1>
+        <div>          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý thanh toán</h1>
           <p className="text-xs sm:text-sm text-slate-600">Theo dõi và quản lý các giao dịch thanh toán</p>
         </div>
-        <Button variant="outline" onClick={loadPayments} loading={loading}>
-          Làm mới
-        </Button>
       </div>
 
       {/* Filters */}
