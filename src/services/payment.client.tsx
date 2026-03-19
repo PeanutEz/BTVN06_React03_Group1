@@ -3,7 +3,7 @@
  * GET payment by OrderId, CustomerId, Code, Id.
  * PUT confirm, PUT refund.
  */
-import apiClient from "@/services/api.client";
+import apiClient from "./api.client";
 
 type ApiResponse<T> = { success: boolean; data: T };
 

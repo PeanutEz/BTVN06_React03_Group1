@@ -9,19 +9,35 @@ import type {
 
 const API_URL = "/shift-assignments";
 
+export interface ShiftAssignmentSearchCondition {
+    shift_id?: string;
+    user_id?: string;
+    work_date?: string;
+    assigned_by?: string;
+    status?: string;
+    is_deleted?: boolean;
+}
+
 export const shiftAssignmentService = {
     // =====================
-    // SEARCH (FIX 400 ERROR)
+    // SEARCH
     // =====================
-    search: async (page = 1, size = 10) => {
+    search: async (page = 1, size = 10, condition: ShiftAssignmentSearchCondition = {}) => {
         const res = await apiClient.post<ShiftAssignmentApiResponse>(
             `${API_URL}/search`,
             {
+                searchCondition: {
+                    shift_id: condition.shift_id || "",
+                    user_id: condition.user_id || "",
+                    work_date: condition.work_date || "",
+                    assigned_by: condition.assigned_by || "",
+                    status: condition.status || "",
+                    is_deleted: condition.is_deleted ?? false,
+                },
                 pageInfo: {
                     pageNum: page,
                     pageSize: size,
                 },
-                searchCondition: {}, // 👈 bắt buộc (fix lỗi 400)
             }
         );
         return res.data;

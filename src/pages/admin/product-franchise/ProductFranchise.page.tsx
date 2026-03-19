@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { Button, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { fetchFranchiseSelect } from "../../../services/store.service";
@@ -69,11 +70,32 @@ export default function ProductFranchisePage() {
   const [createForm, setCreateForm] = useState<CreateProductFranchiseDto>({
     ...DEFAULT_CREATE,
   });
-  const [creating, setCreating] = useState(false);
-  const [createFranchiseOpen, setCreateFranchiseOpen] = useState(false);
+  const [creating, setCreating] = useState(false);  const [createFranchiseOpen, setCreateFranchiseOpen] = useState(false);
   const [createFranchiseKeyword, setCreateFranchiseKeyword] = useState("");
   const [createProductOpen, setCreateProductOpen] = useState(false);
   const [createProductKeyword, setCreateProductKeyword] = useState("");
+
+  // portal refs for create modal dropdowns
+  const createFranchiseTriggerRef = useRef<HTMLButtonElement>(null);
+  const createFranchiseDropdownRef = useRef<HTMLDivElement>(null);
+  const [createFranchiseRect, setCreateFranchiseRect] = useState<DOMRect | null>(null);
+  const createProductTriggerRef = useRef<HTMLButtonElement>(null);
+  const createProductDropdownRef = useRef<HTMLDivElement>(null);
+  const [createProductRect, setCreateProductRect] = useState<DOMRect | null>(null);
+
+  const openCreateFranchise = useCallback(() => {
+    if (createFranchiseTriggerRef.current)
+      setCreateFranchiseRect(createFranchiseTriggerRef.current.getBoundingClientRect());
+    setCreateFranchiseOpen(true);
+  }, []);
+  const closeCreateFranchise = useCallback(() => { setCreateFranchiseOpen(false); setCreateFranchiseKeyword(""); }, []);
+
+  const openCreateProduct = useCallback(() => {
+    if (createProductTriggerRef.current)
+      setCreateProductRect(createProductTriggerRef.current.getBoundingClientRect());
+    setCreateProductOpen(true);
+  }, []);
+  const closeCreateProduct = useCallback(() => { setCreateProductOpen(false); setCreateProductKeyword(""); }, []);
 
   // detail
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -301,12 +323,34 @@ export default function ProductFranchisePage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   useEffect(() => {
     if (!isInitialized.current) return;
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
+
+  // click-outside for create modal portal dropdowns
+  useEffect(() => {
+    if (!createFranchiseOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!createFranchiseTriggerRef.current?.contains(t) && !createFranchiseDropdownRef.current?.contains(t))
+        closeCreateFranchise();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [createFranchiseOpen, closeCreateFranchise]);
+
+  useEffect(() => {
+    if (!createProductOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!createProductTriggerRef.current?.contains(t) && !createProductDropdownRef.current?.contains(t))
+        closeCreateProduct();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [createProductOpen, closeCreateProduct]);
 
   const openCreate = () => {
     setCreateForm({ ...DEFAULT_CREATE });
@@ -802,52 +846,41 @@ export default function ProductFranchisePage() {
             </div>
 
             <form onSubmit={submitCreate} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1.5">
+              <div className="grid gap-4 md:grid-cols-2">                <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-white/80">Franchise *</label>
                   <div className="relative">
                     <button
+                      ref={createFranchiseTriggerRef}
                       type="button"
-                      onClick={() => setCreateFranchiseOpen((o) => !o)}
-                      className="flex w-full items-center justify-between rounded-lg border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition border focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      onClick={() => createFranchiseOpen ? closeCreateFranchise() : openCreateFranchise()}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
                     >
-                      <span className="truncate">
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.franchise_id ? "#f1f5f9" : "#94a3b8" }}>
                         {createForm.franchise_id ? (franchiseNameMap[createForm.franchise_id] || createForm.franchise_id) : "-- Chọn franchise --"}
                       </span>
-                      <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>                    {createFranchiseOpen && (
-                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
-                        <div className="border-b border-white/[0.12] px-3 py-2">
-                          <input
-                            autoFocus
-                            value={createFranchiseKeyword}
-                            onChange={(e) => setCreateFranchiseKeyword(e.target.value)}
-                            placeholder="Tìm theo tên hoặc mã..."
-                            className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
-                          />
+                      <svg style={{ width: 16, height: 16, flexShrink: 0, marginLeft: 8, color: "#94a3b8", transform: createFranchiseOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+
+                    {createFranchiseOpen && createFranchiseRect && ReactDOM.createPortal(
+                      <div ref={createFranchiseDropdownRef} style={{ position: "fixed", top: createFranchiseRect.bottom + 4, left: createFranchiseRect.left, width: createFranchiseRect.width, zIndex: 99999, background: "#1e293b", border: "1px solid #475569", borderRadius: 8, boxShadow: "0 10px 40px rgba(0,0,0,0.7)", overflow: "hidden" }}>
+                        <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
+                          <input autoFocus value={createFranchiseKeyword} onChange={(e) => setCreateFranchiseKeyword(e.target.value)} placeholder="Tìm theo tên hoặc mã..."
+                            style={{ width: "100%", boxSizing: "border-box", background: "#0f172a", border: "1px solid #475569", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#f1f5f9", outline: "none" }} />
                         </div>
-                        <div className="max-h-64 overflow-y-auto py-1 text-sm">
+                        <div style={{ maxHeight: 220, overflowY: "auto" }}>
                           {createFranchiseOptions.map((fr) => (
-                            <button
-                              key={fr.value}
-                              type="button"
-                              onClick={() => {
-                                setCreateForm((f) => ({ ...f, franchise_id: fr.value, product_id: "" }));
-                                setCreateFranchiseOpen(false);
-                                setCreateFranchiseKeyword("");
-                              }}
-                              className="flex w-full items-center px-3 py-2 text-left text-xs text-white/80 hover:bg-white/[0.08]"
-                            >
-                              <span className="truncate">{fr.name} ({fr.code})</span>
+                            <button key={fr.value} type="button" onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => { setCreateForm((f) => ({ ...f, franchise_id: fr.value, product_id: "" })); closeCreateFranchise(); }}
+                              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", boxSizing: "border-box", background: createForm.franchise_id === fr.value ? "#334155" : "transparent", color: createForm.franchise_id === fr.value ? "#f1f5f9" : "#cbd5e1", fontSize: 13, border: "none", cursor: "pointer", textAlign: "left" }}>
+                              <span style={{ fontFamily: "monospace", color: "#64748b", fontSize: 10, flexShrink: 0 }}>{fr.code}</span>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fr.name}</span>
                             </button>
                           ))}
-                          {createFranchiseOptions.length === 0 && (
-                            <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise</div>
-                          )}
+                          {createFranchiseOptions.length === 0 && <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Không tìm thấy franchise</div>}
                         </div>
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
                 </div>
@@ -856,59 +889,38 @@ export default function ProductFranchisePage() {
                   <label className="text-sm font-semibold text-white/80">Product *</label>
                   <div className="relative">
                     <button
+                      ref={createProductTriggerRef}
                       type="button"
                       disabled={!createForm.franchise_id}
-                      onClick={() => setCreateProductOpen((o) => !o)}
-                      className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-sm outline-none transition ${
-                        createForm.franchise_id
-                          ? "border-white/[0.15] bg-white/[0.08] text-white/90 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                          : "border-white/[0.08] bg-white/[0.04] text-white/40 cursor-not-allowed"
-                      }`}
+                      onClick={() => createProductOpen ? closeCreateProduct() : openCreateProduct()}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: createForm.franchise_id ? "#1e293b" : "#0f172a", border: "1px solid #475569", borderRadius: 8, color: createForm.franchise_id ? "#f1f5f9" : "#475569", fontSize: 14, cursor: createForm.franchise_id ? "pointer" : "not-allowed", outline: "none", opacity: createForm.franchise_id ? 1 : 0.5 }}
                     >
-                      <span className="truncate">
-                        {createForm.product_id
-                          ? (productNameMap[createForm.product_id] || createForm.product_id)
-                          : createForm.franchise_id
-                            ? "-- Chọn product --"
-                            : "Chọn franchise trước"}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.product_id ? "#f1f5f9" : "#94a3b8" }}>
+                        {createPFLoading ? "Đang tải..." : createForm.product_id ? (productNameMap[createForm.product_id] || createForm.product_id) : createForm.franchise_id ? "-- Chọn product --" : "Chọn franchise trước"}
                       </span>
-                      <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>                    {createProductOpen && createForm.franchise_id && (
-                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
-                        <div className="border-b border-white/[0.12] px-3 py-2">
-                          <input
-                            autoFocus
-                            value={createProductKeyword}
-                            onChange={(e) => setCreateProductKeyword(e.target.value)}
-                            placeholder="Tìm theo tên sản phẩm..."
-                            className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
-                          />
+                      <svg style={{ width: 16, height: 16, flexShrink: 0, marginLeft: 8, color: "#94a3b8", transform: createProductOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+
+                    {createProductOpen && createForm.franchise_id && createProductRect && ReactDOM.createPortal(
+                      <div ref={createProductDropdownRef} style={{ position: "fixed", top: createProductRect.bottom + 4, left: createProductRect.left, width: createProductRect.width, zIndex: 99999, background: "#1e293b", border: "1px solid #475569", borderRadius: 8, boxShadow: "0 10px 40px rgba(0,0,0,0.7)", overflow: "hidden" }}>
+                        <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
+                          <input autoFocus value={createProductKeyword} onChange={(e) => setCreateProductKeyword(e.target.value)} placeholder="Tìm theo tên sản phẩm..."
+                            style={{ width: "100%", boxSizing: "border-box", background: "#0f172a", border: "1px solid #475569", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#f1f5f9", outline: "none" }} />
                         </div>
-                        <div className="max-h-64 overflow-y-auto py-1 text-sm">
-                          {createPFLoading && (
-                            <div className="px-3 py-2 text-xs text-white/40">Đang tải...</div>
-                          )}
+                        <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                          {createPFLoading && <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Đang tải...</div>}
                           {createProductOptions.map((p) => (
-                            <button
-                              key={p.product_id}
-                              type="button"
-                              onClick={() => {
-                                setCreateForm((f) => ({ ...f, product_id: p.product_id }));
-                                setCreateProductOpen(false);
-                                setCreateProductKeyword("");
-                              }}
-                              className="flex w-full items-center px-3 py-2 text-left text-xs text-white/80 hover:bg-white/[0.08]"
-                            >
-                              <span className="truncate">{p.name}</span>
+                            <button key={p.product_id} type="button" onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => { setCreateForm((f) => ({ ...f, product_id: p.product_id })); closeCreateProduct(); }}
+                              style={{ display: "flex", width: "100%", padding: "8px 12px", boxSizing: "border-box", background: createForm.product_id === p.product_id ? "#334155" : "transparent", color: createForm.product_id === p.product_id ? "#f1f5f9" : "#cbd5e1", fontSize: 13, border: "none", cursor: "pointer", textAlign: "left" }}>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
                             </button>
                           ))}
-                          {!createPFLoading && createProductOptions.length === 0 && (
-                            <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy product</div>
-                          )}
+                          {!createPFLoading && createProductOptions.length === 0 && <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Không tìm thấy product</div>}
                         </div>
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
                 </div>

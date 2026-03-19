@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { Button, useConfirm } from "../../../components";
+import { TimeSelect } from "../../../components/ui/TimeSelect";
 import {
   createShift,
   deleteShift,
@@ -45,6 +47,25 @@ const ShiftPage = () => {
   const [franchiseKeyword, setFranchiseKeyword] = useState("");
   const franchiseComboRef = useRef<HTMLDivElement>(null);
 
+  // franchise combobox inside modal — using portal
+  const [modalFranchiseOpen, setModalFranchiseOpen] = useState(false);
+  const [modalFranchiseKeyword, setModalFranchiseKeyword] = useState("");
+  const modalFranchiseTriggerRef = useRef<HTMLButtonElement>(null);
+  const modalFranchiseDropdownRef = useRef<HTMLDivElement>(null);
+  const [modalFranchiseRect, setModalFranchiseRect] = useState<DOMRect | null>(null);
+
+  const openModalFranchise = useCallback(() => {
+    if (modalFranchiseTriggerRef.current) {
+      setModalFranchiseRect(modalFranchiseTriggerRef.current.getBoundingClientRect());
+    }
+    setModalFranchiseOpen(true);
+  }, []);
+
+  const closeModalFranchise = useCallback(() => {
+    setModalFranchiseOpen(false);
+    setModalFranchiseKeyword("");
+  }, []);
+
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
 
   const hasRun = useRef(false);
@@ -88,7 +109,8 @@ const ShiftPage = () => {
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
-    load("", "", 1); loadFranchises();
+    load("", "", 1);
+    loadFranchises();
   }, []);
 
   // click-outside franchise combobox
@@ -102,6 +124,19 @@ const ShiftPage = () => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  // click-outside modal franchise portal dropdown
+  useEffect(() => {
+    if (!modalFranchiseOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!modalFranchiseTriggerRef.current?.contains(t) && !modalFranchiseDropdownRef.current?.contains(t)) {
+        closeModalFranchise();
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [modalFranchiseOpen, closeModalFranchise]);
+
   const filteredFranchisesForCombo = useMemo(() => {
     if (!franchiseKeyword.trim()) return franchises;
     const k = franchiseKeyword.trim().toLowerCase();
@@ -110,6 +145,15 @@ const ShiftPage = () => {
       (f.code || "").toLowerCase().includes(k)
     );
   }, [franchises, franchiseKeyword]);
+
+  const filteredModalFranchises = useMemo(() => {
+    if (!modalFranchiseKeyword.trim()) return franchises;
+    const k = modalFranchiseKeyword.trim().toLowerCase();
+    return franchises.filter(f =>
+      (f.name || "").toLowerCase().includes(k) ||
+      (f.code || "").toLowerCase().includes(k)
+    );
+  }, [franchises, modalFranchiseKeyword]);
 
   const handleOpenCreate = () => {
     setFormData({ ...DEFAULT_FORM });
@@ -215,6 +259,8 @@ const ShiftPage = () => {
 
   const getFranchiseName = (id: string) =>
     franchises.find((f) => f.value === id)?.name ?? id;
+
+  const selectedModalFranchise = franchises.find(f => f.value === formData.franchise_id);
 
   return (
     <div className="space-y-6">
@@ -488,23 +534,137 @@ const ShiftPage = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Franchise */}
+              {/* Franchise — portal combobox */}
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
                   Franchise <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.franchise_id}
-                  onChange={(e) => setFormData((p) => ({ ...p, franchise_id: e.target.value }))}
-                  disabled={!!editingShift}
-                  required
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:bg-slate-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">-- Chọn franchise --</option>
-                  {franchises.map((f) => (
-                    <option key={f.value} value={f.value}>{f.name}</option>
-                  ))}
-                </select>
+                {editingShift ? (
+                  <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 cursor-not-allowed">
+                    {selectedModalFranchise ? `${selectedModalFranchise.name} (${selectedModalFranchise.code})` : formData.franchise_id}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <button
+                      ref={modalFranchiseTriggerRef}
+                      type="button"
+                      onClick={() => modalFranchiseOpen ? closeModalFranchise() : openModalFranchise()}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        padding: "8px 12px",
+                        background: "#1e293b",
+                        border: "1px solid #475569",
+                        borderRadius: 8,
+                        color: "#f1f5f9",
+                        fontSize: 14,
+                        cursor: "pointer",
+                        outline: "none",
+                      }}
+                    >
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          color: selectedModalFranchise ? "#f1f5f9" : "#94a3b8",
+                        }}
+                      >
+                        {selectedModalFranchise ? `${selectedModalFranchise.name} (${selectedModalFranchise.code})` : "-- Chọn franchise --"}
+                      </span>
+                      <svg
+                        style={{
+                          width: 16,
+                          height: 16,
+                          flexShrink: 0,
+                          marginLeft: 8,
+                          color: "#94a3b8",
+                          transform: modalFranchiseOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s",
+                        }}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {modalFranchiseOpen && modalFranchiseRect && ReactDOM.createPortal(
+                      <div
+                        ref={modalFranchiseDropdownRef}
+                        style={{
+                          position: "fixed",
+                          top: modalFranchiseRect.bottom + 4,
+                          left: modalFranchiseRect.left,
+                          width: modalFranchiseRect.width,
+                          zIndex: 99999,
+                          background: "#1e293b",
+                          border: "1px solid #475569",
+                          borderRadius: 8,
+                          boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
+                          <input
+                            autoFocus
+                            value={modalFranchiseKeyword}
+                            onChange={(e) => setModalFranchiseKeyword(e.target.value)}
+                            placeholder="Tìm theo tên hoặc mã..."
+                            style={{
+                              width: "100%",
+                              boxSizing: "border-box",
+                              background: "#0f172a",
+                              border: "1px solid #475569",
+                              borderRadius: 6,
+                              padding: "5px 10px",
+                              fontSize: 12,
+                              color: "#f1f5f9",
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+                        <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                          {filteredModalFranchises.map((f) => (
+                            <button
+                              key={f.value}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setFormData(p => ({ ...p, franchise_id: f.value }));
+                                closeModalFranchise();
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                width: "100%",
+                                padding: "8px 12px",
+                                boxSizing: "border-box",
+                                background: formData.franchise_id === f.value ? "#334155" : "transparent",
+                                color: formData.franchise_id === f.value ? "#f1f5f9" : "#cbd5e1",
+                                fontSize: 13,
+                                border: "none",
+                                cursor: "pointer",
+                                textAlign: "left",
+                              }}
+                            >
+                              <span style={{ fontFamily: "monospace", color: "#64748b", fontSize: 10, flexShrink: 0 }}>{f.code}</span>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                            </button>
+                          ))}
+                          {filteredModalFranchises.length === 0 && (
+                            <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Không tìm thấy franchise</div>
+                          )}
+                        </div>
+                      </div>,
+                      document.body
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Name */}
@@ -524,48 +684,24 @@ const ShiftPage = () => {
 
               {/* Times */}
               <div className="grid grid-cols-2 gap-3">
-                {(["start_time", "end_time"] as const).map((field) => (
-                  <div key={field}>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">
-                      {field === "start_time" ? "Giờ bắt đầu" : "Giờ kết thúc"}{" "}
-                      <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex gap-1">
-                      <select
-                        value={formData[field] ? formData[field].split(":")[0] : ""}
-                        onChange={(e) => {
-                          const mm = formData[field] ? formData[field].split(":")[1] : "00";
-                          setFormData((p) => ({ ...p, [field]: `${e.target.value}:${mm ?? "00"}` }));
-                        }}
-                        required
-                        className="w-1/2 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                      >
-                        <option value="">Giờ</option>
-                        {Array.from({ length: 24 }, (_, i) => (
-                          <option key={i} value={String(i).padStart(2, "0")}>
-                            {String(i).padStart(2, "0")}h
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        value={formData[field] ? formData[field].split(":")[1] : ""}
-                        onChange={(e) => {
-                          const hh = formData[field] ? formData[field].split(":")[0] : "00";
-                          setFormData((p) => ({ ...p, [field]: `${hh ?? "00"}:${e.target.value}` }));
-                        }}
-                        required
-                        className="w-1/2 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                      >
-                        <option value="">Phút</option>
-                        {Array.from({ length: 60 }, (_, i) => (
-                          <option key={i} value={String(i).padStart(2, "0")}>
-                            {String(i).padStart(2, "0")}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Giờ bắt đầu <span className="text-red-500">*</span>
+                  </label>
+                  <TimeSelect
+                    value={formData.start_time}
+                    onChange={(v) => setFormData((p) => ({ ...p, start_time: v }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Giờ kết thúc <span className="text-red-500">*</span>
+                  </label>
+                  <TimeSelect
+                    value={formData.end_time}
+                    onChange={(v) => setFormData((p) => ({ ...p, end_time: v }))}
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">
