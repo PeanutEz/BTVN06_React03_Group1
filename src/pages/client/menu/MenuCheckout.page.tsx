@@ -48,6 +48,37 @@ interface CheckoutBlock {
   hasVoucher: boolean;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function getNestedRecord(
+  source: Record<string, unknown> | null,
+  key: string,
+): Record<string, unknown> | null {
+  return asRecord(source?.[key]);
+}
+
+function getUserId(value: unknown): string {
+  const root = asRecord(value);
+  const nestedUser = getNestedRecord(root, "user");
+  return String(
+    nestedUser?.id ??
+      nestedUser?._id ??
+      root?.id ??
+      root?._id ??
+      "",
+  );
+}
+
+function getErrorMessage(error: unknown): string | null {
+  const errorObj = asRecord(error);
+  const response = getNestedRecord(errorObj, "response");
+  const data = getNestedRecord(response, "data");
+  const message = data?.message;
+  return typeof message === "string" && message.trim() ? message : null;
+}
+
 function getProductName(item: ApiCartItem): string {
   const raw = item as Record<string, unknown>;
   const productObj = raw.product && typeof raw.product === "object" ? (raw.product as Record<string, unknown>) : null;
@@ -82,10 +113,13 @@ function getItemPrice(item: ApiCartItem): number {
 
 function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null): DisplayItem[] {
   if (!apiCart) return [];
-  const rawItems = apiCart.items ?? (apiCart as any)?.cart_items ?? [];
+  const apiCartRaw = apiCart as Record<string, unknown>;
+  const cartItems = apiCartRaw.cart_items;
+  const rawItems = apiCart.items ?? (Array.isArray(cartItems) ? (cartItems as ApiCartItem[]) : []);
   if (!Array.isArray(rawItems) || rawItems.length === 0) return [];
+  const franchise = getNestedRecord(apiCartRaw, "franchise");
   const franchiseName =
-    apiCart.franchise_name ?? (apiCart as any)?.franchise?.name ?? "Chi nhánh";
+    apiCart.franchise_name ?? (typeof franchise?.name === "string" ? franchise.name : undefined) ?? "Chi nhánh";
   const franchiseId = apiCart.franchise_id ? String(apiCart.franchise_id) : undefined;
   const seen = new Set<string>();
   const result: DisplayItem[] = [];
@@ -111,7 +145,10 @@ function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null): Dis
       apiProductFranchiseId: apiProductFranchiseId ?? undefined,
       apiFranchiseId: franchiseId,
       name: getProductName(item),
-      franchiseName: (item as any)?.franchise_name ?? (item as any)?.franchiseName ?? franchiseName,
+      franchiseName:
+        (typeof raw.franchise_name === "string" ? raw.franchise_name : undefined) ??
+        (typeof raw.franchiseName === "string" ? raw.franchiseName : undefined) ??
+        franchiseName,
       image: getItemImage(item),
       size: item.size,
       sugar: parsed.sugar,
@@ -121,7 +158,7 @@ function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null): Dis
       note: parsed.userNote ?? (item.note ? String(item.note) : undefined),
       quantity: qty,
       unitPrice: price,
-      lineTotal: (item as any)?.line_total ?? price * qty,
+      lineTotal: (typeof raw.line_total === "number" ? raw.line_total : undefined) ?? price * qty,
       apiOptions: item.options as CartItemOption[] | undefined,
     });
   }
@@ -136,9 +173,7 @@ export default function MenuCheckoutPage() {
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
 
-  const customerId = String(
-    (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? (user as any)?._id ?? "",
-  );
+  const customerId = getUserId(user);
 
   // QueryKey đơn giản để sync với MenuOrderPanel
   const { data: cartsData, isLoading: cartsLoading } = useQuery({
@@ -151,11 +186,26 @@ export default function MenuCheckoutPage() {
   // Derive cart entries from API; dedupe by cartId so same cart is not shown twice
   const cartEntries = useMemo(() => {
     const raw = cartsData;
-    const list = Array.isArray(raw) ? raw : (raw as any)?.data ?? (raw as any)?.carts ?? [];
+    const rawObj = asRecord(raw);
+    const dataList = rawObj?.data;
+    const cartsList = rawObj?.carts;
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(dataList)
+      ? dataList
+      : Array.isArray(cartsList)
+      ? cartsList
+      : [];
     const withIds = (list as CartApiData[]).map((c) => ({
       cartId: String(c._id ?? c.id ?? ""),
       franchise_id: c.franchise_id,
-      franchise_name: c.franchise_name ?? (c as any)?.franchise?.name,
+      franchise_name:
+        c.franchise_name ??
+        (() => {
+          const cRaw = c as Record<string, unknown>;
+          const franchise = getNestedRecord(cRaw, "franchise");
+          return typeof franchise?.name === "string" ? franchise.name : undefined;
+        })(),
     })).filter((e) => e.cartId);
     const seen = new Set<string>();
     return withIds.filter((e) => {
@@ -187,14 +237,28 @@ export default function MenuCheckoutPage() {
   // Build blocks CHỈ từ API getCartDetail (mỗi cart) — không dùng dữ liệu từ list để đảm bảo đúng sản phẩm trong giỏ
   const blocks: CheckoutBlock[] = cartEntries.map((entry, idx) => {
     const detailFromQuery = cartDetails[idx]?.data as CartApiData | undefined;
-    const detailFromList = (Array.isArray(cartsData) ? cartsData : (cartsData as any)?.data ?? [])[idx] as CartApiData | undefined;
+    const cartsRaw = asRecord(cartsData);
+    const dataList = cartsRaw?.data;
+    const listSource = Array.isArray(cartsData)
+      ? cartsData
+      : Array.isArray(dataList)
+      ? dataList
+      : [];
+    const detailFromList = listSource[idx] as CartApiData | undefined;
     const detail = detailFromQuery ?? detailFromList;
     const items = apiCartToDisplayItems(entry.cartId, detailFromQuery ?? null);
     const subtotal = items.reduce((s, i) => s + i.lineTotal, 0);
     const totalAmount = detail?.total_amount ?? subtotal;
     const discountAmount = (detail?.discount_amount ?? 0) || 0;
-    const hasVoucher = !!(detail?.voucher ?? (detail as any)?.voucher_code);
-    const franchiseName = entry.franchise_name ?? detail?.franchise_name ?? (detail as any)?.franchise?.name ?? `Chi nhánh ${idx + 1}`;
+    const detailRaw = detail ? (detail as Record<string, unknown>) : null;
+    const detailFranchise = getNestedRecord(detailRaw, "franchise");
+    const voucherCode = detailRaw?.voucher_code;
+    const hasVoucher = !!(detail?.voucher ?? (typeof voucherCode === "string" ? voucherCode : undefined));
+    const franchiseName =
+      entry.franchise_name ??
+      detail?.franchise_name ??
+      (typeof detailFranchise?.name === "string" ? detailFranchise.name : undefined) ??
+      `Chi nhánh ${idx + 1}`;
     return {
       cartId: entry.cartId,
       franchiseName,
@@ -375,7 +439,7 @@ export default function MenuCheckoutPage() {
         setCompletedFranchiseName(franchiseName);
       }
     } catch (error: unknown) {
-      const msg = (error as any)?.response?.data?.message ?? "Không thể đặt hàng. Vui lòng thử lại.";
+      const msg = getErrorMessage(error) ?? "Không thể đặt hàng. Vui lòng thử lại.";
       toast.error(msg);
     } finally {
       setOrderingCartId(null);
