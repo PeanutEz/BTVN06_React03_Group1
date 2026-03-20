@@ -88,9 +88,8 @@ export default function LoyaltyManagementPage() {
           franchise_id: filters.franchise_id || "",
           earn_amount_per_point: "",
           redeem_value_per_point: "",
-          tier: "",
-          is_active: filters.is_active === "true" ? true : filters.is_active === "false" ? false : "",
-          is_deleted: filters.is_deleted === true ? true : "",
+          tier: "",          is_active: filters.is_active === "true" ? true : filters.is_active === "false" ? false : "",
+          is_deleted: filters.is_deleted,
         },
         pageInfo: { pageNum, pageSize: ITEMS_PER_PAGE },
       };
@@ -411,7 +410,7 @@ export default function LoyaltyManagementPage() {
               {items.map((it) => {
                 const franchiseName = it.franchise_id ? (franchiseNameMap[it.franchise_id] || it.franchise_id) : "N/A";
                 return (
-                  <tr key={it.id || it._id} className={`${it.is_deleted ? "bg-red-50" : "hover:bg-slate-50"}`}>
+                  <tr key={it.id || it._id} className={`${it.is_deleted && filters.is_deleted ? "bg-red-50" : "hover:bg-slate-50"}`}>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-slate-900">{franchiseName}</p>
                     </td>
