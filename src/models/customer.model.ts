@@ -29,7 +29,7 @@ export interface CustomerFranchise {
   is_deleted: boolean; // default false
   created_at: string; // timestamp
   updated_at: string; // timestamp
-  
+
   // Relations (optional, for display purposes)
   customer?: Customer;
   franchise?: {
