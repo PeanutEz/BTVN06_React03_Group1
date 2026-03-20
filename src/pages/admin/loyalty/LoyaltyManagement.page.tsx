@@ -162,7 +162,12 @@ export default function LoyaltyManagementPage() {
       return;
     }
 
-    if (!await showConfirm("Bạn có chắc muốn lưu quy tắc này? Nó sẽ ảnh hưởng đến khách hàng của Franchise được chọn.")) {
+    if (!await showConfirm({
+      title: "Xác nhận lưu",
+      message: "Bạn có chắc muốn lưu quy tắc này? Nó sẽ ảnh hưởng đến khách hàng của Franchise được chọn.",
+      variant: "info",
+      confirmText: "Lưu cài đặt"
+    })) {
       return;
     }
 
@@ -496,158 +501,167 @@ export default function LoyaltyManagementPage() {
       {showRuleModal && editingRule && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !saving && setShowRuleModal(false)} />
-          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-xl font-bold text-slate-900 mb-6">
-              {(editingRule._id || editingRule.id) ? "Chỉnh sửa Quy tắc Tích điểm" : "Thêm mới Quy tắc Tích điểm"}
-            </h2>
+          <div className="relative flex flex-col w-full max-w-4xl max-h-[90vh] rounded-2xl bg-white shadow-2xl overflow-hidden">
+            
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100 bg-white z-10">
+              <h2 className="text-xl font-bold text-slate-900">
+                {(editingRule._id || editingRule.id) ? "Chỉnh sửa Quy tắc Tích điểm" : "Thêm mới Quy tắc Tích điểm"}
+              </h2>
+            </div>
+            
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Left Column: Rules */}
+                <div className="space-y-6">
+                  <div className="space-y-2 border-b pb-4">
+                    <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">Chi nhánh áp dụng</h3>
+                    <select
+                      value={editingRule.franchise_id || ""}
+                      onChange={(e) => setEditingRule({ ...editingRule, franchise_id: e.target.value })}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    >
+                      <option value="" disabled>-- Chọn Franchise --</option>
+                      {franchises.map(f => (
+                        <option key={f.value} value={f.value}>{f.name} ({f.code})</option>
+                      ))}
+                    </select>
+                  </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Left Column: Rules */}
-              <div className="space-y-6">
-                <div className="space-y-2 border-b pb-4">
-                  <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">Chi nhánh áp dụng</h3>
-                  <select
-                    value={editingRule.franchise_id || ""}
-                    onChange={(e) => setEditingRule({ ...editingRule, franchise_id: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                  >
-                    <option value="" disabled>-- Chọn Franchise --</option>
-                    {franchises.map(f => (
-                      <option key={f.value} value={f.value}>{f.name} ({f.code})</option>
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">Quy đổi điểm</h3>
+                    
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">Giá trị đơn hàng để được 1 điểm</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1000"
+                          step="1000"
+                          value={editingRule.earn_amount_per_point}
+                          onChange={(e) => setEditingRule({ ...editingRule, earn_amount_per_point: Number(e.target.value) })}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        />
+                        <span className="text-slate-500 text-sm">VNĐ = 1 điểm</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">Giá trị thực tế của 1 điểm</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 text-sm">1 điểm =</span>
+                        <input
+                          type="number"
+                          min="100"
+                          step="100"
+                          value={editingRule.redeem_value_per_point}
+                          onChange={(e) => setEditingRule({ ...editingRule, redeem_value_per_point: Number(e.target.value) })}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        />
+                        <span className="text-slate-500 text-sm">VNĐ</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">Giới hạn đổi điểm mỗi đơn</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-500">Tối thiểu (điểm)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={editingRule.min_redeem_points}
+                          onChange={(e) => setEditingRule({ ...editingRule, min_redeem_points: Number(e.target.value) })}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-slate-500">Tối đa (điểm)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={editingRule.max_redeem_points}
+                          onChange={(e) => setEditingRule({ ...editingRule, max_redeem_points: Number(e.target.value) })}
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Tiers */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-slate-800 md:col-span-2 text-sm uppercase tracking-wide">Quyền lợi theo thứ hạng</h3>
+                  <div className="space-y-3">
+                    {editingRule.tier_rules?.map((tierRule, index) => (
+                      <div key={index} className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-bold text-primary-600">{tierRule.tier}</h4>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-slate-500 font-medium">Lên hạng:</span>
+                            <input
+                              type="number"
+                              value={tierRule.min_points}
+                              onChange={(e) => {
+                                const newTierRules = [...editingRule.tier_rules];
+                                newTierRules[index].min_points = Number(e.target.value);
+                                setEditingRule({ ...editingRule, tier_rules: newTierRules });
+                              }}
+                              className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center outline-none"
+                            />
+                            <span className="text-slate-500">điểm</span>
+                          </div>
+                        </div>
+                        
+                        {/* Cấu hình lợi ích hạng */}
+                        <div className="space-y-2 mt-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs text-slate-600">Giảm giá đơn hàng (%)</label>
+                            <input 
+                              type="number" 
+                              min="0" 
+                              max="100"
+                              className="w-16 rounded border px-2 py-0.5 text-sm"
+                              value={tierRule.benefit?.order_discount_percent || 0}
+                              onChange={(e) => handleUpdateTierBenefit(index, 'order_discount_percent', Number(e.target.value))}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs text-slate-600">Hệ số nhân tích điểm (x)</label>
+                            <input 
+                              type="number" 
+                              min="1" 
+                              step="0.1"
+                              className="w-16 rounded border px-2 py-0.5 text-sm"
+                              value={tierRule.benefit?.earn_multiplier || 1}
+                              onChange={(e) => handleUpdateTierBenefit(index, 'earn_multiplier', Number(e.target.value))}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs text-slate-600">Miễn phí giao hàng</label>
+                            <input 
+                              type="checkbox" 
+                              className="w-4 h-4 rounded border"
+                              checked={tierRule.benefit?.free_shipping || false}
+                              onChange={(e) => handleUpdateTierBenefit(index, 'free_shipping', e.target.checked)}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     ))}
-                  </select>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">Quy đổi điểm</h3>
-                  
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">Giá trị đơn hàng để được 1 điểm</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="1000"
-                        step="1000"
-                        value={editingRule.earn_amount_per_point}
-                        onChange={(e) => setEditingRule({ ...editingRule, earn_amount_per_point: Number(e.target.value) })}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                      />
-                      <span className="text-slate-500 text-sm">VNĐ = 1 điểm</span>
-                    </div>
                   </div>
-
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">Giá trị thực tế của 1 điểm</label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500 text-sm">1 điểm =</span>
-                      <input
-                        type="number"
-                        min="100"
-                        step="100"
-                        value={editingRule.redeem_value_per_point}
-                        onChange={(e) => setEditingRule({ ...editingRule, redeem_value_per_point: Number(e.target.value) })}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                      />
-                      <span className="text-slate-500 text-sm">VNĐ</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">Giới hạn đổi điểm mỗi đơn</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-500">Tối thiểu (điểm)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editingRule.min_redeem_points}
-                        onChange={(e) => setEditingRule({ ...editingRule, min_redeem_points: Number(e.target.value) })}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-xs font-medium text-slate-500">Tối đa (điểm)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={editingRule.max_redeem_points}
-                        onChange={(e) => setEditingRule({ ...editingRule, max_redeem_points: Number(e.target.value) })}
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Tiers */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-slate-800 md:col-span-2 text-sm uppercase tracking-wide">Quyền lợi theo thứ hạng</h3>
-                <div className="space-y-3">
-                  {editingRule.tier_rules?.map((tierRule, index) => (
-                    <div key={index} className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-bold text-primary-600">{tierRule.tier}</h4>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-slate-500 font-medium">Lên hạng:</span>
-                          <input
-                            type="number"
-                            value={tierRule.min_points}
-                            onChange={(e) => {
-                              const newTierRules = [...editingRule.tier_rules];
-                              newTierRules[index].min_points = Number(e.target.value);
-                              setEditingRule({ ...editingRule, tier_rules: newTierRules });
-                            }}
-                            className="w-16 rounded border border-slate-300 px-1 py-0.5 text-center outline-none"
-                          />
-                          <span className="text-slate-500">điểm</span>
-                        </div>
-                      </div>
-                      
-                      {/* Cấu hình lợi ích hạng */}
-                      <div className="space-y-2 mt-2">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs text-slate-600">Giảm giá đơn hàng (%)</label>
-                          <input 
-                            type="number" 
-                            min="0" 
-                            max="100"
-                            className="w-16 rounded border px-2 py-0.5 text-sm"
-                            value={tierRule.benefit?.order_discount_percent || 0}
-                            onChange={(e) => handleUpdateTierBenefit(index, 'order_discount_percent', Number(e.target.value))}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs text-slate-600">Hệ số nhân tích điểm (x)</label>
-                          <input 
-                            type="number" 
-                            min="1" 
-                            step="0.1"
-                            className="w-16 rounded border px-2 py-0.5 text-sm"
-                            value={tierRule.benefit?.earn_multiplier || 1}
-                            onChange={(e) => handleUpdateTierBenefit(index, 'earn_multiplier', Number(e.target.value))}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs text-slate-600">Miễn phí giao hàng</label>
-                          <input 
-                            type="checkbox" 
-                            className="w-4 h-4 rounded border"
-                            checked={tierRule.benefit?.free_shipping || false}
-                            onChange={(e) => handleUpdateTierBenefit(index, 'free_shipping', e.target.checked)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="mt-8 flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
+            {/* Footer */}
+            <div className="px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-100 bg-white z-10 shrink-0">
               <Button variant="outline" onClick={() => setShowRuleModal(false)} disabled={saving}>Hủy</Button>
               <Button onClick={handleSaveRule} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu cài đặt'}</Button>
             </div>
+
           </div>
         </div>
       )}
