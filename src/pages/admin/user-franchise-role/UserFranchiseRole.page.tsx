@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
@@ -22,6 +22,7 @@ import type {
   UserFranchiseRole,
 } from "../../../services/user-franchise-role.service";
 import { showError, showSuccess } from "../../../utils";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -50,6 +51,9 @@ const getRoleBadge = (code: string) => {
 };
 
 export default function UserFranchiseRolePage() {
+  const showConfirm = useConfirm();
+  const managerFranchiseId = useManagerFranchiseId();
+
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<UserFranchiseRole[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,7 +86,7 @@ export default function UserFranchiseRolePage() {
     is_deleted: boolean;
   }>({
     user_id: "",
-    franchise_id: "",
+    franchise_id: managerFranchiseId ?? "",
     role_id: "",
     is_deleted: false,
   });
@@ -331,16 +335,30 @@ export default function UserFranchiseRolePage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
+    const initFranchise = managerFranchiseId ?? "";
+    if (initFranchise) setFilters(f => ({ ...f, franchise_id: initFranchise }));
     loadSelects();
     load(1).finally(() => {
       isInitialized.current = true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+  useEffect(() => {
+    if (!managerFranchiseId) return;
+    setFilters(f => ({ ...f, franchise_id: managerFranchiseId }));
+  }, [managerFranchiseId]);
+
+  // Sync franchiseSearch (label hiển thị) khi franchises load xong
+  useEffect(() => {
+    if (!managerFranchiseId || !franchises.length) return;
+    const found = franchises.find(f => f.value === managerFranchiseId);
+    if (found) setFranchiseSearch(`${found.name} (${found.code})`);
+  }, [managerFranchiseId, franchises]);
 
   useEffect(() => {
     if (!isInitialized.current) return;
@@ -360,9 +378,11 @@ export default function UserFranchiseRolePage() {
       .finally(() => setFilterFranchiseUsersLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.franchise_id]);
-
   const openCreate = () => {
-    setCreateForm({ ...DEFAULT_CREATE_FORM });
+    setCreateForm({
+      ...DEFAULT_CREATE_FORM,
+      franchise_id: managerFranchiseId ?? null,
+    });
     setShowCreate(true);
   };
 
@@ -438,9 +458,8 @@ export default function UserFranchiseRolePage() {
       setUpdating(false);
     }
   };
-
   const handleDelete = async (it: UserFranchiseRole) => {
-    if (!confirm("Bạn có chắc muốn xóa record này?")) return;
+    if (!await showConfirm({ message: "Bạn có chắc muốn xóa record này?", variant: "danger" })) return;
     try {
       await deleteUserFranchiseRole(it.id);
       showSuccess("Đã xóa");
@@ -451,7 +470,7 @@ export default function UserFranchiseRolePage() {
   };
 
   const handleRestore = async (it: UserFranchiseRole) => {
-    if (!confirm("Khôi phục record này?")) return;
+    if (!await showConfirm({ message: "Khôi phục record này?", variant: "warning" })) return;
     try {
       await restoreUserFranchiseRole(it.id);
       showSuccess("Đã khôi phục");
@@ -482,35 +501,49 @@ export default function UserFranchiseRolePage() {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
               Franchise
-            </label>
-            <div className="relative">
-              <button
-                ref={filterFranchiseTriggerRef}
-                type="button"
-                onClick={() => {
-                  if (isFranchiseDropdownOpen) {
-                    setIsFranchiseDropdownOpen(false);
-                    setFranchiseSearch("");
-                  } else {
-                    setFilterFranchiseRect(filterFranchiseTriggerRef.current?.getBoundingClientRect() ?? null);
-                    setIsFranchiseDropdownOpen(true);
-                  }
-                }}
-                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
-              >
-                <span className="truncate">
-                  {(() => {
-                    if (!filters.franchise_id) return "-- Tất cả franchise --";
-                    if (filters.franchise_id === "__GLOBAL__") return "System (Global)";
-                    const found = franchises.find((f) => f.value === filters.franchise_id);
-                    if (!found) return filters.franchise_id;
-                    return `${found.name} (${found.code})`;
-                  })()}
-                </span>
-                <svg className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${isFranchiseDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+            </label>            <div className="relative">
+              {managerFranchiseId ? (
+                <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed select-none">
+                  <span className="truncate font-medium">
+                    {(() => {
+                      const found = franchises.find((f) => f.value === managerFranchiseId);
+                      if (!found) return managerFranchiseId;
+                      return `${found.name} (${found.code})`;
+                    })()}
+                  </span>
+                  <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+              ) : (
+                <button
+                  ref={filterFranchiseTriggerRef}
+                  type="button"
+                  onClick={() => {
+                    if (isFranchiseDropdownOpen) {
+                      setIsFranchiseDropdownOpen(false);
+                      setFranchiseSearch("");
+                    } else {
+                      setFilterFranchiseRect(filterFranchiseTriggerRef.current?.getBoundingClientRect() ?? null);
+                      setIsFranchiseDropdownOpen(true);
+                    }
+                  }}
+                  className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                >
+                  <span className="truncate">
+                    {(() => {
+                      if (!filters.franchise_id) return "-- Tất cả franchise --";
+                      if (filters.franchise_id === "__GLOBAL__") return "System (Global)";
+                      const found = franchises.find((f) => f.value === filters.franchise_id);
+                      if (!found) return filters.franchise_id;
+                      return `${found.name} (${found.code})`;
+                    })()}
+                  </span>
+                  <svg className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${isFranchiseDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
 
@@ -753,8 +786,7 @@ export default function UserFranchiseRolePage() {
             </tbody>
           </table>
         </div>
-        <div className="px-4">
-          <Pagination
+        <div className="px-4">          <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
             totalItems={totalItems}
@@ -763,6 +795,7 @@ export default function UserFranchiseRolePage() {
               setCurrentPage(page);
               load(page);
             }}
+            variant="dark"
           />
         </div>
       </div>
@@ -791,38 +824,60 @@ export default function UserFranchiseRolePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>            <form onSubmit={submitCreate} className="px-6 py-5 space-y-4">
-              <div className="space-y-1.5">
+            </div>            <form onSubmit={submitCreate} className="px-6 py-5 space-y-4">              <div className="space-y-1.5">
                 <label className="text-sm font-semibold text-white/70">
                   Franchise
+                  {managerFranchiseId && (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-primary-500/15 px-2 py-0.5 text-[10px] font-medium text-primary-300">
+                      <svg className="size-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Cố định
+                    </span>
+                  )}
                 </label>
                 <div className="relative">
-                  <button
-                    ref={createFranchiseTriggerRef}
-                    type="button"
-                    onClick={() => {
-                      if (isCreateFranchiseDropdownOpen) {
-                        setIsCreateFranchiseDropdownOpen(false);
-                        setCreateFranchiseSearch("");
-                      } else {
-                        setCreateFranchiseRect(createFranchiseTriggerRef.current?.getBoundingClientRect() ?? null);
-                        setIsCreateFranchiseDropdownOpen(true);
-                      }
-                    }}
-                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
-                  >
-                    <span className="truncate">
-                      {(() => {
-                        if (!createForm.franchise_id) return "-- Hệ thống (Global) --";
-                        const found = franchises.find((f) => f.value === createForm.franchise_id);
-                        if (!found) return createForm.franchise_id;
-                        return `${found.name} (${found.code})`;
-                      })()}
-                    </span>
-                    <svg className={`ml-2 size-4 flex-shrink-0 text-white/50 transition-transform duration-200 ${isCreateFranchiseDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
+                  {managerFranchiseId ? (
+                    <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2.5 text-sm text-white cursor-not-allowed select-none">
+                      <span className="truncate font-medium">
+                        {(() => {
+                          const found = franchises.find((f) => f.value === managerFranchiseId);
+                          if (!found) return managerFranchiseId;
+                          return `${found.name} (${found.code})`;
+                        })()}
+                      </span>
+                      <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                  ) : (
+                    <button
+                      ref={createFranchiseTriggerRef}
+                      type="button"
+                      onClick={() => {
+                        if (isCreateFranchiseDropdownOpen) {
+                          setIsCreateFranchiseDropdownOpen(false);
+                          setCreateFranchiseSearch("");
+                        } else {
+                          setCreateFranchiseRect(createFranchiseTriggerRef.current?.getBoundingClientRect() ?? null);
+                          setIsCreateFranchiseDropdownOpen(true);
+                        }
+                      }}
+                      className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                    >
+                      <span className="truncate">
+                        {(() => {
+                          if (!createForm.franchise_id) return "-- Hệ thống (Global) --";
+                          const found = franchises.find((f) => f.value === createForm.franchise_id);
+                          if (!found) return createForm.franchise_id;
+                          return `${found.name} (${found.code})`;
+                        })()}
+                      </span>
+                      <svg className={`ml-2 size-4 flex-shrink-0 text-white/50 transition-transform duration-200 ${isCreateFranchiseDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
 

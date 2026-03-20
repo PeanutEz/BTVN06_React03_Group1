@@ -12,6 +12,7 @@ import type {
 } from "../../../models/product.model";
 import { adminProductFranchiseService } from "../../../services/product-franchise.service";
 import { showError, showSuccess } from "../../../utils";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -24,6 +25,7 @@ const DEFAULT_CREATE: CreateProductFranchiseDto = {
 
 export default function ProductFranchisePage() {
   const showConfirm = useConfirm();
+  const managerFranchiseId = useManagerFranchiseId();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ProductFranchiseApiResponse[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,7 +41,6 @@ export default function ProductFranchisePage() {
   const [filterPFLoading, setFilterPFLoading] = useState(false);
   const [createPFProducts, setCreatePFProducts] = useState<{ product_id: string; name: string }[]>([]);
   const [createPFLoading, setCreatePFLoading] = useState(false);
-
   // filters
   const [filters, setFilters] = useState<{
     franchise_id: string;
@@ -47,10 +48,10 @@ export default function ProductFranchisePage() {
     size: string;
     price_from: string;
     price_to: string;
-    is_active: string; // "", "true", "false"
+    is_active: string;
     is_deleted: boolean;
   }>({
-    franchise_id: "",
+    franchise_id: managerFranchiseId ?? "",
     product_id: "",
     size: "",
     price_from: "",
@@ -313,7 +314,6 @@ export default function ProductFranchisePage() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
@@ -323,6 +323,20 @@ export default function ProductFranchisePage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+  useEffect(() => {
+    if (!managerFranchiseId) return;
+    setFilters(prev => ({ ...prev, franchise_id: managerFranchiseId }));
+  }, [managerFranchiseId]);
+
+  // Sync franchiseKeyword khi franchises load xong và đang là manager
+  useEffect(() => {
+    if (!managerFranchiseId || !franchises.length) return;
+    const found = franchises.find(f => f.value === managerFranchiseId);
+    if (found) setFranchiseKeyword(`${found.name} (${found.code})`);
+  }, [managerFranchiseId, franchises]);
+
   useEffect(() => {
     if (!isInitialized.current) return;
     load(1);
@@ -475,19 +489,30 @@ export default function ProductFranchisePage() {
         <div className="relative overflow-visible flex flex-wrap items-end gap-3">
           {/* Franchise combobox */}
           <div className="space-y-1.5 min-w-[180px] flex-1">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Franchise</label>
-            <div className="relative">              <button
-                type="button"
-                onClick={() => setFranchiseOpen((o) => !o)}
-                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              >
-                <span className="truncate">
-                  {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
-                </span>
-                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Franchise</label>            <div className="relative">
+              {managerFranchiseId ? (
+                <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed">
+                  <span className="truncate font-medium text-white">
+                    {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
+                  </span>
+                  <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setFranchiseOpen((o) => !o)}
+                  className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                >
+                  <span className="truncate">
+                    {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
+                  </span>
+                  <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
               {franchiseOpen && (
                 <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
                   <div className="border-b border-white/[0.12] px-3 py-2">
