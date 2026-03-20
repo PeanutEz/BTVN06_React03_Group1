@@ -10,6 +10,7 @@ import {
   createUserFranchiseRole,
   deleteUserFranchiseRole,
   getUserFranchiseRoleById,
+  getUsersByFranchiseId,
   restoreUserFranchiseRole,
   searchUserFranchiseRoles,
   updateUserFranchiseRole,
@@ -17,6 +18,7 @@ import {
 import type {
   CreateUserFranchiseRolePayload,
   SearchUserFranchiseRolePayload,
+  UserByFranchise,
   UserFranchiseRole,
 } from "../../../services/user-franchise-role.service";
 import { showError, showSuccess } from "../../../utils";
@@ -57,12 +59,21 @@ export default function UserFranchiseRolePage() {
   const [roles, setRoles] = useState<RoleSelectItem[]>([]);
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
   const [users, setUsers] = useState<ApiUser[]>([]);
-
   // Filter dropdown states
   const [userSearch, setUserSearch] = useState("");
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [franchiseSearch, setFranchiseSearch] = useState("");
   const [isFranchiseDropdownOpen, setIsFranchiseDropdownOpen] = useState(false);
+  const [filterFranchiseUsers, setFilterFranchiseUsers] = useState<UserByFranchise[]>([]);
+  const [filterFranchiseUsersLoading, setFilterFranchiseUsersLoading] = useState(false);
+
+  // Portal refs & rects for filter dropdowns
+  const filterFranchiseTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterFranchiseDropdownRef = useRef<HTMLDivElement>(null);
+  const [filterFranchiseRect, setFilterFranchiseRect] = useState<DOMRect | null>(null);
+  const filterUserTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterUserDropdownRef = useRef<HTMLDivElement>(null);
+  const [filterUserRect, setFilterUserRect] = useState<DOMRect | null>(null);
 
   const [filters, setFilters] = useState<{
     user_id: string;
@@ -100,7 +111,6 @@ export default function UserFranchiseRolePage() {
   const editRoleBtnRef = useRef<HTMLButtonElement>(null);
   const editRoleDropdownRef = useRef<HTMLDivElement>(null);
   const [editRoleDropdownPos, setEditRoleDropdownPos] = useState({ top: 0, left: 0, width: 0 });
-
   useEffect(() => {
     if (!isEditRoleDropdownOpen) return;
     const handler = (e: MouseEvent) => {
@@ -114,29 +124,125 @@ export default function UserFranchiseRolePage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [isEditRoleDropdownOpen]);
 
-  // Filter role dropdown state
-  const [isFilterRoleDropdownOpen, setIsFilterRoleDropdownOpen] = useState(false);
+  // Click-outside for filter portal dropdowns
+  useEffect(() => {
+    if (!isFranchiseDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        filterFranchiseTriggerRef.current?.contains(e.target as Node) ||
+        filterFranchiseDropdownRef.current?.contains(e.target as Node)
+      ) return;
+      setIsFranchiseDropdownOpen(false);
+      setFranchiseSearch("");
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isFranchiseDropdownOpen]);
 
+  useEffect(() => {
+    if (!isUserDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        filterUserTriggerRef.current?.contains(e.target as Node) ||
+        filterUserDropdownRef.current?.contains(e.target as Node)
+      ) return;
+      setIsUserDropdownOpen(false);
+      setUserSearch("");
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isUserDropdownOpen]);  // Filter role dropdown state
+  const [isFilterRoleDropdownOpen, setIsFilterRoleDropdownOpen] = useState(false);
+  const filterRoleTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterRoleDropdownRef = useRef<HTMLDivElement>(null);
+  const [filterRoleRect, setFilterRoleRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (!isFilterRoleDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        filterRoleTriggerRef.current?.contains(e.target as Node) ||
+        filterRoleDropdownRef.current?.contains(e.target as Node)
+      ) return;
+      setIsFilterRoleDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isFilterRoleDropdownOpen]);
   // Create modal dropdown states
-  const [isCreateUserDropdownOpen, setIsCreateUserDropdownOpen] =
-    useState(false);
+  const [isCreateUserDropdownOpen, setIsCreateUserDropdownOpen] = useState(false);
   const [createUserSearch, setCreateUserSearch] = useState("");
-  const [isCreateRoleDropdownOpen, setIsCreateRoleDropdownOpen] =
-    useState(false);
+  const [isCreateRoleDropdownOpen, setIsCreateRoleDropdownOpen] = useState(false);
   const [createRoleSearch, setCreateRoleSearch] = useState("");
-  const [isCreateFranchiseDropdownOpen, setIsCreateFranchiseDropdownOpen] =
-    useState(false);
+  const [isCreateFranchiseDropdownOpen, setIsCreateFranchiseDropdownOpen] = useState(false);
   const [createFranchiseSearch, setCreateFranchiseSearch] = useState("");
 
+  // Portal refs & rects for create modal dropdowns
+  const createFranchiseTriggerRef = useRef<HTMLButtonElement>(null);
+  const createFranchiseDropdownRef = useRef<HTMLDivElement>(null);
+  const [createFranchiseRect, setCreateFranchiseRect] = useState<DOMRect | null>(null);
+  const createUserTriggerRef = useRef<HTMLButtonElement>(null);
+  const createUserDropdownRef = useRef<HTMLDivElement>(null);
+  const [createUserRect, setCreateUserRect] = useState<DOMRect | null>(null);  const createRoleTriggerRef = useRef<HTMLButtonElement>(null);
+  const createRoleDropdownRef = useRef<HTMLDivElement>(null);
+  const [createRoleRect, setCreateRoleRect] = useState<DOMRect | null>(null);
+
+  // Click-outside for create modal portal dropdowns
+  useEffect(() => {
+    if (!isCreateFranchiseDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        createFranchiseTriggerRef.current?.contains(e.target as Node) ||
+        createFranchiseDropdownRef.current?.contains(e.target as Node)
+      ) return;
+      setIsCreateFranchiseDropdownOpen(false);
+      setCreateFranchiseSearch("");
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isCreateFranchiseDropdownOpen]);
+
+  useEffect(() => {
+    if (!isCreateUserDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        createUserTriggerRef.current?.contains(e.target as Node) ||
+        createUserDropdownRef.current?.contains(e.target as Node)
+      ) return;
+      setIsCreateUserDropdownOpen(false);
+      setCreateUserSearch("");
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isCreateUserDropdownOpen]);
+
+  useEffect(() => {
+    if (!isCreateRoleDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        createRoleTriggerRef.current?.contains(e.target as Node) ||
+        createRoleDropdownRef.current?.contains(e.target as Node)
+      ) return;
+      setIsCreateRoleDropdownOpen(false);
+      setCreateRoleSearch("");
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isCreateRoleDropdownOpen]);
+
   const filteredUsers = useMemo(() => {
-    if (!userSearch.trim()) return users;
+    const source: { id: string; name: string; email: string }[] =
+      filters.franchise_id && filters.franchise_id !== "__GLOBAL__"
+        ? filterFranchiseUsers.map((u) => ({ id: u.value, name: u.name, email: u.email }))
+        : users.map((u) => ({ id: u.id, name: u.name, email: u.email }));
+    if (!userSearch.trim()) return source;
     const keyword = userSearch.trim().toLowerCase();
-    return users.filter((u) => {
+    return source.filter((u) => {
       const name = (u.name || "").toLowerCase();
       const email = (u.email || "").toLowerCase();
       return name.includes(keyword) || email.includes(keyword);
     });
-  }, [users, userSearch]);
+  }, [users, filterFranchiseUsers, filters.franchise_id, userSearch]);
 
   const filteredFranchises = useMemo(() => {
     if (!franchiseSearch.trim()) return franchises;
@@ -241,6 +347,19 @@ export default function UserFranchiseRolePage() {
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
+
+  useEffect(() => {
+    setFilters((f) => ({ ...f, user_id: "" }));
+    setFilterFranchiseUsers([]);
+    const fid = filters.franchise_id;
+    if (!fid || fid === "__GLOBAL__") return;
+    setFilterFranchiseUsersLoading(true);
+    getUsersByFranchiseId(fid)
+      .then(setFilterFranchiseUsers)
+      .catch(() => showError("Không thể tải danh sách user"))
+      .finally(() => setFilterFranchiseUsersLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.franchise_id]);
 
   const openCreate = () => {
     setCreateForm({ ...DEFAULT_CREATE_FORM });
@@ -355,253 +474,108 @@ export default function UserFranchiseRolePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => load(1)} loading={loading}>
-            Tải lại
-          </Button>
           <Button onClick={openCreate}>+ Tạo mới</Button>
         </div>
-      </div>
-
-      {/* Search / Filters */}
-      <div className="relative z-10 rounded-2xl border border-white/[0.12] bg-white/[0.06] p-4 backdrop-blur-sm">
+      </div>      {/* Search / Filters */}
+      <div className="relative rounded-2xl border border-white/[0.12] bg-white/[0.06] p-4 backdrop-blur-sm">
         <div className="grid gap-3 md:grid-cols-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
-              User
-            </label>
-            <div className="relative">
-              {/* Fake select */}
-              <button
-                type="button"
-                onClick={() =>
-                  setIsUserDropdownOpen((open) => !open)
-                }
-                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
-              >
-                <span className="truncate">
-                  {(() => {
-                    if (!filters.user_id) return "-- Tất cả user --";
-                    const found = users.find((u) => u.id === filters.user_id);
-                    if (!found) return filters.user_id;
-                    return found.name
-                      ? `${found.name} (${found.email})`
-                      : found.email;
-                  })()}
-                </span>
-                <svg
-                  className="ml-2 size-4 flex-shrink-0 text-white/40"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              </button>
-
-              {/* Dropdown panel */}
-              {isUserDropdownOpen && (
-                <div className="absolute left-0 right-0 z-20 mt-1 rounded-lg border border-white/[0.15] bg-slate-900/90 shadow-xl backdrop-blur-md">
-                  <div className="border-b border-white/[0.10] px-3 py-2">
-                    <input
-                      type="text"
-                      autoFocus
-                      value={userSearch}
-                      onChange={(e) => setUserSearch(e.target.value)}
-                      placeholder="Tìm theo tên hoặc email..."
-                      className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                    />
-                  </div>
-                  <div className="max-h-64 overflow-y-auto py-1 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFilters((f) => ({ ...f, user_id: "" }));
-                        setCurrentPage(1);
-                        setIsUserDropdownOpen(false);
-                        setUserSearch("");
-                      }}
-                      className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
-                        !filters.user_id
-                          ? "bg-white/20 text-white"
-                          : "text-white/70 hover:bg-white/[0.08]"
-                      }`}
-                    >
-                      -- Tất cả user --
-                    </button>
-                    {filteredUsers.map((u) => {
-                      const isActive = filters.user_id === u.id;
-                      return (
-                        <button
-                          key={u.id}
-                          type="button"
-                          onClick={() => {
-                            setFilters((f) => ({ ...f, user_id: u.id }));
-                            setCurrentPage(1);
-                            setIsUserDropdownOpen(false);
-                            setUserSearch("");
-                          }}
-                          className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                            isActive
-                              ? "bg-white/20 text-white font-semibold"
-                              : "text-white/80 hover:bg-white/[0.08]"
-                          }`}
-                        >
-                          <span className="truncate">
-                            {u.name ? `${u.name} (${u.email})` : u.email}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {filteredUsers.length === 0 && (
-                      <div className="px-3 py-2 text-xs text-white/40">
-                        Không tìm thấy user phù hợp
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
           <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
               Franchise
             </label>
             <div className="relative">
               <button
+                ref={filterFranchiseTriggerRef}
                 type="button"
-                onClick={() =>
-                  setIsFranchiseDropdownOpen((open) => !open)
-                }
+                onClick={() => {
+                  if (isFranchiseDropdownOpen) {
+                    setIsFranchiseDropdownOpen(false);
+                    setFranchiseSearch("");
+                  } else {
+                    setFilterFranchiseRect(filterFranchiseTriggerRef.current?.getBoundingClientRect() ?? null);
+                    setIsFranchiseDropdownOpen(true);
+                  }
+                }}
                 className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
               >
                 <span className="truncate">
                   {(() => {
                     if (!filters.franchise_id) return "-- Tất cả franchise --";
-                    if (filters.franchise_id === "__GLOBAL__")
-                      return "System (Global)";
-                    const found = franchises.find(
-                      (f) => f.value === filters.franchise_id,
-                    );
+                    if (filters.franchise_id === "__GLOBAL__") return "System (Global)";
+                    const found = franchises.find((f) => f.value === filters.franchise_id);
                     if (!found) return filters.franchise_id;
                     return `${found.name} (${found.code})`;
                   })()}
                 </span>
-                <svg
-                  className="ml-2 size-4 flex-shrink-0 text-white/40"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
+                <svg className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${isFranchiseDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-
-              {isFranchiseDropdownOpen && (
-                <div className="absolute left-0 right-0 z-20 mt-1 rounded-lg border border-white/[0.15] bg-slate-900/90 shadow-xl backdrop-blur-md">
-                  <div className="border-b border-white/[0.10] px-3 py-2">
-                    <input
-                      type="text"
-                      autoFocus
-                      value={franchiseSearch}
-                      onChange={(e) => setFranchiseSearch(e.target.value)}
-                      placeholder="Tìm theo tên hoặc mã..."
-                      className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                    />
-                  </div>
-                  <div className="max-h-64 overflow-y-auto py-1 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFilters((f) => ({ ...f, franchise_id: "" }));
-                        setCurrentPage(1);
-                        setIsFranchiseDropdownOpen(false);
-                        setFranchiseSearch("");
-                      }}
-                      className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
-                        !filters.franchise_id
-                          ? "bg-white/20 text-white"
-                          : "text-white/70 hover:bg-white/[0.08]"
-                      }`}
-                    >
-                      -- Tất cả franchise --
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFilters((f) => ({
-                          ...f,
-                          franchise_id: "__GLOBAL__",
-                        }));
-                        setCurrentPage(1);
-                        setIsFranchiseDropdownOpen(false);
-                        setFranchiseSearch("");
-                      }}
-                      className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                        filters.franchise_id === "__GLOBAL__"
-                          ? "bg-white/20 text-white font-semibold"
-                          : "text-white/80 hover:bg-white/[0.08]"
-                      }`}
-                    >
-                      System (Global)
-                    </button>
-                    {filteredFranchises.map((fr) => {
-                      const isActive = filters.franchise_id === fr.value;
-                      return (
-                        <button
-                          key={fr.value}
-                          type="button"
-                          onClick={() => {
-                            setFilters((f) => ({
-                              ...f,
-                              franchise_id: fr.value,
-                            }));
-                            setCurrentPage(1);
-                            setIsFranchiseDropdownOpen(false);
-                            setFranchiseSearch("");
-                          }}
-                          className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                            isActive
-                              ? "bg-white/20 text-white font-semibold"
-                              : "text-white/80 hover:bg-white/[0.08]"
-                          }`}
-                        >
-                          <span className="truncate">
-                            {fr.name} ({fr.code})
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {filteredFranchises.length === 0 && (
-                      <div className="px-3 py-2 text-xs text-white/40">
-                        Không tìm thấy franchise phù hợp
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
-            
           </div>
 
           <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
+              User
+            </label>
+            <div className="relative">
+              {filterFranchiseUsersLoading ? (
+                <div className="flex items-center gap-2 rounded-lg border border-white/[0.15] bg-white/[0.05] px-3 py-2 text-xs text-white/50">
+                  <div className="size-3.5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
+                  Đang tải...
+                </div>
+              ) : !filters.franchise_id || filters.franchise_id === "__GLOBAL__" ? (
+                <div className="flex items-center gap-2 rounded-lg border border-white/[0.10] bg-white/[0.03] px-3 py-2 text-xs text-white/30 cursor-not-allowed select-none">
+                  <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  Chọn Franchise trước
+                </div>
+              ) : (
+                <button
+                  ref={filterUserTriggerRef}
+                  type="button"
+                  onClick={() => {
+                    if (isUserDropdownOpen) {
+                      setIsUserDropdownOpen(false);
+                      setUserSearch("");
+                    } else {
+                      setFilterUserRect(filterUserTriggerRef.current?.getBoundingClientRect() ?? null);
+                      setIsUserDropdownOpen(true);
+                    }
+                  }}
+                  className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                >
+                  <span className="truncate">
+                    {(() => {
+                      if (!filters.user_id) return "-- Tất cả user --";
+                      const found = filteredUsers.find((u) => u.id === filters.user_id);
+                      if (!found) return filters.user_id;
+                      return found.name ? `${found.name} (${found.email})` : found.email;
+                    })()}
+                  </span>
+                  <svg className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${isUserDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>          <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
               Role
             </label>
             <div className="relative">
               <button
+                ref={filterRoleTriggerRef}
                 type="button"
-                onClick={() => setIsFilterRoleDropdownOpen((o) => !o)}
+                onClick={() => {
+                  if (isFilterRoleDropdownOpen) {
+                    setIsFilterRoleDropdownOpen(false);
+                  } else {
+                    setFilterRoleRect(filterRoleTriggerRef.current?.getBoundingClientRect() ?? null);
+                    setIsFilterRoleDropdownOpen(true);
+                  }
+                }}
                 className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
               >
                 <span className="truncate">
@@ -613,53 +587,10 @@ export default function UserFranchiseRolePage() {
                     return `${found.name} (${found.code}) — ${scopeLabel}`;
                   })()}
                 </span>
-                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${isFilterRoleDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-
-              {isFilterRoleDropdownOpen && (
-                <div className="absolute left-0 right-0 z-20 mt-1 rounded-lg border border-white/[0.15] bg-slate-900/90 shadow-xl backdrop-blur-md">
-                  <div className="py-1 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFilters((f) => ({ ...f, role_id: "" }));
-                        setCurrentPage(1);
-                        setIsFilterRoleDropdownOpen(false);
-                      }}
-                      className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
-                        !filters.role_id ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/[0.08]"
-                      }`}
-                    >
-                      -- Tất cả role --
-                    </button>
-                    {roles.map((r) => {
-                      const isActive = filters.role_id === r.value;
-                      const scopeLabel = { GLOBAL: "Toàn cục", FRANCHISE: "Chi nhánh" }[r.scope] ?? r.scope;
-                      return (
-                        <button
-                          key={r.value}
-                          type="button"
-                          onClick={() => {
-                            setFilters((f) => ({ ...f, role_id: r.value }));
-                            setCurrentPage(1);
-                            setIsFilterRoleDropdownOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs ${
-                            isActive ? "bg-white/20 text-white font-semibold" : "text-white/80 hover:bg-white/[0.08]"
-                          }`}
-                        >
-                          <span className="truncate">{r.name} ({r.code})</span>
-                          <span className={`ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                            r.scope === "GLOBAL" ? "bg-blue-500/20 text-blue-300" : "bg-amber-500/20 text-amber-300"
-                          }`}>{scopeLabel}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -860,99 +791,74 @@ export default function UserFranchiseRolePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>
-
-            <form onSubmit={submitCreate} className="px-6 py-5 space-y-4">
+            </div>            <form onSubmit={submitCreate} className="px-6 py-5 space-y-4">
               <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-white/70">
-                    User <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setIsCreateUserDropdownOpen((open) => !open)
+                <label className="text-sm font-semibold text-white/70">
+                  Franchise
+                </label>
+                <div className="relative">
+                  <button
+                    ref={createFranchiseTriggerRef}
+                    type="button"
+                    onClick={() => {
+                      if (isCreateFranchiseDropdownOpen) {
+                        setIsCreateFranchiseDropdownOpen(false);
+                        setCreateFranchiseSearch("");
+                      } else {
+                        setCreateFranchiseRect(createFranchiseTriggerRef.current?.getBoundingClientRect() ?? null);
+                        setIsCreateFranchiseDropdownOpen(true);
                       }
-                      className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
-                    >
-                      <span className="truncate">
-                        {(() => {
-                          if (!createForm.user_id) return "-- Chọn user --";
-                          const found = users.find(
-                            (u) => u.id === createForm.user_id,
-                          );
-                          if (!found) return createForm.user_id;
-                          return found.name
-                            ? `${found.name} (${found.email})`
-                            : found.email;
-                        })()}
-                      </span>
-                      <svg
-                        className="ml-2 size-4 flex-shrink-0 text-white/50"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </button>
-
-                    {isCreateUserDropdownOpen && (
-                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.12] shadow-2xl" style={{ background: "rgba(15,23,42,0.95)", backdropFilter: "blur(20px)" }}>
-                        <div className="border-b border-white/[0.12] px-3 py-2">
-                          <input
-                            type="text"
-                            autoFocus
-                            value={createUserSearch}
-                            onChange={(e) => setCreateUserSearch(e.target.value)}
-                            placeholder="Tìm theo tên hoặc email..."
-                            className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                          />
-                        </div>
-                        <div className="max-h-40 overflow-y-auto py-1 text-sm">
-                          {createFilteredUsers.map((u) => {
-                            const isActive = createForm.user_id === u.id;
-                            return (
-                              <button
-                                key={u.id}
-                                type="button"
-                                onClick={() => {
-                                  setCreateForm((f) => ({
-                                    ...f,
-                                    user_id: u.id,
-                                  }));
-                                  setIsCreateUserDropdownOpen(false);
-                                  setCreateUserSearch("");
-                                }}
-                                className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                                  isActive
-                                    ? "bg-white/20 text-white font-semibold"
-                                    : "text-white/90 hover:bg-white/[0.1]"
-                                }`}
-                              >
-                                <span className="truncate">
-                                  {u.name
-                                    ? `${u.name} (${u.email})`
-                                    : u.email}
-                                </span>
-                              </button>
-                            );
-                          })}
-                          {createFilteredUsers.length === 0 && (
-                            <div className="px-3 py-2 text-xs text-white/50">
-                              Không tìm thấy user phù hợp
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                  >
+                    <span className="truncate">
+                      {(() => {
+                        if (!createForm.franchise_id) return "-- Hệ thống (Global) --";
+                        const found = franchises.find((f) => f.value === createForm.franchise_id);
+                        if (!found) return createForm.franchise_id;
+                        return `${found.name} (${found.code})`;
+                      })()}
+                    </span>
+                    <svg className={`ml-2 size-4 flex-shrink-0 text-white/50 transition-transform duration-200 ${isCreateFranchiseDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-white/70">
+                  User <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <button
+                    ref={createUserTriggerRef}
+                    type="button"
+                    onClick={() => {
+                      if (isCreateUserDropdownOpen) {
+                        setIsCreateUserDropdownOpen(false);
+                        setCreateUserSearch("");
+                      } else {
+                        setCreateUserRect(createUserTriggerRef.current?.getBoundingClientRect() ?? null);
+                        setIsCreateUserDropdownOpen(true);
+                      }
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                  >
+                    <span className="truncate">
+                      {(() => {
+                        if (!createForm.user_id) return "-- Chọn user --";
+                        const found = users.find((u) => u.id === createForm.user_id);
+                        if (!found) return createForm.user_id;
+                        return found.name ? `${found.name} (${found.email})` : found.email;
+                      })()}
+                    </span>
+                    <svg className={`ml-2 size-4 flex-shrink-0 text-white/50 transition-transform duration-200 ${isCreateUserDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
 
               <div className="relative space-y-1.5">
                 <label className="text-sm font-semibold text-white/70">
@@ -960,8 +866,17 @@ export default function UserFranchiseRolePage() {
                 </label>
                 <div className="relative">
                   <button
+                    ref={createRoleTriggerRef}
                     type="button"
-                    onClick={() => setIsCreateRoleDropdownOpen((open) => !open)}
+                    onClick={() => {
+                      if (isCreateRoleDropdownOpen) {
+                        setIsCreateRoleDropdownOpen(false);
+                        setCreateRoleSearch("");
+                      } else {
+                        setCreateRoleRect(createRoleTriggerRef.current?.getBoundingClientRect() ?? null);
+                        setIsCreateRoleDropdownOpen(true);
+                      }
+                    }}
                     className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
                   >
                     <span className="truncate">
@@ -973,174 +888,10 @@ export default function UserFranchiseRolePage() {
                         return `${found.name} (${found.code}) — ${scopeLabel}`;
                       })()}
                     </span>
-                    <svg className="ml-2 size-4 flex-shrink-0 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg className={`ml-2 size-4 flex-shrink-0 text-white/50 transition-transform duration-200 ${isCreateRoleDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-
-                  {isCreateRoleDropdownOpen && (
-                    <div className="absolute left-0 right-0 z-[9999] mt-1 rounded-lg border border-white/[0.12] shadow-2xl" style={{ background: "rgba(15,23,42,0.95)", backdropFilter: "blur(20px)" }}>
-                      <div className="border-b border-white/[0.12] px-3 py-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={createRoleSearch}
-                          onChange={(e) => setCreateRoleSearch(e.target.value)}
-                          placeholder="Tìm theo tên hoặc mã..."
-                          className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                        />
-                      </div>
-                      <div className="max-h-48 overflow-y-auto py-1 text-sm">
-                        {createFilteredRoles.map((r) => {
-                          const isActive = createForm.role_id === r.value;
-                          const scopeLabel = { GLOBAL: "Toàn cục", FRANCHISE: "Chi nhánh" }[r.scope] ?? r.scope;
-                          return (
-                            <button
-                              key={r.value}
-                              type="button"
-                              onClick={() => {
-                                const isGlobal = r.scope === "GLOBAL";
-                                setCreateForm((f) => ({
-                                  ...f,
-                                  role_id: r.value,
-                                  franchise_id: isGlobal ? null : f.franchise_id,
-                                }));
-                                setIsCreateRoleDropdownOpen(false);
-                                setCreateRoleSearch("");
-                              }}
-                              className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs ${
-                                isActive
-                                  ? "bg-white/20 text-white font-semibold"
-                                  : "text-white/90 hover:bg-white/[0.1]"
-                              }`}
-                            >
-                              <span className="truncate">{r.name} ({r.code})</span>
-                              <span className={`ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                r.scope === "GLOBAL"
-                                  ? "bg-blue-500/20 text-blue-300"
-                                  : "bg-amber-500/20 text-amber-300"
-                              }`}>{scopeLabel}</span>
-                            </button>
-                          );
-                        })}
-                        {createFilteredRoles.length === 0 && (
-                          <div className="px-3 py-2 text-xs text-white/50">
-                            Không tìm thấy role phù hợp
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-white/70">
-                  Franchise
-                </label>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setIsCreateFranchiseDropdownOpen((open) => !open)
-                    }
-                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20"
-                  >
-                    <span className="truncate">
-                      {(() => {
-                        if (!createForm.franchise_id)
-                          return "-- Hệ thống (Global) --";
-                        const found = franchises.find(
-                          (f) => f.value === createForm.franchise_id,
-                        );
-                        if (!found) return createForm.franchise_id;
-                        return `${found.name} (${found.code})`;
-                      })()}
-                    </span>
-                    <svg
-                      className="ml-2 size-4 flex-shrink-0 text-white/50"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </button>
-
-                  {isCreateFranchiseDropdownOpen && (
-                    <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.12] shadow-2xl" style={{ background: "rgba(15,23,42,0.95)", backdropFilter: "blur(20px)" }}>
-                      <div className="border-b border-white/[0.12] px-3 py-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={createFranchiseSearch}
-                          onChange={(e) =>
-                            setCreateFranchiseSearch(e.target.value)
-                          }
-                          placeholder="Tìm theo tên hoặc mã..."
-                          className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCreateForm((f) => ({
-                            ...f,
-                            franchise_id: null,
-                          }));
-                          setIsCreateFranchiseDropdownOpen(false);
-                          setCreateFranchiseSearch("");
-                        }}
-                        className={`flex w-full items-center gap-2 border-b border-white/[0.08] px-3 py-2 text-left text-xs transition ${
-                          !createForm.franchise_id
-                            ? "bg-primary-500/15 text-primary-300 font-semibold"
-                            : "text-white/70 hover:bg-white/[0.07] hover:text-white/90"
-                        }`}
-                      >
-                        <span className="size-1.5 rounded-full bg-white/30 shrink-0" />
-                        Hệ thống (Global)
-                      </button>
-                      <div className="max-h-40 overflow-y-auto py-1 text-sm">
-                        {createFilteredFranchises.map((fr) => {
-                          const isActive =
-                            createForm.franchise_id === fr.value;
-                          return (
-                            <button
-                              key={fr.value}
-                              type="button"
-                              onClick={() => {
-                                setCreateForm((f) => ({
-                                  ...f,
-                                  franchise_id: fr.value,
-                                }));
-                                setIsCreateFranchiseDropdownOpen(false);
-                                setCreateFranchiseSearch("");
-                              }}
-                              className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                                isActive
-                                  ? "bg-white/20 text-white font-semibold"
-                                  : "text-white/90 hover:bg-white/[0.1]"
-                              }`}
-                            >
-                              <span className="truncate">
-                                {fr.name} ({fr.code})
-                              </span>
-                            </button>
-                          );
-                        })}
-                        {createFilteredFranchises.length === 0 && (
-                          <div className="px-3 py-2 text-xs text-white/50">
-                            Không tìm thấy franchise phù hợp
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -1388,9 +1139,7 @@ export default function UserFranchiseRolePage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Edit Role Dropdown Portal */}
+      )}      {/* Edit Role Dropdown Portal */}
       {isEditRoleDropdownOpen && createPortal(
         <div
           ref={editRoleDropdownRef}
@@ -1400,7 +1149,7 @@ export default function UserFranchiseRolePage() {
             top: editRoleDropdownPos.top,
             left: editRoleDropdownPos.left,
             width: editRoleDropdownPos.width,
-            background: "rgba(15,23,42,0.95)",
+            background: "rgba(15,23,42,0.97)",
             backdropFilter: "blur(20px)",
           }}
         >
@@ -1427,6 +1176,396 @@ export default function UserFranchiseRolePage() {
                 </button>
               );
             })}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Filter Role Dropdown Portal */}
+      {isFilterRoleDropdownOpen && filterRoleRect && createPortal(
+        <div
+          ref={filterRoleDropdownRef}
+          style={{
+            position: "fixed",
+            top: filterRoleRect.bottom + 4,
+            left: filterRoleRect.left,
+            width: filterRoleRect.width,
+            zIndex: 99999,
+            background: "rgba(15,23,42,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+            overflow: "hidden",
+          }}
+        >
+          <div className="py-1 text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setFilters((f) => ({ ...f, role_id: "" }));
+                setCurrentPage(1);
+                setIsFilterRoleDropdownOpen(false);
+              }}
+              className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
+                !filters.role_id ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/[0.08]"
+              }`}
+            >
+              -- Tất cả role --
+            </button>
+            {roles.map((r) => {
+              const isActive = filters.role_id === r.value;
+              const scopeLabel = { GLOBAL: "Toàn cục", FRANCHISE: "Chi nhánh" }[r.scope] ?? r.scope;
+              return (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, role_id: r.value }));
+                    setCurrentPage(1);
+                    setIsFilterRoleDropdownOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs ${
+                    isActive ? "bg-white/20 text-white font-semibold" : "text-white/80 hover:bg-white/[0.08]"
+                  }`}
+                >
+                  <span className="truncate">{r.name} ({r.code})</span>
+                  <span className={`ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                    r.scope === "GLOBAL" ? "bg-blue-500/20 text-blue-300" : "bg-amber-500/20 text-amber-300"
+                  }`}>{scopeLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Filter Franchise Dropdown Portal */}      {isFranchiseDropdownOpen && filterFranchiseRect && createPortal(
+        <div
+          ref={filterFranchiseDropdownRef}
+          style={{
+            position: "fixed",
+            top: filterFranchiseRect.bottom + 4,
+            left: filterFranchiseRect.left,
+            width: filterFranchiseRect.width,
+            zIndex: 99999,
+            background: "rgba(15,23,42,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+            overflow: "hidden",
+          }}
+        >
+          <div className="border-b border-white/[0.10] px-3 py-2">
+            <input
+              type="text"
+              autoFocus
+              value={franchiseSearch}
+              onChange={(e) => setFranchiseSearch(e.target.value)}
+              placeholder="Tìm theo tên hoặc mã..."
+              className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto py-1 text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setFilters((f) => ({ ...f, franchise_id: "" }));
+                setCurrentPage(1);
+                setIsFranchiseDropdownOpen(false);
+                setFranchiseSearch("");
+              }}
+              className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
+                !filters.franchise_id ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/[0.08]"
+              }`}
+            >
+              -- Tất cả franchise --
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFilters((f) => ({ ...f, franchise_id: "__GLOBAL__" }));
+                setCurrentPage(1);
+                setIsFranchiseDropdownOpen(false);
+                setFranchiseSearch("");
+              }}
+              className={`flex w-full items-center px-3 py-2 text-left text-xs ${
+                filters.franchise_id === "__GLOBAL__" ? "bg-white/20 text-white font-semibold" : "text-white/80 hover:bg-white/[0.08]"
+              }`}
+            >
+              System (Global)
+            </button>
+            {filteredFranchises.map((fr) => (
+              <button
+                key={fr.value}
+                type="button"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, franchise_id: fr.value }));
+                  setCurrentPage(1);
+                  setIsFranchiseDropdownOpen(false);
+                  setFranchiseSearch("");
+                }}
+                className={`flex w-full items-center px-3 py-2 text-left text-xs ${
+                  filters.franchise_id === fr.value ? "bg-white/20 text-white font-semibold" : "text-white/80 hover:bg-white/[0.08]"
+                }`}
+              >
+                <span className="truncate">{fr.name} ({fr.code})</span>
+              </button>
+            ))}
+            {filteredFranchises.length === 0 && (
+              <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise phù hợp</div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Filter User Dropdown Portal */}
+      {isUserDropdownOpen && filterUserRect && createPortal(
+        <div
+          ref={filterUserDropdownRef}
+          style={{
+            position: "fixed",
+            top: filterUserRect.bottom + 4,
+            left: filterUserRect.left,
+            width: filterUserRect.width,
+            zIndex: 99999,
+            background: "rgba(15,23,42,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+            overflow: "hidden",
+          }}
+        >
+          <div className="border-b border-white/[0.10] px-3 py-2">
+            <input
+              type="text"
+              autoFocus
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              placeholder="Tìm theo tên hoặc email..."
+              className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto py-1 text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                setFilters((f) => ({ ...f, user_id: "" }));
+                setCurrentPage(1);
+                setIsUserDropdownOpen(false);
+                setUserSearch("");
+              }}
+              className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
+                !filters.user_id ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/[0.08]"
+              }`}
+            >
+              -- Tất cả user --
+            </button>
+            {filteredUsers.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, user_id: u.id }));
+                  setCurrentPage(1);
+                  setIsUserDropdownOpen(false);
+                  setUserSearch("");
+                }}
+                className={`flex w-full items-center px-3 py-2 text-left text-xs ${
+                  filters.user_id === u.id ? "bg-white/20 text-white font-semibold" : "text-white/80 hover:bg-white/[0.08]"
+                }`}
+              >
+                <span className="truncate">{u.name ? `${u.name} (${u.email})` : u.email}</span>
+              </button>
+            ))}
+            {filteredUsers.length === 0 && (
+              <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy user phù hợp</div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Create Franchise Dropdown Portal */}
+      {isCreateFranchiseDropdownOpen && createFranchiseRect && createPortal(
+        <div
+          ref={createFranchiseDropdownRef}
+          style={{
+            position: "fixed",
+            top: createFranchiseRect.bottom + 4,
+            left: createFranchiseRect.left,
+            width: createFranchiseRect.width,
+            zIndex: 99999,
+            background: "rgba(15,23,42,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+            overflow: "hidden",
+          }}
+        >
+          <div className="border-b border-white/[0.12] px-3 py-2">
+            <input
+              type="text"
+              autoFocus
+              value={createFranchiseSearch}
+              onChange={(e) => setCreateFranchiseSearch(e.target.value)}
+              placeholder="Tìm theo tên hoặc mã..."
+              className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setCreateForm((f) => ({ ...f, franchise_id: null }));
+              setIsCreateFranchiseDropdownOpen(false);
+              setCreateFranchiseSearch("");
+            }}
+            className={`flex w-full items-center gap-2 border-b border-white/[0.08] px-3 py-2 text-left text-xs transition ${
+              !createForm.franchise_id
+                ? "bg-primary-500/15 text-primary-300 font-semibold"
+                : "text-white/70 hover:bg-white/[0.07] hover:text-white/90"
+            }`}
+          >
+            <span className="size-1.5 rounded-full bg-white/30 shrink-0" />
+            Hệ thống (Global)
+          </button>
+          <div className="max-h-48 overflow-y-auto py-1 text-sm">
+            {createFilteredFranchises.map((fr) => (
+              <button
+                key={fr.value}
+                type="button"
+                onClick={() => {
+                  setCreateForm((f) => ({ ...f, franchise_id: fr.value }));
+                  setIsCreateFranchiseDropdownOpen(false);
+                  setCreateFranchiseSearch("");
+                }}
+                className={`flex w-full items-center px-3 py-2 text-left text-xs ${
+                  createForm.franchise_id === fr.value ? "bg-white/20 text-white font-semibold" : "text-white/90 hover:bg-white/[0.1]"
+                }`}
+              >
+                <span className="truncate">{fr.name} ({fr.code})</span>
+              </button>
+            ))}
+            {createFilteredFranchises.length === 0 && (
+              <div className="px-3 py-2 text-xs text-white/50">Không tìm thấy franchise phù hợp</div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Create User Dropdown Portal */}
+      {isCreateUserDropdownOpen && createUserRect && createPortal(
+        <div
+          ref={createUserDropdownRef}
+          style={{
+            position: "fixed",
+            top: createUserRect.bottom + 4,
+            left: createUserRect.left,
+            width: createUserRect.width,
+            zIndex: 99999,
+            background: "rgba(15,23,42,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+            overflow: "hidden",
+          }}
+        >
+          <div className="border-b border-white/[0.12] px-3 py-2">
+            <input
+              type="text"
+              autoFocus
+              value={createUserSearch}
+              onChange={(e) => setCreateUserSearch(e.target.value)}
+              placeholder="Tìm theo tên hoặc email..."
+              className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1 text-sm">
+            {createFilteredUsers.map((u) => (
+              <button
+                key={u.id}
+                type="button"
+                onClick={() => {
+                  setCreateForm((f) => ({ ...f, user_id: u.id }));
+                  setIsCreateUserDropdownOpen(false);
+                  setCreateUserSearch("");
+                }}
+                className={`flex w-full items-center px-3 py-2 text-left text-xs ${
+                  createForm.user_id === u.id ? "bg-white/20 text-white font-semibold" : "text-white/90 hover:bg-white/[0.1]"
+                }`}
+              >
+                <span className="truncate">{u.name ? `${u.name} (${u.email})` : u.email}</span>
+              </button>
+            ))}
+            {createFilteredUsers.length === 0 && (
+              <div className="px-3 py-2 text-xs text-white/50">Không tìm thấy user phù hợp</div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Create Role Dropdown Portal */}
+      {isCreateRoleDropdownOpen && createRoleRect && createPortal(
+        <div
+          ref={createRoleDropdownRef}
+          style={{
+            position: "fixed",
+            top: createRoleRect.bottom + 4,
+            left: createRoleRect.left,
+            width: createRoleRect.width,
+            zIndex: 99999,
+            background: "rgba(15,23,42,0.97)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8,
+            boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+            overflow: "hidden",
+          }}
+        >
+          <div className="border-b border-white/[0.12] px-3 py-2">
+            <input
+              type="text"
+              autoFocus
+              value={createRoleSearch}
+              onChange={(e) => setCreateRoleSearch(e.target.value)}
+              placeholder="Tìm theo tên hoặc mã..."
+              className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] px-2.5 py-1.5 text-xs text-white/90 placeholder:text-white/30 outline-none transition focus:border-white/40 focus:ring-1 focus:ring-white/20"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto py-1 text-sm">
+            {createFilteredRoles.map((r) => {
+              const isActive = createForm.role_id === r.value;
+              const scopeLabel = { GLOBAL: "Toàn cục", FRANCHISE: "Chi nhánh" }[r.scope] ?? r.scope;
+              return (
+                <button
+                  key={r.value}
+                  type="button"
+                  onClick={() => {
+                    const isGlobal = r.scope === "GLOBAL";
+                    setCreateForm((f) => ({
+                      ...f,
+                      role_id: r.value,
+                      franchise_id: isGlobal ? null : f.franchise_id,
+                    }));
+                    setIsCreateRoleDropdownOpen(false);
+                    setCreateRoleSearch("");
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs ${
+                    isActive ? "bg-white/20 text-white font-semibold" : "text-white/90 hover:bg-white/[0.1]"
+                  }`}
+                >
+                  <span className="truncate">{r.name} ({r.code})</span>
+                  <span className={`ml-2 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                    r.scope === "GLOBAL" ? "bg-blue-500/20 text-blue-300" : "bg-amber-500/20 text-amber-300"
+                  }`}>{scopeLabel}</span>
+                </button>
+              );
+            })}
+            {createFilteredRoles.length === 0 && (
+              <div className="px-3 py-2 text-xs text-white/50">Không tìm thấy role phù hợp</div>
+            )}
           </div>
         </div>,
         document.body

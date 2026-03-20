@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { Button, useConfirm } from "../../../components";
+import { TimeSelect } from "../../../components/ui/TimeSelect";
 import {
   createShift,
   deleteShift,
@@ -40,6 +42,30 @@ const ShiftPage = () => {
   const [filterFranchise, setFilterFranchise] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
 
+  // franchise combobox (filter)
+  const [franchiseComboOpen, setFranchiseComboOpen] = useState(false);
+  const [franchiseKeyword, setFranchiseKeyword] = useState("");
+  const franchiseComboRef = useRef<HTMLDivElement>(null);
+
+  // franchise combobox inside modal — using portal
+  const [modalFranchiseOpen, setModalFranchiseOpen] = useState(false);
+  const [modalFranchiseKeyword, setModalFranchiseKeyword] = useState("");
+  const modalFranchiseTriggerRef = useRef<HTMLButtonElement>(null);
+  const modalFranchiseDropdownRef = useRef<HTMLDivElement>(null);
+  const [modalFranchiseRect, setModalFranchiseRect] = useState<DOMRect | null>(null);
+
+  const openModalFranchise = useCallback(() => {
+    if (modalFranchiseTriggerRef.current) {
+      setModalFranchiseRect(modalFranchiseTriggerRef.current.getBoundingClientRect());
+    }
+    setModalFranchiseOpen(true);
+  }, []);
+
+  const closeModalFranchise = useCallback(() => {
+    setModalFranchiseOpen(false);
+    setModalFranchiseKeyword("");
+  }, []);
+
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
 
   const hasRun = useRef(false);
@@ -79,13 +105,55 @@ const ShiftPage = () => {
       setLoading(false);
     }
   };
-
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
-    load("", "", 1); loadFranchises();
+    load("", "", 1);
+    loadFranchises();
   }, []);
+
+  // click-outside franchise combobox
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (franchiseComboRef.current && !franchiseComboRef.current.contains(e.target as Node)) {
+        setFranchiseComboOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // click-outside modal franchise portal dropdown
+  useEffect(() => {
+    if (!modalFranchiseOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!modalFranchiseTriggerRef.current?.contains(t) && !modalFranchiseDropdownRef.current?.contains(t)) {
+        closeModalFranchise();
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [modalFranchiseOpen, closeModalFranchise]);
+
+  const filteredFranchisesForCombo = useMemo(() => {
+    if (!franchiseKeyword.trim()) return franchises;
+    const k = franchiseKeyword.trim().toLowerCase();
+    return franchises.filter(f =>
+      (f.name || "").toLowerCase().includes(k) ||
+      (f.code || "").toLowerCase().includes(k)
+    );
+  }, [franchises, franchiseKeyword]);
+
+  const filteredModalFranchises = useMemo(() => {
+    if (!modalFranchiseKeyword.trim()) return franchises;
+    const k = modalFranchiseKeyword.trim().toLowerCase();
+    return franchises.filter(f =>
+      (f.name || "").toLowerCase().includes(k) ||
+      (f.code || "").toLowerCase().includes(k)
+    );
+  }, [franchises, modalFranchiseKeyword]);
 
   const handleOpenCreate = () => {
     setFormData({ ...DEFAULT_FORM });
@@ -138,6 +206,14 @@ const ShiftPage = () => {
     }
   };
 
+  const extractErrMsg = (err: unknown, fallback: string) =>
+    (err as { response?: { data?: { message?: string; errors?: { message: string }[] } } })
+      ?.response?.data?.message ||
+    (err as { response?: { data?: { errors?: { message: string }[] } } })
+      ?.response?.data?.errors?.[0]?.message ||
+    (err instanceof Error ? err.message : null) ||
+    fallback;
+
   const handleDelete = async (shift: Shift) => {
     if (!await showConfirm({ message: `Bạn có chắc muốn xóa ca "${shift.name}"?`, variant: "danger", confirmText: "Xóa" })) return;
     setSubmitting(true);
@@ -145,8 +221,8 @@ const ShiftPage = () => {
       await deleteShift(shift.id);
       showSuccess(`Đã xóa ca "${shift.name}"`);
       await load();
-    } catch {
-      showError("Xóa ca làm việc thất bại");
+    } catch (err) {
+      showError(extractErrMsg(err, "Xóa ca làm việc thất bại"));
     } finally {
       setSubmitting(false);
     }
@@ -174,8 +250,8 @@ const ShiftPage = () => {
       await changeShiftStatus(shift.id, !shift.is_active);
       showSuccess(`Đã ${action} ca "${shift.name}"`);
       await load();
-    } catch {
-      showError(`${action} ca làm việc thất bại`);
+    } catch (err) {
+      showError(extractErrMsg(err, `${action} ca làm việc thất bại`));
     } finally {
       setSubmitting(false);
     }
@@ -183,6 +259,8 @@ const ShiftPage = () => {
 
   const getFranchiseName = (id: string) =>
     franchises.find((f) => f.value === id)?.name ?? id;
+
+  const selectedModalFranchise = franchises.find(f => f.value === formData.franchise_id);
 
   return (
     <div className="space-y-6">
@@ -193,57 +271,116 @@ const ShiftPage = () => {
           <p className="text-xs sm:text-sm text-slate-600">Quản lý ca làm việc hệ thống</p>
         </div>
         <Button onClick={handleOpenCreate}>+ Tạo ca làm việc</Button>
-      </div>
-
-      {/* Search bar */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap gap-2">
+      </div>      {/* Search bar */}
+      <div className="relative z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-3">
+          {/* Search name */}
           <div className="relative flex-1 min-w-48">
-            <svg
-              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên ca..."
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") load(searchName, filterFranchise, 1, showDeleted); }}
-              className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            />
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Tên ca</label>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên ca..."
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") load(searchName, filterFranchise, 1, showDeleted); }}
+                className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              />
+            </div>
           </div>
-          <select
-            value={filterFranchise}
-            onChange={(e) => {
-              setFilterFranchise(e.target.value);
-              load(searchName, e.target.value, 1, showDeleted);
-            }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-          >
-            <option value="">Tất cả franchise</option>
-            {franchises.map((f) => (
-              <option key={f.value} value={f.value}>{f.name}</option>
-            ))}
-          </select>
-          <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 transition select-none">
-            <input
-              type="checkbox"
-              checked={showDeleted}
-              onChange={(e) => {
-                const val = e.target.checked;
-                setShowDeleted(val);
-                load(searchName, filterFranchise, 1, val);
-              }}
-              className="size-4 rounded accent-red-500"
-            />
-            <span className="text-slate-700 whitespace-nowrap">Đã xóa</span>
-          </label>
-          <Button onClick={() => load(searchName, filterFranchise, 1, showDeleted)} loading={loading}>
-            Tìm kiếm
-          </Button>
+
+          {/* Franchise custom combobox */}
+          <div className="min-w-[200px]" ref={franchiseComboRef}>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Franchise</label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setFranchiseComboOpen((o) => !o)}
+                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              >
+                <span className="truncate">
+                  {filterFranchise ? (franchises.find(f => f.value === filterFranchise)?.name || filterFranchise) : "-- Tất cả --"}
+                </span>
+                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {franchiseComboOpen && (
+                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
+                  <div className="border-b border-white/[0.12] px-3 py-2">
+                    <input
+                      autoFocus
+                      value={franchiseKeyword}
+                      onChange={(e) => setFranchiseKeyword(e.target.value)}
+                      placeholder="Tìm theo tên hoặc mã..."
+                      className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                    />
+                  </div>
+                  <div className="max-h-56 overflow-y-auto py-1">
+                    <button
+                      type="button"
+                      onMouseDown={() => {
+                        setFilterFranchise("");
+                        setFranchiseKeyword("");
+                        setFranchiseComboOpen(false);
+                        load(searchName, "", 1, showDeleted);
+                      }}
+                      className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${!filterFranchise ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"}`}
+                    >
+                      -- Tất cả --
+                    </button>
+                    {filteredFranchisesForCombo.map((f) => (
+                      <button
+                        key={f.value}
+                        type="button"
+                        onMouseDown={() => {
+                          setFilterFranchise(f.value);
+                          setFranchiseKeyword("");
+                          setFranchiseComboOpen(false);
+                          load(searchName, f.value, 1, showDeleted);
+                        }}
+                        className={`flex w-full items-center px-3 py-2 text-left text-xs ${filterFranchise === f.value ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"}`}
+                      >
+                        <span className="truncate">{f.name} ({f.code})</span>
+                      </button>
+                    ))}
+                    {filteredFranchisesForCombo.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Đã xóa */}
+          <div className="flex flex-col justify-end">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 invisible">&nbsp;</label>
+            <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 transition select-none ${showDeleted ? "border-red-400 bg-red-50 text-red-700" : "border-slate-300 bg-white text-slate-600"}`}>
+              <input
+                type="checkbox"
+                checked={showDeleted}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setShowDeleted(val);
+                  load(searchName, filterFranchise, 1, val);
+                }}
+                className="size-4 rounded accent-red-500"
+              />
+              <span className="font-medium whitespace-nowrap">Đã xóa</span>
+            </label>
+          </div>
+
+          {/* Tìm kiếm */}
+          <div className="flex flex-col justify-end">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 invisible">&nbsp;</label>
+            <Button onClick={() => load(searchName, filterFranchise, 1, showDeleted)} loading={loading}>
+              Tìm kiếm
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -266,16 +403,7 @@ const ShiftPage = () => {
               {shifts.map((s) => (
                 <tr key={s.id} className={`hover:bg-slate-50 ${s.is_deleted ? "bg-red-50/60 opacity-75" : ""}`}>
                   <td className="px-4 py-3">
-                    <div className="leading-tight">
-                      <p className="font-semibold text-slate-900">{s.name}</p>
-                      {s.is_deleted ? (
-                        <span className="text-xs text-red-500 font-medium">✕ Đã xóa</span>
-                      ) : s.is_active ? (
-                        <span className="text-xs text-green-600">● Hoạt động</span>
-                      ) : (
-                        <span className="text-xs text-amber-600">● Không hoạt động</span>
-                      )}
-                    </div>
+                    <p className="font-semibold text-slate-900">{s.name}</p>
                   </td>
                   <td className="px-4 py-3 text-slate-700">{getFranchiseName(s.franchise_id)}</td>
                   <td className="px-4 py-3 text-slate-700">{s.start_time}</td>
@@ -406,23 +534,137 @@ const ShiftPage = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Franchise */}
+              {/* Franchise — portal combobox */}
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">
                   Franchise <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={formData.franchise_id}
-                  onChange={(e) => setFormData((p) => ({ ...p, franchise_id: e.target.value }))}
-                  disabled={!!editingShift}
-                  required
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:bg-slate-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">-- Chọn franchise --</option>
-                  {franchises.map((f) => (
-                    <option key={f.value} value={f.value}>{f.name}</option>
-                  ))}
-                </select>
+                {editingShift ? (
+                  <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 cursor-not-allowed">
+                    {selectedModalFranchise ? `${selectedModalFranchise.name} (${selectedModalFranchise.code})` : formData.franchise_id}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <button
+                      ref={modalFranchiseTriggerRef}
+                      type="button"
+                      onClick={() => modalFranchiseOpen ? closeModalFranchise() : openModalFranchise()}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        padding: "8px 12px",
+                        background: "#1e293b",
+                        border: "1px solid #475569",
+                        borderRadius: 8,
+                        color: "#f1f5f9",
+                        fontSize: 14,
+                        cursor: "pointer",
+                        outline: "none",
+                      }}
+                    >
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          color: selectedModalFranchise ? "#f1f5f9" : "#94a3b8",
+                        }}
+                      >
+                        {selectedModalFranchise ? `${selectedModalFranchise.name} (${selectedModalFranchise.code})` : "-- Chọn franchise --"}
+                      </span>
+                      <svg
+                        style={{
+                          width: 16,
+                          height: 16,
+                          flexShrink: 0,
+                          marginLeft: 8,
+                          color: "#94a3b8",
+                          transform: modalFranchiseOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform 0.2s",
+                        }}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {modalFranchiseOpen && modalFranchiseRect && ReactDOM.createPortal(
+                      <div
+                        ref={modalFranchiseDropdownRef}
+                        style={{
+                          position: "fixed",
+                          top: modalFranchiseRect.bottom + 4,
+                          left: modalFranchiseRect.left,
+                          width: modalFranchiseRect.width,
+                          zIndex: 99999,
+                          background: "#1e293b",
+                          border: "1px solid #475569",
+                          borderRadius: 8,
+                          boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
+                          <input
+                            autoFocus
+                            value={modalFranchiseKeyword}
+                            onChange={(e) => setModalFranchiseKeyword(e.target.value)}
+                            placeholder="Tìm theo tên hoặc mã..."
+                            style={{
+                              width: "100%",
+                              boxSizing: "border-box",
+                              background: "#0f172a",
+                              border: "1px solid #475569",
+                              borderRadius: 6,
+                              padding: "5px 10px",
+                              fontSize: 12,
+                              color: "#f1f5f9",
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+                        <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                          {filteredModalFranchises.map((f) => (
+                            <button
+                              key={f.value}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setFormData(p => ({ ...p, franchise_id: f.value }));
+                                closeModalFranchise();
+                              }}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                width: "100%",
+                                padding: "8px 12px",
+                                boxSizing: "border-box",
+                                background: formData.franchise_id === f.value ? "#334155" : "transparent",
+                                color: formData.franchise_id === f.value ? "#f1f5f9" : "#cbd5e1",
+                                fontSize: 13,
+                                border: "none",
+                                cursor: "pointer",
+                                textAlign: "left",
+                              }}
+                            >
+                              <span style={{ fontFamily: "monospace", color: "#64748b", fontSize: 10, flexShrink: 0 }}>{f.code}</span>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                            </button>
+                          ))}
+                          {filteredModalFranchises.length === 0 && (
+                            <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Không tìm thấy franchise</div>
+                          )}
+                        </div>
+                      </div>,
+                      document.body
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Name */}
@@ -446,24 +688,18 @@ const ShiftPage = () => {
                   <label className="mb-1 block text-sm font-medium text-slate-700">
                     Giờ bắt đầu <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="time"
+                  <TimeSelect
                     value={formData.start_time}
-                    onChange={(e) => setFormData((p) => ({ ...p, start_time: e.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    onChange={(v) => setFormData((p) => ({ ...p, start_time: v }))}
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">
                     Giờ kết thúc <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="time"
+                  <TimeSelect
                     value={formData.end_time}
-                    onChange={(e) => setFormData((p) => ({ ...p, end_time: e.target.value }))}
-                    required
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    onChange={(v) => setFormData((p) => ({ ...p, end_time: v }))}
                   />
                 </div>
               </div>

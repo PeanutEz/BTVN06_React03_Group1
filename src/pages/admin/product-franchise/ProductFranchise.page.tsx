@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { Button, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
 import { adminProductService } from "../../../services/product.service";
-import type { ProductApiResponse, SearchProductDto } from "../../../models/product.model";
 import type {
   CreateProductFranchiseDto,
   ProductFranchiseApiResponse,
@@ -31,14 +31,14 @@ export default function ProductFranchisePage() {
   const [totalItems, setTotalItems] = useState(0);
 
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
-  // Product options are loaded lazily (search + load more)
-  const [products, setProducts] = useState<ProductApiResponse[]>([]);
   // Cache for product names used in table (covers items not in `products` list)
   const [productNameById, setProductNameById] = useState<Record<string, string>>({});
   const [productNameFailedIds, setProductNameFailedIds] = useState<Record<string, true>>({});
-  const [productPage, setProductPage] = useState(1);
-  const [productTotalPages, setProductTotalPages] = useState(1);
-  const [productLoading, setProductLoading] = useState(false);
+  // Products loaded by franchise (API-08) for filter + create comboboxes
+  const [filterPFProducts, setFilterPFProducts] = useState<{ product_id: string; name: string }[]>([]);
+  const [filterPFLoading, setFilterPFLoading] = useState(false);
+  const [createPFProducts, setCreatePFProducts] = useState<{ product_id: string; name: string }[]>([]);
+  const [createPFLoading, setCreatePFLoading] = useState(false);
 
   // filters
   const [filters, setFilters] = useState<{
@@ -70,11 +70,32 @@ export default function ProductFranchisePage() {
   const [createForm, setCreateForm] = useState<CreateProductFranchiseDto>({
     ...DEFAULT_CREATE,
   });
-  const [creating, setCreating] = useState(false);
-  const [createFranchiseOpen, setCreateFranchiseOpen] = useState(false);
+  const [creating, setCreating] = useState(false);  const [createFranchiseOpen, setCreateFranchiseOpen] = useState(false);
   const [createFranchiseKeyword, setCreateFranchiseKeyword] = useState("");
   const [createProductOpen, setCreateProductOpen] = useState(false);
   const [createProductKeyword, setCreateProductKeyword] = useState("");
+
+  // portal refs for create modal dropdowns
+  const createFranchiseTriggerRef = useRef<HTMLButtonElement>(null);
+  const createFranchiseDropdownRef = useRef<HTMLDivElement>(null);
+  const [createFranchiseRect, setCreateFranchiseRect] = useState<DOMRect | null>(null);
+  const createProductTriggerRef = useRef<HTMLButtonElement>(null);
+  const createProductDropdownRef = useRef<HTMLDivElement>(null);
+  const [createProductRect, setCreateProductRect] = useState<DOMRect | null>(null);
+
+  const openCreateFranchise = useCallback(() => {
+    if (createFranchiseTriggerRef.current)
+      setCreateFranchiseRect(createFranchiseTriggerRef.current.getBoundingClientRect());
+    setCreateFranchiseOpen(true);
+  }, []);
+  const closeCreateFranchise = useCallback(() => { setCreateFranchiseOpen(false); setCreateFranchiseKeyword(""); }, []);
+
+  const openCreateProduct = useCallback(() => {
+    if (createProductTriggerRef.current)
+      setCreateProductRect(createProductTriggerRef.current.getBoundingClientRect());
+    setCreateProductOpen(true);
+  }, []);
+  const closeCreateProduct = useCallback(() => { setCreateProductOpen(false); setCreateProductKeyword(""); }, []);
 
   // detail
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -87,12 +108,6 @@ export default function ProductFranchisePage() {
   const [editPriceBase, setEditPriceBase] = useState<string>("");
   const [updating, setUpdating] = useState(false);
 
-  // Get products by franchise (API-08) quick panel
-  const [menuFranchiseId, setMenuFranchiseId] = useState("");
-  const [menuOnlyActive, setMenuOnlyActive] = useState(true);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuLoading, setMenuLoading] = useState(false);
-  const [menuItems, setMenuItems] = useState<ProductFranchiseApiResponse[] | null>(null);
 
   const hasRun = useRef(false);
   const isInitialized = useRef(false);
@@ -123,7 +138,11 @@ export default function ProductFranchisePage() {
     return franchises.filter((f) => (f.name || "").toLowerCase().includes(k) || (f.code || "").toLowerCase().includes(k));
   }, [franchises, franchiseKeyword]);
 
-  const productOptions = useMemo(() => products, [products]);
+  const productOptions = useMemo(() => {
+    if (!productKeyword.trim()) return filterPFProducts;
+    const k = productKeyword.trim().toLowerCase();
+    return filterPFProducts.filter((p) => p.name.toLowerCase().includes(k));
+  }, [filterPFProducts, productKeyword]);
 
   const createFranchiseOptions = useMemo(() => {
     if (!createFranchiseKeyword.trim()) return franchises;
@@ -131,13 +150,18 @@ export default function ProductFranchisePage() {
     return franchises.filter((f) => (f.name || "").toLowerCase().includes(k) || (f.code || "").toLowerCase().includes(k));
   }, [franchises, createFranchiseKeyword]);
 
-  const createProductOptions = useMemo(() => products, [products]);
+  const createProductOptions = useMemo(() => {
+    if (!createProductKeyword.trim()) return createPFProducts;
+    const k = createProductKeyword.trim().toLowerCase();
+    return createPFProducts.filter((p) => p.name.toLowerCase().includes(k));
+  }, [createPFProducts, createProductKeyword]);
 
   const productNameMap = useMemo(() => {
     const map: Record<string, string> = { ...productNameById };
-    products.forEach((p) => { map[p.id] = p.name; });
+    filterPFProducts.forEach((p) => { map[p.product_id] = p.name; });
+    createPFProducts.forEach((p) => { map[p.product_id] = p.name; });
     return map;
-  }, [products, productNameById]);
+  }, [productNameById, filterPFProducts, createPFProducts]);
 
   const franchiseNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -171,33 +195,6 @@ export default function ProductFranchisePage() {
       setFranchises(frs);
     } catch (err) {
       console.error("[ProductFranchise] loadSelects error:", err);
-    }
-  };
-
-  const loadProducts = async (keyword = "", page = 1, append = false) => {
-    setProductLoading(true);
-    try {
-      const dto: SearchProductDto = {
-        searchCondition: { keyword, is_active: "", is_deleted: false },
-        pageInfo: { pageNum: page, pageSize: 20 },
-      };
-      const res = await adminProductService.searchProducts(dto);
-      setProductPage(res.pageInfo.pageNum);
-      setProductTotalPages(res.pageInfo.totalPages);
-      setProducts((prev) => (append ? [...prev, ...res.data] : res.data));
-      // Warm cache for table rendering
-      setProductNameById((prev) => {
-        const next = { ...prev };
-        res.data.forEach((p) => {
-          if (p?.id && p?.name) next[p.id] = p.name;
-        });
-        return next;
-      });
-    } catch (err) {
-      console.error("[ProductFranchise] loadProducts error:", err);
-      showError("Không thể tải danh sách product");
-    } finally {
-      setProductLoading(false);
     }
   };
 
@@ -251,35 +248,55 @@ export default function ProductFranchisePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, productNameFailedIds, productNameMap]);
 
-  // Debounced product search for filter combobox
+  // Load products by franchise for filter bar (API-08)
   useEffect(() => {
-    if (!productOpen) return;
-    const t = window.setTimeout(() => {
-      loadProducts(productKeyword.trim(), 1, false);
-    }, 250);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productKeyword, productOpen]);
-
-  // Debounced product search for create modal combobox
-  useEffect(() => {
-    if (!createProductOpen) return;
-    const t = window.setTimeout(() => {
-      loadProducts(createProductKeyword.trim(), 1, false);
-    }, 250);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createProductKeyword, createProductOpen]);
-
-  // Initial product load when first open any product dropdown
-  useEffect(() => {
-    if (productOpen || createProductOpen) {
-      if (products.length === 0 && !productLoading) {
-        loadProducts("", 1, false);
-      }
+    if (!filters.franchise_id) {
+      setFilterPFProducts([]);
+      return;
     }
+    setFilterPFLoading(true);
+    adminProductFranchiseService
+      .getProductsByFranchise(filters.franchise_id, true)
+      .then((res) => {
+        const seen = new Set<string>();
+        const unique: { product_id: string; name: string }[] = [];
+        res.forEach((pf) => {
+          if (!seen.has(pf.product_id)) {
+            seen.add(pf.product_id);
+            unique.push({ product_id: pf.product_id, name: pf.product_name || pf.product_id });
+          }
+        });
+        setFilterPFProducts(unique);
+      })
+      .catch(() => showError("Không thể tải sản phẩm của franchise"))
+      .finally(() => setFilterPFLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productOpen, createProductOpen]);
+  }, [filters.franchise_id]);
+
+  // Load products by franchise for create modal (API-08)
+  useEffect(() => {
+    if (!createForm.franchise_id) {
+      setCreatePFProducts([]);
+      return;
+    }
+    setCreatePFLoading(true);
+    adminProductFranchiseService
+      .getProductsByFranchise(createForm.franchise_id, true)
+      .then((res) => {
+        const seen = new Set<string>();
+        const unique: { product_id: string; name: string }[] = [];
+        res.forEach((pf) => {
+          if (!seen.has(pf.product_id)) {
+            seen.add(pf.product_id);
+            unique.push({ product_id: pf.product_id, name: pf.product_name || pf.product_id });
+          }
+        });
+        setCreatePFProducts(unique);
+      })
+      .catch(() => showError("Không thể tải sản phẟm của franchise"))
+      .finally(() => setCreatePFLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createForm.franchise_id]);
 
   const load = async (pageNum = currentPage) => {
     setLoading(true);
@@ -306,12 +323,34 @@ export default function ProductFranchisePage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   useEffect(() => {
     if (!isInitialized.current) return;
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
+
+  // click-outside for create modal portal dropdowns
+  useEffect(() => {
+    if (!createFranchiseOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!createFranchiseTriggerRef.current?.contains(t) && !createFranchiseDropdownRef.current?.contains(t))
+        closeCreateFranchise();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [createFranchiseOpen, closeCreateFranchise]);
+
+  useEffect(() => {
+    if (!createProductOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!createProductTriggerRef.current?.contains(t) && !createProductDropdownRef.current?.contains(t))
+        closeCreateProduct();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [createProductOpen, closeCreateProduct]);
 
   const openCreate = () => {
     setCreateForm({ ...DEFAULT_CREATE });
@@ -407,10 +446,14 @@ export default function ProductFranchisePage() {
     }
   };
 
-  const handleToggleStatus = async (it: ProductFranchiseApiResponse) => {
-    const next = !it.is_active;
+  const handleToggleStatus = async (it: ProductFranchiseApiResponse) => {    const next = !it.is_active;
     const action = next ? "Bật bán" : "Tắt bán";
-    if (!await showConfirm(`${action} item này?`)) return;
+    if (!await showConfirm({
+      message: `Bạn có chắc muốn ${action.toLowerCase()} item này?`,
+      title: action,
+      variant: next ? "info" : "warning",
+      confirmText: action,
+    })) return;
     try {
       await adminProductFranchiseService.changeProductFranchiseStatus(it.id, next);
       showSuccess("Đã cập nhật trạng thái");
@@ -419,77 +462,54 @@ export default function ProductFranchisePage() {
       showError(err instanceof Error ? err.message : "Đổi trạng thái thất bại");
     }
   };
-
-  const loadMenuByFranchise = async () => {
-    if (!menuFranchiseId) { showError("Chọn franchise để xem menu"); return; }
-    setMenuLoading(true);
-    setMenuItems(null);
-    try {
-      const res = await adminProductFranchiseService.getProductsByFranchise(menuFranchiseId, menuOnlyActive);
-      setMenuItems(res);
-      setMenuOpen(true);
-    } catch (err: unknown) {
-      showError(err instanceof Error ? err.message : "Lấy menu theo franchise thất bại");
-    } finally {
-      setMenuLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Product Franchise</h1>
-          <p className="text-xs text-slate-600 sm:text-sm">Quản lý sản phẩm theo từng franchise (size/price/status)</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => load(1)} loading={loading}>Tải lại</Button>
-          <Button variant="outline" onClick={() => setMenuOpen(true)}>Menu theo Franchise</Button>
+        <div>          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Product Franchise</h1>
+          <p className="text-xs text-slate-600 sm:text-sm">Quản lý danh mục sản phẩm theo từng franchise (size/price/status)</p>
+        </div>        <div className="flex flex-wrap items-center gap-2">
           <Button onClick={openCreate}>+ Thêm sản phẩm</Button>
         </div>
-      </div>
-
-      {/* Filters */}
+      </div>      {/* Filters */}
       <div className="relative z-30 overflow-visible rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="relative overflow-visible grid gap-3 md:grid-cols-4">
+        <div className="relative overflow-visible flex flex-wrap items-end gap-3">
           {/* Franchise combobox */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 min-w-[180px] flex-1">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Franchise</label>
-            <div className="relative">
-              <button
+            <div className="relative">              <button
                 type="button"
                 onClick={() => setFranchiseOpen((o) => !o)}
-                className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-300/40"
+                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
               >
                 <span className="truncate">
                   {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
                 </span>
-                <svg className="ml-2 size-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
               {franchiseOpen && (
-                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
-                  <div className="border-b border-slate-200 px-3 py-2">
+                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
+                  <div className="border-b border-white/[0.12] px-3 py-2">
                     <input
                       autoFocus
                       value={franchiseKeyword}
                       onChange={(e) => setFranchiseKeyword(e.target.value)}
                       placeholder="Tìm theo tên hoặc mã..."
-                      className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-slate-400 focus:ring-1 focus:ring-slate-300/50"
+                      className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
                     />
                   </div>
                   <div className="max-h-64 overflow-y-auto py-1 text-sm">
                     <button
                       type="button"
                       onClick={() => {
-                        setFilters((f) => ({ ...f, franchise_id: "" }));
+                        setFilters((f) => ({ ...f, franchise_id: "", product_id: "" }));
                         setCurrentPage(1);
                         setFranchiseOpen(false);
                         setFranchiseKeyword("");
                       }}
                       className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
-                        !filters.franchise_id ? "bg-slate-100 text-slate-800" : "text-slate-600 hover:bg-slate-50"
+                        !filters.franchise_id ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"
                       }`}
                     >
                       -- Tất cả franchise --
@@ -501,13 +521,13 @@ export default function ProductFranchisePage() {
                           key={fr.value}
                           type="button"
                           onClick={() => {
-                            setFilters((f) => ({ ...f, franchise_id: fr.value }));
+                            setFilters((f) => ({ ...f, franchise_id: fr.value, product_id: "" }));
                             setCurrentPage(1);
                             setFranchiseOpen(false);
                             setFranchiseKeyword("");
                           }}
                           className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                            active ? "bg-slate-100 text-slate-800" : "text-slate-700 hover:bg-slate-50"
+                            active ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"
                           }`}
                         >
                           <span className="truncate">{fr.name} ({fr.code})</span>
@@ -515,39 +535,45 @@ export default function ProductFranchisePage() {
                       );
                     })}
                     {franchiseOptions.length === 0 && (
-                      <div className="px-3 py-2 text-xs text-slate-400">Không tìm thấy franchise</div>
+                      <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise</div>
                     )}
                   </div>
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Product combobox */}
-          <div className="space-y-1.5">
+          </div>          {/* Product combobox */}
+          <div className="min-w-[180px] flex-1 space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Product</label>
-            <div className="relative">
-              <button
+            <div className="relative">              <button
                 type="button"
+                disabled={!filters.franchise_id}
                 onClick={() => setProductOpen((o) => !o)}
-                className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-300/40"
+                className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm outline-none transition ${
+                  filters.franchise_id
+                    ? "border-white/[0.15] bg-slate-800 text-white/90 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    : "border-white/[0.08] bg-slate-800/60 text-white/30 cursor-not-allowed"
+                }`}
               >
                 <span className="truncate">
-                  {filters.product_id ? `${productNameMap[filters.product_id] || filters.product_id}` : "-- Tất cả product --"}
+                  {filters.product_id
+                    ? (productNameMap[filters.product_id] || filters.product_id)
+                    : filters.franchise_id
+                      ? "-- Tất cả product --"
+                      : "Chọn franchise trước"}
                 </span>
-                <svg className="ml-2 size-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              {productOpen && (
-                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
-                  <div className="border-b border-slate-200 px-3 py-2">
+              {productOpen && filters.franchise_id && (
+                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
+                  <div className="border-b border-white/[0.12] px-3 py-2">
                     <input
                       autoFocus
                       value={productKeyword}
                       onChange={(e) => setProductKeyword(e.target.value)}
-                      placeholder="Tìm theo tên hoặc SKU..."
-                      className="w-full rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs outline-none transition focus:border-slate-400 focus:ring-1 focus:ring-slate-300/50"
+                      placeholder="Tìm theo tên sản phẩm..."
+                      className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
                     />
                   </div>
                   <div className="max-h-64 overflow-y-auto py-1 text-sm">
@@ -560,107 +586,94 @@ export default function ProductFranchisePage() {
                         setProductKeyword("");
                       }}
                       className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
-                        !filters.product_id ? "bg-slate-100 text-slate-800" : "text-slate-600 hover:bg-slate-50"
+                        !filters.product_id ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"
                       }`}
                     >
                       -- Tất cả product --
                     </button>
+                    {filterPFLoading && (
+                      <div className="px-3 py-2 text-xs text-white/40">Đang tải...</div>
+                    )}
                     {productOptions.map((p) => {
-                      const active = filters.product_id === p.id;
+                      const active = filters.product_id === p.product_id;
                       return (
                         <button
-                          key={p.id}
+                          key={p.product_id}
                           type="button"
                           onClick={() => {
-                            setFilters((f) => ({ ...f, product_id: p.id }));
+                            setFilters((f) => ({ ...f, product_id: p.product_id }));
                             setCurrentPage(1);
                             setProductOpen(false);
                             setProductKeyword("");
                           }}
                           className={`flex w-full items-center px-3 py-2 text-left text-xs ${
-                            active ? "bg-slate-100 text-slate-800" : "text-slate-700 hover:bg-slate-50"
+                            active ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"
                           }`}
                         >
-                          <span className="truncate">{p.name} — {p.SKU}</span>
+                          <span className="truncate">{p.name}</span>
                         </button>
                       );
                     })}
-                    {productLoading && (
-                      <div className="px-3 py-2 text-xs text-slate-400">
-                        Đang tải...
-                      </div>
-                    )}
-                    {productOptions.length === 0 && (
-                      <div className="px-3 py-2 text-xs text-slate-400">Không tìm thấy product</div>
-                    )}
-                    {!productLoading && productOptions.length > 0 && productPage < productTotalPages && (
-                      <button
-                        type="button"
-                        onClick={() => loadProducts(productKeyword.trim(), productPage + 1, true)}
-                        className="flex w-full items-center justify-center px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-50"
-                      >
-                        Tải thêm
-                      </button>
+                    {!filterPFLoading && productOptions.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy product</div>
                     )}
                   </div>
                 </div>
               )}
             </div>
-          </div>
-
-          <div className="space-y-1.5">
+          </div>          <div className="min-w-[130px] space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Size</label>
             <select
               value={filters.size}
               onChange={(e) => { setFilters((f) => ({ ...f, size: e.target.value })); setCurrentPage(1); }}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
-              <option value="">-- Tất cả size --</option>
-              <option value="S">S</option>
-              <option value="M">M</option>
-              <option value="L">L</option>
-              <option value="XL">XL</option>
-              <option value="DEFAULT">DEFAULT</option>
+              <option value="" className="bg-slate-800">-- Tất cả size --</option>
+              <option value="S" className="bg-slate-800">S</option>
+              <option value="M" className="bg-slate-800">M</option>
+              <option value="L" className="bg-slate-800">L</option>
+              <option value="XL" className="bg-slate-800">XL</option>
+              <option value="DEFAULT" className="bg-slate-800">DEFAULT</option>
             </select>
           </div>
 
-          <div className="space-y-1.5">
+          <div className="min-w-[200px] space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Giá</label>
             <div className="flex gap-2">
               <input
                 value={filters.price_from}
                 onChange={(e) => { setFilters((f) => ({ ...f, price_from: e.target.value })); setCurrentPage(1); }}
                 placeholder="Từ"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 placeholder-white/40 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
               />
               <input
                 value={filters.price_to}
                 onChange={(e) => { setFilters((f) => ({ ...f, price_to: e.target.value })); setCurrentPage(1); }}
                 placeholder="Đến"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 placeholder-white/40 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
               />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">is_active</label>
+          <div className="min-w-[130px] space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</label>
             <select
               value={filters.is_active}
               onChange={(e) => { setFilters((f) => ({ ...f, is_active: e.target.value })); setCurrentPage(1); }}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             >
-              <option value="">Tất cả</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
+              <option value="" className="bg-slate-800">Tất cả</option>
+              <option value="true" className="bg-slate-800">Active</option>
+              <option value="false" className="bg-slate-800">Inactive</option>
             </select>
           </div>
 
-          <div className="space-y-1.5 md:col-span-2">
+          <div className="space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Khác</label>
-            <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
+            <label className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
               filters.is_deleted
-                ? "border-red-400 bg-red-50 text-red-700"
-                : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                ? "border-red-400 bg-red-900/40 text-red-300"
+                : "border-white/[0.15] bg-slate-800 text-white/60 hover:bg-slate-700"
             }`}>
               <input
                 type="checkbox"
@@ -833,53 +846,41 @@ export default function ProductFranchisePage() {
             </div>
 
             <form onSubmit={submitCreate} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-1.5">
+              <div className="grid gap-4 md:grid-cols-2">                <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-white/80">Franchise *</label>
                   <div className="relative">
                     <button
+                      ref={createFranchiseTriggerRef}
                       type="button"
-                      onClick={() => setCreateFranchiseOpen((o) => !o)}
-                      className="flex w-full items-center justify-between rounded-lg border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition border focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      onClick={() => createFranchiseOpen ? closeCreateFranchise() : openCreateFranchise()}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
                     >
-                      <span className="truncate">
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.franchise_id ? "#f1f5f9" : "#94a3b8" }}>
                         {createForm.franchise_id ? (franchiseNameMap[createForm.franchise_id] || createForm.franchise_id) : "-- Chọn franchise --"}
                       </span>
-                      <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      <svg style={{ width: 16, height: 16, flexShrink: 0, marginLeft: 8, color: "#94a3b8", transform: createFranchiseOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
-                    {createFranchiseOpen && (
-                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.12] bg-white/[0.08] shadow-lg" style={{ backdropFilter: "blur(40px) saturate(180%)", WebkitBackdropFilter: "blur(40px) saturate(180%)" }}>
-                        <div className="border-b border-white/[0.12] px-3 py-2">
-                          <input
-                            autoFocus
-                            value={createFranchiseKeyword}
-                            onChange={(e) => setCreateFranchiseKeyword(e.target.value)}
-                            placeholder="Tìm theo tên hoặc mã..."
-                            className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
-                          />
+
+                    {createFranchiseOpen && createFranchiseRect && ReactDOM.createPortal(
+                      <div ref={createFranchiseDropdownRef} style={{ position: "fixed", top: createFranchiseRect.bottom + 4, left: createFranchiseRect.left, width: createFranchiseRect.width, zIndex: 99999, background: "#1e293b", border: "1px solid #475569", borderRadius: 8, boxShadow: "0 10px 40px rgba(0,0,0,0.7)", overflow: "hidden" }}>
+                        <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
+                          <input autoFocus value={createFranchiseKeyword} onChange={(e) => setCreateFranchiseKeyword(e.target.value)} placeholder="Tìm theo tên hoặc mã..."
+                            style={{ width: "100%", boxSizing: "border-box", background: "#0f172a", border: "1px solid #475569", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#f1f5f9", outline: "none" }} />
                         </div>
-                        <div className="max-h-64 overflow-y-auto py-1 text-sm">
+                        <div style={{ maxHeight: 220, overflowY: "auto" }}>
                           {createFranchiseOptions.map((fr) => (
-                            <button
-                              key={fr.value}
-                              type="button"
-                              onClick={() => {
-                                setCreateForm((f) => ({ ...f, franchise_id: fr.value }));
-                                setCreateFranchiseOpen(false);
-                                setCreateFranchiseKeyword("");
-                              }}
-                              className="flex w-full items-center px-3 py-2 text-left text-xs text-white/80 hover:bg-white/[0.1]"
-                            >
-                              <span className="truncate">{fr.name} ({fr.code})</span>
+                            <button key={fr.value} type="button" onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => { setCreateForm((f) => ({ ...f, franchise_id: fr.value, product_id: "" })); closeCreateFranchise(); }}
+                              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", boxSizing: "border-box", background: createForm.franchise_id === fr.value ? "#334155" : "transparent", color: createForm.franchise_id === fr.value ? "#f1f5f9" : "#cbd5e1", fontSize: 13, border: "none", cursor: "pointer", textAlign: "left" }}>
+                              <span style={{ fontFamily: "monospace", color: "#64748b", fontSize: 10, flexShrink: 0 }}>{fr.code}</span>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fr.name}</span>
                             </button>
                           ))}
-                          {createFranchiseOptions.length === 0 && (
-                            <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise</div>
-                          )}
+                          {createFranchiseOptions.length === 0 && <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Không tìm thấy franchise</div>}
                         </div>
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
                 </div>
@@ -888,62 +889,38 @@ export default function ProductFranchisePage() {
                   <label className="text-sm font-semibold text-white/80">Product *</label>
                   <div className="relative">
                     <button
+                      ref={createProductTriggerRef}
                       type="button"
-                      onClick={() => setCreateProductOpen((o) => !o)}
-                      className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2.5 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      disabled={!createForm.franchise_id}
+                      onClick={() => createProductOpen ? closeCreateProduct() : openCreateProduct()}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: createForm.franchise_id ? "#1e293b" : "#0f172a", border: "1px solid #475569", borderRadius: 8, color: createForm.franchise_id ? "#f1f5f9" : "#475569", fontSize: 14, cursor: createForm.franchise_id ? "pointer" : "not-allowed", outline: "none", opacity: createForm.franchise_id ? 1 : 0.5 }}
                     >
-                      <span className="truncate">
-                        {createForm.product_id ? (productNameMap[createForm.product_id] || createForm.product_id) : "-- Chọn product --"}
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.product_id ? "#f1f5f9" : "#94a3b8" }}>
+                        {createPFLoading ? "Đang tải..." : createForm.product_id ? (productNameMap[createForm.product_id] || createForm.product_id) : createForm.franchise_id ? "-- Chọn product --" : "Chọn franchise trước"}
                       </span>
-                      <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      <svg style={{ width: 16, height: 16, flexShrink: 0, marginLeft: 8, color: "#94a3b8", transform: createProductOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
-                    {createProductOpen && (
-                      <div className="absolute left-0 right-0 z-30 mt-1 rounded-lg border border-white/[0.12] bg-white/[0.08] shadow-lg" style={{ backdropFilter: "blur(40px) saturate(180%)", WebkitBackdropFilter: "blur(40px) saturate(180%)" }}>
-                        <div className="border-b border-white/[0.12] px-3 py-2">
-                          <input
-                            autoFocus
-                            value={createProductKeyword}
-                            onChange={(e) => setCreateProductKeyword(e.target.value)}
-                            placeholder="Tìm theo tên hoặc SKU..."
-                            className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
-                          />
+
+                    {createProductOpen && createForm.franchise_id && createProductRect && ReactDOM.createPortal(
+                      <div ref={createProductDropdownRef} style={{ position: "fixed", top: createProductRect.bottom + 4, left: createProductRect.left, width: createProductRect.width, zIndex: 99999, background: "#1e293b", border: "1px solid #475569", borderRadius: 8, boxShadow: "0 10px 40px rgba(0,0,0,0.7)", overflow: "hidden" }}>
+                        <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
+                          <input autoFocus value={createProductKeyword} onChange={(e) => setCreateProductKeyword(e.target.value)} placeholder="Tìm theo tên sản phẩm..."
+                            style={{ width: "100%", boxSizing: "border-box", background: "#0f172a", border: "1px solid #475569", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#f1f5f9", outline: "none" }} />
                         </div>
-                        <div className="max-h-64 overflow-y-auto py-1 text-sm">
+                        <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                          {createPFLoading && <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Đang tải...</div>}
                           {createProductOptions.map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => {
-                                setCreateForm((f) => ({ ...f, product_id: p.id }));
-                                setCreateProductOpen(false);
-                                setCreateProductKeyword("");
-                              }}
-                              className="flex w-full items-center px-3 py-2 text-left text-xs text-white/80 hover:bg-white/[0.1]"
-                            >
-                              <span className="truncate">{p.name} — {p.SKU}</span>
+                            <button key={p.product_id} type="button" onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => { setCreateForm((f) => ({ ...f, product_id: p.product_id })); closeCreateProduct(); }}
+                              style={{ display: "flex", width: "100%", padding: "8px 12px", boxSizing: "border-box", background: createForm.product_id === p.product_id ? "#334155" : "transparent", color: createForm.product_id === p.product_id ? "#f1f5f9" : "#cbd5e1", fontSize: 13, border: "none", cursor: "pointer", textAlign: "left" }}>
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
                             </button>
                           ))}
-                          {productLoading && (
-                            <div className="px-3 py-2 text-xs text-white/40">
-                              Đang tải...
-                            </div>
-                          )}
-                          {createProductOptions.length === 0 && (
-                            <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy product</div>
-                          )}
-                          {!productLoading && createProductOptions.length > 0 && productPage < productTotalPages && (
-                            <button
-                              type="button"
-                              onClick={() => loadProducts(createProductKeyword.trim(), productPage + 1, true)}
-                              className="flex w-full items-center justify-center px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-white/[0.1]"
-                            >
-                              Tải thêm
-                            </button>
-                          )}
+                          {!createPFLoading && createProductOptions.length === 0 && <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>Không tìm thấy product</div>}
                         </div>
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
                 </div>
@@ -1099,101 +1076,7 @@ export default function ProductFranchisePage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Menu by franchise modal (API-08) */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-3xl rounded-2xl p-6" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
-          }}>
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-white/95">Menu theo Franchise</h2>
-                <p className="mt-0.5 text-xs text-white/50">Danh sách sản phẩm theo chi nhánh</p>
-              </div>
-              <button onClick={() => setMenuOpen(false)} className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1]">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Franchise</label>
-                <select
-                  value={menuFranchiseId}
-                  onChange={(e) => setMenuFranchiseId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                >
-                  <option value="">-- Chọn franchise --</option>
-                  {franchises.map((f) => (
-                    <option key={f.value} value={f.value}>{f.name} ({f.code})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">onlyActive</label>
-                <label className="mt-1 flex items-center gap-2 rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90">
-                  <input type="checkbox" checked={menuOnlyActive} onChange={(e) => setMenuOnlyActive(e.target.checked)} />
-                  Chỉ lấy item active
-                </label>
-              </div>
-            </div>
-
-            <div className="mt-3 flex gap-2">
-              <Button variant="outline" onClick={loadMenuByFranchise} loading={menuLoading}>Tải menu</Button>
-              <Button variant="outline" onClick={() => { setMenuItems(null); setMenuFranchiseId(""); }} disabled={menuLoading}>Reset</Button>
-            </div>
-
-            {menuItems && (
-              <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.12]">
-                <div className="bg-white/[0.06] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white/50">
-                  Kết quả ({menuItems.length})
-                </div>
-                <div className="divide-y divide-white/[0.08]">
-                  {menuItems.map((m) => (
-                    <div key={m.id} className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-white/95">
-                          {productNameMap[m.product_id] || "N/A"} • Size: {m.size}
-                        </p>
-                        <p className="text-xs text-white/50">
-                          Price: {Number(m.price_base).toLocaleString("vi-VN")} đ
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => openDetail(m.id)}
-                          className="rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/[0.1] hover:text-white"
-                        >
-                          Chi tiết
-                        </button>
-                        <button
-                          onClick={() => openEdit(m)}
-                          className="rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-1.5 text-xs font-semibold text-white/80 transition hover:bg-white/[0.1] hover:text-white"
-                        >
-                          Sửa
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {menuItems.length === 0 && (
-                    <div className="px-4 py-6 text-center text-sm text-white/50">Không có dữ liệu</div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+      )}    </div>
   );
 }
 

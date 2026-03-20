@@ -63,10 +63,22 @@ export function mapClientProductToMenuProduct(
     item: ClientProductListItem,
     franchiseId: string,
 ): MenuProduct {
-    const availableSizes = item.sizes.filter((s) => s.is_available);
+    type SizeWithPrice = {
+        price: number;
+        price_base?: number;
+        is_available?: boolean;
+        [k: string]: unknown;
+    };
+
+    // API có thể trả price_base thay vì price trong sizes
+    const sizesWithPrice: SizeWithPrice[] = (item.sizes || []).map((s: { price?: number; price_base?: number; is_available?: boolean; [k: string]: unknown }) => ({
+        ...s,
+        price: Number(s?.price ?? (s as any)?.price_base ?? 0),
+    }));
+    const availableSizes = sizesWithPrice.filter((s) => s.is_available);
     const cheapest = availableSizes.length > 0
-        ? availableSizes.reduce((min, s) => (s.price < min.price ? s : min), availableSizes[0])
-        : item.sizes[0];
+        ? availableSizes.reduce((min: { price: number }, s: { price: number }) => (s.price < min.price ? s : min), availableSizes[0])
+        : sizesWithPrice[0];
 
     return {
         id: hashStringToNumber(item.product_id),
@@ -86,13 +98,13 @@ export function mapClientProductToMenuProduct(
         _apiFranchiseId: franchiseId,
         _apiCategoryId: item.category_id,
         _apiCategoryName: item.category_name,
-        _apiSizes: item.sizes,
+        _apiSizes: sizesWithPrice,
     } as MenuProduct & {
         _apiProductId: string;
         _apiFranchiseId: string;
         _apiCategoryId: string;
         _apiCategoryName: string;
-        _apiSizes: typeof item.sizes;
+        _apiSizes: typeof sizesWithPrice;
     };
 }
 

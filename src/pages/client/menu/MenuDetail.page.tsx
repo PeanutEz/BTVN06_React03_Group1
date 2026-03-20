@@ -11,7 +11,11 @@ import { ROUTER_URL } from "@/routes/router.const";
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
-function toMenuProduct(detail: ClientProductDetailResponse, franchiseId: string): MenuProduct {
+function toMenuProduct(
+  detail: ClientProductDetailResponse,
+  franchiseId: string,
+  franchiseName?: string,
+): MenuProduct {
   const hashStr = (str: string) =>
     (str.split("").reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) | 0, 0) >>> 0);
   const available = detail.sizes.filter((s) => s.is_available);
@@ -32,13 +36,19 @@ function toMenuProduct(detail: ClientProductDetailResponse, franchiseId: string)
       isAvailable: available.length > 0,
       isFeatured: false,
     } as MenuProduct,
-    { _apiFranchiseId: franchiseId, _apiProductId: detail.product_id, _apiCategoryName: detail.category_name },
+    {
+      _apiFranchiseId: franchiseId,
+      _apiFranchiseName: franchiseName,
+      _apiProductId: detail.product_id,
+      _apiCategoryName: detail.category_name,
+      _apiSizes: detail.sizes,
+    },
   );
 }
 
 export default function MenuDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { selectedFranchiseId } = useDeliveryStore();
+  const { selectedFranchiseId, selectedFranchiseName } = useDeliveryStore();
 
   const [detail, setDetail] = useState<ClientProductDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +105,7 @@ export default function MenuDetailPage() {
   }
 
   const available = detail.sizes.filter((s) => s.is_available);
-  const menuProduct = toMenuProduct(detail, String(selectedFranchiseId));
+  const menuProduct = toMenuProduct(detail, String(selectedFranchiseId), selectedFranchiseName ?? undefined);
   const images = [detail.image_url, ...(detail.images_url ?? [])].filter(Boolean);
 
   return (

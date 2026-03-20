@@ -48,4 +48,36 @@ export const clientService = {
     );
     return response.data.data;
   },
+
+  // Get Topping Products by Franchise
+  // Fetch products from "Topping" category for a specific franchise
+  getToppingsByFranchise: async (franchiseId: string): Promise<ClientProductListItem[]> => {
+    try {
+      // First, get all categories to find "Topping" category ID
+      const categories = await clientService.getCategoriesByFranchise(franchiseId);
+      const norm = (s: string) =>
+        s
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
+
+      const toppingCategory = categories.find((cat) => norm(cat.category_name).includes("topping"));
+
+      if (!toppingCategory) {
+        console.warn("Topping category not found for franchise:", franchiseId);
+        return [];
+      }
+
+      // Then fetch products from that category
+      const products = await clientService.getProductsByFranchiseAndCategory(
+        franchiseId,
+        toppingCategory.category_id
+      );
+
+      return products;
+    } catch (error) {
+      console.error("Failed to fetch toppings:", error);
+      return [];
+    }
+  },
 };
