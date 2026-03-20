@@ -1,4 +1,5 @@
 import React from "react";
+import type { ErrorInfo } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { RouteChangeLoading } from "../components";
 import ScrollToTopOnNavigate from "../components/ui/ScrollToTopOnNavigate";
@@ -17,6 +18,41 @@ import RegisterPage from "../pages/client/auth/Register.page";
 import ResetPasswordPage from "../pages/client/auth/ResetPassword.page";
 import VerifyEmailPage from "../pages/client/auth/VerifyEmail.page";
 import AdminLoginPage from "../pages/admin/auth/Login.page";
+
+class AdminErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[AdminErrorBoundary] caught:", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-slate-900 text-white p-8">
+          <div className="rounded-2xl border border-red-500/30 bg-slate-800/90 p-8 max-w-lg w-full">
+            <p className="text-2xl font-bold text-red-400 mb-2">Lỗi trang</p>
+            <p className="text-slate-300 text-sm mb-4">{this.state.error.message}</p>
+            <button
+              onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+              className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
+            >
+              Tải lại trang
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
 const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
@@ -117,13 +153,19 @@ function AppRoutes() {
           <Route path={ROUTER_URL.VERIFY_EMAIL_ALT} element={<VerifyEmailPage />} />
 
           {/* Admin auth */}
-          <Route path={ROUTER_URL.ADMIN_LOGIN} element={<AdminLoginPage />} />
-
-          {/* Admin protected */}
+          <Route path={ROUTER_URL.ADMIN_LOGIN} element={<AdminLoginPage />} />          {/* Admin protected */}
           <Route element={<AdminGuard />}>
             <Route path={ROUTER_URL.ADMIN} element={<AdminLayout />}>
               {ADMIN_MENU.map((item) => (
-                <Route key={item.path} path={item.path} element={<item.component />} />
+                <Route
+                  key={item.path}
+                  path={item.path}
+                  element={
+                    <AdminErrorBoundary>
+                      <item.component />
+                    </AdminErrorBoundary>
+                  }
+                />
               ))}
             </Route>
           </Route>
