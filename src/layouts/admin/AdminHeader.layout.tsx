@@ -17,13 +17,27 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showSwitchContext, setShowSwitchContext] = useState(false);
-  const [isSwitching, setIsSwitching] = useState(false);
-
-  const activeContext = user?.active_context as { franchise_id?: string; franchise_name?: string; role?: string; scope?: string } | null;
+  const [isSwitching, setIsSwitching] = useState(false);  const activeContext = user?.active_context as { franchise_id?: string; franchise_name?: string; role?: string; scope?: string } | null;
   const currentRole = activeContext?.role || user?.role || "";
-  const currentFranchise = activeContext
-    ? (activeContext.franchise_name || "Hệ thống (Global)")
-    : (user?.roles?.find(r => r.franchise_id && r.franchise_name)?.franchise_name || null);
+  const activeFranchiseId = activeContext?.franchise_id ?? null;
+
+  // Tìm franchise_name: ưu tiên active_context, fallback tra ngược trong roles theo franchise_id
+  const currentFranchise = (() => {
+    // 1. active_context có franchise_name trực tiếp
+    if (activeContext?.franchise_name) return activeContext.franchise_name;
+    // 2. active_context có franchise_id → tra trong roles
+    if (activeFranchiseId) {
+      const matched = user?.roles?.find(r => r.franchise_id === activeFranchiseId);
+      if (matched?.franchise_name) return matched.franchise_name;
+    }
+    // 3. Không có active_context → lấy franchise đầu tiên trong roles có franchise_name
+    if (!activeContext) {
+      const firstFranchise = user?.roles?.find(r => r.franchise_id && r.franchise_name);
+      if (firstFranchise?.franchise_name) return firstFranchise.franchise_name;
+    }
+    // 4. Global / không xác định
+    return null;
+  })();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -89,13 +103,34 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
               className="size-10 rounded-xl object-cover shrink-0"
               style={{ border: "2px solid rgba(255,255,255,0.15)" }}
             />
-          )}
-          <div>
+          )}          <div>
             <h1 className="text-lg font-bold text-white">
               Hi, {displayName}!
             </h1>
             <p className="text-xs text-white/50">Chào mừng trở lại bảng điều khiển</p>
-          </div>
+          </div>          {/* Franchise badge — luôn hiển thị khi đã đăng nhập */}
+          {user && (
+            <div
+              className="hidden sm:flex items-center gap-2 rounded-xl px-3 py-1.5 cursor-default select-none"
+              style={{
+                background: "rgba(255,255,255,0.07)",
+                border: "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              <span className="relative flex size-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
+              </span>
+              <span className="text-xs font-semibold text-white/85 max-w-[160px] truncate">
+                {currentFranchise ?? "Hệ thống (Global)"}
+              </span>
+              {currentRole && (
+                <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/50 uppercase tracking-wide shrink-0">
+                  {currentRole}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: Notification + Settings (with dropdown) */}
@@ -197,14 +232,13 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
             )}
           </div>
         </div>
-      </header>
-
-      {showSwitchContext && user?.roles && (
+      </header>      {showSwitchContext && user?.roles && (
         <FranchisePickerModal
           roles={user.roles}
           loading={isSwitching}
           onSelect={handleSwitchContext}
           onClose={() => setShowSwitchContext(false)}
+          currentFranchiseId={activeFranchiseId}
         />
       )}
     </>

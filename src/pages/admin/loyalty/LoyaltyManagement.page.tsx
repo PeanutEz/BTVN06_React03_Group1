@@ -15,11 +15,13 @@ import {
   restoreLoyaltyRule,
 } from "../../../services/loyalty.service";
 import { showError, showSuccess } from "../../../utils";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function LoyaltyManagementPage() {
   const showConfirm = useConfirm();
+  const managerFranchiseId = useManagerFranchiseId();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<LoyaltyRule[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,7 +36,7 @@ export default function LoyaltyManagementPage() {
     is_active: string;
     is_deleted: boolean;
   }>({
-    franchise_id: "",
+    franchise_id: managerFranchiseId ?? "",
     is_active: "",
     is_deleted: false,
   });
@@ -108,12 +110,24 @@ export default function LoyaltyManagementPage() {
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
-    loadSelects();
-    load(1).finally(() => {
+    loadSelects();    load(1).finally(() => {
       isInitialized.current = true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+  useEffect(() => {
+    if (!managerFranchiseId) return;
+    setFilters(prev => ({ ...prev, franchise_id: managerFranchiseId }));
+  }, [managerFranchiseId]);
+
+  // Sync franchiseKeyword khi franchises load xong và đang là manager
+  useEffect(() => {
+    if (!managerFranchiseId || !franchises.length) return;
+    const found = franchises.find(f => f.value === managerFranchiseId);
+    if (found) setFranchiseKeyword(`${found.name} (${found.code})`);
+  }, [managerFranchiseId, franchises]);
 
   useEffect(() => {
     if (!isInitialized.current) return;
@@ -272,20 +286,30 @@ export default function LoyaltyManagementPage() {
         <div className="relative overflow-visible flex flex-wrap items-end gap-3">
           {/* Franchise combobox */}
           <div className="space-y-1.5 min-w-[220px] flex-1">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Franchise</label>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setFranchiseOpen((o) => !o)}
-                className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-              >
-                <span className="truncate">
-                  {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
-                </span>
-                <svg className="ml-2 size-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Franchise</label>            <div className="relative">
+              {managerFranchiseId ? (
+                <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-50 px-3 py-2 text-sm text-slate-800 cursor-not-allowed">
+                  <span className="truncate font-medium text-primary-700">
+                    {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
+                  </span>
+                  <svg className="ml-2 size-4 flex-shrink-0 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setFranchiseOpen((o) => !o)}
+                  className="flex w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                >
+                  <span className="truncate">
+                    {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
+                  </span>
+                  <svg className="ml-2 size-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
               {franchiseOpen && (
                 <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-slate-200 bg-white shadow-lg">
                   <div className="border-b border-slate-100 px-3 py-2">

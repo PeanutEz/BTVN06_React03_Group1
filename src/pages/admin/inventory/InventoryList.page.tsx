@@ -15,6 +15,7 @@ import type {
 import type { ProductFranchiseApiResponse } from "../../../models/product.model";
 import { showSuccess, showError } from "../../../utils";
 import * as XLSX from "xlsx";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -38,6 +39,7 @@ interface ImportPreviewRow {
 
 export default function InventoryListPage() {
   const showConfirm = useConfirm();
+  const managerFranchiseId = useManagerFranchiseId();
   const [items, setItems] = useState<InventoryApiResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,7 +47,7 @@ export default function InventoryListPage() {
   const [totalItems, setTotalItems] = useState(0);
 
   // Filters
-  const [searchFranchise, setSearchFranchise] = useState("");
+  const [searchFranchise, setSearchFranchise] = useState(managerFranchiseId ?? "");
   const [statusFilter, setStatusFilter] = useState("");
   const [isDeletedFilter, setIsDeletedFilter] = useState(false);
 
@@ -178,13 +180,28 @@ export default function InventoryListPage() {
 
   useEffect(() => {
     if (hasRun.current) return;
-    hasRun.current = true;
-    load("", 1, "", false).finally(() => {
+    hasRun.current = true;    const initFranchise = managerFranchiseId ?? "";
+    if (initFranchise) setSearchFranchise(initFranchise);
+    load(initFranchise, 1, "", false).finally(() => {
       isInitialized.current = true;
     });
     loadFranchises();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+  useEffect(() => {
+    if (!managerFranchiseId) return;
+    setSearchFranchise(managerFranchiseId);
+    // Sync franchiseKeyword sau khi franchiseOptions được load
+  }, [managerFranchiseId]);
+
+  // Sync franchiseKeyword khi options load xong và đang là manager
+  useEffect(() => {
+    if (!managerFranchiseId || !franchiseOptions.length) return;
+    const found = franchiseOptions.find(f => f.value === managerFranchiseId);
+    if (found) setFranchiseKeyword(found.name);
+  }, [managerFranchiseId, franchiseOptions]);
 
   useEffect(() => {
     if (!isInitialized.current) return;
@@ -852,76 +869,66 @@ export default function InventoryListPage() {
 
       {/* Filter Bar */}
       <div className="relative z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap gap-3">
-          <div
+        <div className="flex flex-wrap gap-3">          <div
             ref={franchiseComboRef}
             className="relative min-w-[180px] flex-1"
           >
-            <input
-              type="text"
-              placeholder="Tìm franchise..."
-              value={franchiseKeyword}
-              onChange={(e) => {
-                setFranchiseKeyword(e.target.value);
-                setSearchFranchise("");
-                setFranchiseComboOpen(true);
-              }}
-              onFocus={() => setFranchiseComboOpen(true)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            />
-            {searchFranchise && (
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
-                {
-                  franchiseOptions.find((f) => f.value === searchFranchise)
-                    ?.name
-                }
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchFranchise("");
-                    setFranchiseKeyword("");
-                  }}
-                  className="ml-0.5 text-primary-500 hover:text-primary-800"
-                >
-                  ✕
-                </button>
-              </span>
-            )}
-            {franchiseComboOpen && (
-              <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-                <div
-                  className="cursor-pointer px-3 py-2 text-sm text-slate-400 hover:bg-slate-50"
-                  onMouseDown={() => {
-                    setSearchFranchise("");
-                    setFranchiseKeyword("");
-                    setFranchiseComboOpen(false);
-                  }}
-                >
-                  Tất cả franchise
-                </div>
-                {filteredFranchiseOptions.length === 0 && (
-                  <p className="px-3 py-2 text-sm text-slate-400">
-                    Không tìm thấy
-                  </p>
-                )}
-                {filteredFranchiseOptions.map((f) => (
-                  <div
-                    key={f.value}
-                    onMouseDown={() => {
-                      setSearchFranchise(f.value);
-                      setFranchiseKeyword(f.name);
-                      setFranchiseComboOpen(false);
-                    }}
-                    className={`cursor-pointer px-3 py-2 text-sm hover:bg-primary-50 hover:text-primary-700 ${
-                      searchFranchise === f.value
-                        ? "bg-primary-50 font-medium text-primary-700"
-                        : "text-slate-700"
-                    }`}
-                  >
-                    {f.name}
-                  </div>
-                ))}
+            {managerFranchiseId ? (
+              <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-slate-800 cursor-not-allowed">
+                <span className="truncate font-medium text-primary-700">
+                  {franchiseOptions.find(f => f.value === searchFranchise)?.name || searchFranchise || "Franchise"}
+                </span>
+                <svg className="ml-2 size-4 flex-shrink-0 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
               </div>
+            ) : (
+              <>
+                <input
+                  type="text"
+                  placeholder="Tìm franchise..."
+                  value={franchiseKeyword}
+                  onChange={(e) => {
+                    setFranchiseKeyword(e.target.value);
+                    setSearchFranchise("");
+                    setFranchiseComboOpen(true);
+                  }}
+                  onFocus={() => setFranchiseComboOpen(true)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                />
+                {searchFranchise && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
+                    {franchiseOptions.find((f) => f.value === searchFranchise)?.name}
+                    <button
+                      type="button"
+                      onClick={() => { setSearchFranchise(""); setFranchiseKeyword(""); }}
+                      className="ml-0.5 text-primary-500 hover:text-primary-800"
+                    >✕</button>
+                  </span>
+                )}
+                {franchiseComboOpen && (
+                  <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                    <div
+                      className="cursor-pointer px-3 py-2 text-sm text-slate-400 hover:bg-slate-50"
+                      onMouseDown={() => { setSearchFranchise(""); setFranchiseKeyword(""); setFranchiseComboOpen(false); }}
+                    >
+                      Tất cả franchise
+                    </div>
+                    {filteredFranchiseOptions.length === 0 && (
+                      <p className="px-3 py-2 text-sm text-slate-400">Không tìm thấy</p>
+                    )}
+                    {filteredFranchiseOptions.map((f) => (
+                      <div
+                        key={f.value}
+                        onMouseDown={() => { setSearchFranchise(f.value); setFranchiseKeyword(f.name); setFranchiseComboOpen(false); }}
+                        className={`cursor-pointer px-3 py-2 text-sm hover:bg-primary-50 hover:text-primary-700 ${searchFranchise === f.value ? "bg-primary-50 font-medium text-primary-700" : "text-slate-700"}`}
+                      >
+                        {f.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
           <GlassSelect
