@@ -158,6 +158,15 @@ const adminNav: Array<{
       ),
     },
     {
+      label: "Deliveries",
+      to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DELIVERIES}`,
+      icon: (
+        <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5h1.5l1.125 3.375m-2.625-3.375L6.75 3h10.5l2.25 4.5h1.5m-1.5 0v9.75a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 16.25V7.5zM7.5 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm13.5 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+        </svg>
+      ),
+    },
+    {
       label: "Payments",
       to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PAYMENTS}`,
       icon: (
