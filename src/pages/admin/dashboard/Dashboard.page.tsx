@@ -338,12 +338,16 @@ const DashboardPage = () => {
             </Link>
           </div>
           {loyaltyOverview ? (
-            <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 flex-1 min-h-0">
               <div className="p-2 text-center flex flex-col justify-center" style={glassCardInner}>
                 <p className="text-[10px] text-white/50">Tổng</p>
                 <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.total_customers}</p>
               </div>
-              <div className="p-2 text-center flex flex-col justify-center" style={glassCardInner}>
+              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(249, 115, 22, 0.1)", borderColor: "rgba(249, 115, 22, 0.2)" }}>
+                <p className="text-[10px] text-orange-300">Đồng</p>
+                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.BRONZE}</p>
+              </div>
+              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(148, 163, 184, 0.1)", borderColor: "rgba(148, 163, 184, 0.2)" }}>
                 <p className="text-[10px] text-slate-300">Bạc</p>
                 <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.SILVER}</p>
               </div>
