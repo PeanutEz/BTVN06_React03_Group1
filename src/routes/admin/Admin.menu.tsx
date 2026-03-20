@@ -24,6 +24,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(() => import("../../pages/admin/user/User.page.tsx")),
   },
   {
+    label: "Roles",
+    path: ROUTER_URL.ADMIN_ROUTES.ROLES,
+    component: React.lazy(
+      () => import("../../pages/admin/role/RoleList.page.tsx"),
+    ),
+  },
+  {
     label: "User Franchise Roles",
     path: ROUTER_URL.ADMIN_ROUTES.USER_FRANCHISE_ROLES,
     component: React.lazy(
@@ -164,13 +171,6 @@ export const ADMIN_MENU: AdminMenuItem[] = [
       () => import("../../pages/admin/franchise/CategoryFranchise.page.tsx"),
     ),
     isEnd: true,
-  },
-  {
-    label: "Roles",
-    path: ROUTER_URL.ADMIN_ROUTES.ROLES,
-    component: React.lazy(
-      () => import("../../pages/admin/role/RoleList.page.tsx"),
-    ),
   },
   {
     label: "Profile",

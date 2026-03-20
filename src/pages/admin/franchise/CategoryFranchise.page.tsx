@@ -8,6 +8,7 @@ import { fetchFranchiseSelect, type FranchiseSelectItem } from "../../../service
 import type { CategoryFranchiseApiResponse, CategorySelectItem } from "../../../models/product.model";
 import { showError, showSuccess } from "../../../utils";
 import Pagination from "../../../components/ui/Pagination";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const PAGE_SIZE = 10;
 
@@ -44,25 +45,32 @@ function PortalCombobox({ value, placeholder, options, onChange, allLabel = "-- 
   }, [options, keyword]);
 
   const selectedLabel = options.find(o => o.value === value)?.label;
-
   return (
     <>
-      <button
-        ref={triggerRef}
-        type="button"
-        disabled={disabled}
-        onClick={() => {
-          setRect(triggerRef.current?.getBoundingClientRect() ?? null);
-          setOpen(o => !o);
-        }}
-        className="flex w-full items-center justify-between rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-left text-sm text-white outline-none transition hover:bg-white/15 disabled:opacity-50"
-      >
-        <span className="truncate">{value ? (selectedLabel ?? value) : allLabel}</span>
-        <svg className={`ml-2 size-4 shrink-0 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && rect && ReactDOM.createPortal(
+      {disabled ? (
+        <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed">
+          <span className="truncate font-medium">{value ? (selectedLabel ?? value) : allLabel}</span>
+          <svg className="ml-2 size-4 shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+      ) : (
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => {
+            setRect(triggerRef.current?.getBoundingClientRect() ?? null);
+            setOpen(o => !o);
+          }}
+          className="flex w-full items-center justify-between rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-left text-sm text-white outline-none transition hover:bg-white/15"
+        >
+          <span className="truncate">{value ? (selectedLabel ?? value) : allLabel}</span>
+          <svg className={`ml-2 size-4 shrink-0 text-white/40 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      )}
+      {open && !disabled && rect && ReactDOM.createPortal(
         <div
           ref={dropRef}
           style={{ position: "fixed", top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 200), zIndex: 99999, background: "rgba(15,23,42,0.97)", backdropFilter: "blur(16px)" }}
@@ -95,6 +103,7 @@ function PortalCombobox({ value, placeholder, options, onChange, allLabel = "-- 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CategoryFranchisePage() {
   const showConfirm = useConfirm();
+  const managerFranchiseId = useManagerFranchiseId();
   const params = useParams<{ id?: string; franchiseId?: string }>();
   const routeFranchiseId = params.franchiseId ?? params.id;
   const isStandalone = !routeFranchiseId;
@@ -105,8 +114,8 @@ export default function CategoryFranchisePage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Filters
-  const [selectedFranchiseId, setSelectedFranchiseId] = useState(routeFranchiseId ?? "");
+  // Filters — nếu là manager thì lock vào franchise của họ
+  const [selectedFranchiseId, setSelectedFranchiseId] = useState(routeFranchiseId ?? managerFranchiseId ?? "");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [filterDeleted, setFilterDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -116,7 +125,7 @@ export default function CategoryFranchisePage() {
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
-  const [createFranchiseId, setCreateFranchiseId] = useState(routeFranchiseId ?? "");
+  const [createFranchiseId, setCreateFranchiseId] = useState(routeFranchiseId ?? managerFranchiseId ?? "");
   const [createCategoryId, setCreateCategoryId] = useState("");
   const [createDisplayOrder, setCreateDisplayOrder] = useState(1);
 
@@ -130,11 +139,17 @@ export default function CategoryFranchisePage() {
     franchises.map(f => ({ value: f.value, label: `${f.name} (${f.code})` })), [franchises]);
   const categoryOptions = useMemo(() =>
     categories.map(c => ({ value: c.value, label: `${c.name} (${c.code})` })), [categories]);
-
   useEffect(() => {
     fetchFranchiseSelect().then(setFranchises).catch(() => {});
     categoryService.getSelectCategories().then(setCategories).catch(() => {});
   }, []);
+
+  // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+  useEffect(() => {
+    if (!managerFranchiseId) return;
+    if (!routeFranchiseId) setSelectedFranchiseId(managerFranchiseId);
+    setCreateFranchiseId(managerFranchiseId);
+  }, [managerFranchiseId]);
 
   const load = async (page = 1, fid = franchiseId) => {
     if (!fid) { setItems([]); setTotalItems(0); setTotalPages(1); return; }
@@ -231,12 +246,12 @@ export default function CategoryFranchisePage() {
 
       {/* Filters */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <div className="flex flex-wrap gap-3 items-end">
-          {isStandalone && (
+        <div className="flex flex-wrap gap-3 items-end">          {isStandalone && (
             <div className="space-y-1.5 min-w-[220px]">
               <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Franchise</label>
               <PortalCombobox value={selectedFranchiseId} placeholder="Tìm franchise..." options={franchiseOptions}
-                onChange={v => { setSelectedFranchiseId(v); setCurrentPage(1); }} allLabel="-- Chọn franchise --" />
+                onChange={v => { setSelectedFranchiseId(v); setCurrentPage(1); }} allLabel="-- Chọn franchise --"
+                disabled={!!managerFranchiseId} />
             </div>
           )}
           <div className="space-y-1.5 flex-1 min-w-[180px]">
@@ -364,11 +379,16 @@ export default function CategoryFranchisePage() {
             </tbody>
           </table>
         </div>
-      )}
-
-      {/* Pagination */}
+      )}      {/* Pagination */}
       {franchiseId && totalPages > 1 && (
-        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={p => load(p)} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={p => load(p)}
+          totalItems={totalItems}
+          itemsPerPage={PAGE_SIZE}
+          variant="dark"
+        />
       )}
 
       {/* Create Modal */}

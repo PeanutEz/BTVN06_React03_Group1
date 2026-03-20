@@ -5,6 +5,7 @@ import { shiftAssignmentService } from "../../../services/shift-assignment.servi
 import { searchShifts } from "../../../services/shift.service";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import { getUsersByFranchiseId } from "../../../services/user-franchise-role.service";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 import type {
     ShiftAssignment,
@@ -24,6 +25,7 @@ const DEFAULT_FORM: CreateShiftAssignmentDto = {
 };
 
 export default function ShiftAssignmentPage() {
+    const managerFranchiseId = useManagerFranchiseId();
     const [data, setData] = useState<ShiftAssignment[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -40,7 +42,7 @@ export default function ShiftAssignmentPage() {
     const [franchises, setFranchises] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);    const [searchName, setSearchName] = useState("");
     const [searchNameApplied, setSearchNameApplied] = useState("");
-    const [filterFranchise, setFilterFranchise] = useState("");
+    const [filterFranchise, setFilterFranchise] = useState(managerFranchiseId ?? "");
     const [filterStatus, setFilterStatus] = useState("");
 
     // franchise combobox (filter)
@@ -180,14 +182,32 @@ export default function ShiftAssignmentPage() {
         if (hasRun.current) return;
         hasRun.current = true;
 
-        load(1);
+        const initFranchise = managerFranchiseId ?? "";
+        if (initFranchise) setFilterFranchise(initFranchise);
+        load(1, searchNameApplied, initFranchise, filterStatus);
         loadShifts();
         loadFranchises();
-    }, []);
+    }, []);    // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+    useEffect(() => {
+        if (!managerFranchiseId) return;
+        setFilterFranchise(managerFranchiseId);
+        load(1, searchNameApplied, managerFranchiseId, filterStatus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [managerFranchiseId]);
+
+    // Sync franchiseKeyword khi options load xong và đang là manager
+    useEffect(() => {
+        if (!managerFranchiseId || !franchises.length) return;
+        const found = franchises.find(f => f.value === managerFranchiseId);
+        if (found) setFranchiseKeyword(`${found.name} (${found.code})`);
+    }, [managerFranchiseId, franchises]);
+
     useEffect(() => {
         setForm(prev => ({ ...prev, work_date: "" }));
         setWorkDates([]);
-    }, [mode]);    useEffect(() => {
+    }, [mode]);
+
+    useEffect(() => {
         setCurrentPage(1);
     }, [searchNameApplied, filterFranchise, filterStatus]);
 
@@ -396,20 +416,30 @@ export default function ShiftAssignmentPage() {
                     <div className="min-w-[200px]" ref={franchiseComboRef}>
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Franchise
-                        </label>
-                        <div className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setFranchiseComboOpen((o) => !o)}
-                                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                            >
-                                <span className="truncate">
-                                    {filterFranchise ? (franchiseMap[filterFranchise] || filterFranchise) : "-- Tất cả --"}
-                                </span>
-                                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
+                        </label>                        <div className="relative">
+                            {managerFranchiseId ? (
+                                <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed">
+                                    <span className="truncate font-medium">
+                                        {filterFranchise ? (franchiseMap[filterFranchise] || filterFranchise) : "-- Tất cả --"}
+                                    </span>
+                                    <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setFranchiseComboOpen((o) => !o)}
+                                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                                >
+                                    <span className="truncate">
+                                        {filterFranchise ? (franchiseMap[filterFranchise] || filterFranchise) : "-- Tất cả --"}
+                                    </span>
+                                    <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                            )}
                             {franchiseComboOpen && (
                                 <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
                                     <div className="border-b border-white/[0.12] px-3 py-2">

@@ -17,6 +17,7 @@ import type {
   ProductWithCategoriesResponse,
 } from "../../../models/product.model";
 import { showError, showSuccess } from "../../../utils";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -43,6 +44,7 @@ const getApiErrorMessage = (err: unknown, fallback: string) => {
 };
 
 export default function ProductCategoryFranchisePage() {
+  const managerFranchiseId = useManagerFranchiseId();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ProductCategoryFranchiseApiResponse[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -56,7 +58,6 @@ export default function ProductCategoryFranchisePage() {
   const [_productFranchises, setProductFranchises] = useState<
     ProductFranchiseApiResponse[]
   >([]);
-
   const [filters, setFilters] = useState<{
     franchise_id: string;
     category_id: string;
@@ -64,7 +65,7 @@ export default function ProductCategoryFranchisePage() {
     is_active: string;
     is_deleted: boolean;
   }>({
-    franchise_id: "",
+    franchise_id: managerFranchiseId ?? "",
     category_id: "",
     product_id: "",
     is_active: "",
@@ -216,7 +217,6 @@ export default function ProductCategoryFranchisePage() {
       console.error("[PCF] loadSelects error:", err);
     }
   };
-
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
@@ -226,6 +226,19 @@ export default function ProductCategoryFranchisePage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+  useEffect(() => {
+    if (!managerFranchiseId) return;
+    setFilters(prev => ({ ...prev, franchise_id: managerFranchiseId }));
+  }, [managerFranchiseId]);
+
+  // Sync filterFranchiseKeyword khi franchises load xong và đang là manager
+  useEffect(() => {
+    if (!managerFranchiseId || !franchises.length) return;
+    const found = franchises.find(f => f.value === managerFranchiseId);
+    if (found) setFilterFranchiseKeyword(`${found.name} (${found.code})`);
+  }, [managerFranchiseId, franchises]);
 
   useEffect(() => {
     if (!isInitialized.current) return;
@@ -275,9 +288,7 @@ export default function ProductCategoryFranchisePage() {
       setDetailLoading(false);
     }
   };
-
   const handleDelete = async (it: ProductCategoryFranchiseApiResponse) => {
-    if (!confirm("Bạn có chắc muốn xóa item này?")) return;
     try {
       await productCategoryFranchiseService.deleteProductCategoryFranchise(
         it.id,
@@ -288,9 +299,7 @@ export default function ProductCategoryFranchisePage() {
       showError(getApiErrorMessage(err, "Xóa thất bại"));
     }
   };
-
   const handleRestore = async (it: ProductCategoryFranchiseApiResponse) => {
-    if (!confirm("Khôi phục item này?")) return;
     try {
       await productCategoryFranchiseService.restoreProductCategoryFranchise(
         it.id,
@@ -304,9 +313,7 @@ export default function ProductCategoryFranchisePage() {
 
   const handleToggleStatus = async (
     it: ProductCategoryFranchiseApiResponse,
-  ) => {
-    const next = !it.is_active;
-    if (!confirm(`${next ? "Bật" : "Tắt"} item này?`)) return;
+  ) => {    const next = !it.is_active;
     try {
       await productCategoryFranchiseService.changeProductCategoryFranchiseStatus(
         it.id,
@@ -396,70 +403,101 @@ export default function ProductCategoryFranchisePage() {
           </Button>
         </div>
       </div>      {/* Filters */}
-      <div className="relative z-20 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-        <div className="flex flex-wrap gap-3 items-end">
+      <div className="relative z-20 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {/* Franchise portal combobox */}
-          <div className="space-y-1.5 min-w-[200px]">
-            <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
+          <div className="space-y-2">            <label className="block text-xs font-semibold uppercase tracking-widest text-white/40">
               Franchise
             </label>
-            <button
-              ref={filterFranchiseTriggerRef}
-              type="button"
-              onClick={() => {
-                const rect = filterFranchiseTriggerRef.current?.getBoundingClientRect() ?? null;
-                setFilterFranchiseRect(rect);
-                setFilterFranchiseOpen((o) => !o);
-              }}
-              className="flex w-full items-center justify-between rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-left text-sm text-white outline-none transition hover:bg-white/15"
-            >
-              <span className="truncate">
-                {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả --"}
-              </span>
-              <svg
-                className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${filterFranchiseOpen ? "rotate-180" : ""}`}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            {managerFranchiseId ? (
+              <div className="flex w-full items-center justify-between rounded-xl border border-primary-500/50 bg-primary-500/10 px-4 py-2.5 text-sm text-white cursor-not-allowed">
+                <span className="truncate font-medium">
+                  {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
+                </span>
+                <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+            ) : (
+              <button
+                ref={filterFranchiseTriggerRef}
+                type="button"
+                onClick={() => {
+                  const rect = filterFranchiseTriggerRef.current?.getBoundingClientRect() ?? null;
+                  setFilterFranchiseRect(rect);
+                  setFilterFranchiseOpen((o) => !o);
+                }}
+                className="flex w-full items-center justify-between rounded-xl border border-white/15 bg-white/8 px-4 py-2.5 text-left text-sm text-white outline-none transition hover:bg-white/15 hover:border-white/25"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          </div>          {/* Status select */}
-          <div className="space-y-1.5 min-w-[160px]">
-            <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
+                <span className="truncate">
+                  {filters.franchise_id ? (franchiseNameMap[filters.franchise_id] || filters.franchise_id) : "-- Tất cả franchise --"}
+                </span>
+                <svg
+                  className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${filterFranchiseOpen ? "rotate-180" : ""}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Category filter */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-widest text-white/40">
+              Danh mục
+            </label>
+            <select
+              value={filters.category_id}
+              onChange={(e) => setFilters((f) => ({ ...f, category_id: e.target.value }))}
+              className="w-full rounded-xl border border-white/15 bg-white/8 px-4 py-2.5 text-sm text-white outline-none transition hover:bg-white/15 hover:border-white/25 focus:border-primary-500/60"
+            >
+              <option value="" className="bg-slate-900">-- Tất cả danh mục --</option>
+              {categoryFranchises.map((cf) => (
+                <option key={cf.id} value={cf.category_id ?? cf.id} className="bg-slate-900">
+                  {cf.category_name ?? cf.category_code ?? cf.id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status select */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-widest text-white/40">
               Trạng thái
             </label>
             <select
               value={filters.is_active}
               onChange={(e) => setFilters((f) => ({ ...f, is_active: e.target.value }))}
-              className="w-full rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-white outline-none transition hover:bg-white/15 focus:border-primary-500"
+              className="w-full rounded-xl border border-white/15 bg-white/8 px-4 py-2.5 text-sm text-white outline-none transition hover:bg-white/15 hover:border-white/25 focus:border-primary-500/60"
             >
-              <option value="" className="bg-slate-800">-- Tất cả --</option>
-              <option value="true" className="bg-slate-800">Active</option>
-              <option value="false" className="bg-slate-800">Inactive</option>
+              <option value="" className="bg-slate-900">-- Tất cả --</option>
+              <option value="true" className="bg-slate-900">Active</option>
+              <option value="false" className="bg-slate-900">Inactive</option>
             </select>
           </div>
 
           {/* Đã xóa checkbox */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-white/50 block">
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-widest text-white/40">
               &nbsp;
             </label>
-            <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
+            <label className={`flex h-[42px] cursor-pointer select-none items-center gap-2.5 rounded-xl border px-4 text-sm font-medium transition-colors ${
               filters.is_deleted
-                ? "border-red-400/60 bg-red-500/20 text-red-300"
-                : "border-white/15 bg-white/10 text-white/70 hover:bg-white/15"
+                ? "border-red-400/50 bg-red-500/15 text-red-300"
+                : "border-white/15 bg-white/8 text-white/60 hover:bg-white/15 hover:border-white/25"
             }`}>
               <input
                 type="checkbox"
                 checked={filters.is_deleted}
                 onChange={(e) => setFilters((f) => ({ ...f, is_deleted: e.target.checked }))}
-                className="accent-red-500"
+                className="accent-red-500 size-4"
               />
-              <span className="font-medium">Đã xóa</span>
+              Đã xóa
             </label>
           </div>
         </div>
-      </div>      {/* Portal: filter franchise dropdown */}      {filterFranchiseOpen && filterFranchiseRect && ReactDOM.createPortal(
+      </div>{/* Portal: filter franchise dropdown */}      {filterFranchiseOpen && filterFranchiseRect && ReactDOM.createPortal(
         <div
           ref={filterFranchiseDropRef}
           className="rounded-xl border border-white/15 shadow-2xl overflow-hidden"
@@ -577,12 +615,14 @@ export default function ProductCategoryFranchisePage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
-                      </button>
-                      <button
+                      </button>                      <button
                         title={it.is_active ? "Tắt" : "Bật"}
                         onClick={() => handleToggleStatus(it)}
+                        disabled={it.is_deleted}
                         className={`inline-flex items-center justify-center size-8 rounded-lg border transition-colors ${
-                          it.is_active
+                          it.is_deleted
+                            ? "hidden"
+                            : it.is_active
                             ? "border-amber-400/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
                             : "border-emerald-400/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
                         }`}
@@ -603,7 +643,7 @@ export default function ProductCategoryFranchisePage() {
                           setReorderItem(it);
                           setNewPosition(String(it.display_order));
                         }}
-                        className="inline-flex items-center justify-center size-8 rounded-lg border border-blue-400/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                        className={`inline-flex items-center justify-center size-8 rounded-lg border border-blue-400/40 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors ${it.is_deleted ? "hidden" : ""}`}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
