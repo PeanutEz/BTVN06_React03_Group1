@@ -2,12 +2,12 @@ import type {
   LoyaltyRule, 
   LoyaltyTransaction, 
   LoyaltyTransactionType,
-  LoyaltyOverview 
+  LoyaltyOverview
 } from "../models/loyalty.model";
-import { DEFAULT_LOYALTY_RULE } from "../models/loyalty.model";
+
+import apiClient from "./api.client";
 
 // Mock data
-let currentRule: LoyaltyRule = { ...DEFAULT_LOYALTY_RULE };
 
 const mockLoyaltyTransactions: LoyaltyTransaction[] = [
   {
@@ -70,15 +70,66 @@ const mockLoyaltyTransactions: LoyaltyTransaction[] = [
   },
 ];
 
-export const fetchLoyaltyRule = async (): Promise<LoyaltyRule> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return currentRule;
+export const searchLoyaltyRules = async (
+  payload: any
+): Promise<{ items: LoyaltyRule[]; pageInfo: any }> => {
+  try {
+    const response = await apiClient.post("/loyalty-rules/search", payload);
+    const rData = response.data?.data;
+    
+    // Some endpoints return flat arrays in data, others nest inside data.items
+    const items = Array.isArray(rData) ? rData : (rData?.items || []);
+    const pageInfo = response.data?.pageInfo || rData?.pageInfo || { totalItems: 0, totalPages: 1, pageNum: 1, pageSize: 10 };
+    
+    return { items, pageInfo };
+  } catch (error) {
+    console.error("searchLoyaltyRules error:", error);
+    throw error;
+  }
 };
 
-export const updateLoyaltyRule = async (rule: LoyaltyRule): Promise<LoyaltyRule> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  currentRule = { ...rule };
-  return currentRule;
+export const getLoyaltyRuleById = async (id: string): Promise<LoyaltyRule> => {
+  try {
+    const response = await apiClient.get(`/loyalty-rules/${id}`);
+    return response.data?.data;
+  } catch (error) {
+    console.error("getLoyaltyRuleById error:", error);
+    throw error;
+  }
+};
+
+export const createLoyaltyRule = async (rule: Partial<LoyaltyRule>): Promise<LoyaltyRule> => {
+  try {
+    const response = await apiClient.post(`/loyalty-rules`, rule);
+    return response.data?.data;
+  } catch (error) {
+    console.error("createLoyaltyRule error:", error);
+    throw error;
+  }
+};
+
+export const updateLoyaltyRule = async (id: string, rule: Partial<LoyaltyRule>): Promise<LoyaltyRule> => {
+  try {
+    const response = await apiClient.put(`/loyalty-rules/${id}`, rule);
+    return response.data?.data;
+  } catch (error) {
+    console.error("updateLoyaltyRule error:", error);
+    throw error;
+  }
+};
+
+// Toggle active status (usually done via PUT with full or partial payload)
+export const changeLoyaltyRuleStatus = async (id: string, nextStatus: boolean, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+  return updateLoyaltyRule(id, { ...existingRule, is_active: nextStatus });
+};
+
+// Delete rule (soft delete if supported, or via PUT)
+export const deleteLoyaltyRule = async (id: string, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+  return updateLoyaltyRule(id, { ...existingRule, is_deleted: true });
+};
+
+export const restoreLoyaltyRule = async (id: string, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+  return updateLoyaltyRule(id, { ...existingRule, is_deleted: false });
 };
 
 export const fetchLoyaltyTransactions = async (): Promise<LoyaltyTransaction[]> => {
@@ -146,7 +197,8 @@ export const fetchLoyaltyOverview = async (): Promise<LoyaltyOverview> => {
   return {
     total_customers: 156,
     customers_by_tier: {
-      SILVER: 98,
+      BRONZE: 12,
+      SILVER: 86,
       GOLD: 42,
       PLATINUM: 16,
     },
