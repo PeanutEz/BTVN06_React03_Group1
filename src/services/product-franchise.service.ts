@@ -132,16 +132,17 @@ export const adminProductFranchiseService = {
   },
 
   // PRODUCT-FRANCHISE-08 — Get Products by Franchise
-  // GET /api/product-franchises/franchise/:franchiseId?onlyActive=true
+  // GET /api/product-franchises/franchise/:franchiseId?onlyActive=true&productId=
   getProductsByFranchise: async (
     franchiseId: string,
     onlyActive = true,
+    productId?: string,
   ): Promise<ProductFranchiseApiResponse[]> => {
     const response = await apiClient.get<{
       success: boolean;
       data: ProductFranchiseApiResponse[];
     }>(`/product-franchises/franchise/${franchiseId}`, {
-      params: { onlyActive },
+      params: { onlyActive, ...(productId ? { productId } : {}) },
     });
     return response.data.data;
   },

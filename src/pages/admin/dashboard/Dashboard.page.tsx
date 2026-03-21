@@ -7,6 +7,7 @@ import { fetchStores } from "../../../services/store.service";
 import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
 import { adminInventoryService } from "../../../services/inventory.service";
 import type { OrderDisplay } from "../../../models/order.model";
+import { ORDER_STATUS_LABELS } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
@@ -29,6 +30,21 @@ type LowStockItem = {
   alert_threshold: number;
   franchise_id: string;
   store_name?: string;
+};
+
+const glassCard: React.CSSProperties = {
+  background: "rgba(255, 255, 255, 0.06)",
+  backdropFilter: "blur(16px) saturate(140%)",
+  WebkitBackdropFilter: "blur(16px) saturate(140%)",
+  border: "1px solid rgba(255, 255, 255, 0.12)",
+  borderRadius: "16px",
+  boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+};
+
+const glassCardInner: React.CSSProperties = {
+  background: "rgba(255, 255, 255, 0.05)",
+  border: "1px solid rgba(255, 255, 255, 0.08)",
+  borderRadius: "10px",
 };
 
 const DashboardPage = () => {
@@ -58,8 +74,6 @@ const DashboardPage = () => {
         fetchStores(),
         fetchLoyaltyOverview(),
       ]);
-      console.log("STORES:", stores);
-
       const completedPayments = payments.filter(
         (p) => p.status === "COMPLETED"
       );
@@ -96,8 +110,6 @@ const DashboardPage = () => {
 
       const pendingOrders = orders.filter((o) => o.status === "DRAFT" || o.status === "CONFIRMED").length;
       const completedOrders = orders.filter((o) => o.status === "COMPLETED").length;
-      console.log("ORDERS DATA:", orders);
-      console.log("ORDER ITEMS:", orders[0]?.items);
       const productMap: Record<string, TopProduct> = {};
 
       orders
@@ -180,350 +192,251 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <p className="text-slate-500">Đang tải...</p>
+      <div className="flex h-full items-center justify-center">
+        <p className="text-white/60 text-lg">Đang tải...</p>
       </div>
     );
   }
 
+  const statusColor = (s: string) =>
+    s === "COMPLETED" ? { bg: "rgba(74,222,128,0.15)", text: "text-green-300" }
+      : s === "CONFIRMED" ? { bg: "rgba(96,165,250,0.15)", text: "text-blue-300" }
+        : s === "PREPARING" ? { bg: "rgba(250,204,21,0.15)", text: "text-yellow-300" }
+          : s === "CANCELLED" ? { bg: "rgba(248,113,113,0.15)", text: "text-red-300" }
+            : { bg: "rgba(255,255,255,0.08)", text: "text-white/60" };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">WBS Coffee - Dashboard</h1>
-        <p className="text-sm text-slate-600">Tổng quan hệ thống quản lý chuỗi cửa hàng</p>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-blue-100 p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-blue-700">Tổng đơn hàng</p>
-              <p className="mt-2 text-3xl font-bold text-blue-900">{stats.totalOrders}</p>
-            </div>
-            <svg
-              className="size-12 text-blue-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-              />
-            </svg>
-          </div>
-          <div className="mt-4 flex gap-4 text-xs">
-            <span className="text-yellow-700">
-              ⏳ Chờ xử lý: <strong>{stats.pendingOrders}</strong>
-            </span>
-            <span className="text-green-700">
-              ✓ Hoàn thành: <strong>{stats.completedOrders}</strong>
-            </span>
-          </div>
+    <div className="h-full flex flex-col gap-3 overflow-hidden">
+      {/* Row 1: Title + 4 Stats */}
+      <div className="shrink-0 flex items-center gap-3">
+        <div className="shrink-0 mr-2">
+          <h1 className="text-lg font-bold text-white leading-tight">Dashboard</h1>
+          <p className="text-[11px] text-white/50">Tổng quan hệ thống</p>
         </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-green-50 to-green-100 p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-green-700">Doanh thu</p>
-              <p className="mt-2 text-2xl font-bold text-green-900">
-                {formatCurrency(stats.totalRevenue)}
-              </p>
+        {/* Stat cards */}
+        <div className="flex-1 grid grid-cols-4 gap-2.5">
+          <div className="px-3 py-2.5" style={glassCard}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-blue-300">Đơn hàng</p>
+                <p className="text-xl font-bold text-white leading-tight">{stats.totalOrders}</p>
+              </div>
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(96, 165, 250, 0.15)" }}>
+                <svg className="size-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </div>
             </div>
-            <svg
-              className="size-12 text-green-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+            <div className="mt-1 flex gap-2 text-[10px]">
+              <span className="text-yellow-300/80">Chờ: <strong>{stats.pendingOrders}</strong></span>
+              <span className="text-green-300/80">Xong: <strong>{stats.completedOrders}</strong></span>
+            </div>
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-purple-50 to-purple-100 p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-purple-700">Khách hàng</p>
-              <p className="mt-2 text-3xl font-bold text-purple-900">{stats.totalCustomers}</p>
+          <div className="px-3 py-2.5" style={glassCard}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-green-300">Doanh thu</p>
+                <p className="text-lg font-bold text-white leading-tight">{formatCurrency(stats.totalRevenue)}</p>
+              </div>
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(74, 222, 128, 0.15)" }}>
+                <svg className="size-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
             </div>
-            <svg
-              className="size-12 text-purple-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-orange-50 to-orange-100 p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-orange-700">Cửa hàng</p>
-              <p className="mt-2 text-3xl font-bold text-orange-900">{stats.totalStores}</p>
+          <div className="px-3 py-2.5" style={glassCard}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-purple-300">Khách hàng</p>
+                <p className="text-xl font-bold text-white leading-tight">{stats.totalCustomers}</p>
+              </div>
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(168, 85, 247, 0.15)" }}>
+                <svg className="size-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
             </div>
-            <svg
-              className="size-12 text-orange-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
+          </div>
+          <div className="px-3 py-2.5" style={glassCard}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-orange-300">Cửa hàng</p>
+                <p className="text-xl font-bold text-white leading-tight">{stats.totalStores}</p>
+              </div>
+              <div className="flex items-center justify-center w-9 h-9 rounded-xl" style={{ background: "rgba(251, 146, 60, 0.15)" }}>
+                <svg className="size-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Loyalty Overview */}
-      {loyaltyOverview && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Chương trình thành viên</h2>
-            <Link
-              to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.LOYALTY}`}
-              className="text-sm font-semibold text-primary-600 hover:text-primary-700"
-            >
-              Xem chi tiết →
+      {/* Row 2: Chart + Top Products — takes ~50% */}
+      <div className="flex gap-3 min-h-0" style={{ flex: "1 1 50%" }}>
+        {/* Revenue Chart */}
+        <div className="flex-[2] min-w-0 p-4 flex flex-col" style={glassCard}>
+          <h3 className="text-sm font-semibold text-white mb-2 shrink-0">Doanh thu theo ngày</h3>
+          <div className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueChartData}>
+                <XAxis dataKey="date" stroke="rgba(255,255,255,0.3)" tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 10 }} />
+                <YAxis stroke="rgba(255,255,255,0.3)" tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 10 }} width={50} />
+                <Tooltip
+                  contentStyle={{
+                    background: "rgba(15, 23, 42, 0.85)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: "10px",
+                    color: "#fff",
+                    fontSize: 12,
+                  }}
+                />
+                <Line type="monotone" dataKey="revenue" stroke="#60a5fa" strokeWidth={2.5} dot={{ fill: "#60a5fa", stroke: "#1e3a5f", strokeWidth: 2, r: 3 }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Top Products */}
+        <div className="flex-[1] min-w-0 p-4 flex flex-col" style={glassCard}>
+          <h3 className="text-sm font-semibold text-white mb-2 shrink-0">Top sản phẩm bán chạy</h3>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-white/40" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                  <th className="pb-1.5">#</th>
+                  <th className="pb-1.5">Sản phẩm</th>
+                  <th className="pb-1.5">Bán</th>
+                  <th className="pb-1.5">Doanh thu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topProducts.map((p: any, i: number) => (
+                  <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <td className="py-1.5 text-white/50">{i + 1}</td>
+                    <td className="py-1.5 font-medium text-white truncate max-w-[120px]">{p.name}</td>
+                    <td className="py-1.5 text-white/70">{p.sold}</td>
+                    <td className="py-1.5 font-semibold text-green-400">{formatCurrency(p.revenue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 3: Loyalty + Low Stock + Recent Orders — takes ~50% */}
+      <div className="flex gap-3 min-h-0" style={{ flex: "1 1 50%" }}>
+        {/* Loyalty */}
+        <div className="flex-[1] min-w-0 p-4 flex flex-col" style={glassCard}>
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            <h3 className="text-sm font-semibold text-white">Thành viên</h3>
+            <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.LOYALTY}`} className="text-[10px] font-semibold text-primary-400 hover:text-primary-300">
+              Chi tiết →
             </Link>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="rounded-lg bg-slate-50 p-4 text-center">
-              <p className="text-sm text-slate-600">Tổng thành viên</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">
-                {loyaltyOverview.total_customers}
-              </p>
+          {loyaltyOverview ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 flex-1 min-h-0">
+              <div className="p-2 text-center flex flex-col justify-center" style={glassCardInner}>
+                <p className="text-[10px] text-white/50">Tổng</p>
+                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.total_customers}</p>
+              </div>
+              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(249, 115, 22, 0.1)", borderColor: "rgba(249, 115, 22, 0.2)" }}>
+                <p className="text-[10px] text-orange-300">Đồng</p>
+                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.BRONZE}</p>
+              </div>
+              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(148, 163, 184, 0.1)", borderColor: "rgba(148, 163, 184, 0.2)" }}>
+                <p className="text-[10px] text-slate-300">Bạc</p>
+                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.SILVER}</p>
+              </div>
+              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(234, 179, 8, 0.1)", borderColor: "rgba(234, 179, 8, 0.2)" }}>
+                <p className="text-[10px] text-yellow-300">Vàng</p>
+                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.GOLD}</p>
+              </div>
+              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(168, 85, 247, 0.1)", borderColor: "rgba(168, 85, 247, 0.2)" }}>
+                <p className="text-[10px] text-purple-300">Bạch Kim</p>
+                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.PLATINUM}</p>
+              </div>
             </div>
-            <div className="rounded-lg bg-gray-50 p-4 text-center">
-              <p className="text-sm text-gray-700">Hạng Bạc</p>
-              <p className="mt-1 text-2xl font-bold text-gray-900">
-                {loyaltyOverview.customers_by_tier.SILVER}
-              </p>
+          ) : (
+            <p className="text-xs text-white/40">Không có dữ liệu</p>
+          )}
+        </div>
+
+        {/* Low Stock */}
+        <div className="flex-[1] min-w-0 p-4 flex flex-col" style={{ ...glassCard, borderColor: "rgba(248, 113, 113, 0.2)", background: "rgba(239, 68, 68, 0.04)" }}>
+          <h3 className="text-sm font-semibold text-red-300 mb-2 shrink-0">Tồn kho thấp</h3>
+          {lowStocks.length === 0 ? (
+            <p className="text-xs text-white/40">Không có cảnh báo</p>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-white/40" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                    <th className="pb-1.5">Store</th>
+                    <th className="pb-1.5">SP</th>
+                    <th className="pb-1.5">SL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lowStocks.slice(0, 5).map((item) => (
+                    <tr key={item._id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <td className="py-1.5 font-medium text-white truncate max-w-[80px]">{item.store_name}</td>
+                      <td className="py-1.5 text-white/60 truncate max-w-[80px]" title={item.product_franchise_id}>{item.product_franchise_id?.slice(0, 8) || "N/A"}</td>
+                      <td className="py-1.5 text-red-400 font-semibold">{item.quantity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="rounded-lg bg-yellow-50 p-4 text-center">
-              <p className="text-sm text-yellow-700">Hạng Vàng</p>
-              <p className="mt-1 text-2xl font-bold text-yellow-900">
-                {loyaltyOverview.customers_by_tier.GOLD}
-              </p>
-            </div>
-            <div className="rounded-lg bg-purple-50 p-4 text-center">
-              <p className="text-sm text-purple-700">Hạng Bạch Kim</p>
-              <p className="mt-1 text-2xl font-bold text-purple-900">
-                {loyaltyOverview.customers_by_tier.PLATINUM}
-              </p>
-            </div>
+          )}
+        </div>
+
+        {/* Recent Orders */}
+        <div className="flex-[2] min-w-0 p-4 flex flex-col" style={glassCard}>
+          <div className="flex items-center justify-between mb-2 shrink-0">
+            <h3 className="text-sm font-semibold text-white">Đơn hàng gần đây</h3>
+            <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`} className="text-[10px] font-semibold text-primary-400 hover:text-primary-300">
+              Xem tất cả →
+            </Link>
           </div>
-        </div>
-      )}
-
-      {/* CHART + TOP PRODUCT */}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* REVENUE CHART */}
-
-        <div className="lg:col-span-2 rounded-2xl border bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold">
-            Doanh thu theo ngày
-          </h3>
-
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={revenueChartData}>
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="revenue"
-                stroke="#2563eb"
-                strokeWidth={3}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* TOP PRODUCTS */}
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-lg font-semibold">
-            Top sản phẩm bán chạy
-          </h3>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b text-left text-slate-500">
-                  <th className="pb-3">#</th>
-                  <th className="pb-3">Sản phẩm</th>
-                  <th className="pb-3">Đã bán</th>
-                  <th className="pb-3">Doanh thu</th>
+                <tr className="text-left text-white/40" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                  <th className="pb-1.5">Mã đơn</th>
+                  <th className="pb-1.5">Cửa hàng</th>
+                  <th className="pb-1.5">Khách</th>
+                  <th className="pb-1.5">Tổng tiền</th>
+                  <th className="pb-1.5">TT</th>
                 </tr>
               </thead>
-
               <tbody>
-                {topProducts.map((product: any, index: number) => (
-                  <tr
-                    key={index}
-                    className="border-b last:border-none hover:bg-slate-50"
-                  >
-                    <td className="py-3">{index + 1}</td>
-
-                    <td className="py-3 font-medium">
-                      {product.name}
-                    </td>
-
-                    <td className="py-3">
-                      {product.sold}
-                    </td>
-
-                    <td className="py-3 font-semibold text-green-700">
-                      {formatCurrency(product.revenue)}
-                    </td>
-                  </tr>
-                ))}
+                {recentOrders.map((order) => {
+                  const sc = statusColor(order.status);
+                  return (
+                    <tr key={order.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <td className="py-1.5">
+                        <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${order.id}`} className="font-semibold text-primary-400 hover:underline">
+                          {order.code}
+                        </Link>
+                      </td>
+                      <td className="py-1.5 text-white/60 truncate max-w-[80px]">{order.franchise?.code || 'N/A'}</td>
+                      <td className="py-1.5 text-white/60 truncate max-w-[80px]">{order.customer?.name || 'N/A'}</td>
+                      <td className="py-1.5 font-semibold text-white">{formatCurrency(order.total_amount)}</td>
+                      <td className="py-1.5">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.text}`} style={{ background: sc.bg }}>
+                          {ORDER_STATUS_LABELS[order.status]}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
-
-      {/* Low Stock Alert */}
-      <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-red-700">
-          ⚠️ Cảnh báo tồn kho thấp
-        </h2>
-
-        {lowStocks.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            Không có sản phẩm nào sắp hết hàng
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-slate-500">
-                  <th className="pb-3">#</th>
-                  <th className="pb-3">Store</th>
-                  <th className="pb-3">Product Franchise ID</th>
-                  <th className="pb-3">Tồn kho</th>
-                  <th className="pb-3">Ngưỡng cảnh báo</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {lowStocks.map((item, index) => (
-                  <tr key={item._id} className="border-b hover:bg-red-50">
-                    <td className="py-3">{index + 1}</td>
-
-                    <td className="py-3 font-medium">
-                      {item.store_name}
-                    </td>
-
-                    <td className="py-3">
-                      {item.product_franchise_id}
-                    </td>
-
-                    <td className="py-3 text-red-600 font-semibold">
-                      {item.quantity}
-                    </td>
-
-                    <td className="py-3">
-                      {item.alert_threshold}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Recent Orders */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Đơn hàng gần đây</h2>
-          <Link
-            to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`}
-            className="text-sm font-semibold text-primary-600 hover:text-primary-700"
-          >
-            Xem tất cả →
-          </Link>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                  Mã đơn
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                  Cửa hàng
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                  Khách hàng
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                  Tổng tiền
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">
-                  Trạng thái
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {recentOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${order.id}`}
-                      className="font-semibold text-primary-600 hover:underline"
-                    >
-                      {order.code}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">{order.franchise?.code || 'N/A'}</td>
-                  <td className="px-4 py-3 text-slate-700">{order.customer?.name || 'N/A'}</td>
-                  <td className="px-4 py-3 font-semibold text-slate-900">
-                    {formatCurrency(order.total_amount)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${order.status === "COMPLETED"
-                        ? "bg-green-100 text-green-700"
-                        : order.status === "CONFIRMED"
-                          ? "bg-blue-100 text-blue-700"
-                          : order.status === "PREPARING"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : order.status === "CANCELLED"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-gray-100 text-gray-700"
-                        }`}
-                    >
-                      {order.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

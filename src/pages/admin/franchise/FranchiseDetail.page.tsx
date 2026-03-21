@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { Button } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import type { ApiFranchise } from "../../../services/store.service";
 import { getFranchiseById, deleteFranchise, changeFranchiseStatus } from "../../../services/store.service";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -12,7 +12,25 @@ import type { UserFranchiseRole } from "../../../services/user-franchise-role.se
 import { fetchUsers, fetchRoles } from "../../../services/user.service";
 import type { ApiUser, RoleSelectItem } from "../../../services/user.service";
 
+const getRoleBadge = (code: string) => {
+  switch (code?.toUpperCase()) {
+    case "ADMIN":
+      return { cls: "bg-red-500/20 text-red-300 border border-red-500/40", dot: "bg-red-400" };
+    case "MANAGER":
+      return { cls: "bg-amber-500/20 text-amber-300 border border-amber-500/40", dot: "bg-amber-400" };
+    case "STAFF":
+      return { cls: "bg-blue-500/20 text-blue-300 border border-blue-500/40", dot: "bg-blue-400" };
+    case "SHIPPER":
+      return { cls: "bg-violet-500/20 text-violet-300 border border-violet-500/40", dot: "bg-violet-400" };
+    case "USER":
+      return { cls: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40", dot: "bg-emerald-400" };
+    default:
+      return { cls: "bg-slate-500/20 text-slate-300 border border-slate-500/40", dot: "bg-slate-400" };
+  }
+};
+
 const FranchiseDetailPage = () => {
+  const showConfirm = useConfirm();
   const { id } = useParams();
   const [franchise, setFranchise] = useState<ApiFranchise | null>(null);
   const [loading, setLoading] = useState(false);
@@ -133,17 +151,13 @@ const FranchiseDetailPage = () => {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Chi tiết Franchise</h1>
           <p className="text-xs sm:text-sm text-slate-600">Thông tin chi nhánh & tóm tắt tồn kho</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => navigate(`/${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.FRANCHISE_EDIT.replace(":id", id!)}`)}>
-            Chỉnh sửa
-          </Button>
+        </div>        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             className="text-red-600 border-red-200 hover:bg-red-50"
             onClick={async () => {
               if (!id) return;
-              if (!window.confirm("Bạn có chắc muốn xóa franchise này?")) return;
+              if (!await showConfirm({ message: "Bạn có chắc muốn xóa franchise này?", title: "Xóa franchise", variant: "danger", confirmText: "Xóa" })) return;
               try {
                 await deleteFranchise(id);
                 showSuccess("Xóa franchise thành công");
@@ -164,10 +178,14 @@ const FranchiseDetailPage = () => {
               }
               loading={togglingStatus}
               onClick={async () => {
-                if (!id || !franchise) return;
-                const newStatus = !franchise.is_active;
-                const action = newStatus ? "kích hoạt" : "ngừng hoạt động";
-                if (!window.confirm(`Bạn có chắc muốn ${action} franchise này?`)) return;
+                if (!id || !franchise) return;                const newStatus = !franchise.is_active;
+                const action = newStatus ? "Kích hoạt" : "Ngừng hoạt động";
+                if (!await showConfirm({
+                  message: `Bạn có chắc muốn ${action.toLowerCase()} franchise này?`,
+                  title: `${action} franchise`,
+                  variant: newStatus ? "info" : "warning",
+                  confirmText: action,
+                })) return;
                 setTogglingStatus(true);
                 try {
                   await changeFranchiseStatus(id, newStatus);
@@ -296,14 +314,18 @@ const FranchiseDetailPage = () => {
                     <td className="py-2.5 pr-4 font-medium text-slate-900">{u.user_name || "—"}</td>
                     <td className="py-2.5 pr-4 text-slate-500">{u.user_email}</td>
                     <td className="py-2.5 pr-4">
-                      <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-700">
-                        {u.role_name} ({u.role_code})
+                      {(() => { const b = getRoleBadge(u.role_code); return (
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${b.cls}`}>
+                        <span className={`size-1.5 rounded-full shrink-0 ${b.dot}`} />
+                        {u.role_name}
                       </span>
+                      ); })()}
                     </td>
                     <td className="py-2.5">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        u.is_active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        u.is_active ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-slate-100 text-slate-500"
                       }`}>
+                        {u.is_active && <span className="size-1.5 rounded-full shrink-0 bg-emerald-400" />}
                         {u.is_active ? "Active" : "Inactive"}
                       </span>
                     </td>
@@ -317,19 +339,29 @@ const FranchiseDetailPage = () => {
 
       {/* Assign User Modal */}
       {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Gán User vào Franchise</h2>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Franchise: <span className="font-semibold text-slate-700">{franchise?.name}</span>
-                  {" "}—{" "}<span className="font-mono text-slate-400">{franchise?.code}</span>
+                <h2 className="text-lg font-bold text-white/95">Gán User vào Franchise</h2>
+                <p className="mt-0.5 text-xs text-white/50">
+                  Franchise: <span className="font-semibold text-white/80">{franchise?.name}</span>
+                  {" "}—{" "}<span className="font-mono text-white/40">{franchise?.code}</span>
                 </p>
               </div>
               <button
                 onClick={() => setShowAssignModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -339,12 +371,12 @@ const FranchiseDetailPage = () => {
 
             <form onSubmit={handleAssignSubmit} className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">User <span className="text-red-500">*</span></label>
+                <label className="text-sm font-semibold text-white/80">User <span className="text-red-400">*</span></label>
                 <select
                   required
                   value={assignForm.user_id}
                   onChange={(e) => setAssignForm((f) => ({ ...f, user_id: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
                 >
                   <option value="">-- Chọn user --</option>
                   {allUsers.map((u) => (
@@ -356,12 +388,12 @@ const FranchiseDetailPage = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">Role <span className="text-red-500">*</span></label>
+                <label className="text-sm font-semibold text-white/80">Role <span className="text-red-400">*</span></label>
                 <select
                   required
                   value={assignForm.role_id}
                   onChange={(e) => setAssignForm((f) => ({ ...f, role_id: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
                 >
                   <option value="">-- Chọn role --</option>
                   {roles.map((r) => (
@@ -372,8 +404,9 @@ const FranchiseDetailPage = () => {
                 </select>
               </div>
 
-              <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-600">
-                Franchise ID: <span className="font-mono text-xs text-slate-500">{id}</span>
+              <div className="rounded-lg border border-white/[0.12] bg-white/[0.06] px-4 py-2.5 text-sm text-white/70">
+                Franchise: <span className="font-semibold text-white/80">{franchise?.name}</span>
+                {" "}—{" "}<span className="font-mono text-xs text-white/50">{franchise?.code}</span>
               </div>
 
               <div className="flex gap-3 pt-1">
@@ -385,9 +418,14 @@ const FranchiseDetailPage = () => {
                   {assignSubmitting && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
                   {assignSubmitting ? "Đang lưu..." : "Xác nhận"}
                 </button>
-                <Button type="button" variant="outline" onClick={() => setShowAssignModal(false)} disabled={assignSubmitting} className="flex-1">
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(false)}
+                  disabled={assignSubmitting}
+                  className="flex-1 rounded-lg border border-white/[0.15] px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.1] hover:text-white disabled:opacity-60"
+                >
                   Hủy
-                </Button>
+                </button>
               </div>
             </form>
           </div>
@@ -398,4 +436,3 @@ const FranchiseDetailPage = () => {
 };
 
 export default FranchiseDetailPage;
-

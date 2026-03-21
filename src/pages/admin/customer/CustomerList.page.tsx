@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "../../../components";
+import { Button, GlassSelect, useConfirm } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
   createCustomer,
@@ -43,6 +43,7 @@ function AvatarCell({ name, url }: { name: string; url?: string }) {
 }
 
 const CustomerListPage = () => {
+  const showConfirm = useConfirm();
   const [customers, setCustomers] = useState<CustomerDisplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -58,7 +59,8 @@ const CustomerListPage = () => {
 
   // Modal
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "", phone: "", is_active: true });
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", password: "", is_active: true });
+  const [showPassword, setShowPassword] = useState(false);
   const [detailCustomerId, setDetailCustomerId] = useState<string | null>(null);
 
   // keep latest search params in ref to avoid stale closures
@@ -102,18 +104,20 @@ const CustomerListPage = () => {
   const handlePageChange = (page: number) => {
     loadPage(page, searchRef.current.keyword, searchRef.current.activeFilter);
   };
-
   const handleOpenModal = () => {
-    setFormData({ name: "", email: "", phone: "", is_active: true });
+    setFormData({ name: "", email: "", phone: "", password: "", is_active: true });
+    setShowPassword(false);
     setShowModal(true);
   };
 
   const handleDelete = async (id: string, name: string, email?: string) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa khách hàng "${name}" không?`)) return;
+    if (!await showConfirm({ message: `Bạn có chắc muốn xóa khách hàng "${name}" không?`, variant: "danger" })) return;
     try {
       await deleteCustomer(id);
       showSuccess(`Xóa khách hàng${email ? ` ${email}` : ` ${name}`} thành công`);
-      loadPage(currentPage, searchRef.current.keyword, searchRef.current.activeFilter);
+      const nextPage = customers.length <= 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      setCurrentPage(nextPage);
+      loadPage(nextPage, searchRef.current.keyword, searchRef.current.activeFilter);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Có lỗi xảy ra";
       showError(msg);
@@ -131,9 +135,12 @@ const CustomerListPage = () => {
       showError(msg);
     }
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.password.length < 8) {
+      showError("Mật khẩu phải có ít nhất 8 ký tự");
+      return;
+    }
     setSubmitting(true);
     try {
       await createCustomer({ ...formData, is_deleted: false });
@@ -180,15 +187,16 @@ const CustomerListPage = () => {
             />
           </div>
 
-          <select
+          <GlassSelect
             value={activeFilter}
-            onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 min-w-[140px]"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="true">Hoạt động</option>
-            <option value="false">Ngưng hoạt động</option>
-          </select>
+            onChange={(v) => setActiveFilter(v as ActiveFilter)}
+            className="min-w-[140px]"
+            options={[
+              { value: "", label: "Tất cả trạng thái" },
+              { value: "true", label: "Hoạt động" },
+              { value: "false", label: "Ngưng hoạt động" },
+            ]}
+          />
 
           <div className="flex gap-2">
             <Button onClick={handleSearch} size="sm" loading={loading}>
@@ -237,7 +245,6 @@ const CustomerListPage = () => {
                       <AvatarCell name={customer.name} url={customer.avatar_url} />
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-900 truncate">{customer.name}</p>
-                        <p className="text-xs text-slate-400 font-mono truncate">{customer.id.slice(-8)}</p>
                       </div>
                     </div>
                   </td>
@@ -354,17 +361,31 @@ const CustomerListPage = () => {
 
       {/* Create / Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl animate-slide-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/25"
+            onClick={() => setShowModal(false)}
+           
+          />
+          <div
+            className="relative w-full max-w-lg rounded-2xl animate-slide-in"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
             {/* Modal header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-              <h2 className="text-lg font-bold text-slate-900">
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
+              <h2 className="text-lg font-bold text-white/95">
                 Thêm khách hàng mới
               </h2>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition"
               >
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -376,42 +397,70 @@ const CustomerListPage = () => {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Họ tên *</label>
+                  <label className="text-sm font-semibold text-white/80">Họ tên <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     required
                     placeholder="Nguyễn Văn A"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Email</label>
+                  <label className="text-sm font-semibold text-white/80">Email</label>
                   <input
                     type="email"
                     placeholder="email@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Số điện thoại *</label>
+                </div>                <div className="space-y-1.5">
+                  <label className="text-sm font-semibold text-white/80">Số điện thoại <span className="text-red-400">*</span></label>
                   <input
                     type="tel"
                     required
                     placeholder="09xxxxxxxx"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
 
                 <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Trạng thái</label>
+                  <label className="text-sm font-semibold text-white/80">Mật khẩu <span className="text-red-400">*</span></label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      placeholder="Tối thiểu 8 ký tự"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 pr-10 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                    >
+                      {showPassword ? (
+                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="text-sm font-semibold text-white/80">Trạng thái</label>
                   <div className="flex gap-3">
                     {[{ val: true, label: "Hoạt động" }, { val: false, label: "Ngưng hoạt động" }].map(({ val, label }) => (
                       <label key={String(val)} className="flex items-center gap-2 cursor-pointer">
@@ -422,7 +471,7 @@ const CustomerListPage = () => {
                           onChange={() => setFormData({ ...formData, is_active: val })}
                           className="accent-primary-500"
                         />
-                        <span className="text-sm text-slate-700">{label}</span>
+                        <span className="text-sm text-white/80">{label}</span>
                       </label>
                     ))}
                   </div>
@@ -438,7 +487,7 @@ const CustomerListPage = () => {
                   onClick={() => setShowModal(false)}
                   variant="outline"
                   disabled={submitting}
-                  className="flex-1"
+                  className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </Button>

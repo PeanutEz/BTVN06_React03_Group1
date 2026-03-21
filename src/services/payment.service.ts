@@ -16,25 +16,27 @@ export const fetchPayments = async (): Promise<AdminPayment[]> => {
   await new Promise((resolve) => setTimeout(resolve, 500));
   const orders = await fetchOrders();
 
-  const payments = orders.map((order) => ({
-    id: order.id,
-    order_id: order.id,
-    order_code: order.code,
-    franchise_id: order.franchise_id,
-    franchise_name: order.franchise?.name,
-    franchise_code: order.franchise?.code,
-    customer_id: order.customer_id,
-    customer_name: order.customer?.name,
-    customer_phone: order.customer?.phone,
-    method: order.type,
-    status: order.status as AdminPaymentStatus,
-    amount: order.total_amount,
-    created_at: order.created_at,
-    updated_at: order.updated_at,
-    confirmed_at: order.confirmed_at,
-    completed_at: order.completed_at,
-    cancelled_at: order.cancelled_at,
-  }));
+  const payments: AdminPayment[] = orders
+    .filter((order) => order.id !== undefined && order.customer_id !== undefined)
+    .map((order) => ({
+      id: Number(order.id),
+      order_id: Number(order.id),
+      order_code: order.code,
+      franchise_id: Number(order.franchise_id ?? 0),
+      franchise_name: order.franchise?.name,
+      franchise_code: order.franchise?.code,
+      customer_id: Number(order.customer_id),
+      customer_name: order.customer?.name,
+      customer_phone: order.customer?.phone,
+      method: order.type,
+      status: order.status as AdminPaymentStatus,
+      amount: order.total_amount,
+      created_at: order.created_at,
+      updated_at: order.updated_at ?? order.created_at,
+      confirmed_at: order.confirmed_at,
+      completed_at: order.completed_at,
+      cancelled_at: order.cancelled_at,
+    }));
 
   return payments;
 };

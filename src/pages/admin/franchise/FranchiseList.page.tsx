@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Button } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import type { ApiFranchise, CreateFranchisePayload } from "../../../services/store.service";
 import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise, updateFranchise, changeFranchiseStatus, restoreFranchise } from "../../../services/store.service";
 import { useNavigate } from "react-router-dom"; import { ROUTER_URL } from "../../../routes/router.const";
@@ -34,7 +34,13 @@ const emptyCreateForm: CreateFranchisePayload = {
 
 const ITEMS_PER_PAGE = 10;
 
+const formatAddress = (address?: string | null) => {
+  if (!address) return "-";
+  return address.length > 30 ? `${address.slice(0, 30)}...` : address;
+};
+
 const FranchiseListPage = () => {
+  const showConfirm = useConfirm();
   const [franchises, setFranchises] = useState<ApiFranchise[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -57,48 +63,70 @@ const FranchiseListPage = () => {
   const [saving, setSaving] = useState(false);
   const [editLogoPreview, setEditLogoPreview] = useState<string>("");
   const pendingEditLogoFileRef = useRef<File | null>(null);
-  const editLogoInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
-  const lastIsActive = useRef<string | null>(null);
-  const lastIsDeleted = useRef<boolean | null>(null);
+  const editLogoInputRef = useRef<HTMLInputElement>(null);  const navigate = useNavigate();
 
-  const load = useCallback(async (page = currentPage) => {
+  // Refs để giữ latest values — tránh load bị stale closure mà không tạo lại function
+  const keywordRef = useRef(keyword);
+  const isActiveRef = useRef(isActive);
+  const isDeletedRef = useRef(isDeleted);
+  const currentPageRef = useRef(currentPage);
+  keywordRef.current = keyword;
+  isActiveRef.current = isActive;
+  isDeletedRef.current = isDeleted;
+  currentPageRef.current = currentPage;
+
+  // load KHÔNG nằm trong useCallback có deps → không bao giờ bị tạo lại
+  const load = useCallback(async (page?: number) => {
+    const pageNum = page ?? currentPageRef.current;
+    const kw = keywordRef.current;
+    const active = isActiveRef.current;
+    const deleted = isDeletedRef.current;
+
     setLoading(true);
     try {
       const result = await searchFranchises({
         searchCondition: {
-          keyword,
-          ...(isActive !== "" && { is_active: isActive }),
-          is_deleted: isDeleted,
+          keyword: kw,
+          ...(active !== "" && { is_active: active }),
+          is_deleted: deleted,
         },
-        pageInfo: {
-          pageNum: page,
-          pageSize: ITEMS_PER_PAGE,
-        },
+        pageInfo: { pageNum, pageSize: ITEMS_PER_PAGE },
       });
       setFranchises(result.data);
       setTotalPages(result.pageInfo.totalPages);
       setTotalItems(result.pageInfo.totalItems);
       setCurrentPage(result.pageInfo.pageNum);
+      currentPageRef.current = result.pageInfo.pageNum;
     } catch (error) {
       console.error("Lỗi tải danh sách franchise:", error);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, keyword, isActive, isDeleted]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // deps rỗng — load không bao giờ thay đổi reference
 
+  // Chỉ load 1 lần khi mount
   useEffect(() => {
-    if (isActive === lastIsActive.current) return;
-    lastIsActive.current = isActive;
     load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reload khi isActive thay đổi
+  const prevIsActive = useRef(isActive);
+  useEffect(() => {
+    if (isActive === prevIsActive.current) return;
+    prevIsActive.current = isActive;
+    load(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
 
+  // Reload khi isDeleted thay đổi
+  const prevIsDeleted = useRef(isDeleted);
   useEffect(() => {
-    if (isDeleted === lastIsDeleted.current) return;
-    lastIsDeleted.current = isDeleted;
+    if (isDeleted === prevIsDeleted.current) return;
+    prevIsDeleted.current = isDeleted;
     load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDeleted]);
 
   const handlePageChange = (page: number) => {
@@ -109,7 +137,7 @@ const FranchiseListPage = () => {
     load(1);
   };
   const handleRestore = async (f: ApiFranchise) => {
-    if (!confirm(`Bạn có chắc muốn khôi phục franchise "${f.name}"?`)) return;
+    if (!await showConfirm({ message: `Bạn có chắc muốn khôi phục franchise "${f.name}"?`, variant: "warning" })) return;
     try {
       await restoreFranchise(f.id);
       showSuccess(`Đã khôi phục franchise "${f.name}"`);
@@ -120,7 +148,7 @@ const FranchiseListPage = () => {
   };
 
   const handleDelete = async (f: ApiFranchise) => {
-    if (!confirm(`Bạn có chắc muốn xóa franchise "${f.name}"? Hành động này không thể hoàn tác.`)) return;
+    if (!await showConfirm({ message: `Bạn có chắc muốn xóa franchise "${f.name}"? Hành động này không thể hoàn tác.`, variant: "danger" })) return;
     try {
       await deleteFranchise(f.id);
       showSuccess(`Đã xóa franchise "${f.name}"`);
@@ -182,10 +210,14 @@ const FranchiseListPage = () => {
       setSaving(false);
     }
   };
-
   const handleToggleStatus = async (f: ApiFranchise) => {
     const action = f.is_active ? "Ngừng hoạt động" : "Kích hoạt";
-    if (!confirm(`Bạn có chắc muốn ${action} franchise "${f.name}"?`)) return;
+    if (!await showConfirm({
+      message: `Bạn có chắc muốn ${action} franchise "${f.name}"?`,
+      title: `${action} franchise`,
+      variant: f.is_active ? "warning" : "info",
+      confirmText: action,
+    })) return;
     try {
       await changeFranchiseStatus(f.id, !f.is_active);
       showSuccess(`Đã ${action} franchise "${f.name}"`);
@@ -295,7 +327,16 @@ const FranchiseListPage = () => {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <table className="min-w-full table-fixed divide-y divide-slate-200 text-sm">
+            <colgroup>
+              <col style={{ width: "4rem" }} />
+              <col style={{ width: "7rem" }} />
+              <col style={{ width: "16rem" }} />
+              <col style={{ width: "8rem" }} />
+              <col style={{ width: "9rem" }} />
+              <col style={{ width: "7rem" }} />
+              <col style={{ width: "9rem" }} />
+            </colgroup>
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               <tr>
                 <th className="px-4 py-3">Logo</th>
@@ -325,24 +366,34 @@ const FranchiseListPage = () => {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-500">{f.code}</td>
-                  <td className="px-4 py-3">
-                    <div className="leading-tight">
-                      <p className="font-semibold text-slate-900">{f.name}</p>
-                      <p className="text-xs text-slate-500">{f.address}</p>
+                  <td className="px-4 py-3 overflow-hidden">
+                    <div className="font-mono text-xs text-slate-500" title={f.code}>
+                      {f.code.length > 6 ? f.code.slice(0, 6) + "..." : f.code}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{f.hotline || "-"}</td>
-                  <td className="px-4 py-3 text-slate-700">{f.opened_at} - {f.closed_at}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${f.is_active
-                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-slate-50 text-slate-600"
+                  <td className="px-4 py-3 overflow-hidden">
+                    <div className="leading-tight">
+                      <p className="font-semibold text-slate-900 truncate">{f.name}</p>
+                      <p className="text-xs text-slate-500 truncate" title={f.address || "-"}>{formatAddress(f.address)}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden">{f.hotline || "-"}</td>
+                  <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden">{f.opened_at} - {f.closed_at}</td>
+                  <td className="px-4 py-3 overflow-hidden">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${f.is_active
+                      ? "bg-green-500 text-white shadow-sm shadow-green-300"
+                      : "border border-slate-200 bg-slate-50 text-slate-500"
                       }`}>
+                      {f.is_active && (
+                        <span className="relative flex size-1.5">
+                          <span className="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75" />
+                          <span className="relative inline-flex size-1.5 rounded-full bg-white" />
+                        </span>
+                      )}
                       {f.is_active ? "Hoạt động" : "Ngừng"}
                     </span>
-                  </td>                <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
+                  </td>                <td className="px-4 py-3 overflow-hidden">
+                    <div className="flex flex-nowrap gap-2">
                       {isDeleted ? (
                         <button
                           title="Khôi phục franchise"
@@ -429,28 +480,44 @@ const FranchiseListPage = () => {
 
       {/* ─── View / Edit Detail Modal ─────────────────────────────────────── */}
       {viewingFranchise && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }} />
+          <div
+            className="relative w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 shrink-0">
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4 shrink-0">
               <div className="flex items-center gap-3">
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-mono text-slate-500">
+                <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-mono text-white/50">
                   {viewingFranchise.code}
                 </span>
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${viewingFranchise.is_active
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-slate-200 bg-slate-50 text-slate-600"
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${viewingFranchise.is_active
+                  ? "bg-green-500 text-white shadow-sm shadow-green-400/40"
+                  : "border border-white/[0.12] bg-white/[0.06] text-white/70"
                   }`}>
+                  {viewingFranchise.is_active && (
+                    <span className="relative flex size-1.5">
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75" />
+                      <span className="relative inline-flex size-1.5 rounded-full bg-white" />
+                    </span>
+                  )}
                   {viewingFranchise.is_active ? "Hoạt động" : "Ngừng"}
                 </span>
-                <span className="text-sm font-semibold text-slate-700">Chỉnh sửa Franchise</span>
+                <span className="text-sm font-semibold text-white/80">Chỉnh sửa Franchise</span>
                 {loadingDetail && (
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-primary-500" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/[0.12] border-t-primary-500" />
                 )}
               </div>
               <button
                 onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
               >
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -462,10 +529,10 @@ const FranchiseListPage = () => {
             <form id="edit-franchise-form" onSubmit={handleEditSubmit} className="overflow-y-auto px-6 py-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Mã chi nhánh *
                     <input
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={editForm.code}
                       onChange={(e) => setEditForm((p) => ({ ...p, code: e.target.value }))}
                       required
@@ -473,10 +540,10 @@ const FranchiseListPage = () => {
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Tên chi nhánh *
                     <input
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={editForm.name}
                       onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
                       required
@@ -484,11 +551,11 @@ const FranchiseListPage = () => {
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Giờ mở cửa *
                     <input
                       type="time"
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={editForm.opened_at}
                       onChange={(e) => setEditForm((p) => ({ ...p, opened_at: e.target.value }))}
                       required
@@ -496,11 +563,11 @@ const FranchiseListPage = () => {
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Giờ đóng cửa *
                     <input
                       type="time"
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={editForm.closed_at}
                       onChange={(e) => setEditForm((p) => ({ ...p, closed_at: e.target.value }))}
                       required
@@ -508,11 +575,11 @@ const FranchiseListPage = () => {
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Hotline *
                     <input
                       type="tel"
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={editForm.hotline}
                       onChange={(e) => setEditForm((p) => ({ ...p, hotline: e.target.value }))}
                       required
@@ -520,32 +587,32 @@ const FranchiseListPage = () => {
                   </label>
                 </div>
                 <div>
-                  <span className="block text-sm font-medium text-slate-700 mb-1">Logo</span>
+                  <span className="block text-sm font-medium text-white/80 mb-1">Logo</span>
                   <div className="flex items-center gap-4">
-                    <div className="size-16 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="size-16 rounded-xl border-2 border-dashed border-white/[0.15] bg-white/[0.06] flex items-center justify-center overflow-hidden shrink-0">
                       {(editLogoPreview || editForm.logo_url) ? (
                         <img src={editLogoPreview || editForm.logo_url} alt="Logo" className="size-full object-cover" />
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-7 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       )}
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <button type="button" onClick={() => editLogoInputRef.current?.click()} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition">Chọn ảnh</button>
+                      <button type="button" onClick={() => editLogoInputRef.current?.click()} className="rounded-lg border border-white/[0.15] px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/[0.1] transition">Chọn ảnh</button>
                       {(editLogoPreview || editForm.logo_url) && (
-                        <button type="button" onClick={() => { setEditLogoPreview(""); setEditForm((p) => ({ ...p, logo_url: "" })); pendingEditLogoFileRef.current = null; if (editLogoInputRef.current) editLogoInputRef.current.value = ""; }} className="text-xs text-red-500 hover:underline text-left">Xóa ảnh</button>
+                        <button type="button" onClick={() => { setEditLogoPreview(""); setEditForm((p) => ({ ...p, logo_url: "" })); pendingEditLogoFileRef.current = null; if (editLogoInputRef.current) editLogoInputRef.current.value = ""; }} className="text-xs text-red-400 hover:underline text-left">Xóa ảnh</button>
                       )}
-                      <p className="text-xs text-slate-400">PNG, JPG, WEBP tối đa 5MB</p>
+                      <p className="text-xs text-white/40">PNG, JPG, WEBP tối đa 5MB</p>
                     </div>
                   </div>
                   <input ref={editLogoInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (!file) return; pendingEditLogoFileRef.current = file; setEditLogoPreview(URL.createObjectURL(file)); }} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Địa chỉ
                     <input
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={editForm.address}
                       onChange={(e) => setEditForm((p) => ({ ...p, address: e.target.value }))}
                     />
@@ -555,7 +622,7 @@ const FranchiseListPage = () => {
             </form>
 
             {/* Footer actions */}
-            <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-6 py-4 shrink-0">
+            <div className="flex items-center justify-between gap-3 border-t border-white/[0.12] px-6 py-4 shrink-0">
               <div className="flex gap-2">
                 <Button type="submit" form="edit-franchise-form" loading={saving}>Lưu thay đổi</Button>
 
@@ -569,7 +636,7 @@ const FranchiseListPage = () => {
                       }
                     );
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path
@@ -586,7 +653,7 @@ const FranchiseListPage = () => {
               </div>
               <button
                 onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
               >
                 Đóng
               </button>
@@ -597,17 +664,27 @@ const FranchiseListPage = () => {
 
       {/* ─── Create Franchise Modal ────────────────────────────────────────── */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div
+            className="relative w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 shrink-0">
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4 shrink-0">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Tạo Franchise</h2>
-                <p className="text-xs text-slate-500">Tạo chi nhánh mới</p>
+                <h2 className="text-lg font-bold text-white/95">Tạo Franchise</h2>
+                <p className="text-xs text-white/50">Tạo chi nhánh mới</p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
               >
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -619,10 +696,10 @@ const FranchiseListPage = () => {
             <form onSubmit={handleCreateSubmit} className="overflow-y-auto px-6 py-5">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Mã chi nhánh *
                     <input
-                      className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${createFieldErrors.code ? "border-red-400 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-primary-500 focus:ring-primary-500"}`}
+                      className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${createFieldErrors.code ? "border-red-400 focus:border-red-500 focus:ring-red-500 bg-white/[0.08] text-white/90 placeholder-white/30" : "border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 focus:border-primary-500 focus:ring-primary-500"}`}
                       value={createForm.code}
                       onChange={(e) => handleCreateChange("code", e.target.value)}
                       placeholder="HL008"
@@ -634,10 +711,10 @@ const FranchiseListPage = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Tên chi nhánh *
                     <input
-                      className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${createFieldErrors.name ? "border-red-400 focus:border-red-500 focus:ring-red-500" : "border-slate-200 focus:border-primary-500 focus:ring-primary-500"}`}
+                      className={`mt-1 w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-1 ${createFieldErrors.name ? "border-red-400 focus:border-red-500 focus:ring-red-500 bg-white/[0.08] text-white/90 placeholder-white/30" : "border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 focus:border-primary-500 focus:ring-primary-500"}`}
                       value={createForm.name}
                       onChange={(e) => handleCreateChange("name", e.target.value)}
                       placeholder="High Land 008"
@@ -649,11 +726,11 @@ const FranchiseListPage = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Giờ mở cửa *
                     <input
                       type="time"
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={createForm.opened_at}
                       onChange={(e) => handleCreateChange("opened_at", e.target.value)}
                       required
@@ -661,11 +738,11 @@ const FranchiseListPage = () => {
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Giờ đóng cửa *
                     <input
                       type="time"
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={createForm.closed_at}
                       onChange={(e) => handleCreateChange("closed_at", e.target.value)}
                       required
@@ -673,11 +750,11 @@ const FranchiseListPage = () => {
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Hotline *
                     <input
                       type="tel"
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={createForm.hotline}
                       onChange={(e) => handleCreateChange("hotline", e.target.value)}
                       placeholder="0123456789"
@@ -686,14 +763,14 @@ const FranchiseListPage = () => {
                   </label>
                 </div>
                 <div>
-                  <span className="block text-sm font-medium text-slate-700 mb-1">Logo</span>
+                  <span className="block text-sm font-medium text-white/80 mb-1">Logo</span>
                   <div className="flex items-center gap-4">
                     {/* Preview */}
-                    <div className="size-16 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="size-16 rounded-xl border-2 border-dashed border-white/[0.15] bg-white/[0.06] flex items-center justify-center overflow-hidden shrink-0">
                       {logoPreview ? (
                         <img src={logoPreview} alt="Logo preview" className="size-full object-cover" />
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-7 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-7 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       )}
@@ -702,7 +779,7 @@ const FranchiseListPage = () => {
                       <button
                         type="button"
                         onClick={() => logoInputRef.current?.click()}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                        className="rounded-lg border border-white/[0.15] px-3 py-1.5 text-xs font-medium text-white/80 hover:bg-white/[0.1] transition"
                       >
                         Chọn ảnh
                       </button>
@@ -710,12 +787,12 @@ const FranchiseListPage = () => {
                         <button
                           type="button"
                           onClick={() => { setLogoPreview(""); pendingLogoFileRef.current = null; if (logoInputRef.current) logoInputRef.current.value = ""; }}
-                          className="text-xs text-red-500 hover:underline text-left"
+                          className="text-xs text-red-400 hover:underline text-left"
                         >
                           Xóa ảnh
                         </button>
                       )}
-                      <p className="text-xs text-slate-400">PNG, JPG, WEBP tối đa 5MB</p>
+                      <p className="text-xs text-white/40">PNG, JPG, WEBP tối đa 5MB</p>
                     </div>
                   </div>
                   <input
@@ -732,10 +809,10 @@ const FranchiseListPage = () => {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-white/80">
                     Địa chỉ
                     <input
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      className="mt-1 w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                       value={createForm.address}
                       onChange={(e) => handleCreateChange("address", e.target.value)}
                       placeholder="123 Nguyễn Huệ, Quận 1, TP.HCM"
@@ -745,11 +822,11 @@ const FranchiseListPage = () => {
               </div>
 
               {/* Footer */}
-              <div className="mt-6 flex items-center justify-end gap-3 border-t border-slate-200 pt-4">
+              <div className="mt-6 flex items-center justify-end gap-3 border-t border-white/[0.12] pt-4">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </button>
@@ -766,4 +843,3 @@ const FranchiseListPage = () => {
 };
 
 export default FranchiseListPage;
-

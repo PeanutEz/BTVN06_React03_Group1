@@ -145,12 +145,13 @@ export async function fetchCustomerById(id: string | number): Promise<CustomerDi
 // ==================== CUSTOMER-03: Create Item ====================
 // POST /api/customers — Token: YES — Role: ADMIN
 export async function createCustomer(
-  data: Omit<Customer, "id" | "created_at" | "updated_at">,
+  data: Omit<Customer, "id" | "created_at" | "updated_at"> & { password?: string },
 ): Promise<Customer> {
   const response = await apiClient.post<ApiResponse<ApiCustomer>>("/customers", {
     phone: data.phone,
     ...(data.email && { email: data.email }),
     name: data.name,
+    password: data.password,
     is_active: data.is_active,
   });
   const result = response.data;
@@ -188,6 +189,40 @@ export async function deleteCustomer(id: string | number): Promise<boolean> {
     throw new Error(result.message || "Xóa khách hàng thất bại");
   }
   return true;
+}
+
+// ==================== CUSTOMER AUTH: Get Current Profile ====================
+// GET /api/customer-auth — Token: YES — Role: CUSTOMER
+export async function getCurrentCustomerProfile(): Promise<CustomerDisplay | null> {
+  try {
+    const response = await apiClient.get<ApiResponse<ApiCustomer>>("/customer-auth");
+    const result = response.data;
+    if (!result.success) return null;
+    return normalizeCustomer((result as { data: ApiCustomer }).data);
+  } catch {
+    return null;
+  }
+}
+
+// ==================== CUSTOMER AUTH: Update Current Profile ====================
+// PUT /api/customer-auth — Token: YES — Role: CUSTOMER
+export async function updateCurrentCustomerProfile(data: {
+  name?: string;
+  phone?: string;
+  address?: string;
+  avatar_url?: string;
+}): Promise<CustomerDisplay | null> {
+  try {
+    const response = await apiClient.put<ApiResponse<ApiCustomer>>("/customer-auth", data);
+    const result = response.data;
+    if (!result.success) {
+      throw new Error(result.message || "Cập nhật profile thất bại");
+    }
+    return normalizeCustomer((result as { data: ApiCustomer }).data);
+  } catch (error) {
+    console.error("Update profile error:", error);
+    throw error;
+  }
 }
 
 // ==================== fetchCustomerFranchises ====================

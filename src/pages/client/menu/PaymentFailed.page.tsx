@@ -1,23 +1,57 @@
-import { useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { ROUTER_URL } from "@/routes/router.const";
-import { useDeliveryStore } from "@/store/delivery.store";
+import { orderClient } from "@/services/order.client";
+import { paymentClient } from "@/services/payment.client";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
+function toNumber(value: unknown): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function getOrderDisplayAmount(order: any, payment?: { amount?: number } | null): number {
+  const items = Array.isArray(order?.items) ? order.items : Array.isArray(order?.order_items) ? order.order_items : [];
+  const itemsTotal = items.reduce((sum: number, item: any) => {
+    const lineTotal = toNumber(item?.line_total ?? item?.subtotal);
+    return sum + lineTotal;
+  }, 0);
+
+  const orderTotal = toNumber(order?.total_amount);
+  const finalAmount = toNumber(order?.final_amount);
+  const subtotalAmount = toNumber(order?.subtotal_amount);
+  const paymentAmount = toNumber(payment?.amount);
+
+  return itemsTotal || orderTotal || finalAmount || subtotalAmount || paymentAmount || 0;
+}
+
 export default function PaymentFailedPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const { hydrate, placedOrders } = useDeliveryStore();
 
-  useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+  const { data: order } = useQuery({
+    queryKey: ["payment-failed-order", orderId],
+    queryFn: () => orderClient.getOrderById(orderId!),
+    enabled: !!orderId,
+  });
 
-  const order = placedOrders.find((o) => o.id === orderId);
+  const { data: payment } = useQuery({
+    queryKey: ["payment-failed-payment", orderId],
+    queryFn: () => paymentClient.getPaymentByOrderId(orderId!),
+    enabled: !!orderId,
+  });
 
-  if (!order) return null;
+  const displayAmount = getOrderDisplayAmount(order, payment);
+
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center text-gray-500">Đang tải...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -29,28 +63,27 @@ export default function PaymentFailedPage() {
         </p>
 
         <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-left">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-500">Mã giao dịch</span>
-            <span className="font-mono font-semibold text-gray-900">
-              {order.transaction?.transactionId ?? "--"}
-            </span>
-          </div>
+          {payment?.provider_txn_id && (
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-gray-500">Mã giao dịch</span>
+              <span className="font-mono font-semibold text-gray-900">{payment.provider_txn_id ?? "—"}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Số tiền</span>
-            <span className="font-semibold text-gray-900">{fmt(order.total)}</span>
+            <span className="font-semibold text-gray-900">{fmt(displayAmount)}</span>
           </div>
         </div>
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <button
-            onClick={() => navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", order.id))}
+            onClick={() => navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", orderId!))}
             className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold"
           >
             Thanh toán lại
           </button>
-
           <Link
-            to={ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", order.id)}
+            to={ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId!)}
             className="px-5 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 font-semibold"
           >
             Xem đơn hàng

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Button } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { categoryService } from "../../../services/category.service";
 import type { CategoryApiResponse, CreateCategoryDto, CategorySelectItem } from "../../../models/product.model";
@@ -15,6 +15,7 @@ const DEFAULT_FORM: CreateCategoryDto = {
 };
 
 export default function CategoryListPage() {
+  const showConfirm = useConfirm();
   const [categories, setCategories] = useState<CategoryApiResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -147,12 +148,14 @@ export default function CategoryListPage() {
   };
 
   const handleDelete = async (cat: CategoryApiResponse) => {
-    if (!confirm(`Bạn có chắc muốn xóa category "${cat.name}"?`)) return;
+    if (!await showConfirm({ message: `Bạn có chắc muốn xóa category "${cat.name}"?`, variant: "danger" })) return;
     setSubmitting(true);
     try {
       await categoryService.deleteCategory(cat.id);
       showSuccess(`Đã xóa category "${cat.name}"`);
-      await load(searchQuery, currentPage, statusFilter, parentFilter, isDeletedFilter);
+      const nextPage = categories.length <= 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      setCurrentPage(nextPage);
+      await load(searchQuery, nextPage, statusFilter, parentFilter, isDeletedFilter);
       loadParentOptions();
     } catch (err: unknown) {
       const msg =
@@ -166,7 +169,7 @@ export default function CategoryListPage() {
   };
 
   const handleRestore = async (cat: CategoryApiResponse) => {
-    if (!confirm(`Bạn có chắc muốn khôi phục category "${cat.name}"?`)) return;
+    if (!await showConfirm({ message: `Bạn có chắc muốn khôi phục category "${cat.name}"?`, variant: "warning" })) return;
     setSubmitting(true);
     try {
       await categoryService.restoreCategory(cat.id);
@@ -178,17 +181,7 @@ export default function CategoryListPage() {
       setSubmitting(false);
     }
   };
-
-  const handleResetFilters = () => {
-    setSearchQuery("");
-    setStatusFilter("");
-    setParentFilter("");
-    setIsDeletedFilter(false);
-    setCurrentPage(1);
-    load("", 1, "", "", false);
-  };
-
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  // ─── Render─────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -205,13 +198,11 @@ export default function CategoryListPage() {
           </p>
         </div>
         <Button onClick={handleOpenCreate}>+ Tạo danh mục</Button>
-      </div>
-
-      {/* Filter Bar */}
+      </div>      {/* Filter Bar */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           {/* Search keyword */}
-          <div className="relative min-w-[200px] flex-1">
+          <div className="relative min-w-[220px] flex-1">
             <svg
               className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -230,32 +221,39 @@ export default function CategoryListPage() {
           </div>
 
           {/* Status filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, e.target.value, parentFilter, isDeletedFilter); }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
+          <div className="min-w-[150px]">
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, e.target.value, parentFilter, isDeletedFilter); }}
+              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white appearance-none"
+              style={{ colorScheme: "dark" }}
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
 
           {/* Parent category filter */}
-          <select
-            value={parentFilter}
-            onChange={(e) => { setParentFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, statusFilter, e.target.value, isDeletedFilter); }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-          >
-            <option value="">Tất cả danh mục cha</option>          {parentOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.name}</option>
-            ))}
-          </select>
+          <div className="min-w-[180px]">
+            <select
+              value={parentFilter}
+              onChange={(e) => { setParentFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, statusFilter, e.target.value, isDeletedFilter); }}
+              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white appearance-none"
+              style={{ colorScheme: "dark" }}
+            >
+              <option value="">Tất cả danh mục cha</option>
+              {parentOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.name}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Is deleted filter */}
           <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition-colors select-none ${
             isDeletedFilter
-              ? "border-red-400 bg-red-50 text-red-700"
-              : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+              ? "border-red-400 bg-red-900/40 text-red-300"
+              : "border-white/[0.15] bg-slate-800 text-white/60 hover:bg-slate-700"
           }`}>
             <input
               type="checkbox"
@@ -264,17 +262,9 @@ export default function CategoryListPage() {
               className="accent-red-500"
             />
             <span className="font-medium">Đã xóa</span>
-          </label>
-
-          <Button onClick={handleSearch} loading={loading}>
+          </label>          <Button onClick={handleSearch} loading={loading}>
             Tìm kiếm
           </Button>
-          <button
-            onClick={handleResetFilters}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
-          >
-            Đặt lại
-          </button>
         </div>
       </div>
 
@@ -418,16 +408,26 @@ export default function CategoryListPage() {
 
       {/* ─── Create / Edit Modal ─────────────────────────────────────────────── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div
+            className="relative w-full max-w-lg rounded-2xl shadow-2xl"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
+              <h2 className="text-lg font-semibold text-white/95">
                 {editingCategory ? "Chỉnh sửa danh mục" : "Tạo danh mục mới"}
               </h2>
               <button
                 onClick={() => setShowModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
               >
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -439,50 +439,50 @@ export default function CategoryListPage() {
             <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Mã danh mục <span className="text-red-500">*</span>
+                  <label className="mb-1.5 block text-sm font-medium text-white/80">
+                    Mã danh mục <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
                     placeholder="VD: CAT001"
                     value={formData.code}
                     onChange={(e) => setFormData((f) => ({ ...f, code: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                     required
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">
-                    Tên danh mục <span className="text-red-500">*</span>
+                  <label className="mb-1.5 block text-sm font-medium text-white/80">
+                    Tên danh mục <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
                     placeholder="VD: Cà phê"
                     value={formData.name}
                     onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Mô tả</label>
+                <label className="mb-1.5 block text-sm font-medium text-white/80">Mô tả</label>
                 <textarea
                   rows={3}
                   placeholder="Nhập mô tả danh mục..."
                   value={formData.description ?? ""}
                   onChange={(e) => setFormData((f) => ({ ...f, description: e.target.value }))}
-                  className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full resize-none rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-slate-700">Danh mục cha</label>
+                <label className="mb-1.5 block text-sm font-medium text-white/80">Danh mục cha</label>
                 <select
                   value={formData.parent_id ?? ""}
                   onChange={(e) => setFormData((f) => ({ ...f, parent_id: e.target.value }))}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
                 >
                   <option value="">— Không có (Root) —</option>                  {parentOptions
                     .filter((opt) => !editingCategory || opt.value !== editingCategory.id)
@@ -496,7 +496,7 @@ export default function CategoryListPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </button>
@@ -511,13 +511,23 @@ export default function CategoryListPage() {
 
       {/* ─── Detail / View Modal ─────────────────────────────────────────────── */}
       {viewingCategory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <h2 className="text-lg font-semibold text-slate-900">Chi tiết danh mục</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" />
+          <div
+            className="relative w-full max-w-md rounded-2xl shadow-2xl"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
+            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
+              <h2 className="text-lg font-semibold text-white/95">Chi tiết danh mục</h2>
               <button
                 onClick={() => setViewingCategory(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
               >
                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -527,11 +537,11 @@ export default function CategoryListPage() {
             <div className="space-y-4 px-6 py-5">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mã</p>
-                  <p className="mt-1 font-mono font-semibold text-slate-800">{viewingCategory.code}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">Mã</p>
+                  <p className="mt-1 font-mono font-semibold text-white/95">{viewingCategory.code}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Trạng thái</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">Trạng thái</p>
                   <div className="mt-1">
                     {viewingCategory.is_deleted ? (
                       <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">Đã xóa</span>
@@ -544,31 +554,31 @@ export default function CategoryListPage() {
                 </div>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Tên danh mục</p>
-                <p className="mt-1 text-slate-800">{viewingCategory.name}</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-white/50">Tên danh mục</p>
+                <p className="mt-1 text-white/95">{viewingCategory.name}</p>
               </div>
               {viewingCategory.description && (
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mô tả</p>
-                  <p className="mt-1 text-slate-700">{viewingCategory.description}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">Mô tả</p>
+                  <p className="mt-1 text-white/80">{viewingCategory.description}</p>
                 </div>
               )}
               {viewingCategory.parent_name && (
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Danh mục cha</p>
-                  <p className="mt-1 text-slate-700">{viewingCategory.parent_name}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">Danh mục cha</p>
+                  <p className="mt-1 text-white/80">{viewingCategory.parent_name}</p>
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+              <div className="grid grid-cols-2 gap-4 border-t border-white/[0.12] pt-3">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Ngày tạo</p>
-                  <p className="mt-1 text-sm text-slate-700">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">Ngày tạo</p>
+                  <p className="mt-1 text-sm text-white/80">
                     {new Date(viewingCategory.created_at).toLocaleString("vi-VN")}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cập nhật lúc</p>
-                  <p className="mt-1 text-sm text-slate-700">
+                  <p className="text-xs font-medium uppercase tracking-wide text-white/50">Cập nhật lúc</p>
+                  <p className="mt-1 text-sm text-white/80">
                     {new Date(viewingCategory.updated_at).toLocaleString("vi-VN")}
                   </p>
                 </div>
@@ -584,7 +594,7 @@ export default function CategoryListPage() {
                 )}
                 <button
                   onClick={() => setViewingCategory(null)}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Đóng
                 </button>
