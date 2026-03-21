@@ -98,7 +98,7 @@ const OrderListPage = () => {
     }
     setLoading(true);
     try {
-      let data = await filterOrders(
+      const data = await filterOrders(
         statusFilter || undefined,
         undefined, // type filter
         storeFilter || franchiseId, // Use selected store or default to user's franchise
@@ -152,13 +152,9 @@ const OrderListPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý đơn hàng</h1>
+        <div>          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý đơn hàng</h1>
           <p className="text-xs sm:text-sm text-slate-600">Quản lý tất cả đơn hàng của khách hàng</p>
         </div>
-        <Button variant="outline" onClick={loadOrders} loading={loading}>
-          Làm mới
-        </Button>
       </div>
 
       {/* Filters */}

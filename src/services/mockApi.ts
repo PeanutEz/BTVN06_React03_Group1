@@ -160,6 +160,7 @@ export async function getLoyaltyDashboard(customerId: number): Promise<LoyaltyDa
  * Get loyalty points summary (KAN-90)
  */
 export async function getLoyaltyPoints(_customerId: number): Promise<LoyaltyPointsSummary> {
+  void _customerId;
   await delay(300);
 
   const customerFranchise = getCurrentCustomerFranchise();

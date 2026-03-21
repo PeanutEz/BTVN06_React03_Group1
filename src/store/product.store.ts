@@ -45,7 +45,7 @@ export const useProductStore = create<ProductState>((set) => ({
         try {
             const data = await productService.getProducts(categoryId);
             set({ products: data, isLoading: false });
-        } catch (error) {
+        } catch {
             set({ error: "Không thể tải danh sách sản phẩm", isLoading: false });
         }
     },
@@ -55,7 +55,7 @@ export const useProductStore = create<ProductState>((set) => ({
         try {
             const data = await productService.getCategories();
             set({ categories: data, isLoading: false });
-        } catch (error) {
+        } catch {
             set({ error: "Không thể tải danh mục", isLoading: false });
         }
     },
@@ -64,7 +64,7 @@ export const useProductStore = create<ProductState>((set) => ({
         try {
             const data = await productService.getBanners();
             set({ banners: data });
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to fetch banners:", error);
         }
     },
@@ -73,7 +73,7 @@ export const useProductStore = create<ProductState>((set) => ({
         try {
             const data = await productService.getVouchers();
             set({ vouchers: data });
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to fetch vouchers:", error);
         }
     },
@@ -83,7 +83,7 @@ export const useProductStore = create<ProductState>((set) => ({
         try {
             const data = await productService.getFeaturedProducts();
             set({ featuredProducts: data, isLoading: false });
-        } catch (error) {
+        } catch {
             set({ error: "Không thể tải sản phẩm nổi bật", isLoading: false });
         }
     },
@@ -97,7 +97,7 @@ export const useProductStore = create<ProductState>((set) => ({
             } else {
                 set({ error: "Không tìm thấy sản phẩm", isLoading: false });
             }
-        } catch (error) {
+        } catch {
             set({ error: "Không thể tải thông tin sản phẩm", isLoading: false });
         }
     },
@@ -106,7 +106,7 @@ export const useProductStore = create<ProductState>((set) => ({
         try {
             const data = await productService.getCategoryByCode(code);
             set({ selectedCategory: data || null });
-        } catch (error) {
+        } catch (error: unknown) {
             console.error("Failed to fetch category:", error);
         }
     },
@@ -116,7 +116,7 @@ export const useProductStore = create<ProductState>((set) => ({
         try {
             const data = await productService.searchProducts(query);
             set({ products: data, isLoading: false });
-        } catch (error) {
+        } catch {
             set({ error: "Không thể tìm kiếm sản phẩm", isLoading: false });
         }
     },

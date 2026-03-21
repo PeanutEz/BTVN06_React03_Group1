@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
@@ -21,7 +21,7 @@ const CustomerDetailPage = () => {
   const [loading, setLoading] = useState(false);
   const lastId = useRef<string | undefined>(undefined);
 
-  const loadCustomer = async () => {
+  const loadCustomer = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -42,13 +42,13 @@ const CustomerDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   useEffect(() => {
     if (id === lastId.current) return;
     lastId.current = id;
-    loadCustomer();
-  }, [id]);
+    void loadCustomer();
+  }, [id, loadCustomer]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {

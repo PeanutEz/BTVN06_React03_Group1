@@ -56,7 +56,7 @@ export default function BranchPickerModal({ onClose }: BranchPickerModalProps) {
         onClose();
       }
     }
-  }, [isValidating, validationResult]);
+  }, [isValidating, validationResult, onClose, setSelectedBranch]);
 
   // Load franchises for selection (CLIENT-01)
   useEffect(() => {

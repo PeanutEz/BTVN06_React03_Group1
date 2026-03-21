@@ -56,7 +56,7 @@ export interface SearchVoucherDto {
   };
 }
 
-export interface VoucherApiResponse extends Voucher {}
+export type VoucherApiResponse = Voucher;
 
 export interface VoucherListResponse {
   data: Voucher[];

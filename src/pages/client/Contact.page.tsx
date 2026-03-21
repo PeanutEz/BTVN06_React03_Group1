@@ -18,7 +18,7 @@ const ContactPage = () => {
 
   const [form] = Form.useForm();
 
-  const onFinish = (values: any) => {
+  const onFinish = (values: Record<string, unknown>) => {
     console.log("Form values:", values);
     // No submit logic as per requirements
   };

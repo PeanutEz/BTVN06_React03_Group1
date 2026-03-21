@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- cart fingerprint / reorder */
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
@@ -262,6 +263,9 @@ export default function CartPage() {
     return true;
   };
 
+  const fingerprintMatchesRef = useRef(fingerprintMatches);
+  fingerprintMatchesRef.current = fingerprintMatches;
+
   const orderedApiItems = (() => {
     if (!hasApiItems || !pendingReorder?.fingerprint) return apiItemsStableByLocal;
     const targetIndex = apiItemsStableByLocal.findIndex((it) => fingerprintMatches(it, pendingReorder.fingerprint));
@@ -284,11 +288,13 @@ export default function CartPage() {
   // Reorder it back to the original index once we can match the new item.
   useEffect(() => {
     if (!pendingReorder?.fingerprint || !hasApiItems) return;
-    const idx = apiItemsStableByLocal.findIndex((it) => fingerprintMatches(it, pendingReorder.fingerprint));
+    const idx = apiItemsStableByLocal.findIndex((it) =>
+      fingerprintMatchesRef.current(it, pendingReorder.fingerprint),
+    );
     if (idx < 0) return;
     // Only clear when backend already returns item in the original position.
     if (idx === pendingReorder.fromIndex) setPendingReorder(null);
-  }, [hasApiItems, apiItemsStableByLocal, pendingReorder?.fingerprint]);
+  }, [hasApiItems, apiItemsStableByLocal, pendingReorder?.fingerprint, pendingReorder?.fromIndex]);
 
   function invalidateCart(cartId: string | undefined) {
     if (cartId) queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });

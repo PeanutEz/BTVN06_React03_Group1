@@ -1,19 +1,6 @@
-import { createContext, useContext, useRef, useState, useCallback, type ReactNode } from "react";
+import { useRef, useState, useCallback, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-
-interface ConfirmOptions {
-  message: string;
-  title?: string;
-  confirmText?: string;
-  cancelText?: string;
-  variant?: "danger" | "warning" | "info";
-}
-
-type ConfirmFn = (options: ConfirmOptions | string) => Promise<boolean>;
-
-const ConfirmContext = createContext<ConfirmFn>(() => Promise.resolve(false));
-
-export const useConfirm = () => useContext(ConfirmContext);
+import { ConfirmContext, type ConfirmOptions } from "./confirmContext";
 
 interface DialogState extends ConfirmOptions {
   resolve: (value: boolean) => void;

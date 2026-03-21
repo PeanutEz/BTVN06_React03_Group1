@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- chi tiết đơn từ API */
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";

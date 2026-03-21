@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- topping/size API linh hoạt */
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -151,6 +152,7 @@ export default function MenuProductModal({
       setSelectedSize(firstAvailable);
     }
   }, [
+    product,
     product?.id,
     initialQuantity,
     initialSelection?.productFranchiseId,
@@ -158,6 +160,7 @@ export default function MenuProductModal({
     initialSelection?.sugar,
     initialSelection?.ice,
     initialSelection?.note,
+    initialSelection?.toppings,
   ]);
 
   // Fetch full product detail from API (CLIENT-05) to get real sizes
@@ -195,7 +198,7 @@ export default function MenuProductModal({
       }
     })();
     return () => { cancelled = true; };
-  }, [product?.id]);
+  }, [product]);
 
   // When editing cart items, ensure the selected size matches the cart selection,
   // even if product detail was already fetched for the same product.
@@ -293,7 +296,7 @@ export default function MenuProductModal({
     })();
 
     return () => { cancelled = true; };
-  }, [product?.id]);
+  }, [product]);
 
   // Lock body scroll
   useEffect(() => {
@@ -355,7 +358,8 @@ export default function MenuProductModal({
     setToppingQtys((prev) => {
       const next = Math.min(3, Math.max(0, (prev[topping.id] ?? 0) + delta));
       if (next === 0) {
-        const { [topping.id]: _, ...rest } = prev;
+        const rest = { ...prev };
+        delete rest[topping.id];
         return rest;
       }
       return { ...prev, [topping.id]: next };

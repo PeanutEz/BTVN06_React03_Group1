@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- hydrate cart từ API */
 import { create } from "zustand";
 import type { MenuCartItem, MenuItemOptions, MenuProduct } from "@/types/menu.types";
 import { getItem, setItem } from "@/utils/localstorage.util";

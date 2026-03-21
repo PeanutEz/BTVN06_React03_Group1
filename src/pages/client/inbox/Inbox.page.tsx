@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -250,11 +250,11 @@ export default function InboxPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 8;
 
-  // Redirect if not logged in
-  if (!user) {
-    navigate(ROUTER_URL.LOGIN, { state: { from: ROUTER_URL.INBOX } });
-    return null;
-  }
+  useEffect(() => {
+    if (!user) {
+      navigate(ROUTER_URL.LOGIN, { state: { from: ROUTER_URL.INBOX } });
+    }
+  }, [user, navigate]);
 
   const filtered = useMemo(() => {
     return notifications
@@ -289,6 +289,10 @@ export default function InboxPage() {
     });
     return map;
   }, [notifications]);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

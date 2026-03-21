@@ -23,9 +23,12 @@ const FILTER_OPTIONS: { key: "ALL" | OrderStatus; label: string }[] = [
 export default function CustomerOrdersPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const customerId = String(
-    (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? (user as any)?._id ?? ""
-  );
+  const u = user as {
+    user?: { id?: string; _id?: string };
+    id?: string;
+    _id?: string;
+  } | null;
+  const customerId = String(u?.user?.id ?? u?.user?._id ?? u?.id ?? u?._id ?? "");
   const [filter, setFilter] = useState<"ALL" | OrderStatus>("ALL");
   const [expanded, setExpanded] = useState<string | number | null>(null);
 

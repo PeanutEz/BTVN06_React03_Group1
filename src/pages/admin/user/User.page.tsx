@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, GlassSelect, useConfirm } from "../../../components";
 import { useAuthStore } from "../../../store";
 import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles, changeUserStatus, restoreUser } from "../../../services/user.service";
@@ -73,33 +73,37 @@ const UserPage = () => {
     }
   };
 
-  const load = async (keyword = searchQuery, page = currentPage, status = statusFilter, isDeleted = showDeleted) => {
-    console.log("[User.page] load() called with keyword:", keyword, "page:", page, "status:", status, "isDeleted:", isDeleted);
-    setLoading(true);
-    try {
-      const isActive = isDeleted ? "" : (status === "true" ? true : status === "false" ? false : "");
-      const result = await fetchUsers(keyword, page, ITEMS_PER_PAGE, isActive, isDeleted);
-      console.log("[User.page] fetchUsers result:", result);
-      console.log("[User.page] pageData length:", result.pageData?.length);
-      console.log("[User.page] pageInfo:", result.pageInfo);
-      setUsers(result.pageData);
-      setTotalPages(result.pageInfo.totalPages);
-      setTotalItems(result.pageInfo.totalItems);
-      setCurrentPage(result.pageInfo.pageNum);
-    } catch (err) {
-      console.error("[User.page] load() ERROR:", err);
-      showError("Lấy danh sách người dùng thất bại");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const load = useCallback(
+    async (keyword = searchQuery, page = currentPage, status = statusFilter, isDeleted = showDeleted) => {
+      console.log("[User.page] load() called with keyword:", keyword, "page:", page, "status:", status, "isDeleted:", isDeleted);
+      setLoading(true);
+      try {
+        const isActive = isDeleted ? "" : (status === "true" ? true : status === "false" ? false : "");
+        const result = await fetchUsers(keyword, page, ITEMS_PER_PAGE, isActive, isDeleted);
+        console.log("[User.page] fetchUsers result:", result);
+        console.log("[User.page] pageData length:", result.pageData?.length);
+        console.log("[User.page] pageInfo:", result.pageInfo);
+        setUsers(result.pageData);
+        setTotalPages(result.pageInfo.totalPages);
+        setTotalItems(result.pageInfo.totalItems);
+        setCurrentPage(result.pageInfo.pageNum);
+      } catch (err) {
+        console.error("[User.page] load() ERROR:", err);
+        showError("Lấy danh sách người dùng thất bại");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [searchQuery, currentPage, statusFilter, showDeleted],
+  );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
-    load("", 1); loadRoles(); loadFranchises();
-  }, []);
+    void load("", 1);
+    void loadRoles();
+    void loadFranchises();
+  }, [load]);
 
   const handleOpenSetRole = async (u: ApiUser) => {
     setSetRoleUser(u);

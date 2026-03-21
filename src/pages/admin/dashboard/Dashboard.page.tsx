@@ -3,10 +3,11 @@ import { Link } from "react-router-dom";
 import { fetchOrders } from "../../../services/order.service";
 import { fetchPayments } from "../../../services/payment.service";
 import { fetchCustomers } from "../../../services/customer.service";
-import { fetchStores } from "../../../services/store.service";
+import { fetchStores, type ApiFranchise } from "../../../services/store.service";
 import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
 import { adminInventoryService } from "../../../services/inventory.service";
-import type { OrderDisplay } from "../../../models/order.model";
+import type { LowStockInventoryItem } from "../../../models/inventory.model";
+import type { OrderDisplay, OrderItem } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -60,8 +61,8 @@ const DashboardPage = () => {
   });
   const [recentOrders, setRecentOrders] = useState<OrderDisplay[]>([]);
   const [loyaltyOverview, setLoyaltyOverview] = useState<LoyaltyOverview | null>(null);
-  const [revenueChartData, setRevenueChartData] = useState<any[]>([]);
-  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [revenueChartData, setRevenueChartData] = useState<RevenueChart[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [lowStocks, setLowStocks] = useState<LowStockItem[]>([]);
 
   const loadDashboard = async () => {
@@ -114,8 +115,8 @@ const DashboardPage = () => {
 
       orders
         .filter((order) => order.status === "COMPLETED")
-        .forEach((order: any) => {
-          order.items?.forEach((item: any) => {
+        .forEach((order) => {
+          order.items?.forEach((item: OrderItem) => {
             const name = item.product_name_snapshot;
             const quantity = item.quantity;
             const price = item.price_snapshot;
@@ -140,13 +141,13 @@ const DashboardPage = () => {
       setTopProducts(top);
 
       const lowStockResults = await Promise.all(
-        stores.map(async (store: any) => {
+        stores.map(async (store: ApiFranchise) => {
           try {
             if (!store?.id) return [];
 
             const items = await adminInventoryService.getLowStockByFranchise(store.id);
 
-            return items.map((item: any) => ({
+            return items.map((item: LowStockInventoryItem) => ({
               ...item,
               franchise_id: store.id,
               store_name: store.name,
@@ -313,7 +314,7 @@ const DashboardPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {topProducts.map((p: any, i: number) => (
+                {topProducts.map((p, i: number) => (
                   <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                     <td className="py-1.5 text-white/50">{i + 1}</td>
                     <td className="py-1.5 font-medium text-white truncate max-w-[120px]">{p.name}</td>
@@ -338,12 +339,16 @@ const DashboardPage = () => {
             </Link>
           </div>
           {loyaltyOverview ? (
-            <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 flex-1 min-h-0">
               <div className="p-2 text-center flex flex-col justify-center" style={glassCardInner}>
                 <p className="text-[10px] text-white/50">Tổng</p>
                 <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.total_customers}</p>
               </div>
-              <div className="p-2 text-center flex flex-col justify-center" style={glassCardInner}>
+              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(249, 115, 22, 0.1)", borderColor: "rgba(249, 115, 22, 0.2)" }}>
+                <p className="text-[10px] text-orange-300">Đồng</p>
+                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.BRONZE}</p>
+              </div>
+              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(148, 163, 184, 0.1)", borderColor: "rgba(148, 163, 184, 0.2)" }}>
                 <p className="text-[10px] text-slate-300">Bạc</p>
                 <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.SILVER}</p>
               </div>

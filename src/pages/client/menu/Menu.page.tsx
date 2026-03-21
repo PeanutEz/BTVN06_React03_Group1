@@ -291,6 +291,7 @@ export default function MenuPage() {
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- guard dùng categories.length / categoriesLoadedForFranchiseId; thêm vào deps gây fetch lặp sau setCategories([])
   }, [selectedFranchise?.id]);
 
   // BƯỚC 3 – LOAD ALL PRODUCTS for this franchise once, filter client-side by category

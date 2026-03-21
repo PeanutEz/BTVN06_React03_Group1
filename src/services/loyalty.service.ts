@@ -2,12 +2,12 @@ import type {
   LoyaltyRule, 
   LoyaltyTransaction, 
   LoyaltyTransactionType,
-  LoyaltyOverview 
+  LoyaltyOverview
 } from "../models/loyalty.model";
-import { DEFAULT_LOYALTY_RULE } from "../models/loyalty.model";
+
+import apiClient from "./api.client";
 
 // Mock data
-let currentRule: LoyaltyRule = { ...DEFAULT_LOYALTY_RULE };
 
 const mockLoyaltyTransactions: LoyaltyTransaction[] = [
   {
@@ -70,15 +70,75 @@ const mockLoyaltyTransactions: LoyaltyTransaction[] = [
   },
 ];
 
-export const fetchLoyaltyRule = async (): Promise<LoyaltyRule> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return currentRule;
+type LoyaltySearchPayload = Record<string, unknown>;
+
+type LoyaltyPageInfo = {
+  totalItems?: number;
+  totalPages?: number;
+  pageNum?: number;
+  pageSize?: number;
 };
 
-export const updateLoyaltyRule = async (rule: LoyaltyRule): Promise<LoyaltyRule> => {
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  currentRule = { ...rule };
-  return currentRule;
+export const searchLoyaltyRules = async (
+  payload: LoyaltySearchPayload,
+): Promise<{ items: LoyaltyRule[]; pageInfo: LoyaltyPageInfo }> => {
+  try {
+    const response = await apiClient.post("/loyalty-rules/search", payload);
+    const rData = response.data?.data;
+    
+    // Some endpoints return flat arrays in data, others nest inside data.items
+    const items = Array.isArray(rData) ? rData : (rData?.items || []);
+    const pageInfo = response.data?.pageInfo || rData?.pageInfo || { totalItems: 0, totalPages: 1, pageNum: 1, pageSize: 10 };
+    
+    return { items, pageInfo };
+  } catch (error) {
+    console.error("searchLoyaltyRules error:", error);
+    throw error;
+  }
+};
+
+export const getLoyaltyRuleById = async (id: string): Promise<LoyaltyRule> => {
+  try {
+    const response = await apiClient.get(`/loyalty-rules/${id}`);
+    return response.data?.data;
+  } catch (error) {
+    console.error("getLoyaltyRuleById error:", error);
+    throw error;
+  }
+};
+
+export const createLoyaltyRule = async (rule: Partial<LoyaltyRule>): Promise<LoyaltyRule> => {
+  try {
+    const response = await apiClient.post(`/loyalty-rules`, rule);
+    return response.data?.data;
+  } catch (error) {
+    console.error("createLoyaltyRule error:", error);
+    throw error;
+  }
+};
+
+export const updateLoyaltyRule = async (id: string, rule: Partial<LoyaltyRule>): Promise<LoyaltyRule> => {
+  try {
+    const response = await apiClient.put(`/loyalty-rules/${id}`, rule);
+    return response.data?.data;
+  } catch (error) {
+    console.error("updateLoyaltyRule error:", error);
+    throw error;
+  }
+};
+
+// Toggle active status (usually done via PUT with full or partial payload)
+export const changeLoyaltyRuleStatus = async (id: string, nextStatus: boolean, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+  return updateLoyaltyRule(id, { ...existingRule, is_active: nextStatus });
+};
+
+// Delete rule (soft delete if supported, or via PUT)
+export const deleteLoyaltyRule = async (id: string, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+  return updateLoyaltyRule(id, { ...existingRule, is_deleted: true });
+};
+
+export const restoreLoyaltyRule = async (id: string, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+  return updateLoyaltyRule(id, { ...existingRule, is_deleted: false });
 };
 
 export const fetchLoyaltyTransactions = async (): Promise<LoyaltyTransaction[]> => {
@@ -86,8 +146,14 @@ export const fetchLoyaltyTransactions = async (): Promise<LoyaltyTransaction[]> 
   return mockLoyaltyTransactions.filter(t => !t.is_deleted);
 };
 
+type LoyaltyTransactionDisplay = LoyaltyTransaction & {
+  franchise_name: string;
+  franchise_code: string;
+  order_code?: string;
+};
+
 // Helper function to add franchise and order info
-const mapTransactionToDisplay = async (transaction: LoyaltyTransaction): Promise<any> => {
+const mapTransactionToDisplay = async (transaction: LoyaltyTransaction): Promise<LoyaltyTransactionDisplay> => {
   // Map franchise info based on customer_franchise_id
   const franchiseMap: Record<number, { name: string, code: string }> = {
     1: { name: "WBS Coffee Hoàn Kiếm", code: "WBS-HN-01" },
@@ -112,7 +178,7 @@ const mapTransactionToDisplay = async (transaction: LoyaltyTransaction): Promise
   };
 };
 
-export const fetchLoyaltyTransactionsWithDetails = async (): Promise<any[]> => {
+export const fetchLoyaltyTransactionsWithDetails = async (): Promise<LoyaltyTransactionDisplay[]> => {
   await new Promise((resolve) => setTimeout(resolve, 500));
   const transactions = mockLoyaltyTransactions.filter(t => !t.is_deleted);
   return Promise.all(transactions.map(mapTransactionToDisplay));
@@ -146,7 +212,8 @@ export const fetchLoyaltyOverview = async (): Promise<LoyaltyOverview> => {
   return {
     total_customers: 156,
     customers_by_tier: {
-      SILVER: 98,
+      BRONZE: 12,
+      SILVER: 86,
       GOLD: 42,
       PLATINUM: 16,
     },

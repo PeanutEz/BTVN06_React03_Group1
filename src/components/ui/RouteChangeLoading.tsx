@@ -61,7 +61,7 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
       maxTimerRef.current = null;
       forceHide();
     }, MAX_MS);
-  }, [tryHide, forceHide]);
+  }, [tryHide, forceHide, minDurationMs]);
 
   // Route change → show loading (skip auth/landing pages)
   useEffect(() => {

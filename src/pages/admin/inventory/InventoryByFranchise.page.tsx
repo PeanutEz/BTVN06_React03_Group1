@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { InventoryItem } from "../../../models/inventory.model";
@@ -19,7 +19,7 @@ const InventoryByFranchisePage = () => {
   const [lowStockCount, setLowStockCount] = useState(0); // INVENTORY-07
   const lastId = useRef<string | undefined>(undefined);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -34,13 +34,13 @@ const InventoryByFranchisePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     if (id === lastId.current) return;
     lastId.current = id;
-    load();
-  }, [id]);
+    void load();
+  }, [id, load]);
 
   const handleUpdateStock = async (item: InventoryItem) => {
     const value = prompt(

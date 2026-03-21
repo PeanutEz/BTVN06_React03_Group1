@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- payload giỏ / API menu đa dạng */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
@@ -305,6 +306,9 @@ export default function MenuOrderPanel({
     return true;
   };
 
+  const fingerprintMatchesRef = useRef(fingerprintMatches);
+  fingerprintMatchesRef.current = fingerprintMatches;
+
   const reorderItems = (base: DisplayCartItem[], fromIndex: number) => {
     if (!pendingReorder?.fingerprint) return base;
     const targetIndex = base.findIndex((it) => fingerprintMatches(it, pendingReorder.fingerprint!));
@@ -329,7 +333,9 @@ export default function MenuOrderPanel({
   useEffect(() => {
     if (!pendingReorder?.fingerprint) return;
     const base = pendingReorder.kind === "api" ? apiItemsStableByLocal : localDisplayItems;
-    const idx = base.findIndex((it) => fingerprintMatches(it, pendingReorder.fingerprint!));
+    const idx = base.findIndex((it) =>
+      fingerprintMatchesRef.current(it, pendingReorder.fingerprint!),
+    );
     if (idx === pendingReorder.fromIndex) setPendingReorder(null);
   }, [
     pendingReorder?.fingerprint,

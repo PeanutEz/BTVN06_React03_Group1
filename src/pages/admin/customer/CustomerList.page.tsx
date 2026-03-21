@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, GlassSelect, useConfirm } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
@@ -67,7 +67,7 @@ const CustomerListPage = () => {
   const searchRef = useRef({ keyword, activeFilter });
   const hasRun = useRef(false);
 
-  const loadPage = async (page: number, kw = keyword, active = activeFilter) => {
+  const loadPage = useCallback(async (page: number, kw = keyword, active = activeFilter) => {
     setLoading(true);
     try {
       const result = await searchCustomersPaged({
@@ -88,13 +88,13 @@ const CustomerListPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [keyword, activeFilter]);
 
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;
-    loadPage(1);
-  }, []);
+    void loadPage(1);
+  }, [loadPage]);
 
   const handleSearch = () => {
     searchRef.current = { keyword, activeFilter };

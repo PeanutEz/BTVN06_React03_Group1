@@ -24,10 +24,13 @@ export const orderClient = {
       `/orders/customer/${customerId}`,
       { params: params?.status ? { status: params.status } : {} }
     );
-    const raw = response.data;
-    // API might return { success, data: [...] } or directly [...]
-    const result = (raw as any)?.data ?? raw;
-    return Array.isArray(result) ? result : [];
+    const raw = response.data as unknown;
+    const list = Array.isArray(raw)
+      ? raw
+      : raw && typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown }).data)
+        ? (raw as { data: OrderDisplay[] }).data
+        : [];
+    return list;
   },
 
   getOrderByCode: async (orderCode: string): Promise<OrderDisplay | null> => {
@@ -45,15 +48,17 @@ export const orderClient = {
 
     // Some backend implementations return `data` as an array (e.g. when using /orders/:id).
     // Normalize so UI always receives a single matching order.
-    const raw = (response.data as any)?.data ?? null;
+    const envelope = response.data as { data?: unknown };
+    const raw = envelope?.data ?? null;
     if (Array.isArray(raw)) {
+      const rows = raw as OrderDisplay[];
       const target = String(orderId);
       const matched =
-        raw.find((o: any) => String(o?._id ?? o?.id) === target) ?? raw[0];
+        rows.find((o) => String((o as { _id?: string | number })._id ?? o.id) === target) ?? rows[0];
       return matched ?? null;
     }
 
-    return raw ?? null;
+    return (raw as OrderDisplay | null) ?? null;
   },
 
   getOrdersByFranchiseId: async (franchiseId: string): Promise<OrderDisplay[]> => {

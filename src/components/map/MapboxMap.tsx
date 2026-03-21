@@ -40,6 +40,8 @@ export default function MapboxMap({
       mapRef.current?.remove();
       mapRef.current = null;
     };
+    // Chỉ khởi tạo map một lần; effect bên dưới flyTo khi center/zoom đổi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Update center when props change

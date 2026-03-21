@@ -3,7 +3,7 @@
  * the existing MenuCategory / MenuProduct types used by UI components.
  */
 import type { ClientCategoryByFranchiseItem } from "@/models/store.model";
-import type { ClientProductListItem } from "@/models/product.model.tsx";
+import type { ClientProductListItem } from "@/models/product.model";
 import type { MenuCategory, MenuProduct } from "@/types/menu.types";
 
 // Emoji map for common Vietnamese category names
@@ -42,7 +42,6 @@ function getCategoryIcon(name: string): string {
  */
 export function mapClientCategoryToMenuCategory(
     item: ClientCategoryByFranchiseItem,
-    _index: number,
 ): MenuCategory {
     return {
         id: hashStringToNumber(item.category_id),
@@ -71,9 +70,9 @@ export function mapClientProductToMenuProduct(
     };
 
     // API có thể trả price_base thay vì price trong sizes
-    const sizesWithPrice: SizeWithPrice[] = (item.sizes || []).map((s: { price?: number; price_base?: number; is_available?: boolean; [k: string]: unknown }) => ({
+    const sizesWithPrice: SizeWithPrice[] = (item.sizes || []).map((s: SizeWithPrice) => ({
         ...s,
-        price: Number(s?.price ?? (s as any)?.price_base ?? 0),
+        price: Number(s?.price ?? s?.price_base ?? 0),
     }));
     const availableSizes = sizesWithPrice.filter((s) => s.is_available);
     const cheapest = availableSizes.length > 0

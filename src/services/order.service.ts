@@ -2,18 +2,19 @@
  * Order Service for Admin Panel - REAL API Implementation
  * Replaces mock data with actual API calls via orderClient
  */
-import type { OrderDisplay, OrderStatus, OrderType } from "../models/order.model";
+import type { Order, OrderDisplay, OrderItem, OrderStatus, OrderType } from "../models/order.model";
 import { orderClient } from "./order.client";
 
 /**
  * Normalize order data from API to match UI expectations
  */
-const normalizeOrder = (order: any): OrderDisplay => {
+const normalizeOrder = (order: Order): OrderDisplay => {
   // Backend uses order_items instead of items
-  const items = order.order_items ?? order.items ?? [];
+  const items = (order.order_items ?? order.items ?? []) as OrderItem[];
 
   // Use final_amount if total_amount is 0
-  const totalAmount = order.total_amount || order.final_amount || order.subtotal_amount || 0;
+  const totalAmount =
+    Number(order.total_amount || order.final_amount || order.subtotal_amount || 0);
 
   return {
     ...order,
@@ -22,11 +23,11 @@ const normalizeOrder = (order: any): OrderDisplay => {
     customer: order.customer ?? {
       name: order.customer_name ?? "N/A",
       phone: order.phone,
-      email: order.email,
+      email: order.email as string | undefined,
     },
     franchise: order.franchise ?? {
       name: order.franchise_name ?? "N/A",
-      code: order.franchise_code,
+      code: order.franchise_code as string | undefined,
     },
   };
 };
@@ -38,7 +39,7 @@ const normalizeOrder = (order: any): OrderDisplay => {
 export const fetchOrdersByFranchise = async (franchiseId: string): Promise<OrderDisplay[]> => {
   try {
     const orders = await orderClient.getOrdersByFranchiseId(franchiseId);
-    return orders.map(normalizeOrder);
+    return orders.map((o) => normalizeOrder(o as Order));
   } catch (error) {
     console.error("Error fetching orders by franchise:", error);
     return [];
@@ -77,7 +78,7 @@ export const fetchOrderById = async (id: number | string): Promise<OrderDisplay 
     const order = await orderClient.getOrderById(id);
     if (!order) return null;
     console.log("📦 [Admin OrderService] Raw order from API:", order);
-    const normalized = normalizeOrder(order);
+    const normalized = normalizeOrder(order as Order);
     console.log("📦 [Admin OrderService] Normalized order:", normalized);
     return normalized;
   } catch (error) {
@@ -188,7 +189,6 @@ export const updateOrderStatus = async (
   id: number | string,
   status: OrderStatus,
   changedBy?: number | string,
-  _note?: string
 ): Promise<OrderDisplay | null> => {
   try {
     // Map status to appropriate API call
@@ -212,7 +212,7 @@ export const updateOrderStatus = async (
  * Create a new order
  * Note: This might need to be implemented via cart checkout flow
  */
-export const createOrder = async (_data: unknown): Promise<unknown> => {
+export const createOrder = async (): Promise<unknown> => {
   try {
     // Orders are typically created via cart checkout
     // This function is kept for backwards compatibility but might not be used

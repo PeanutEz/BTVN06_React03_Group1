@@ -63,48 +63,70 @@ const FranchiseListPage = () => {
   const [saving, setSaving] = useState(false);
   const [editLogoPreview, setEditLogoPreview] = useState<string>("");
   const pendingEditLogoFileRef = useRef<File | null>(null);
-  const editLogoInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
-  const lastIsActive = useRef<string | null>(null);
-  const lastIsDeleted = useRef<boolean | null>(null);
+  const editLogoInputRef = useRef<HTMLInputElement>(null);  const navigate = useNavigate();
 
-  const load = useCallback(async (page = currentPage) => {
+  // Refs để giữ latest values — tránh load bị stale closure mà không tạo lại function
+  const keywordRef = useRef(keyword);
+  const isActiveRef = useRef(isActive);
+  const isDeletedRef = useRef(isDeleted);
+  const currentPageRef = useRef(currentPage);
+  keywordRef.current = keyword;
+  isActiveRef.current = isActive;
+  isDeletedRef.current = isDeleted;
+  currentPageRef.current = currentPage;
+
+  // load KHÔNG nằm trong useCallback có deps → không bao giờ bị tạo lại
+  const load = useCallback(async (page?: number) => {
+    const pageNum = page ?? currentPageRef.current;
+    const kw = keywordRef.current;
+    const active = isActiveRef.current;
+    const deleted = isDeletedRef.current;
+
     setLoading(true);
     try {
       const result = await searchFranchises({
         searchCondition: {
-          keyword,
-          ...(isActive !== "" && { is_active: isActive }),
-          is_deleted: isDeleted,
+          keyword: kw,
+          ...(active !== "" && { is_active: active }),
+          is_deleted: deleted,
         },
-        pageInfo: {
-          pageNum: page,
-          pageSize: ITEMS_PER_PAGE,
-        },
+        pageInfo: { pageNum, pageSize: ITEMS_PER_PAGE },
       });
       setFranchises(result.data);
       setTotalPages(result.pageInfo.totalPages);
       setTotalItems(result.pageInfo.totalItems);
       setCurrentPage(result.pageInfo.pageNum);
+      currentPageRef.current = result.pageInfo.pageNum;
     } catch (error) {
       console.error("Lỗi tải danh sách franchise:", error);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, keyword, isActive, isDeleted]);
+   
+  }, []); // deps rỗng — load không bao giờ thay đổi reference
 
+  // Chỉ load 1 lần khi mount
   useEffect(() => {
-    if (isActive === lastIsActive.current) return;
-    lastIsActive.current = isActive;
     load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reload khi isActive thay đổi
+  const prevIsActive = useRef(isActive);
+  useEffect(() => {
+    if (isActive === prevIsActive.current) return;
+    prevIsActive.current = isActive;
+    load(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive]);
 
+  // Reload khi isDeleted thay đổi
+  const prevIsDeleted = useRef(isDeleted);
   useEffect(() => {
-    if (isDeleted === lastIsDeleted.current) return;
-    lastIsDeleted.current = isDeleted;
+    if (isDeleted === prevIsDeleted.current) return;
+    prevIsDeleted.current = isDeleted;
     load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDeleted]);
 
   const handlePageChange = (page: number) => {
@@ -188,10 +210,14 @@ const FranchiseListPage = () => {
       setSaving(false);
     }
   };
-
   const handleToggleStatus = async (f: ApiFranchise) => {
     const action = f.is_active ? "Ngừng hoạt động" : "Kích hoạt";
-    if (!await showConfirm(`Bạn có chắc muốn ${action} franchise "${f.name}"?`)) return;
+    if (!await showConfirm({
+      message: `Bạn có chắc muốn ${action} franchise "${f.name}"?`,
+      title: `${action} franchise`,
+      variant: f.is_active ? "warning" : "info",
+      confirmText: action,
+    })) return;
     try {
       await changeFranchiseStatus(f.id, !f.is_active);
       showSuccess(`Đã ${action} franchise "${f.name}"`);

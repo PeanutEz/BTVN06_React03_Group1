@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
@@ -23,7 +23,7 @@ const OrderDetailPage = () => {
   const [newStatus, setNewStatus] = useState<OrderStatus>("DRAFT");
   const lastId = useRef<string | undefined>(undefined);
 
-  const loadOrder = async () => {
+  const loadOrder = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -42,13 +42,13 @@ const OrderDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   useEffect(() => {
     if (id === lastId.current) return;
     lastId.current = id;
-    loadOrder();
-  }, [id]);
+    void loadOrder();
+  }, [id, loadOrder]);
 
   const handleUpdateStatus = async () => {
     if (!order || !id) return;
@@ -69,7 +69,7 @@ const OrderDetailPage = () => {
       } else {
         showError("Không thể cập nhật trạng thái");
       }
-    } catch (error) {
+    } catch {
       showError("Có lỗi xảy ra");
     } finally {
       setUpdating(false);

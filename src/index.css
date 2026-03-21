@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Force 24h time input — hide AM/PM ===== */
+input[type="time"]::-webkit-datetime-edit-ampm-field {
+  display: none !important;
+}
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* ===== Glassmorphism Utility Classes ===== */
 .glass {
   background: rgba(255, 255, 255, 0.08);

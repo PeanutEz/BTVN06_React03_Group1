@@ -98,7 +98,9 @@ apiClient.interceptors.response.use(
                         const roles = parsed?.roles ?? [];
                         isCustomer =
                             roles.length === 0 ||
-                            roles.some((r: any) => String(r?.role ?? r?.scope ?? "").toUpperCase().includes("CUSTOMER"));
+                            roles.some((r: { role?: unknown; scope?: unknown }) =>
+                                String(r?.role ?? r?.scope ?? "").toUpperCase().includes("CUSTOMER"),
+                            );
                     } catch {
                         isCustomer = true;
                     }

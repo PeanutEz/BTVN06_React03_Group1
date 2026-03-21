@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { Payment, PaymentStatus } from "../../../models/payment.model";
@@ -24,7 +24,7 @@ const PaymentDetailPage = () => {
   const [newStatus, setNewStatus] = useState<PaymentStatus>("DRAFT");
   const lastId = useRef<string | undefined>(undefined);
 
-  const loadPayment = async () => {
+  const loadPayment = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -46,13 +46,13 @@ const PaymentDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   useEffect(() => {
     if (id === lastId.current) return;
     lastId.current = id;
-    loadPayment();
-  }, [id]);
+    void loadPayment();
+  }, [id, loadPayment]);
 
   const handleUpdateStatus = async () => {
     if (!payment || !id) return;
@@ -73,7 +73,7 @@ const PaymentDetailPage = () => {
       } else {
         showError("Không thể cập nhật trạng thái");
       }
-    } catch (error) {
+    } catch {
       showError("Có lỗi xảy ra");
     } finally {
       setUpdating(false);
