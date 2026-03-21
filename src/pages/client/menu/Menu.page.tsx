@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { clientService } from "@/services/client.service";
 import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/models/store.model";
-import type { ClientProductListItem } from "@/models/product.model.tsx";
+import type { ClientProductListItem } from "@/models/product.model.ts";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";

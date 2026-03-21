@@ -3,7 +3,7 @@
  * the existing MenuCategory / MenuProduct types used by UI components.
  */
 import type { ClientCategoryByFranchiseItem } from "@/models/store.model";
-import type { ClientProductListItem } from "@/models/product.model.tsx";
+import type { ClientProductListItem } from "@/models/product.model.ts";
 import type { MenuCategory, MenuProduct } from "@/types/menu.types";
 
 // Emoji map for common Vietnamese category names

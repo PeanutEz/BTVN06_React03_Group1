@@ -3,7 +3,7 @@ import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/model
 import type {
   ClientProductListItem,
   ClientProductDetailResponse,
-} from "@/models/product.model.tsx";
+} from "@/models/product.model.ts";
 
 export const clientService = {
   // CLIENT-01 — Get All Franchises
