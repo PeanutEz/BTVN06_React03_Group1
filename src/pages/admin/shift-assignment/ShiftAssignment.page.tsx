@@ -2,9 +2,10 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Button } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { shiftAssignmentService } from "../../../services/shift-assignment.service";
-import { searchShifts } from "../../../services/shift.service";
+import { searchShifts, getSelectShiftsByFranchise } from "../../../services/shift.service";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import { getUsersByFranchiseId } from "../../../services/user-franchise-role.service";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 import type {
     ShiftAssignment,
@@ -24,6 +25,7 @@ const DEFAULT_FORM: CreateShiftAssignmentDto = {
 };
 
 export default function ShiftAssignmentPage() {
+    const managerFranchiseId = useManagerFranchiseId();
     const [data, setData] = useState<ShiftAssignment[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -34,13 +36,15 @@ export default function ShiftAssignmentPage() {
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState<CreateShiftAssignmentDto>({ ...DEFAULT_FORM });
 
-    const [viewing, setViewing] = useState<ShiftAssignment | null>(null);
-
-    const [shifts, setShifts] = useState<any[]>([]);
+    const [viewing, setViewing] = useState<ShiftAssignment | null>(null);    const [shifts, setShifts] = useState<any[]>([]);
     const [franchises, setFranchises] = useState<any[]>([]);
-    const [users, setUsers] = useState<any[]>([]);    const [searchName, setSearchName] = useState("");
+    const [users, setUsers] = useState<any[]>([]);
+    // Modal: franchise + shifts theo franchise đó
+    const [modalFranchiseId, setModalFranchiseId] = useState("");
+    const [modalShifts, setModalShifts] = useState<any[]>([]);
+    const [modalShiftsLoading, setModalShiftsLoading] = useState(false);const [searchName, setSearchName] = useState("");
     const [searchNameApplied, setSearchNameApplied] = useState("");
-    const [filterFranchise, setFilterFranchise] = useState("");
+    const [filterFranchise, setFilterFranchise] = useState(managerFranchiseId ?? "");
     const [filterStatus, setFilterStatus] = useState("");
 
     // franchise combobox (filter)
@@ -78,15 +82,42 @@ export default function ShiftAssignmentPage() {
     };
     const [mode, setMode] = useState<"single" | "multiple">("single");
     const [workDates, setWorkDates] = useState<string[]>([]);
-    const [tempDate, setTempDate] = useState("");
-
-    const handleOpenModal = () => {
+    const [tempDate, setTempDate] = useState("");    const handleOpenModal = () => {
         setForm({ ...DEFAULT_FORM });
         setWorkDates([]);
         setMode("single");
-        setUsers([]); // optional: clear user list
+        setUsers([]);
+        // Nếu là manager thì tự động set franchise và load shifts
+        const initFranchise = managerFranchiseId ?? "";
+        setModalFranchiseId(initFranchise);
+        if (initFranchise) {
+            loadModalShifts(initFranchise);
+            loadUsers(initFranchise);
+        } else {
+            setModalShifts([]);
+        }
         setShowModal(true);
-    };    // =====================
+    };
+
+    // Load shifts theo franchise được chọn trong modal
+    const loadModalShifts = async (franchiseId: string) => {
+        if (!franchiseId) {
+            setModalShifts([]);
+            return;
+        }
+        setModalShiftsLoading(true);
+        try {
+            const res = await getSelectShiftsByFranchise(franchiseId);
+            setModalShifts(res || []);
+        } catch (err) {
+            console.log("load modal shifts error", err);
+            setModalShifts([]);
+        } finally {
+            setModalShiftsLoading(false);
+        }
+    };
+
+    // =====================
     // LOAD SHIFT ASSIGNMENT
     // =====================
     const load = async (
@@ -94,6 +125,7 @@ export default function ShiftAssignmentPage() {
         name = searchNameApplied,
         franchise = filterFranchise,
         status = filterStatus,
+        shiftsData?: any[],
     ) => {
         setLoading(true);
         try {
@@ -105,12 +137,17 @@ export default function ShiftAssignmentPage() {
                 is_deleted: false,
             });
 
+            // Dùng shiftsData nếu được truyền vào (tránh closure stale khi shifts chưa load)
+            const currentShiftMap = shiftsData
+                ? Object.fromEntries(shiftsData.map((s: any) => [s.id, s]))
+                : shiftMap;
+
             // Filter client-side cho name + franchise (API không hỗ trợ trực tiếp)
             const rawData: any[] = res?.data || [];
             const filtered = rawData.filter((item) => {
                 const matchName = !name.trim()
                     || item.user_name?.toLowerCase().includes(name.trim().toLowerCase());
-                const shift = shiftMap[item.shift_id];
+                const shift = currentShiftMap[item.shift_id];
                 const matchFranchise = !franchise
                     || shift?.franchise_id === franchise;
                 return matchName && matchFranchise;
@@ -127,32 +164,7 @@ export default function ShiftAssignmentPage() {
         } finally {
             setLoading(false);
         }
-    };
-
-    // =====================
-    // LOAD SHIFTS
-    // =====================
-    const loadShifts = async () => {
-        try {
-            const res: any = await searchShifts({
-                searchCondition: {
-                    name: "",
-                    franchise_id: "",
-                    start_time: "",
-                    end_time: "",
-                    is_active: true,
-                    is_deleted: false
-                },
-                pageInfo: { pageNum: 1, pageSize: 1000 },
-            });
-
-            setShifts(res?.data || []);
-        } catch (err) {
-            console.log("load shifts error", err);
-        }
-    };
-
-    // =====================
+    };    // =====================
     // LOAD FRANCHISE
     // =====================
     const loadFranchises = async () => {
@@ -175,19 +187,58 @@ export default function ShiftAssignmentPage() {
             setUsers(res || []);
         } catch (err) {
             console.log("load users error", err);
-        }
-    };    useEffect(() => {
+        }    };    useEffect(() => {
         if (hasRun.current) return;
         hasRun.current = true;
 
-        load(1);
-        loadShifts();
-        loadFranchises();
-    }, []);
+        const initFranchise = managerFranchiseId ?? "";
+        if (initFranchise) setFilterFranchise(initFranchise);
+
+        // Load shifts trước, rồi truyền data vào load() để filter franchise đúng ngay lần đầu
+        const init = async () => {
+            let shiftsData: any[] = [];
+            try {
+                const res: any = await searchShifts({
+                    searchCondition: {
+                        name: "",
+                        franchise_id: "",
+                        start_time: "",
+                        end_time: "",
+                        is_active: true,
+                        is_deleted: false
+                    },
+                    pageInfo: { pageNum: 1, pageSize: 1000 },
+                });
+                shiftsData = res?.data || [];
+                setShifts(shiftsData);
+            } catch (err) {
+                console.log("load shifts error", err);
+            }
+            load(1, searchNameApplied, initFranchise, filterStatus, shiftsData);
+            loadFranchises();
+        };
+        init();
+    }, []);    // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+    useEffect(() => {
+        if (!managerFranchiseId) return;
+        setFilterFranchise(managerFranchiseId);
+        load(1, searchNameApplied, managerFranchiseId, filterStatus);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [managerFranchiseId]);
+
+    // Sync franchiseKeyword khi options load xong và đang là manager
+    useEffect(() => {
+        if (!managerFranchiseId || !franchises.length) return;
+        const found = franchises.find(f => f.value === managerFranchiseId);
+        if (found) setFranchiseKeyword(`${found.name} (${found.code})`);
+    }, [managerFranchiseId, franchises]);
+
     useEffect(() => {
         setForm(prev => ({ ...prev, work_date: "" }));
         setWorkDates([]);
-    }, [mode]);    useEffect(() => {
+    }, [mode]);
+
+    useEffect(() => {
         setCurrentPage(1);
     }, [searchNameApplied, filterFranchise, filterStatus]);
 
@@ -249,19 +300,19 @@ export default function ShiftAssignmentPage() {
         setSearchNameApplied(searchName);
         setCurrentPage(1);
         load(1, searchName, filterFranchise, filterStatus);
-    };    const filteredData = data; // filter đã xử lý trong load()
+    };
+
+    const filteredData = data; // filter đã xử lý trong load()
 
     const handleSelectShift = (shiftId: string) => {
-        const shift = shifts.find(s => s.id === shiftId);
-
         setForm(prev => ({
             ...prev,
             shift_id: shiftId,
             user_id: "" // reset user
         }));
 
-        if (shift?.franchise_id) {
-            loadUsers(shift.franchise_id);
+        if (modalFranchiseId) {
+            loadUsers(modalFranchiseId);
         }
     };
 
@@ -396,20 +447,30 @@ export default function ShiftAssignmentPage() {
                     <div className="min-w-[200px]" ref={franchiseComboRef}>
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Franchise
-                        </label>
-                        <div className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setFranchiseComboOpen((o) => !o)}
-                                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                            >
-                                <span className="truncate">
-                                    {filterFranchise ? (franchiseMap[filterFranchise] || filterFranchise) : "-- Tất cả --"}
-                                </span>
-                                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </button>
+                        </label>                        <div className="relative">
+                            {managerFranchiseId ? (
+                                <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed">
+                                    <span className="truncate font-medium">
+                                        {filterFranchise ? (franchiseMap[filterFranchise] || filterFranchise) : "-- Tất cả --"}
+                                    </span>
+                                    <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setFranchiseComboOpen((o) => !o)}
+                                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                                >
+                                    <span className="truncate">
+                                        {filterFranchise ? (franchiseMap[filterFranchise] || filterFranchise) : "-- Tất cả --"}
+                                    </span>
+                                    <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                            )}
                             {franchiseComboOpen && (
                                 <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
                                     <div className="border-b border-white/[0.12] px-3 py-2">
@@ -633,9 +694,42 @@ export default function ShiftAssignmentPage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </button>
-                            </div>
+                            </div>                            <form onSubmit={handleCreate} className="space-y-4">
 
-                            <form onSubmit={handleCreate} className="space-y-4">
+                                {/* FRANCHISE */}
+                                <div className="space-y-1.5">
+                                    <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
+                                        <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                        Chi nhánh <span className="text-red-400 normal-case">*</span>
+                                    </label>
+                                    {managerFranchiseId ? (
+                                        <div className="flex w-full items-center gap-2 rounded-lg border border-primary-500/40 bg-primary-500/10 px-3 py-2 text-sm text-white/80">
+                                            <svg className="size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                                            <span className="truncate font-medium">
+                                                {franchiseMap[managerFranchiseId] || managerFranchiseId}
+                                            </span>
+                                        </div>
+                                    ) : (
+                                        <select
+                                            value={modalFranchiseId}
+                                            onChange={(e) => {
+                                                const fid = e.target.value;
+                                                setModalFranchiseId(fid);
+                                                setForm(prev => ({ ...prev, shift_id: "", user_id: "" }));
+                                                setUsers([]);
+                                                loadModalShifts(fid);
+                                                if (fid) loadUsers(fid);
+                                            }}
+                                            className="w-full rounded-lg border border-white/[0.12] bg-white/[0.06] px-3 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500/60 focus:bg-white/[0.09] focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
+                                            style={{ colorScheme: "dark" }}
+                                        >
+                                            <option value="">-- Chọn chi nhánh --</option>
+                                            {franchises.map((f) => (
+                                                <option key={f.value} value={f.value}>{f.name} ({f.code})</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
 
                                 {/* SHIFT + USER — 2 cột */}
                                 <div className="grid grid-cols-2 gap-3">
@@ -644,24 +738,24 @@ export default function ShiftAssignmentPage() {
                                         <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
                                             <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                             Ca làm việc <span className="text-red-400 normal-case">*</span>
-                                        </label>
-                                        <select
+                                        </label>                                        <select
                                             value={form.shift_id}
                                             onChange={(e) => handleSelectShift(e.target.value)}
-                                            className="w-full rounded-lg border border-white/[0.12] bg-white/[0.06] px-3 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500/60 focus:bg-white/[0.09] focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
+                                            disabled={!modalFranchiseId || modalShiftsLoading}
+                                            className="w-full rounded-lg border border-white/[0.12] bg-white/[0.06] px-3 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500/60 focus:bg-white/[0.09] focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white disabled:cursor-not-allowed disabled:opacity-40"
                                             style={{ colorScheme: "dark" }}
                                         >
-                                            <option value="">-- Chọn ca --</option>
-                                            {shifts.map((s) => (
-                                                <option key={s.id} value={s.id}>
-                                                    {s.name} ({s.start_time}–{s.end_time})
+                                            <option value="">
+                                                {!modalFranchiseId ? "Chọn chi nhánh trước" : modalShiftsLoading ? "Đang tải..." : "-- Chọn ca --"}
+                                            </option>
+                                            {modalShifts.map((s) => (
+                                                <option key={s.value} value={s.value}>
+                                                    {s.name}
                                                 </option>
                                             ))}
                                         </select>
-                                        {form.shift_id && (
-                                            <p className="text-[10px] text-white/35 pl-0.5">
-                                                📍 {franchiseMap[shiftMap[form.shift_id]?.franchise_id] || "—"}
-                                            </p>
+                                        {!modalFranchiseId && (
+                                            <p className="text-[10px] text-amber-400/60 pl-0.5">⚠ Vui lòng chọn chi nhánh trước</p>
                                         )}
                                     </div>
 
@@ -670,8 +764,7 @@ export default function ShiftAssignmentPage() {
                                         <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
                                             <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                                             Nhân viên <span className="text-red-400 normal-case">*</span>
-                                        </label>
-                                        <select
+                                        </label>                                        <select
                                             value={form.user_id}
                                             onChange={(e) => setForm({ ...form, user_id: e.target.value })}
                                             disabled={!form.shift_id}
@@ -679,7 +772,7 @@ export default function ShiftAssignmentPage() {
                                             style={{ colorScheme: "dark" }}
                                         >
                                             <option value="">
-                                                {!form.shift_id ? "Chọn ca trước" : "-- Chọn nhân viên --"}
+                                                {!modalFranchiseId ? "Chọn chi nhánh trước" : !form.shift_id ? "Chọn ca trước" : "-- Chọn nhân viên --"}
                                             </option>
                                             {users.map((u) => (
                                                 <option key={u.value} value={u.value}>{u.name}</option>

@@ -69,25 +69,22 @@ export const productCategoryFranchiseService = {
       `/product-category-franchises/${id}`,
     );
   },
-
   // PCF-05 — Restore Item
-  // PATCH /api/product-category-franchises/restore  |  Role: ADMIN, MANAGER  |  Token: required
+  // PATCH /api/product-category-franchises/:id/restore  |  Role: ADMIN, MANAGER  |  Token: required
   restoreProductCategoryFranchise: async (id: string): Promise<void> => {
     await apiClient.patch<{ success: boolean; data: null }>(
-      "/product-category-franchises/restore",
-      { id },
+      `/product-category-franchises/${id}/restore`,
     );
   },
-
   // PCF-06 — Change Status Item
-  // PATCH /api/product-category-franchises/status  |  Role: ADMIN, MANAGER  |  Token: required
+  // PATCH /api/product-category-franchises/:id/status  |  Role: ADMIN, MANAGER  |  Token: required
   changeProductCategoryFranchiseStatus: async (
     id: string,
     is_active: boolean,
   ): Promise<void> => {
     await apiClient.patch<{ success: boolean; data: null }>(
-      "/product-category-franchises/status",
-      { id, is_active },
+      `/product-category-franchises/${id}/status`,
+      { is_active },
     );
   },
 

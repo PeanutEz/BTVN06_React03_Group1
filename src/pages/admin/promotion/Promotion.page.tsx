@@ -14,10 +14,12 @@ import type {
     PromotionType
 } from "../../../models/promotion.model";
 import { showError, showSuccess } from "../../../utils";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function PromotionPage() {
+    const managerFranchiseId = useManagerFranchiseId();
     const [items, setItems] = useState<Promotion[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -26,7 +28,7 @@ export default function PromotionPage() {
     const [totalPages, setTotalPages] = useState(1);
 
     // filters
-    const [searchFranchise, setSearchFranchise] = useState("");
+    const [searchFranchise, setSearchFranchise] = useState(managerFranchiseId ?? "");
     const [typeFilter, setTypeFilter] = useState<PromotionType | "">("");
     const [statusFilter, setStatusFilter] = useState("");
     const [isDeletedFilter, setIsDeletedFilter] = useState(false);
@@ -147,25 +149,38 @@ export default function PromotionPage() {
             }
         },
         []
-    );
-
-    useEffect(() => {
+    );    useEffect(() => {
         if (hasRun.current) return;
         hasRun.current = true;
 
-        load("", 1, "", "", false).finally(() => {
+        const initFranchise = managerFranchiseId ?? "";
+        if (initFranchise) setSearchFranchise(initFranchise);
+        load(initFranchise, 1, "", "", false).finally(() => {
             isInitialized.current = true;
         });
 
         loadFranchises();
     }, []);
 
+    // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+    useEffect(() => {
+        if (!managerFranchiseId) return;
+        setSearchFranchise(managerFranchiseId);
+    }, [managerFranchiseId]);
+
+    // Sync franchiseKeyword khi options load xong và đang là manager
+    useEffect(() => {
+        if (!managerFranchiseId || !franchiseOptions.length) return;
+        const found = franchiseOptions.find(f => f.value === managerFranchiseId);
+        if (found) setFranchiseKeyword(`${found.name} (${found.code})`);
+    }, [managerFranchiseId, franchiseOptions]);
+
     useEffect(() => {
         if (!isInitialized.current) return;
 
         setCurrentPage(1);
         load(searchFranchise, 1, statusFilter, typeFilter, isDeletedFilter);
-    }, [searchFranchise, statusFilter, typeFilter, isDeletedFilter]);    useEffect(() => {
+    }, [searchFranchise, statusFilter, typeFilter, isDeletedFilter]);useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (franchiseComboRef.current && !franchiseComboRef.current.contains(e.target as Node))
                 setFranchiseComboOpen(false);
@@ -356,25 +371,34 @@ export default function PromotionPage() {
 
             </div>            {/* FILTER */}
             <div className="relative z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex flex-wrap gap-3">
-
-                    {/* Franchise custom combobox */}
+                <div className="flex flex-wrap gap-3">                    {/* Franchise custom combobox */}
                     <div className="relative min-w-[200px] flex-1" ref={franchiseComboRef}>
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Franchise
                         </label>
-                        <button
-                            type="button"
-                            onClick={() => setFranchiseComboOpen((o) => !o)}
-                            className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                        >
-                            <span className="truncate">
-                                {searchFranchise ? (franchiseNameMap[searchFranchise] || franchiseKeyword) : "-- Tất cả --"}
-                            </span>
-                            <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
+                        {managerFranchiseId ? (
+                            <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed">
+                                <span className="truncate font-medium">
+                                    {searchFranchise ? (franchiseNameMap[searchFranchise] || searchFranchise) : "-- Tất cả --"}
+                                </span>
+                                <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setFranchiseComboOpen((o) => !o)}
+                                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                            >
+                                <span className="truncate">
+                                    {searchFranchise ? (franchiseNameMap[searchFranchise] || franchiseKeyword) : "-- Tất cả --"}
+                                </span>
+                                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+                        )}
                         {franchiseComboOpen && (
                             <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
                                 <div className="border-b border-white/[0.12] px-3 py-2">
