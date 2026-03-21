@@ -10,6 +10,7 @@ import type {
   PaymentStatus,
   PlacedOrder,
 } from "@/types/delivery.types";
+import { buildStaticPaymentQr } from "@/utils/payment-qr.util";
 
 export const fetchPayments = async (): Promise<AdminPayment[]> => {
   await new Promise((resolve) => setTimeout(resolve, 500));
@@ -92,11 +93,13 @@ export interface CreatePaymentPayload {
   orderId: string;
   method: PaymentMethod;
   amount: number;
+  bankName?: string;
 }
 
 export interface CreatePaymentResult {
   transactionId: string;
   status: PaymentStatus;
+  bankName?: string;
   qrCodeUrl?: string;
   deeplink?: string;
   paymentUrl?: string;
@@ -113,11 +116,19 @@ export async function createPayment(
   const transactionId = `TXN-${Date.now()}`;
 
   if (payload.method === "BANK") {
+    const bankLabel = payload.bankName ?? "Ngân hàng đã chọn";
+
     return {
       transactionId,
       status: "PENDING",
-      qrCodeUrl: `https://dummyimage.com/320x320/f3f4f6/111827&text=QR+${payload.orderId}`,
-      note: "Quét QR để thanh toán đơn hàng",
+      bankName: bankLabel,
+      qrCodeUrl: buildStaticPaymentQr({
+        provider: payload.method,
+        amount: payload.amount,
+        orderRef: payload.orderId,
+        bankName: bankLabel,
+      }),
+      note: `Quét QR tĩnh hoặc chuyển khoản thủ công qua ${bankLabel}`,
     };
   }
 
@@ -127,7 +138,12 @@ export async function createPayment(
       status: "PENDING",
       deeplink: `momo://payment/${transactionId}`,
       paymentUrl: `/payment/process/${payload.orderId}`,
-      note: "Mở MoMo để hoàn tất giao dịch",
+      qrCodeUrl: buildStaticPaymentQr({
+        provider: payload.method,
+        amount: payload.amount,
+        orderRef: payload.orderId,
+      }),
+      note: "Quét QR MoMo tĩnh hoặc mở ứng dụng để hoàn tất giao dịch",
     };
   }
 
@@ -136,7 +152,12 @@ export async function createPayment(
       transactionId,
       status: "PENDING",
       paymentUrl: `/payment/process/${payload.orderId}`,
-      note: "Tiếp tục qua ZaloPay",
+      qrCodeUrl: buildStaticPaymentQr({
+        provider: payload.method,
+        amount: payload.amount,
+        orderRef: payload.orderId,
+      }),
+      note: "Quét QR ZaloPay tĩnh để tiếp tục thanh toán",
     };
   }
 
@@ -145,7 +166,12 @@ export async function createPayment(
       transactionId,
       status: "PENDING",
       paymentUrl: `/payment/process/${payload.orderId}`,
-      note: "Tiếp tục qua ShopeePay",
+      qrCodeUrl: buildStaticPaymentQr({
+        provider: payload.method,
+        amount: payload.amount,
+        orderRef: payload.orderId,
+      }),
+      note: "Quét QR ShopeePay tĩnh để tiếp tục thanh toán",
     };
   }
 
@@ -170,6 +196,7 @@ export async function retryPayment(order: PlacedOrder): Promise<CreatePaymentRes
     orderId: order.id,
     method: order.paymentMethod,
     amount: order.total,
+    bankName: order.bankName,
   });
 }
 
