@@ -1,4 +1,4 @@
-export { GlassSelect } from "./GlassSelect";
+export { GlassSelect, GlassSearchSelect } from "./GlassSelect";
 export { ConfirmProvider, useConfirm } from "./ConfirmDialog";
 export { Button } from "./button";
 export type { ButtonProps } from "./button";
