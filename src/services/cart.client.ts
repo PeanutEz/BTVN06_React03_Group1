@@ -31,6 +31,8 @@ export interface UpdateCartBody {
   address?: string;
   phone?: string;
   message?: string;
+  payment_method?: string;
+  bank_name?: string;
 }
 
 export interface UpdateCartItemBody {
@@ -174,9 +176,13 @@ export const cartClient = {
     await apiClient.delete(`/carts/${cartId}/remove-voucher`);
   },
 
-  checkoutCart: async (cartId: string): Promise<unknown> => {
+  checkoutCart: async (
+    cartId: string,
+    body?: { payment_method?: string; bank_name?: string }
+  ): Promise<unknown> => {
     const response = await apiClient.put<ApiResponse<unknown>>(
-      `/carts/${cartId}/checkout`
+      `/carts/${cartId}/checkout`,
+      body ?? {}
     );
     return response.data.data;
   },

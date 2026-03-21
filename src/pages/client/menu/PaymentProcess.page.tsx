@@ -10,19 +10,45 @@ import { paymentClient } from "@/services/payment.client";
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
+function toNumber(value: unknown): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function getOrderDisplayAmount(order: any, payment?: { amount?: number } | null): number {
+  const items = Array.isArray(order?.items) ? order.items : Array.isArray(order?.order_items) ? order.order_items : [];
+  const itemsTotal = items.reduce((sum: number, item: any) => {
+    const lineTotal = toNumber(item?.line_total ?? item?.subtotal);
+    return sum + lineTotal;
+  }, 0);
+
+  const orderTotal = toNumber(order?.total_amount);
+  const finalAmount = toNumber(order?.final_amount);
+  const subtotalAmount = toNumber(order?.subtotal_amount);
+  const paymentAmount = toNumber(payment?.amount);
+
+  return itemsTotal || orderTotal || finalAmount || subtotalAmount || paymentAmount || 0;
+}
+
 function paymentStatusLabel(status?: string) {
   switch (status?.toUpperCase()) {
     case "PAID":
     case "CONFIRMED":
+    case "COMPLETED":
       return { label: "Đã thanh toán", bg: "bg-green-50", color: "text-green-700", border: "border-green-200" };
-    case "FAILED":
     case "REFUNDED":
-      return { label: "Thất bại", bg: "bg-red-50", color: "text-red-700", border: "border-red-200" };
+      return { label: "Đã hoàn tiền", bg: "bg-blue-50", color: "text-blue-700", border: "border-blue-200" };
+    case "FAILED":
+      return { label: "Thanh toán thất bại", bg: "bg-red-50", color: "text-red-700", border: "border-red-200" };
     case "CANCELLED":
       return { label: "Đã huỷ", bg: "bg-gray-50", color: "text-gray-700", border: "border-gray-200" };
     default:
       return { label: "Chờ thanh toán", bg: "bg-amber-50", color: "text-amber-700", border: "border-amber-200" };
   }
+}
+
+function isPaidStatus(status?: string) {
+  return ["PAID", "CONFIRMED", "COMPLETED"].includes(String(status ?? "").toUpperCase());
 }
 
 export default function PaymentProcessPage() {
@@ -46,6 +72,10 @@ export default function PaymentProcessPage() {
   const isLoading = orderLoading || paymentLoading;
   const paymentId = payment?._id ?? payment?.id ?? "";
   const statusCfg = paymentStatusLabel(payment?.status);
+  const paymentMissing = !paymentId;
+  const paymentAlreadyPaid = isPaidStatus(payment?.status);
+  const paymentRefunded = String(payment?.status ?? "").toUpperCase() === "REFUNDED";
+  const displayAmount = getOrderDisplayAmount(order, payment);
 
   async function handleConfirmPaid() {
     if (!paymentId || submitting) return;
@@ -58,7 +88,7 @@ export default function PaymentProcessPage() {
       const newStatus = result?.status?.toUpperCase();
       queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
 
-      if (newStatus === "PAID" || newStatus === "CONFIRMED") {
+      if (isPaidStatus(newStatus)) {
         toast.success("Thanh toán thành công!");
         navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId!));
       } else {
@@ -145,7 +175,7 @@ export default function PaymentProcessPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 mb-1">Số tiền</p>
-                  <p className="text-2xl font-bold text-amber-600">{fmt(payment?.amount ?? order.total_amount)}</p>
+                  <p className="text-2xl font-bold text-amber-600">{fmt(displayAmount)}</p>
                 </div>
                 {payment?.provider_txn_id && (
                   <div>
@@ -158,24 +188,34 @@ export default function PaymentProcessPage() {
                 <div className="text-center py-10">
                   <div className="text-5xl mb-3">💳</div>
                   <p className="text-sm text-gray-600">Xác nhận thanh toán để tiếp tục xử lý đơn hàng</p>
+                  {paymentMissing && (
+                    <p className="text-xs text-red-500 mt-3 max-w-xs mx-auto">
+                      Đơn hàng này chưa có bản ghi payment từ backend nên hiện chưa thể xác nhận hoặc hoàn tiền.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
+              {paymentMissing && (
+                <div className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  Không tìm thấy payment theo order này. Theo bộ API hiện tại, frontend chỉ xử lý được payment đã tồn tại sẵn.
+                </div>
+              )}
               <button
                 onClick={handleConfirmPaid}
-                disabled={submitting || !paymentId}
+                disabled={submitting || paymentMissing || paymentAlreadyPaid}
                 className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-60"
               >
-                {submitting ? "Đang xác minh..." : "Xác nhận đã thanh toán"}
+                {paymentAlreadyPaid ? "Đã thanh toán" : submitting ? "Đang xác minh..." : "Xác nhận đã thanh toán"}
               </button>
               <button
                 onClick={handleRefund}
-                disabled={submitting || !paymentId}
+                disabled={submitting || paymentMissing || paymentRefunded}
                 className="px-5 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold disabled:opacity-60"
               >
-                Huỷ thanh toán
+                Hoàn tiền / huỷ thanh toán
               </button>
             </div>
           </div>
@@ -196,7 +236,7 @@ export default function PaymentProcessPage() {
             <div className="mt-5 pt-4 border-t">
               <div className="flex justify-between font-bold text-sm text-gray-900">
                 <span>Tổng thanh toán</span>
-                <span className="text-amber-600">{fmt(order.total_amount)}</span>
+                <span className="text-amber-600">{fmt(displayAmount)}</span>
               </div>
             </div>
           </div>

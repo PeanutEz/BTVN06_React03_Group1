@@ -7,6 +7,26 @@ import { paymentClient } from "@/services/payment.client";
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
+function toNumber(value: unknown): number {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function getOrderDisplayAmount(order: any, payment?: { amount?: number } | null): number {
+  const items = Array.isArray(order?.items) ? order.items : Array.isArray(order?.order_items) ? order.order_items : [];
+  const itemsTotal = items.reduce((sum: number, item: any) => {
+    const lineTotal = toNumber(item?.line_total ?? item?.subtotal);
+    return sum + lineTotal;
+  }, 0);
+
+  const orderTotal = toNumber(order?.total_amount);
+  const finalAmount = toNumber(order?.final_amount);
+  const subtotalAmount = toNumber(order?.subtotal_amount);
+  const paymentAmount = toNumber(payment?.amount);
+
+  return itemsTotal || orderTotal || finalAmount || subtotalAmount || paymentAmount || 0;
+}
+
 export default function PaymentSuccessPage() {
   const { orderId } = useParams<{ orderId: string }>();
 
@@ -21,6 +41,8 @@ export default function PaymentSuccessPage() {
     queryFn: () => paymentClient.getPaymentByOrderId(orderId!),
     enabled: !!orderId,
   });
+
+  const displayAmount = getOrderDisplayAmount(order, payment);
 
   if (!order) {
     return (
@@ -48,7 +70,7 @@ export default function PaymentSuccessPage() {
           )}
           <div className="flex justify-between text-sm mb-2">
             <span className="text-gray-500">Số tiền</span>
-            <span className="font-semibold text-gray-900">{fmt(payment?.amount ?? order.total_amount)}</span>
+            <span className="font-semibold text-gray-900">{fmt(displayAmount)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Trạng thái</span>
