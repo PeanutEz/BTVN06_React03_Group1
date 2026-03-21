@@ -3,7 +3,7 @@ import { Button, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
-import type { LoyaltyRule, TierRule } from "../../../models/loyalty.model";
+import type { LoyaltyRule, TierBenefit } from "../../../models/loyalty.model";
 import { DEFAULT_LOYALTY_RULE } from "../../../models/loyalty.model";
 import {
   searchLoyaltyRules,
@@ -255,7 +255,7 @@ export default function LoyaltyManagementPage() {
   };
 
   // UI Helpers
-  const handleUpdateTierBenefit = (tierIndex: number, field: keyof TierRule['benefit'], value: number | boolean) => {
+  const handleUpdateTierBenefit = (tierIndex: number, field: keyof TierBenefit, value: number | boolean) => {
     if (!editingRule) return;
     const newTierRules = [...editingRule.tier_rules];
     newTierRules[tierIndex] = {

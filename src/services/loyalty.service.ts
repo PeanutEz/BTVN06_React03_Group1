@@ -88,9 +88,9 @@ export const searchLoyaltyRules = async (
   }
 };
 
-export const getLoyaltyRuleById = async (id: string): Promise<LoyaltyRule> => {
+export const getLoyaltyRuleById = async (id: string | number): Promise<LoyaltyRule> => {
   try {
-    const response = await apiClient.get(`/loyalty-rules/${id}`);
+    const response = await apiClient.get(`/loyalty-rules/${String(id)}`);
     return response.data?.data;
   } catch (error) {
     console.error("getLoyaltyRuleById error:", error);
@@ -108,9 +108,9 @@ export const createLoyaltyRule = async (rule: Partial<LoyaltyRule>): Promise<Loy
   }
 };
 
-export const updateLoyaltyRule = async (id: string, rule: Partial<LoyaltyRule>): Promise<LoyaltyRule> => {
+export const updateLoyaltyRule = async (id: string | number, rule: Partial<LoyaltyRule>): Promise<LoyaltyRule> => {
   try {
-    const response = await apiClient.put(`/loyalty-rules/${id}`, rule);
+    const response = await apiClient.put(`/loyalty-rules/${String(id)}`, rule);
     return response.data?.data;
   } catch (error) {
     console.error("updateLoyaltyRule error:", error);
@@ -119,16 +119,16 @@ export const updateLoyaltyRule = async (id: string, rule: Partial<LoyaltyRule>):
 };
 
 // Toggle active status (usually done via PUT with full or partial payload)
-export const changeLoyaltyRuleStatus = async (id: string, nextStatus: boolean, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+export const changeLoyaltyRuleStatus = async (id: string | number, nextStatus: boolean, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
   return updateLoyaltyRule(id, { ...existingRule, is_active: nextStatus });
 };
 
 // Delete rule (soft delete if supported, or via PUT)
-export const deleteLoyaltyRule = async (id: string, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+export const deleteLoyaltyRule = async (id: string | number, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
   return updateLoyaltyRule(id, { ...existingRule, is_deleted: true });
 };
 
-export const restoreLoyaltyRule = async (id: string, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
+export const restoreLoyaltyRule = async (id: string | number, existingRule: LoyaltyRule): Promise<LoyaltyRule> => {
   return updateLoyaltyRule(id, { ...existingRule, is_deleted: false });
 };
 

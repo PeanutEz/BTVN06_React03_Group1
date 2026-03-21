@@ -15,7 +15,7 @@ export interface Customer {
 }
 
 // CustomerFranchise - Khách hàng theo cửa hàng
-export type LoyaltyTier = "SILVER" | "GOLD" | "PLATINUM";
+export type LoyaltyTier = "BRONZE" | "SILVER" | "GOLD" | "PLATINUM";
 
 export interface CustomerFranchise {
   id: number;
@@ -47,12 +47,14 @@ export interface CustomerDisplay extends Customer {
 }
 
 export const LOYALTY_TIER_LABELS: Record<LoyaltyTier, string> = {
+  BRONZE: "Đồng",
   SILVER: "Bạc",
   GOLD: "Vàng",
   PLATINUM: "Bạch Kim",
 };
 
 export const LOYALTY_TIER_COLORS: Record<LoyaltyTier, string> = {
+  BRONZE: "bg-amber-50 text-amber-800 border-amber-200",
   SILVER: "bg-gray-50 text-gray-700 border-gray-300",
   GOLD: "bg-yellow-50 text-yellow-700 border-yellow-200",
   PLATINUM: "bg-purple-50 text-purple-700 border-purple-200",
