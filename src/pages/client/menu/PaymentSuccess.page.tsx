@@ -7,47 +7,62 @@ import { paymentClient } from "@/services/payment.client";
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
-function toNumber(value: unknown): number {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
-}
-
-function getOrderDisplayAmount(order: any, payment?: { amount?: number } | null): number {
-  const items = Array.isArray(order?.items) ? order.items : Array.isArray(order?.order_items) ? order.order_items : [];
-  const itemsTotal = items.reduce((sum: number, item: any) => {
-    const lineTotal = toNumber(item?.line_total ?? item?.subtotal);
-    return sum + lineTotal;
-  }, 0);
-
-  const orderTotal = toNumber(order?.total_amount);
-  const finalAmount = toNumber(order?.final_amount);
-  const subtotalAmount = toNumber(order?.subtotal_amount);
-  const paymentAmount = toNumber(payment?.amount);
-
-  return itemsTotal || orderTotal || finalAmount || subtotalAmount || paymentAmount || 0;
+function getPaymentStatusLabel(status?: string) {
+  switch (status?.toUpperCase()) {
+    case "PAID":
+    case "CONFIRMED":
+    case "COMPLETED":
+      return "Đã thanh toán";
+    case "REFUNDED":
+      return "Đã hoàn tiền";
+    case "FAILED":
+      return "Thanh toán thất bại";
+    case "CANCELLED":
+      return "Đã huỷ";
+    case "PENDING":
+      return "Chờ thanh toán";
+    default:
+      return "Chờ thanh toán";
+  }
 }
 
 export default function PaymentSuccessPage() {
   const { orderId } = useParams<{ orderId: string }>();
 
-  const { data: order } = useQuery({
+  const { data: order, isLoading: orderLoading } = useQuery({
     queryKey: ["payment-success-order", orderId],
     queryFn: () => orderClient.getOrderById(orderId!),
     enabled: !!orderId,
   });
 
-  const { data: payment } = useQuery({
+  const { data: payment, isLoading: paymentLoading } = useQuery({
     queryKey: ["payment-success-payment", orderId],
     queryFn: () => paymentClient.getPaymentByOrderId(orderId!),
     enabled: !!orderId,
   });
 
-  const displayAmount = getOrderDisplayAmount(order, payment);
+  const isLoading = orderLoading || paymentLoading;
+  const displayAmount = order?.final_amount ?? 0;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="text-center text-gray-500">Đang tải thông tin thanh toán...</div>
+      </div>
+    );
+  }
 
   if (!order) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="text-center text-gray-500">Đang tải...</div>
+        <div className="bg-white border rounded-2xl p-6 text-center max-w-md">
+          <div className="text-5xl mb-3">🔍</div>
+          <h1 className="text-xl font-bold text-gray-900">Không tìm thấy đơn hàng</h1>
+          <p className="text-sm text-gray-500 mt-2 mb-5">Đơn hàng không tồn tại hoặc đã bị xoá.</p>
+          <Link to={ROUTER_URL.MENU} className="inline-flex px-5 py-3 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600">
+            Quay lại menu
+          </Link>
+        </div>
       </div>
     );
   }
@@ -74,7 +89,8 @@ export default function PaymentSuccessPage() {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">Trạng thái</span>
-            <span className="font-semibold text-green-700">Đã thanh toán</span>
+            {/* ✅ Use payment status from API, fallback to PAID if payment missing */}
+            <span className="font-semibold text-green-700">{getPaymentStatusLabel(payment?.status ?? "PAID")}</span>
           </div>
         </div>
 

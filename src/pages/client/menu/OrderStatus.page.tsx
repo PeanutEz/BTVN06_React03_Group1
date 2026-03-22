@@ -25,6 +25,10 @@ function toNumber(v: unknown): number {
 const fmt = (n: unknown) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(toNumber(n));
 
+function isPendingPayment(status?: string): boolean {
+  return String(status ?? "").toUpperCase() === "PENDING";
+}
+
 function formatItemOptions(options: unknown): string | null {
   if (!options) return null;
 
@@ -132,8 +136,8 @@ function StatusTimeline({
                   isCurrent
                     ? "border-amber-500 bg-amber-500 shadow-lg shadow-amber-200 scale-110"
                     : isDone
-                    ? "border-emerald-500 bg-emerald-500"
-                    : "border-gray-200 bg-white",
+                      ? "border-emerald-500 bg-emerald-500"
+                      : "border-gray-200 bg-white",
                 )}
               >
                 {isDone ? (
@@ -228,9 +232,9 @@ function OrderStatusFromApi({
   const finalAmount =
     toNumber((order as any).final_amount ?? (order as any).total_amount) ||
     subtotalAmount -
-      promotionDiscount -
-      voucherDiscount -
-      loyaltyDiscount;
+    promotionDiscount -
+    voucherDiscount -
+    loyaltyDiscount;
 
   const customerName =
     order.customer?.name ?? (order as any).customer_name ?? "—";
@@ -416,17 +420,13 @@ function OrderStatusFromApi({
               )}
             </div>
 
-            {order.status === "CONFIRMED" && payment ? (
+            {payment && isPendingPayment(payment.status) ? (
               <Link
                 to={ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(order._id ?? order.id))}
                 className="block text-center w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm"
               >
                 Thanh toán
               </Link>
-            ) : order.status === "CONFIRMED" ? (
-              <div className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                Đơn hàng đã xác nhận nhưng backend chưa trả về payment để frontend tiếp tục thanh toán.
-              </div>
             ) : null}
             <Link to="/menu" className="block text-center w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm">
               Đặt thêm đơn mới

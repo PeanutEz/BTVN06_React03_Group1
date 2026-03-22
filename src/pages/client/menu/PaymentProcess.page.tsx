@@ -1,34 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ROUTER_URL } from "@/routes/router.const";
+import { PAYMENT_METHODS } from "@/const/payment-method.const";
 import { orderClient } from "@/services/order.client";
 import { paymentClient } from "@/services/payment.client";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
-
-function toNumber(value: unknown): number {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
-}
-
-function getOrderDisplayAmount(order: any, payment?: { amount?: number } | null): number {
-  const items = Array.isArray(order?.items) ? order.items : Array.isArray(order?.order_items) ? order.order_items : [];
-  const itemsTotal = items.reduce((sum: number, item: any) => {
-    const lineTotal = toNumber(item?.line_total ?? item?.subtotal);
-    return sum + lineTotal;
-  }, 0);
-
-  const orderTotal = toNumber(order?.total_amount);
-  const finalAmount = toNumber(order?.final_amount);
-  const subtotalAmount = toNumber(order?.subtotal_amount);
-  const paymentAmount = toNumber(payment?.amount);
-
-  return itemsTotal || orderTotal || finalAmount || subtotalAmount || paymentAmount || 0;
-}
 
 function paymentStatusLabel(status?: string) {
   switch (status?.toUpperCase()) {
@@ -69,35 +50,77 @@ export default function PaymentProcessPage() {
     enabled: !!orderId,
   });
 
+  // ✅ Redirect to success if payment is already paid on load
+  useEffect(() => {
+    if (!paymentLoading && payment && isPaidStatus(payment.status) && orderId) {
+      navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
+    }
+  }, [payment?.status, paymentLoading, orderId, navigate]);
+
   const isLoading = orderLoading || paymentLoading;
   const paymentId = payment?._id ?? payment?.id ?? "";
   const statusCfg = paymentStatusLabel(payment?.status);
   const paymentMissing = !paymentId;
   const paymentAlreadyPaid = isPaidStatus(payment?.status);
   const paymentRefunded = String(payment?.status ?? "").toUpperCase() === "REFUNDED";
-  const displayAmount = getOrderDisplayAmount(order, payment);
+  const paymentFailed = String(payment?.status ?? "").toUpperCase() === "FAILED";
+  const cannotProcess = paymentRefunded || paymentFailed;
+  // ✅ Use final_amount from API directly (backend already calculated discount)
+  const displayAmount = order?.final_amount ?? 0;
 
   async function handleConfirmPaid() {
     if (!paymentId || submitting) return;
+
+    // ✅ NEW: Check current status is PENDING before confirming
+    if (payment?.status?.toUpperCase() !== "PENDING") {
+      toast.error("Chỉ có thể xác nhận thanh toán ở trạng thái chờ xử lý");
+      return;
+    }
+
     setSubmitting(true);
     try {
+      // ✅ Confirm payment with minimal required fields
       const result = await paymentClient.confirmPayment(paymentId, {
-        method: payment?.method ?? "CASH",
-        providerTxnId: "",
+        method: payment?.method ?? PAYMENT_METHODS.CASH,
       });
-      const newStatus = result?.status?.toUpperCase();
+
+      if (!result) {
+        toast.error("Không nhận được phản hồi từ server");
+        return;
+      }
+
+      const newStatus = result.status?.toUpperCase();
+      if (!newStatus) {
+        toast.error("Lỗi: không thể xác định trạng thái thanh toán");
+        return;
+      }
+
       queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
 
       if (isPaidStatus(newStatus)) {
         toast.success("Thanh toán thành công!");
-        navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId!));
+        if (orderId) navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
       } else {
         toast.error("Thanh toán thất bại");
-        navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId!));
+        if (orderId) navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId));
       }
     } catch (error) {
       console.error(error);
-      toast.error("Không thể xác minh thanh toán");
+
+      // ✅ Better error handling - differentiate error types
+      if (error instanceof Error) {
+        if (error.message.includes("404")) {
+          toast.error("Đơn hàng hoặc thanh toán không tồn tại");
+        } else if (error.message.includes("409")) {
+          toast.error("Xung đột: một yêu cầu khác đang xử lý");
+        } else if (error.message.includes("Network")) {
+          toast.error("Lỗi kết nối. Vui lòng kiểm tra internet và thử lại");
+        } else {
+          toast.error("Không thể xác minh thanh toán. Vui lòng thử lại");
+        }
+      } else {
+        toast.error("Không thể xác minh thanh toán. Vui lòng thử lại");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -105,15 +128,34 @@ export default function PaymentProcessPage() {
 
   async function handleRefund() {
     if (!paymentId || submitting) return;
+
+    // ✅ Can't refund if already refunded or failed
+    if (paymentRefunded || paymentFailed) {
+      toast.error("Không thể hoàn tiền cho trạng thái này");
+      return;
+    }
+
     setSubmitting(true);
     try {
       await paymentClient.refundPayment(paymentId, { refund_reason: "Khách hàng yêu cầu huỷ" });
       queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
       toast.success("Đã huỷ thanh toán");
-      navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId!));
+      if (orderId) navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId));
     } catch (error) {
       console.error(error);
-      toast.error("Không thể huỷ thanh toán");
+
+      // ✅ Better error handling
+      if (error instanceof Error) {
+        if (error.message.includes("404")) {
+          toast.error("Thanh toán không tồn tại");
+        } else if (error.message.includes("409")) {
+          toast.error("Xung đột: một yêu cầu khác đang xử lý");
+        } else {
+          toast.error("Không thể huỷ thanh toán. Vui lòng thử lại");
+        }
+      } else {
+        toast.error("Không thể huỷ thanh toán. Vui lòng thử lại");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -203,16 +245,26 @@ export default function PaymentProcessPage() {
                   Không tìm thấy payment theo order này. Theo bộ API hiện tại, frontend chỉ xử lý được payment đã tồn tại sẵn.
                 </div>
               )}
+              {paymentFailed && (
+                <div className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  ⚠️ Thanh toán thất bại. Vui lòng quay lại menu và thử đặt lại đơn hàng.
+                </div>
+              )}
+              {paymentRefunded && (
+                <div className="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                  ℹ️ Thanh toán đã bị huỷ/hoàn tiền. Vui lòng liên hệ cửa hàng để được hỗ trợ.
+                </div>
+              )}
               <button
                 onClick={handleConfirmPaid}
-                disabled={submitting || paymentMissing || paymentAlreadyPaid}
+                disabled={submitting || paymentMissing || paymentAlreadyPaid || cannotProcess}
                 className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-60"
               >
-                {paymentAlreadyPaid ? "Đã thanh toán" : submitting ? "Đang xác minh..." : "Xác nhận đã thanh toán"}
+                {paymentAlreadyPaid ? "Đã thanh toán" : paymentFailed ? "Thất bại - không thể xác nhận" : paymentRefunded ? "Đã hoàn tiền - không thể xác nhận" : submitting ? "Đang xác minh..." : "Xác nhận đã thanh toán"}
               </button>
               <button
                 onClick={handleRefund}
-                disabled={submitting || paymentMissing || paymentRefunded}
+                disabled={submitting || paymentMissing || paymentRefunded || paymentFailed || paymentAlreadyPaid}
                 className="px-5 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold disabled:opacity-60"
               >
                 Hoàn tiền / huỷ thanh toán

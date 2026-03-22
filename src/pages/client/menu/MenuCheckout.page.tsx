@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { ROUTER_URL } from "@/routes/router.const";
+import { PAYMENT_METHODS, PAYMENT_METHOD_OPTIONS } from "@/const/payment-method.const";
 import type { PaymentMethod, AppliedPromo } from "@/types/delivery.types";
 import { cartClient, type CartApiData, type ApiCartItem, type CartItemOption } from "@/services/cart.client";
 import { orderClient } from "@/services/order.client";
@@ -64,10 +65,10 @@ function getUserId(value: unknown): string {
   const nestedUser = getNestedRecord(root, "user");
   return String(
     nestedUser?.id ??
-      nestedUser?._id ??
-      root?.id ??
-      root?._id ??
-      "",
+    nestedUser?._id ??
+    root?.id ??
+    root?._id ??
+    "",
   );
 }
 
@@ -192,10 +193,10 @@ export default function MenuCheckoutPage() {
     const list = Array.isArray(raw)
       ? raw
       : Array.isArray(dataList)
-      ? dataList
-      : Array.isArray(cartsList)
-      ? cartsList
-      : [];
+        ? dataList
+        : Array.isArray(cartsList)
+          ? cartsList
+          : [];
     const withIds = (list as CartApiData[]).map((c) => ({
       cartId: String(c._id ?? c.id ?? ""),
       franchise_id: c.franchise_id,
@@ -242,14 +243,21 @@ export default function MenuCheckoutPage() {
     const listSource = Array.isArray(cartsData)
       ? cartsData
       : Array.isArray(dataList)
-      ? dataList
-      : [];
+        ? dataList
+        : [];
     const detailFromList = listSource[idx] as CartApiData | undefined;
     const detail = detailFromQuery ?? detailFromList;
     const items = apiCartToDisplayItems(entry.cartId, detailFromQuery ?? null);
-    const subtotal = items.reduce((s, i) => s + i.lineTotal, 0);
-    const totalAmount = detail?.total_amount ?? subtotal;
-    const discountAmount = (detail?.discount_amount ?? 0) || 0;
+    // ✅ Ensure numbers: use API fields with fallback to calculations
+    const subtotal: number = typeof detail?.subtotal_amount === "number"
+      ? detail.subtotal_amount
+      : items.reduce((s, i) => s + i.lineTotal, 0);
+    const discountAmount: number = typeof detail?.voucher_discount === "number"
+      ? detail.voucher_discount
+      : 0;
+    const totalAmount: number = typeof detail?.final_amount === "number"
+      ? detail.final_amount
+      : Math.max(0, subtotal - discountAmount);
     const detailRaw = detail ? (detail as Record<string, unknown>) : null;
     const detailFranchise = getNestedRecord(detailRaw, "franchise");
     const voucherCode = detailRaw?.voucher_code;
@@ -264,7 +272,7 @@ export default function MenuCheckoutPage() {
       franchiseName,
       items,
       subtotal,
-      totalAmount: Math.max(0, totalAmount - discountAmount),
+      totalAmount,
       discountAmount,
       hasVoucher,
     };
@@ -285,7 +293,7 @@ export default function MenuCheckoutPage() {
     address: "",
     note: "",
     bankName: "",
-    paymentMethod: "CASH" as PaymentMethod,
+    paymentMethod: PAYMENT_METHODS.CASH as PaymentMethod,
   });
 
   // Load customer profile and pre-fill form
@@ -351,12 +359,14 @@ export default function MenuCheckoutPage() {
     setPromoState(cartId, { loading: true, error: "" });
     try {
       await cartClient.applyVoucher(cartId, state.input.trim());
+      const voucherCode = state.input.trim().toUpperCase();
       setPromoState(cartId, {
         input: "",
-        applied: { code: state.input.trim().toUpperCase(), label: state.input.trim().toUpperCase(), discountAmount: 0 },
+        applied: { code: voucherCode, label: voucherCode },
         error: "",
         loading: false,
       });
+      // ✅ Invalidate cart-detail to refetch pricing with discount applied
       queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
       toast.success("Áp dụng mã thành công!");
     } catch {
@@ -416,20 +426,29 @@ export default function MenuCheckoutPage() {
 
     setOrderingCartId(cartId);
     try {
-      const paymentMethod = form.paymentMethod === "BANK" ? "BANK" : "CASH";
-      const bankName = form.bankName.trim() || undefined;
+      const paymentMethod = form.paymentMethod === PAYMENT_METHODS.BANK ? PAYMENT_METHODS.BANK : PAYMENT_METHODS.CASH;
 
-      await cartClient.updateCart(cartId, {
+      // Build updateCart body - only include bank_name when payment_method is BANK
+      const updateCartBody: Parameters<typeof cartClient.updateCart>[1] = {
         phone: form.phone.trim(),
         address: form.address.trim() || undefined,
         message: form.note.trim() || undefined,
         payment_method: paymentMethod,
-        bank_name: bankName,
-      });
-      await cartClient.checkoutCart(cartId, {
+      };
+      if (paymentMethod === PAYMENT_METHODS.BANK) {
+        updateCartBody.bank_name = form.bankName.trim() || undefined;
+      }
+
+      // Build checkoutCart body - only include bank_name when payment_method is BANK
+      const checkoutBody: Parameters<typeof cartClient.checkoutCart>[1] = {
         payment_method: paymentMethod,
-        bank_name: bankName,
-      });
+      };
+      if (paymentMethod === PAYMENT_METHODS.BANK) {
+        checkoutBody.bank_name = form.bankName.trim() || undefined;
+      }
+
+      await cartClient.updateCart(cartId, updateCartBody);
+      await cartClient.checkoutCart(cartId, checkoutBody);
       const order = await orderClient.getOrderByCartId(cartId);
       const orderId = order?._id ?? order?.id ?? "";
 
@@ -443,12 +462,12 @@ export default function MenuCheckoutPage() {
       });
 
       toast.success(
-        paymentMethod === "BANK"
+        paymentMethod === PAYMENT_METHODS.BANK
           ? `Đã tạo đơn tại ${franchiseName}. Chuyển sang bước thanh toán.`
           : `Đã đặt đơn tại ${franchiseName}`
       );
       if (orderId) {
-        if (paymentMethod === "BANK") {
+        if (paymentMethod === PAYMENT_METHODS.BANK) {
           navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(orderId)));
           return;
         }
@@ -695,7 +714,7 @@ export default function MenuCheckoutPage() {
                   Phương thức thanh toán
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {(["CASH", "BANK"] as const).map((method) => (
+                  {PAYMENT_METHOD_OPTIONS.map((method) => (
                     <label key={method} className={cn(
                       "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all group hover:border-amber-300",
                       form.paymentMethod === method
@@ -714,17 +733,17 @@ export default function MenuCheckoutPage() {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          {method === "CASH" ? (
+                          {method === PAYMENT_METHODS.CASH ? (
                             <span className="text-xl">💵</span>
                           ) : (
                             <span className="text-xl">🏦</span>
                           )}
                           <span className="text-sm font-semibold text-gray-900">
-                            {method === "CASH" ? "Tiền mặt" : "Chuyển khoản"}
+                            {method === PAYMENT_METHODS.CASH ? "Tiền mặt" : "Chuyển khoản"}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {method === "CASH"
+                          {method === PAYMENT_METHODS.CASH
                             ? "Thanh toán khi nhận hàng"
                             : "Thanh toán qua ngân hàng"
                           }
@@ -743,7 +762,7 @@ export default function MenuCheckoutPage() {
                 </div>
               </div>
 
-              {form.paymentMethod === "BANK" && (
+              {form.paymentMethod === PAYMENT_METHODS.BANK && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Tên ngân hàng <span className="text-gray-400">(không bắt buộc)</span>
@@ -968,17 +987,39 @@ export default function MenuCheckoutPage() {
                   )}
                 </div>
 
-                {/* Tạm tính + nút Xác nhận đơn – Chi nhánh X */}
-                <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="text-sm">
-                    <span className="text-gray-600">Tạm tính ({block.items.reduce((s, i) => s + i.quantity, 0)} món): </span>
-                    <span className="font-bold text-gray-900">{fmt(block.totalAmount)}</span>
+                {/* Pricing Breakdown: Subtotal → Discount → Final Total */}
+                <div className="px-5 py-4 bg-gray-50 border-t border-gray-100">
+                  <div className="space-y-2.5 text-sm mb-4">
+                    {/* Subtotal */}
+                    <div className="flex justify-between text-gray-600">
+                      <span>Tạm tính ({block.items.reduce((s, i) => s + i.quantity, 0)} món)</span>
+                      <span>{fmt(block.subtotal)}</span>
+                    </div>
+
+                    {/* Discount (if applied) */}
+                    {block.discountAmount > 0 && (
+                      <div className="flex justify-between text-red-600 font-semibold">
+                        <span>Giảm giá</span>
+                        <span>-{fmt(block.discountAmount)}</span>
+                      </div>
+                    )}
+
+                    {/* Separator */}
+                    <div className="h-px bg-gray-200" />
+
+                    {/* Final Total (from API: already includes discount deduction) */}
+                    <div className="flex justify-between font-bold text-base text-gray-900">
+                      <span>Tổng cộng</span>
+                      <span className="text-amber-600">{fmt(block.totalAmount)}</span>
+                    </div>
                   </div>
+
+                  {/* Confirm Order Button */}
                   <button
                     onClick={() => handleOrderOneBlock(block)}
                     disabled={isOrdering || !canPlace}
                     className={cn(
-                      "px-6 py-3 rounded-xl font-semibold text-sm transition-all",
+                      "w-full px-6 py-3 rounded-xl font-semibold text-sm transition-all",
                       isOrdering || !canPlace
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-amber-500 hover:bg-amber-600 text-white",

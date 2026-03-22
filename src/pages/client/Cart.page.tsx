@@ -137,7 +137,7 @@ export default function CartPage() {
         note: parsed.userNote ?? (item.note ? String(item.note) : undefined),
       };
     });
-    const totalAmount = detail?.total_amount ?? apiItems.reduce((s, i) => s + i.lineTotal, 0);
+    const totalAmount = detail?.final_amount ?? apiItems.reduce((s, i) => s + i.lineTotal, 0);
     return { cartId: entry.cartId, franchiseName, detail: detail ?? null, items: apiItems, totalAmount };
   });
 
