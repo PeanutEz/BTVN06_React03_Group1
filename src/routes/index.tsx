@@ -83,7 +83,7 @@ const InboxPage = React.lazy(() => import("../pages/client/inbox/Inbox.page"));
 function AppRoutes() {
   return (
     <BrowserRouter>
-      <RouteChangeLoading minDurationMs={1500} />
+      <RouteChangeLoading minDurationMs={300} />
       <ScrollToTopOnNavigate />
       <React.Suspense fallback={<LoadingLayout />}>
         <Routes>

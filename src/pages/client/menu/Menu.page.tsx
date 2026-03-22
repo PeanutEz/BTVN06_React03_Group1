@@ -32,7 +32,9 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="text-5xl mb-4">😕</div>
+      <div className="mb-4 w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
+        <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      </div>
       <h3 className="text-lg font-semibold text-gray-900 mb-1">{title}</h3>
       {description && <p className="text-sm text-gray-500">{description}</p>}
       {actionLabel && onAction && (
@@ -82,22 +84,13 @@ function toMenuProduct(p: ClientProductListItem, franchiseId: string, franchiseN
   );
 }
 
-// Map category name keywords → emoji icon
-function getCategoryIcon(name: string): string {
-  const n = name.toLowerCase();
-  if (n.includes("c\u00e0 ph\u00ea") || n.includes("coffee") || n.includes("espresso") || n.includes("cappuccino") || n.includes("latte")) return "\u2615";
-  if (n.includes("tr\u00e0 s\u1eefa") || n.includes("milk tea") || n.includes("milktea")) return "\ud83e\uddca";
-  if (n.includes("tr\u00e0") || n.includes("tea")) return "\ud83c\udf75";
-  if (n.includes("freeze") || n.includes("\u0111\u00e1 xay") || n.includes("blended") || n.includes("ice blended")) return "\ud83e\uddca";
-  if (n.includes("smoothie")) return "\ud83e\udd64";
-  if (n.includes("juice") || n.includes("n\u01b0\u1edbc \u00e9p")) return "\ud83e\uddc3";
-  if (n.includes("b\u00e1nh m\u00ec")) return "\ud83e\udd56";
-  if (n.includes("b\u00e1nh") || n.includes("snack") || n.includes("pastry")) return "\ud83e\udd50";
-  if (n.includes("topping")) return "\ud83c\udf61";
-  if (n.includes("phindi") || n.includes("phin")) return "\ud83e\uddd0";
-  if (n.includes("non-coffee") || n.includes("kh\u00f4ng c\u00e0 ph\u00ea")) return "\ud83c\udf3f";
-  if (n.includes("vi\u1ec7t") || n.includes("vietnamese")) return "\ud83c\uddfb\ud83c\uddf3";
-  return "\ud83c\udf79"; // default cup
+// SVG icon for category (replaces emoji)
+function CategoryIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
 }
 
 function ProductGrid({
@@ -108,7 +101,7 @@ function ProductGrid({
   onAdd: (product: ClientProductListItem) => void;
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
       {items.map((p) => {
         const available = p.sizes.filter((s) => s.is_available);
         const isAvailable = available.length > 0;
@@ -191,7 +184,7 @@ export default function MenuPage() {
   const [categoriesLoadedForFranchiseId, setCategoriesLoadedForFranchiseId] = useState<string | null>(null);
 
   // Global franchise selection (from BranchPickerModal)
-  const { selectedFranchiseId } = useDeliveryStore();
+  const { selectedFranchiseId, setSelectedFranchiseId } = useDeliveryStore();
 
   // Prevent duplicate calls + handle stale responses
   const categoriesReqKeyRef = useRef<string | null>(null);
@@ -211,6 +204,12 @@ export default function MenuPage() {
       .getAllFranchises()
       .then((data) => {
         setFranchises(data);
+
+        // Auto-select first franchise if none selected yet
+        if (!selectedFranchiseId && data.length > 0) {
+          const first = data[0];
+          setSelectedFranchiseId(String(first.id), first.name);
+        }
       })
       .catch((e: unknown) => {
         const msg = e instanceof Error ? e.message : "Không tải được danh sách franchise";
@@ -418,10 +417,10 @@ export default function MenuPage() {
 
   return (
     <>
-      <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-8 sm:-my-10 lg:-my-12 min-h-screen bg-white">
-        {/* ── Page header ── */}
-        <div className="border-b border-gray-100 bg-white">
-          <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-6">
+      <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-8 sm:-my-10 lg:-my-12 flex flex-col h-screen bg-white">
+        {/* ── Page header (sticky) ── */}
+        <div className="border-b border-gray-100 bg-white sticky top-0 z-20 shrink-0">
+          <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-4">
             <nav className="flex items-center gap-2 text-sm text-gray-400 mb-3">
               <a href="/" className="hover:text-gray-600 transition-colors">Trang chủ</a>
               <span>/</span>
@@ -436,7 +435,7 @@ export default function MenuPage() {
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                  🍽️ {selectedCategory?.category_name ?? "Tất cả"}
+                  {selectedCategory?.category_name ?? "Thực đơn"}
                 </h1>
                 <p className="text-sm text-gray-500 mt-0.5">
                   {canShowMenu ? "Toàn bộ thực đơn Hylux" : "Vui lòng chọn phương thức đặt hàng để xem thực đơn"}
@@ -474,7 +473,7 @@ export default function MenuPage() {
                           : "bg-gray-100 text-gray-600 hover:bg-gray-200",
                       )}
                     >
-                      🍽️ Tất cả
+                      Tất cả
                       {products.length > 0 && (
                         <span className={cn(
                           "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
@@ -493,7 +492,6 @@ export default function MenuPage() {
                             : "bg-gray-100 text-gray-600 hover:bg-gray-200",
                         )}
                       >
-                        <span>{getCategoryIcon(c.category_name)}</span>
                         {c.category_name}
                         {categoryCounts[c.category_id] !== undefined && (
                           <span className={cn(
@@ -516,12 +514,12 @@ export default function MenuPage() {
           </div>
         </div>
 
-        {/* ── Main 3-panel layout ── */}
-        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex gap-8 min-h-screen">
+        {/* ── Main 3-panel layout (fills remaining height) ── */}
+        <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-4 flex-1 min-h-0">
+          <div className="flex gap-8 h-full">
 
             {/* ── LEFT: Category Sidebar (desktop only) ── */}
-            <aside className="hidden md:flex w-56 shrink-0 flex-col sticky top-40 self-start">
+            <aside className="hidden md:flex w-56 shrink-0 flex-col overflow-y-auto">
               <div className="pr-1">
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3 px-3">
                   Danh mục
@@ -550,7 +548,9 @@ export default function MenuPage() {
                             : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                         )}
                       >
-                        <span className={cn("text-xl shrink-0 transition-transform duration-150", !selectedCategory ? "scale-110" : "group-hover:scale-105")}>🍽️</span>
+                        <span className={cn("shrink-0 transition-transform duration-150", !selectedCategory ? "scale-110" : "group-hover:scale-105")}>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+                        </span>
                         <span className="flex-1 truncate">Tất cả</span>
                         <span className={cn(
                           "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
@@ -574,8 +574,8 @@ export default function MenuPage() {
                                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                             )}
                           >
-                            <span className={cn("text-xl shrink-0 transition-transform duration-150", isActive ? "scale-110" : "group-hover:scale-105")}>
-                              {getCategoryIcon(cat.category_name)}
+                            <span className={cn("shrink-0 transition-transform duration-150", isActive ? "scale-110" : "group-hover:scale-105")}>
+                              <CategoryIcon className="w-4.5 h-4.5" />
                             </span>
                             <span className="flex-1 truncate">{cat.category_name}</span>
                             {count > 0 && (
@@ -597,6 +597,7 @@ export default function MenuPage() {
                 {canShowMenu && (
                   <div className="mt-6 mx-3 p-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
                     <p className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">
+                      <svg className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6h.008v.008H6V6z" /></svg>
                       Ưu đãi hôm nay
                     </p>
                     <p className="text-sm font-bold leading-snug">Giảm 15% đơn từ 150k</p>
@@ -607,16 +608,16 @@ export default function MenuPage() {
             </aside>
 
             {/* ── MIDDLE: Product Grid ── */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-y-auto pr-1">
               {!canShowMenu ? (
                 <EmptyState
                   title="Chưa chọn cửa hàng"
                   description="Hãy chọn phương thức đặt hàng để hệ thống tải thực đơn."
-                  actionLabel="📍 Chọn phương thức đặt hàng"
+                  actionLabel="Chọn phương thức đặt hàng"
                   onAction={openBranchPicker}
                 />
               ) : showLoadingSkeleton ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 animate-pulse">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 animate-pulse">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                       <div className="aspect-[4/3] bg-gray-100" />
@@ -669,8 +670,7 @@ export default function MenuPage() {
 
             {/* ── RIGHT: Cart / Order Panel (desktop sticky) ── */}
             <aside
-              className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 sticky top-40 self-start flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-0"
-              style={{ height: "calc(100vh - 10rem)", maxHeight: "calc(100vh - 10rem)" }}
+              className="hidden lg:flex w-[280px] xl:w-[300px] shrink-0 flex-col rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden min-h-0"
             >
               <MenuOrderPanel />
             </aside>

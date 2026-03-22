@@ -21,13 +21,6 @@ import { clientService } from "@/services/client.service";
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2.5">
-      {children}
-    </p>
-  );
-}
 
 interface MenuProductModalProps {
   product: MenuProduct | null;
@@ -308,7 +301,17 @@ export default function MenuProductModal({
   if (!product) return null;
 
   // Use detail content if loaded, fallback to list data
-  const displayContent = productDetail?.content || product.content;
+  const rawContent = productDetail?.content || product.content;
+  // API may return double-escaped HTML (e.g. &lt;h3&gt;), decode entities
+  const displayContent = (() => {
+    if (!rawContent) return "";
+    if (typeof document !== "undefined" && rawContent.includes("&lt;")) {
+      const txt = document.createElement("textarea");
+      txt.innerHTML = rawContent;
+      return txt.value;
+    }
+    return rawContent;
+  })();
   const displayImage = productDetail?.image_url || product.image;
 
   // Chuẩn hóa giá size: API có thể trả price_base thay vì price
@@ -644,12 +647,12 @@ export default function MenuProductModal({
 
       {/* Modal */}
       <div
-        className="relative w-full sm:max-w-lg bg-white sm:rounded-2xl shadow-2xl overflow-hidden h-[92dvh] sm:h-[88dvh] flex flex-col"
+        className="relative w-full sm:max-w-lg bg-white sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[88dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header + image */}
         <div className="relative shrink-0">
-          <div className="h-44 sm:h-52 overflow-hidden bg-gray-100">
+          <div className="h-36 sm:h-48 overflow-hidden bg-gray-100">
             <img
               src={displayImage}
               alt={product.name}
@@ -673,10 +676,10 @@ export default function MenuProductModal({
           {/* Tags */}
           <div className="absolute top-3 left-3 flex gap-1.5">
             {product.tags?.includes("bestseller") && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">🔥 Bestseller</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">Bestseller</span>
             )}
             {product.tags?.includes("new") && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">✨ Mới</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">Mới</span>
             )}
           </div>
 
@@ -708,7 +711,7 @@ export default function MenuProductModal({
           <button
             onClick={() => setTab("order")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-all duration-150 border-b-2",
+              "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold transition-all duration-150 border-b-2",
               tab === "order"
                 ? "border-amber-500 text-amber-600"
                 : "border-transparent text-gray-400 hover:text-gray-600",
@@ -722,7 +725,7 @@ export default function MenuProductModal({
           <button
             onClick={() => setTab("content")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-all duration-150 border-b-2",
+              "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold transition-all duration-150 border-b-2",
               tab === "content"
                 ? "border-amber-500 text-amber-600"
                 : "border-transparent text-gray-400 hover:text-gray-600",
@@ -736,134 +739,130 @@ export default function MenuProductModal({
         </div>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
+        <div className="overflow-y-auto flex-1 px-4 py-2.5 space-y-2.5">
           {tab === "order" ? (
             <>
-              {/* Size – from real API (product_franchise_id) */}
+              {/* Size */}
               <div>
-                <SectionLabel>Chọn size</SectionLabel>
+                <p className="text-xs font-semibold text-gray-500 mb-1.5">Chọn size</p>
                 {displaySizes.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">Đang tải kích cỡ...</p>
+                  <p className="text-xs text-gray-400">Đang tải...</p>
                 ) : (
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-1.5">
                     {displaySizes.map((s) => (
                       <button
                         key={s.product_franchise_id}
                         onClick={() => s.is_available && setSelectedSize(s)}
                         disabled={!s.is_available}
                         className={cn(
-                          "flex-1 min-w-[72px] py-2.5 rounded-xl border text-sm font-semibold transition-all duration-150",
+                          "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border text-sm font-semibold transition-all",
                           !s.is_available
                             ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
                             : selectedSize?.product_franchise_id === s.product_franchise_id
-                            ? "border-amber-500 bg-amber-50 text-amber-700 ring-2 ring-amber-200"
+                            ? "border-amber-500 bg-amber-50 text-amber-700 ring-1 ring-amber-200"
                             : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
                         )}
                       >
-                        <div>{s.size}</div>
-                        <div className="text-[10px] font-normal mt-0.5 opacity-70">
-                          {fmt(s.price)}
-                        </div>
+                        {s.size}
+                        <span className="text-[11px] font-normal opacity-60">{fmt(s.price)}</span>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Sugar */}
-              <div>
-                <SectionLabel>Lượng đường</SectionLabel>
-                <div className="flex flex-wrap gap-2">
-                  {SUGAR_LEVELS.map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => setSugar(level)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150",
-                        sugar === level
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
-                      )}
-                    >
-                      {level}
-                    </button>
-                  ))}
+              {/* Sugar + Ice */}
+              <div className="space-y-2">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Đường</p>
+                  <div className="flex flex-wrap gap-1">
+                    {SUGAR_LEVELS.map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setSugar(level)}
+                        className={cn(
+                          "px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-all",
+                          sugar === level
+                            ? "border-amber-500 bg-amber-50 text-amber-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
+                        )}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Đá</p>
+                  <div className="flex flex-wrap gap-1">
+                    {ICE_LEVELS.map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setIce(level)}
+                        className={cn(
+                          "px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-all",
+                          ice === level
+                            ? "border-blue-500 bg-blue-50 text-blue-700"
+                            : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
+                        )}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Ice */}
+              {/* Note — compact inline */}
               <div>
-                <SectionLabel>Lượng đá</SectionLabel>
-                <div className="flex flex-wrap gap-2">
-                  {ICE_LEVELS.map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => setIce(level)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150",
-                        ice === level
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
-                      )}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Note */}
-              <div>
-                <SectionLabel>Ghi chú</SectionLabel>
-                <textarea
+                <p className="text-xs font-semibold text-gray-500 mb-1.5">Ghi chú</p>
+                <input
+                  type="text"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="VD: ít đường hơn, không hành, dị ứng..."
-                  rows={2}
+                  placeholder="VD: ít đường hơn, không hành..."
                   maxLength={200}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white resize-none focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-400 transition-all"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-400 transition-all"
                 />
               </div>
 
               {/* Toppings */}
               <div>
-                <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
+                <p className="text-xs font-semibold text-gray-500 mb-1.5">Topping</p>
                 {isFetchingToppings ? (
-                  <div className="text-xs text-gray-400 py-2">Đang tải topping...</div>
+                  <div className="text-xs text-gray-400">Đang tải...</div>
                 ) : (
                   displayToppings.length === 0 ? (
-                    <div className="text-xs text-gray-400 py-2">Không có topping để chọn</div>
+                    <div className="text-xs text-gray-400">Không có topping</div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-1.5">
                       {displayToppings.map((topping) => {
                         const qty = toppingQtys[topping.id] ?? 0;
                         return (
                           <div
                             key={topping.id}
                             className={cn(
-                              "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
+                              "flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs transition-all",
                               qty > 0 ? "border-amber-500 bg-amber-50" : "border-gray-200 bg-white",
                             )}
                           >
-                            <span className="shrink-0 text-base">{topping.emoji}</span>
                             <div className="flex-1 min-w-0">
-                              <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>
+                              <div className={cn("font-medium truncate text-[13px]", qty > 0 ? "text-amber-800" : "text-gray-700")}>
                                 {topping.name}
                               </div>
                               <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
                             </div>
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-0.5 shrink-0">
                               <button
                                 onClick={() => changeToppingQty(topping, -1)}
                                 disabled={qty === 0}
-                                className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                                title="Giảm topping"
+                                className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
                               >
-                                <span className="text-sm font-semibold text-gray-700 leading-none">−</span>
+                                <span className="text-xs font-semibold text-gray-700 leading-none">−</span>
                               </button>
                               <span
                                 className={cn(
-                                  "w-5 text-center font-semibold text-sm tabular-nums",
+                                  "w-4 text-center font-semibold text-xs tabular-nums",
                                   qty > 0 ? "text-amber-800" : "text-gray-600",
                                 )}
                               >
@@ -872,10 +871,9 @@ export default function MenuProductModal({
                               <button
                                 onClick={() => changeToppingQty(topping, 1)}
                                 disabled={qty >= 3}
-                                className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                                title="Tăng topping"
+                                className="w-5 h-5 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
                               >
-                                <span className="text-sm font-semibold text-gray-700 leading-none">+</span>
+                                <span className="text-xs font-semibold text-gray-700 leading-none">+</span>
                               </button>
                             </div>
                           </div>

@@ -37,13 +37,13 @@ const LandingHeader = () => {
                 >
                 Về Hylux
                 </button>
-                <button 
-                onClick={() => scrollToSection('products')}
+                <Link 
+                to={ROUTER_URL.MENU}
                 className="text-white hover:text-amber-200 font-bold text-sm uppercase tracking-wide transition-colors focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 focus:ring-offset-red-900 rounded px-2 py-1"
                 aria-label="Xem thực đơn"
                 >
                 Thực Đơn
-                </button>
+                </Link>
                 <Link 
                 to={ROUTER_URL.STORE_LOCATOR}
                 className="text-white hover:text-amber-200 font-bold text-sm uppercase tracking-wide transition-colors focus:outline-none focus:ring-2 focus:ring-amber-200 focus:ring-offset-2 focus:ring-offset-red-900 rounded px-2 py-1"
@@ -129,12 +129,13 @@ const LandingHeader = () => {
                 >
                 Về Hylux
                 </button>
-                <button 
-                onClick={() => scrollToSection('products')}
+                <Link 
+                to={ROUTER_URL.MENU}
                 className="block w-full text-left px-4 py-2 text-white hover:bg-red-800 rounded transition-colors"
+                onClick={() => setMenuOpen(false)}
                 >
                 Thực Đơn
-                </button>
+                </Link>
                 <Link 
                 to={ROUTER_URL.STORE_LOCATOR}
                 className="block px-4 py-2 text-white hover:bg-red-800 rounded transition-colors"

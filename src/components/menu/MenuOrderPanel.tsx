@@ -565,7 +565,9 @@ export default function MenuOrderPanel({
           )}
         </div>
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-          <div className="text-5xl mb-3">🔒</div>
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+          </div>
           <p className="font-semibold text-gray-700 mb-1 text-sm">Vui lòng đăng nhập</p>
           <p className="text-xs text-gray-400 mb-4">Đăng nhập để xem giỏ hàng và đặt món</p>
           <button
@@ -594,7 +596,9 @@ export default function MenuOrderPanel({
           )}
         </div>
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
-          <div className="text-5xl mb-3">🛒</div>
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
+          </div>
           <p className="font-semibold text-gray-700 mb-1 text-sm">Giỏ hàng trống</p>
           <p className="text-xs text-gray-400">Chọn đồ uống từ menu để đặt hàng nhé!</p>
         </div>
@@ -638,7 +642,7 @@ export default function MenuOrderPanel({
               sectionsWithItems.map((section) => (
                 <div key={section.cartId}>
                   <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                    <p className="text-[11px] font-semibold text-gray-600">🏪 {section.franchiseName}</p>
+                    <p className="text-[11px] font-semibold text-gray-600">{section.franchiseName}</p>
                   </div>
                   {section.items.map((item) => (
               <div key={item.key} className="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
@@ -649,8 +653,8 @@ export default function MenuOrderPanel({
                       <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-lg shrink-0">
-                      🍵
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center shrink-0">
+                      <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
                     </div>
                   )}
 
@@ -661,7 +665,7 @@ export default function MenuOrderPanel({
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate">{item.name}</h4>
                         {item.franchiseName && (
-                          <p className="text-xs text-gray-500 truncate">🏪 {item.franchiseName}</p>
+                          <p className="text-xs text-gray-500 truncate">{item.franchiseName}</p>
                         )}
                       </div>
 
@@ -900,7 +904,9 @@ export default function MenuOrderPanel({
           {apiCart?.voucher ? (
             <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm">🎟️</span>
+                <span className="inline-flex items-center justify-center w-5 h-5">
+                  <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" /></svg>
+                </span>
                 <div>
                   <p className="text-[10px] font-semibold text-emerald-700 uppercase">{String(apiCart.voucher)}</p>
                   <p className="text-[10px] text-emerald-600">Giảm {fmt(Number(apiCart.discount_amount ?? 0))}</p>
@@ -947,7 +953,9 @@ export default function MenuOrderPanel({
         <div className="border-t border-gray-100 bg-white px-4 py-3 flex flex-col gap-2 flex-shrink-0">
           {disabledReason && (
             <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
-              <span className="text-sm">⚠️</span>
+              <span className="inline-flex items-center justify-center w-5 h-5">
+                <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+              </span>
               <p className="text-xs text-orange-700 font-medium">{disabledReason}</p>
             </div>
           )}

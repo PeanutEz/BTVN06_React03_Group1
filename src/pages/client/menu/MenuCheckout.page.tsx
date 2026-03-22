@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useQuery, useQueries, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useMenuCartStore } from "@/store/menu-cart.store";
@@ -11,7 +11,8 @@ import { cartClient, type CartApiData, type ApiCartItem, type CartItemOption } f
 import { orderClient } from "@/services/order.client";
 import { formatToppingsSummary, parseCartSelectionNote } from "@/utils/cartSelectionNote.util";
 import type { IceLevel, SugarLevel } from "@/types/menu.types";
-import { getCurrentCustomerProfile, updateCurrentCustomerProfile } from "@/services/customer.service";
+import { getCurrentCustomerProfile } from "@/services/customer.service";
+import { useAddressStore, type SavedAddress } from "@/store/address.store";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -308,17 +309,25 @@ export default function MenuCheckoutPage() {
     }
   }, [customerProfile]);
 
-  // Mutation to update customer profile (save address)
-  const updateProfileMutation = useMutation({
-    mutationFn: updateCurrentCustomerProfile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customer-profile"] });
-      toast.success("Đã lưu thông tin cá nhân");
-    },
-    onError: () => {
-      toast.error("Không thể lưu thông tin. Vui lòng thử lại.");
-    },
-  });
+  // Address book integration
+  const savedAddresses = useAddressStore((s) => s.addresses);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
+
+  // Auto-select default address on mount if no customer profile address
+  useEffect(() => {
+    if (savedAddresses.length > 0 && !customerProfile?.address) {
+      const defaultAddr = savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0];
+      if (defaultAddr) {
+        setFormState((prev) => ({
+          ...prev,
+          name: prev.name || defaultAddr.name,
+          phone: prev.phone || defaultAddr.phone,
+          address: prev.address || defaultAddr.address,
+        }));
+      }
+    }
+  }, [savedAddresses, customerProfile]);
+
   // Điều khoản theo từng chi nhánh: cartId -> đã đồng ý
   const [termsByCartId, setTermsByCartId] = useState<Record<string, boolean>>({});
   const setTermsForCart = (cartId: string, accepted: boolean) => {
@@ -471,7 +480,9 @@ export default function MenuCheckoutPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-sm">
-          <div className="text-6xl mb-4">🔒</div>
+          <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+          </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Vui lòng đăng nhập</h2>
           <Link to={ROUTER_URL.LOGIN} className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all">
             Đăng nhập
@@ -497,7 +508,9 @@ export default function MenuCheckoutPage() {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-sm">
-          <div className="text-6xl mb-4">🛒</div>
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
+          </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Không có đơn nào để thanh toán</h2>
           <p className="text-gray-500 text-sm mb-4">Thêm món từ menu hoặc kiểm tra giỏ hàng của bạn.</p>
           <Link to={ROUTER_URL.MENU} className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all">
@@ -510,26 +523,24 @@ export default function MenuCheckoutPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8">
-        <nav className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+      <div className="mx-auto max-w-[1100px] px-4 sm:px-6 lg:px-8 py-5">
+        <nav className="flex items-center gap-2 text-xs text-gray-400 mb-3">
           <Link to={ROUTER_URL.HOME} className="hover:text-gray-600">Trang chủ</Link>
           <span>/</span>
           <Link to={ROUTER_URL.MENU} className="hover:text-gray-600">Menu</Link>
           <span>/</span>
           <span className="text-gray-900 font-medium">Thanh toán</span>
         </nav>
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Xác nhận đơn hàng</h1>
-        </div>
+        <h1 className="text-xl font-bold text-gray-900 mb-5">Xác nhận đơn hàng</h1>
 
         {/* Thông báo đặt đơn thành công + nút điều hướng (không tự chuyển trang) */}
         {completedOrderId && (
-          <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl">✅</span>
+          <section className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
+            <div className="flex items-start gap-2.5">
+              <svg className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               <div className="flex-1">
-                <h2 className="font-semibold text-emerald-800 mb-1">Đã đặt đơn thành công</h2>
-                <p className="text-sm text-emerald-700 mb-4">
+                <h2 className="font-semibold text-emerald-800 text-sm mb-0.5">Đã đặt đơn thành công</h2>
+                <p className="text-xs text-emerald-700 mb-3">
                   {completedFranchiseName && `Đơn tại ${completedFranchiseName} đã được xác nhận. `}
                   Bạn có thể xem trạng thái đơn hàng hoặc tiếp tục mua sắm.
                 </p>
@@ -559,29 +570,22 @@ export default function MenuCheckoutPage() {
         )}
 
         {/* Customer Information Form */}
-        <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6 mb-6 shadow-sm">
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
-              <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">Thông tin khách hàng</h2>
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-gray-500">Thông tin này sẽ được áp dụng cho tất cả đơn hàng</p>
-                {customerProfile && (
-                  <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
-                    ✓ Đã tải từ profile
-                  </span>
-                )}
-              </div>
-            </div>
+        <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-3 mb-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <h2 className="text-sm font-bold text-gray-900">Thông tin khách hàng</h2>
+            {customerProfile && (
+              <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                ✓ Profile
+              </span>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Left Column */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {profileLoading ? (
                 // Loading skeletons
                 <>
@@ -602,20 +606,10 @@ export default function MenuCheckoutPage() {
                 // Actual form fields
                 <>
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="mb-1.5">
                       <label className="block text-sm font-medium text-gray-700">
                         Họ và tên <span className="text-red-500 ml-0.5">*</span>
                       </label>
-                      {customerProfile && form.name !== customerProfile.name && form.name.trim() && !errors.name && (
-                        <button
-                          type="button"
-                          onClick={() => updateProfileMutation.mutate({ name: form.name })}
-                          disabled={updateProfileMutation.isPending}
-                          className="text-xs text-amber-600 hover:text-amber-700 font-medium disabled:opacity-50"
-                        >
-                          {updateProfileMutation.isPending ? "Đang lưu..." : "💾 Lưu tên"}
-                        </button>
-                      )}
                     </div>
                     <input
                       type="text"
@@ -623,7 +617,7 @@ export default function MenuCheckoutPage() {
                       value={form.name}
                       onChange={(e) => setField("name", (e.target as HTMLInputElement).value)}
                       className={cn(
-                        "w-full px-4 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2",
+                        "w-full px-3.5 py-2 rounded-xl border text-sm transition-all outline-none focus:ring-2",
                         errors.name ? "border-red-300 focus:ring-red-200 bg-red-50" : "border-gray-200 focus:ring-amber-300 focus:border-amber-400 bg-white",
                       )}
                     />
@@ -631,20 +625,10 @@ export default function MenuCheckoutPage() {
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
+                    <div className="mb-1.5">
                       <label className="block text-sm font-medium text-gray-700">
                         Số điện thoại <span className="text-red-500 ml-0.5">*</span>
                       </label>
-                      {customerProfile && form.phone !== customerProfile.phone && form.phone.trim() && !errors.phone && (
-                        <button
-                          type="button"
-                          onClick={() => updateProfileMutation.mutate({ phone: form.phone })}
-                          disabled={updateProfileMutation.isPending}
-                          className="text-xs text-amber-600 hover:text-amber-700 font-medium disabled:opacity-50"
-                        >
-                          {updateProfileMutation.isPending ? "Đang lưu..." : "💾 Lưu SĐT"}
-                        </button>
-                      )}
                     </div>
                     <input
                       type="tel"
@@ -652,7 +636,7 @@ export default function MenuCheckoutPage() {
                       value={form.phone}
                       onChange={(e) => setField("phone", (e.target as HTMLInputElement).value)}
                       className={cn(
-                        "w-full px-4 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2",
+                        "w-full px-3.5 py-2 rounded-xl border text-sm transition-all outline-none focus:ring-2",
                         errors.phone ? "border-red-300 focus:ring-red-200 bg-red-50" : "border-gray-200 focus:ring-amber-300 focus:border-amber-400 bg-white",
                       )}
                     />
@@ -664,23 +648,70 @@ export default function MenuCheckoutPage() {
                       <label className="block text-sm font-medium text-gray-700">
                         Địa chỉ giao hàng
                       </label>
-                      {customerProfile && form.address !== customerProfile.address && form.address.trim() && (
-                        <button
-                          type="button"
-                          onClick={() => updateProfileMutation.mutate({ address: form.address })}
-                          disabled={updateProfileMutation.isPending}
-                          className="text-xs text-amber-600 hover:text-amber-700 font-medium disabled:opacity-50"
-                        >
-                          {updateProfileMutation.isPending ? "Đang lưu..." : "💾 Lưu địa chỉ"}
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {savedAddresses.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAddressPicker(!showAddressPicker)}
+                            className="text-xs text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                            </svg>
+                            {showAddressPicker ? "Đóng sổ" : "Sổ địa chỉ"}
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Address Book Selector */}
+                    {showAddressPicker && savedAddresses.length > 0 && (
+                      <div className="mb-2 border border-amber-200 rounded-xl overflow-hidden bg-amber-50/50">
+                        <div className="px-3 py-2 border-b border-amber-100 flex items-center justify-between">
+                          <span className="text-xs font-semibold text-amber-800">Chọn từ sổ địa chỉ</span>
+                          <span className="text-[10px] text-amber-500">{savedAddresses.length} địa chỉ</span>
+                        </div>
+                        <div className="max-h-[200px] overflow-y-auto">
+                          {savedAddresses.map((addr: SavedAddress) => (
+                            <button
+                              key={addr.id}
+                              type="button"
+                              onClick={() => {
+                                setFormState((prev) => ({
+                                  ...prev,
+                                  name: addr.name,
+                                  phone: addr.phone,
+                                  address: addr.address,
+                                }));
+                                setShowAddressPicker(false);
+                              }}
+                              className={cn(
+                                "w-full text-left px-3 py-2.5 border-b border-amber-100 last:border-0 hover:bg-amber-100/50 transition-colors",
+                                form.address === addr.address && form.name === addr.name
+                                  ? "bg-amber-100/70"
+                                  : ""
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-gray-900">{addr.name}</span>
+                                {addr.isDefault && (
+                                  <span className="text-[10px] bg-amber-500 text-white px-1.5 py-px rounded-full font-medium">Mặc định</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5">{addr.phone}</p>
+                              <p className="text-xs text-gray-400 mt-0.5 truncate">{addr.address}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <input
                       type="text"
                       placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành..."
                       value={form.address}
                       onChange={(e) => setField("address", e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-300 focus:border-amber-400 text-sm outline-none transition-all bg-white"
+                      className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-300 focus:border-amber-400 text-sm outline-none transition-all bg-white"
                     />
                     {errors.address && <p className="mt-1 text-xs text-red-500">{errors.address}</p>}
                   </div>
@@ -689,45 +720,35 @@ export default function MenuCheckoutPage() {
             </div>
 
             {/* Right Column */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2.5">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Phương thức thanh toán
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   {(["CASH", "BANK"] as const).map((method) => (
                     <label key={method} className={cn(
-                      "flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all group hover:border-amber-300",
+                      "flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all group hover:border-amber-300",
                       form.paymentMethod === method
-                        ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
+                        ? "border-amber-500 bg-amber-50"
                         : "border-gray-200 bg-white hover:bg-gray-50",
                     )}>
                       <div className={cn(
-                        "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all",
+                        "w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
                         form.paymentMethod === method
                           ? "border-amber-500 bg-amber-500"
                           : "border-gray-300 group-hover:border-amber-400"
                       )}>
                         {form.paymentMethod === method && (
-                          <div className="w-2 h-2 bg-white rounded-full"></div>
+                          <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
                         )}
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          {method === "CASH" ? (
-                            <span className="text-xl">💵</span>
-                          ) : (
-                            <span className="text-xl">🏦</span>
-                          )}
-                          <span className="text-sm font-semibold text-gray-900">
-                            {method === "CASH" ? "Tiền mặt" : "Chuyển khoản"}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {method === "CASH"
-                            ? "Thanh toán khi nhận hàng"
-                            : "Thanh toán qua ngân hàng"
-                          }
+                        <span className="text-sm font-semibold text-gray-900">
+                          {method === "CASH" ? "Tiền mặt" : "Chuyển khoản"}
+                        </span>
+                        <p className="text-[11px] text-gray-500">
+                          {method === "CASH" ? "Thanh toán khi nhận hàng" : "Thanh toán qua ngân hàng"}
                         </p>
                       </div>
                       <input
@@ -746,16 +767,24 @@ export default function MenuCheckoutPage() {
               {form.paymentMethod === "BANK" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Tên ngân hàng <span className="text-gray-400">(không bắt buộc)</span>
+                    Thông tin người thụ hưởng
                   </label>
-                  <input
-                    type="text"
-                    placeholder="VD: Vietcombank"
-                    value={form.bankName}
-                    onChange={(e) => setField("bankName", e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-300 focus:border-amber-400 text-sm outline-none transition-all bg-white"
-                  />
-                  {errors.bankName && <p className="mt-1 text-xs text-red-500">{errors.bankName}</p>}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Ngân hàng</span>
+                      <span className="text-sm font-semibold text-gray-900">Vietcombank (VCB)</span>
+                    </div>
+                    <div className="h-px bg-blue-100" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Số tài khoản</span>
+                      <span className="text-sm font-bold text-blue-700 tracking-wider font-mono">1028 3749 5610</span>
+                    </div>
+                    <div className="h-px bg-blue-100" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Chủ tài khoản</span>
+                      <span className="text-sm font-semibold text-gray-900">CÔNG TY TNHH HYLUX COFFEE</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -764,11 +793,11 @@ export default function MenuCheckoutPage() {
                   Ghi chú đặc biệt
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   placeholder="Ghi chú cho cửa hàng (không bắt buộc)..."
                   value={form.note}
                   onChange={(e) => setField("note", e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-300 focus:border-amber-400 text-sm outline-none transition-all resize-none bg-white"
+                  className="w-full px-3.5 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-300 focus:border-amber-400 text-sm outline-none transition-all resize-none bg-white"
                 />
               </div>
             </div>
@@ -776,25 +805,25 @@ export default function MenuCheckoutPage() {
         </section>
 
         {/* One block per franchise */}
-        <div className="space-y-8">
+        <div className="space-y-4">
           {blocks.map((block) => {
             const promo = getPromoState(block.cartId);
             const canPlace = block.items.length > 0 && isTermsAccepted(block.cartId);
             const isOrdering = orderingCartId === block.cartId;
 
             return (
-              <div key={block.cartId} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/50">
+              <div key={block.cartId} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between gap-3 bg-gray-50/50">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">🏪</span>
-                    <h2 className="font-semibold text-gray-900">{block.franchiseName}</h2>
+                    <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.15c0 .415.336.75.75.75z" /></svg>
+                    <h2 className="font-semibold text-gray-900 text-sm">{block.franchiseName}</h2>
                   </div>
                   <button
                     onClick={() => navigate(ROUTER_URL.MENU)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-all"
+                    className="flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg transition-all"
                     title="Thêm sản phẩm từ menu"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Thêm món
@@ -803,38 +832,38 @@ export default function MenuCheckoutPage() {
 
                 <div className="divide-y divide-gray-100">
                   {block.items.map((item) => (
-                    <div key={item.key} className="px-4 py-4 flex gap-4 items-start">
+                    <div key={item.key} className="px-4 py-3 flex gap-3 items-start">
                       {/* Product Image */}
                       {item.image ? (
-                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
                           <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                         </div>
                       ) : (
-                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center text-2xl shrink-0 border border-amber-200">
-                          🍵
+                        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center shrink-0 border border-amber-200">
+                          <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
                         </div>
                       )}
 
                       {/* Product Info */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <h3 className="font-semibold text-gray-900 text-base truncate">{item.name}</h3>
-                          <div className="flex items-center gap-1 shrink-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <h3 className="font-semibold text-gray-900 text-sm truncate">{item.name}</h3>
+                          <div className="flex items-center shrink-0">
                             <button
                               onClick={() => handleRemoveItem(item)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                               title="Xóa sản phẩm"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             </button>
                             <button
                               onClick={() => handleUpdateQty(item, item.quantity + 1)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all"
+                              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all"
                               title="Thêm sản phẩm cùng loại"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                               </svg>
                             </button>
@@ -846,29 +875,29 @@ export default function MenuCheckoutPage() {
                           <div className="mb-3">
                             <div className="flex flex-wrap gap-1.5 mb-2">
                               {item.size && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
-                                  📏 Size {item.size}
+                                <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">
+                                  Size {item.size}
                                 </span>
                               )}
                               {item.sugar && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
-                                  🍯 Đường {item.sugar}
+                                <span className="inline-flex items-center px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-[11px] font-medium">
+                                  Đường {item.sugar}
                                 </span>
                               )}
                               {item.ice && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-xs font-medium">
-                                  🧊 {item.ice}
+                                <span className="inline-flex items-center px-2 py-0.5 bg-cyan-50 text-cyan-700 rounded text-[11px] font-medium">
+                                  {item.ice}
                                 </span>
                               )}
                               {item.toppingsText && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium">
-                                  🧋 {item.toppingsText}
+                                <span className="inline-flex items-center px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-[11px] font-medium">
+                                  {item.toppingsText}
                                 </span>
                               )}
                             </div>
                             {item.note && (
-                              <p className="text-xs text-gray-500 italic bg-gray-50 px-2.5 py-1.5 rounded-lg">
-                                💭 Ghi chú: {item.note}
+                              <p className="text-[11px] text-gray-500 italic bg-gray-50 px-2 py-1 rounded">
+                                Ghi chú: {item.note}
                               </p>
                             )}
                           </div>
@@ -876,15 +905,13 @@ export default function MenuCheckoutPage() {
 
                         {/* Quantity and Price */}
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Số lượng:</span>
-                            <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-bold">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-gray-500">SL:</span>
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold">
                               {item.quantity}
                             </span>
                           </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-amber-700">{fmt(item.lineTotal)}</p>
-                          </div>
+                          <p className="text-sm font-bold text-amber-700">{fmt(item.lineTotal)}</p>
                         </div>
                       </div>
                     </div>
@@ -892,16 +919,16 @@ export default function MenuCheckoutPage() {
                 </div>
 
                 {/* Voucher Section */}
-                <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">🎫</span>
-                    <h3 className="font-medium text-gray-900 text-sm">Mã giảm giá</h3>
+                <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/30">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" /></svg>
+                    <h3 className="font-medium text-gray-900 text-xs">Mã giảm giá</h3>
                   </div>
 
                   {promo.applied ? (
                     <div className="flex items-center justify-between p-3 bg-emerald-100 border border-emerald-200 rounded-lg">
                       <div className="flex items-center gap-2">
-                        <span className="text-emerald-600 text-lg">✓</span>
+                        <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.5 12.75l6 6 9-13.5" /></svg>
                         <span className="font-semibold text-emerald-800 text-sm">{promo.applied.code}</span>
                       </div>
                       <button
@@ -944,47 +971,46 @@ export default function MenuCheckoutPage() {
 
                   {promo.error && (
                     <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                      <span>⚠️</span>
+                      <svg className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
                       {promo.error}
                     </p>
                   )}
                 </div>
 
                 {/* Điều khoản (mỗi chi nhánh) */}
-                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
-                  <label className="flex items-start gap-2.5 cursor-pointer group">
+                <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/50">
+                  <label className="flex items-start gap-2 cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={isTermsAccepted(block.cartId)}
                       onChange={(e) => setTermsForCart(block.cartId, e.target.checked)}
-                      className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-amber-500 shrink-0"
+                      className="mt-0.5 w-3.5 h-3.5 rounded border-gray-300 accent-amber-500 shrink-0"
                     />
-                    <span className="text-xs text-gray-500 leading-relaxed">
-                      Tôi đã đọc, hiểu và đồng ý với các điều khoản, điều kiện và chính sách liên quan
+                    <span className="text-[11px] text-gray-500 leading-relaxed">
+                      Tôi đồng ý với các điều khoản và chính sách liên quan
                     </span>
                   </label>
                   {!isTermsAccepted(block.cartId) && (
-                    <p className="mt-2 text-xs text-amber-700">⚠️ Vui lòng đồng ý điều khoản để tiếp tục</p>
+                    <p className="mt-1 text-[11px] text-amber-600">Vui lòng đồng ý để tiếp tục</p>
                   )}
                 </div>
 
-                {/* Tạm tính + nút Xác nhận đơn – Chi nhánh X */}
-                <div className="px-5 py-4 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
                   <div className="text-sm">
-                    <span className="text-gray-600">Tạm tính ({block.items.reduce((s, i) => s + i.quantity, 0)} món): </span>
+                    <span className="text-gray-500">Tạm tính ({block.items.reduce((s, i) => s + i.quantity, 0)} món): </span>
                     <span className="font-bold text-gray-900">{fmt(block.totalAmount)}</span>
                   </div>
                   <button
                     onClick={() => handleOrderOneBlock(block)}
                     disabled={isOrdering || !canPlace}
                     className={cn(
-                      "px-6 py-3 rounded-xl font-semibold text-sm transition-all",
+                      "px-5 py-2.5 rounded-xl font-semibold text-sm transition-all",
                       isOrdering || !canPlace
                         ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                         : "bg-amber-500 hover:bg-amber-600 text-white",
                     )}
                   >
-                    {isOrdering ? "Đang xử lý..." : `Xác nhận đơn – ${block.franchiseName}`}
+                    {isOrdering ? "Đang xử lý..." : `Xác nhận đơn`}
                   </button>
                 </div>
               </div>

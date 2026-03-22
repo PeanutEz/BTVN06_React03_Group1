@@ -6,7 +6,7 @@ type GlobalApiLoadingProps = {
   minDurationMs?: number;
 };
 
-export function GlobalApiLoading({ minDurationMs = 5000 }: GlobalApiLoadingProps) {
+export function GlobalApiLoading({ minDurationMs = 1500 }: GlobalApiLoadingProps) {
   const isFetching = useIsFetching();
   const isMutating = useIsMutating();
   const isActive = isFetching + isMutating > 0;
