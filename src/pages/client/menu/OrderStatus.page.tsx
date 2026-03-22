@@ -136,8 +136,8 @@ function StatusTimeline({
                   isCurrent
                     ? "border-amber-500 bg-amber-500 shadow-lg shadow-amber-200 scale-110"
                     : isDone
-                    ? "border-emerald-500 bg-emerald-500"
-                    : "border-gray-200 bg-white",
+                      ? "border-emerald-500 bg-emerald-500"
+                      : "border-gray-200 bg-white",
                 )}
               >
                 {isDone ? (
@@ -232,9 +232,9 @@ function OrderStatusFromApi({
   const finalAmount =
     toNumber((order as any).final_amount ?? (order as any).total_amount) ||
     subtotalAmount -
-      promotionDiscount -
-      voucherDiscount -
-      loyaltyDiscount;
+    promotionDiscount -
+    voucherDiscount -
+    loyaltyDiscount;
 
   const customerName =
     order.customer?.name ?? (order as any).customer_name ?? "—";
