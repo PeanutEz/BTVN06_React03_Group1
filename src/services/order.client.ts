@@ -62,10 +62,18 @@ export const orderClient = {
     );
     return response.data.data ?? [];
   },
+  setConfirmed: async (orderId: number | string): Promise<OrderDisplay | null> => {
+    const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
+      `/orders/${orderId}/confirm`,
+      {}
+    );
+    return response.data.data ?? null;
+  },
 
   setPreparing: async (orderId: number | string): Promise<OrderDisplay | null> => {
     const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
-      `/orders/${orderId}/preparing`
+      `/orders/${orderId}/preparing`,
+      {}
     );
     return response.data.data ?? null;
   },
