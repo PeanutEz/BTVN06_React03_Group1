@@ -58,8 +58,6 @@ export default function CartPage() {
 
   const customerId = customerIdFromUser(user);
 
-  const [voucherByCartId, setVoucherByCartId] = useState<Record<string, string>>({});
-  const [applyingVoucherCartId, setApplyingVoucherCartId] = useState<string | null>(null);
   const [cancellingCartId, setCancellingCartId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<DisplayItem | null>(null);
   const [pendingReorder, setPendingReorder] = useState<{
@@ -371,32 +369,6 @@ export default function CartPage() {
     }
   }
 
-  async function handleApplyVoucher(cartIdForVoucher: string) {
-    const code = voucherByCartId[cartIdForVoucher]?.trim();
-    if (!code) return;
-    setApplyingVoucherCartId(cartIdForVoucher);
-    try {
-      await cartClient.applyVoucher(cartIdForVoucher, code);
-      invalidateCart(cartIdForVoucher);
-      setVoucherByCartId((prev) => ({ ...prev, [cartIdForVoucher]: "" }));
-      toast.success("Đã áp dụng mã giảm giá");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message ?? "Mã giảm giá không hợp lệ");
-    } finally {
-      setApplyingVoucherCartId(null);
-    }
-  }
-
-  async function handleRemoveVoucher(cartIdForVoucher: string) {
-    try {
-      await cartClient.removeVoucher(cartIdForVoucher);
-      invalidateCart(cartIdForVoucher);
-      toast.success("Đã xóa mã giảm giá");
-    } catch {
-      toast.error("Không thể xóa mã giảm giá");
-    }
-  }
-
   const editingLocalItem =
     editingItem?.isLocal && editingItem.key
       ? localItems.find((li) => li.cartKey === editingItem.key) ?? null
@@ -669,33 +641,6 @@ export default function CartPage() {
             </div>
           </div>
               ))}
-            </div>
-            {/* Voucher per section */}
-            <div className="mt-2 px-1">
-              {section.detail?.voucher ? (
-                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2 text-sm">
-                  <span className="font-semibold text-emerald-700 uppercase">{String(section.detail.voucher)}</span>
-                  <button onClick={() => handleRemoveVoucher(section.cartId)} className="text-emerald-600 hover:text-emerald-700 font-medium">Xóa</button>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={voucherByCartId[section.cartId] ?? ""}
-                    onChange={(e) => setVoucherByCartId((prev) => ({ ...prev, [section.cartId]: e.target.value.toUpperCase() }))}
-                    onKeyDown={(e) => e.key === "Enter" && handleApplyVoucher(section.cartId)}
-                    placeholder="Mã giảm giá"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-300"
-                  />
-                  <button
-                    onClick={() => handleApplyVoucher(section.cartId)}
-                    disabled={!((voucherByCartId[section.cartId] ?? "").trim()) || applyingVoucherCartId === section.cartId}
-                    className="px-4 py-2 text-sm font-semibold rounded-xl bg-green-700 hover:bg-green-800 text-white disabled:bg-gray-200 disabled:text-gray-400"
-                  >
-                    {applyingVoucherCartId === section.cartId ? "..." : "Áp dụng"}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         ))

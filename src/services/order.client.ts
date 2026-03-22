@@ -1,7 +1,7 @@
 /**
  * Order API client — real API trên trang (customer + staff).
  * Get Order by CartId, by CustomerId, by Code, by Id;
- * Get Orders for Staff by FranchiseID; Change status Preparing / Ready-for-pickup.
+ * Get Orders for Staff by FranchiseID; Change status Preparing / Ready-for-pickup / Delivering / Complete / Cancel.
  */
 import apiClient from "@/services/api.client";
 import type { OrderDisplay, OrderStatus } from "@/models/order.model";
@@ -62,10 +62,18 @@ export const orderClient = {
     );
     return response.data.data ?? [];
   },
+  setConfirmed: async (orderId: number | string): Promise<OrderDisplay | null> => {
+    const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
+      `/orders/${orderId}/confirm`,
+      {}
+    );
+    return response.data.data ?? null;
+  },
 
   setPreparing: async (orderId: number | string): Promise<OrderDisplay | null> => {
     const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
-      `/orders/${orderId}/preparing`
+      `/orders/${orderId}/preparing`,
+      {}
     );
     return response.data.data ?? null;
   },
@@ -76,6 +84,41 @@ export const orderClient = {
   ): Promise<OrderDisplay | null> => {
     const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
       `/orders/${orderId}/ready-for-pickup`,
+      body ?? {}
+    );
+    return response.data.data ?? null;
+  },
+
+  // ==================== Order Transition Endpoints ====================
+
+  setDelivering: async (
+    orderId: number | string,
+    body?: { shipper_id?: string; estimated_delivery_time?: string }
+  ): Promise<OrderDisplay | null> => {
+    const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
+      `/orders/${orderId}/delivering`,
+      body ?? {}
+    );
+    return response.data.data ?? null;
+  },
+
+  setCompleted: async (
+    orderId: number | string,
+    body?: { completed_note?: string }
+  ): Promise<OrderDisplay | null> => {
+    const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
+      `/orders/${orderId}/complete`,
+      body ?? {}
+    );
+    return response.data.data ?? null;
+  },
+
+  setCancelled: async (
+    orderId: number | string,
+    body?: { cancel_reason?: string; cancelled_by?: string }
+  ): Promise<OrderDisplay | null> => {
+    const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
+      `/orders/${orderId}/cancel`,
       body ?? {}
     );
     return response.data.data ?? null;

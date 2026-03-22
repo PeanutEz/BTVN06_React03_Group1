@@ -181,8 +181,8 @@ export const updateOrderToReadyForPickup = async (
 };
 
 /**
- * Generic update order status function (for backwards compatibility)
- * Note: API only supports specific status transitions
+ * Generic update order status function — maps every status to the correct PUT endpoint.
+ * Throws on failure so the caller can show the API error message.
  */
 export const updateOrderStatus = async (
   id: number | string,
@@ -190,21 +190,24 @@ export const updateOrderStatus = async (
   changedBy?: number | string,
   _note?: string
 ): Promise<OrderDisplay | null> => {
-  try {
-    // Map status to appropriate API call
-    switch (status) {
-      case "PREPARING":
-        return await updateOrderToPreparing(id);
-      case "READY_FOR_PICKUP":
-        return await updateOrderToReadyForPickup(id, changedBy ? String(changedBy) : undefined);
-      default:
-        // For other statuses, we might need additional API endpoints
-        console.warn(`Status ${status} update not yet implemented via API`);
-        return await fetchOrderById(id);
-    }
-  } catch (error) {
-    console.error("Error updating order status:", error);
-    return null;
+  switch (status) {
+    case "CONFIRMED":
+      return await orderClient.setConfirmed(id);
+    case "PREPARING":
+      return await orderClient.setPreparing(id);    case "READY_FOR_PICKUP":
+      return await orderClient.setReadyForPickup(id, { staff_id: String(changedBy ?? "") });
+    case "DELIVERING":
+      return await orderClient.setDelivering(id);
+    case "COMPLETED":
+      return await orderClient.setCompleted(id);
+    case "CANCELLED":
+      return await orderClient.setCancelled(
+        id,
+        changedBy ? { cancelled_by: String(changedBy) } : undefined
+      );
+    default:
+      console.warn(`Status ${status} không có endpoint tương ứng`);
+      return await fetchOrderById(id);
   }
 };
 

@@ -5,7 +5,7 @@ import { ROUTER_URL } from "../router.const";
 export type AdminMenuItem = {
   label: string;
   path: string;
-  component: React.LazyExoticComponent<() => JSX.Element>;
+  component: React.LazyExoticComponent<() => JSX.Element | null>;
   isEnd?: boolean;
 };
 
@@ -31,12 +31,27 @@ export const ADMIN_MENU: AdminMenuItem[] = [
         import("../../pages/admin/user-franchise-role/UserFranchiseRole.page.tsx"),
     ),
     isEnd: true,
-  },
-  {
+  },  {
     label: "Orders",
     path: ROUTER_URL.ADMIN_ROUTES.ORDERS,
     component: React.lazy(
       () => import("../../pages/admin/order/OrderList.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
+    label: "Carts",
+    path: ROUTER_URL.ADMIN_ROUTES.CARTS,
+    component: React.lazy(
+      () => import("../../pages/admin/cart/CartList.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
+    label: "Deliveries",
+    path: ROUTER_URL.ADMIN_ROUTES.DELIVERIES,
+    component: React.lazy(
+      () => import("../../pages/admin/delivery/Delivery.page.tsx"),
     ),
     isEnd: true,
   },

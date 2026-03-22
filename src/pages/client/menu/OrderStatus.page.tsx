@@ -64,10 +64,12 @@ function formatItemOptions(options: unknown): string | null {
 /** Map API order status to delivery timeline status */
 function apiOrderStatusToDeliveryStatus(apiStatus: ApiOrderStatus): DeliveryOrderStatus {
   const map: Record<ApiOrderStatus, DeliveryOrderStatus> = {
+    PENDING: "PENDING",
     DRAFT: "PENDING",
     CONFIRMED: "CONFIRMED",
     PREPARING: "PREPARING",
-    READY_FOR_PICKUP: "READY",
+    READY_FOR_PICKUP: "READY_FOR_PICKUP",
+    DELIVERING: "DELIVERING",
     COMPLETED: "COMPLETED",
     CANCELLED: "CANCELLED",
   };
@@ -97,7 +99,7 @@ function getDeliveryTimelineStatus(order: OrderDisplay, delivery: ApiDelivery | 
   if (order.status === "READY_FOR_PICKUP") return "DELIVERING";
 
   const base = apiOrderStatusToDeliveryStatus(order.status);
-  return base === "READY" ? "DELIVERING" : base;
+  return base === "READY_FOR_PICKUP" ? "DELIVERING" : base;
 }
 
 function StatusTimeline({
@@ -414,14 +416,18 @@ function OrderStatusFromApi({
               )}
             </div>
 
-            {order.status === "CONFIRMED" && (
+            {order.status === "CONFIRMED" && payment ? (
               <Link
                 to={ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(order._id ?? order.id))}
                 className="block text-center w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm"
               >
                 Thanh toán
               </Link>
-            )}
+            ) : order.status === "CONFIRMED" ? (
+              <div className="w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                Đơn hàng đã xác nhận nhưng backend chưa trả về payment để frontend tiếp tục thanh toán.
+              </div>
+            ) : null}
             <Link to="/menu" className="block text-center w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm">
               Đặt thêm đơn mới
             </Link>

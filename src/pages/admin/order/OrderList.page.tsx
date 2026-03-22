@@ -1,353 +1,403 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Button, GlassSelect } from "../../../components";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "../../../components";
+import { OrderDetailModal } from "./OrderDetail.page";
+import { GlassSearchSelect } from "../../../components/ui";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_TYPE_LABELS } from "../../../models/order.model";
-import { fetchOrdersByFranchise, filterOrders, searchOrders } from "../../../services/order.service";
-import { fetchActiveStores } from "../../../services/store.service";
-import type { Store } from "../../../models/store.model";
-import { ROUTER_URL } from "../../../routes/router.const";
+import { orderClient } from "../../../services/order.client";
+import { updateOrderStatus } from "../../../services/order.service";
+import { fetchFranchiseSelect } from "../../../services/store.service";
+import type { FranchiseSelectItem } from "../../../services/store.service";
+import { searchUserFranchiseRoles } from "../../../services/user-franchise-role.service";
+import type { UserFranchiseRole } from "../../../services/user-franchise-role.service";
 import Pagination from "../../../components/ui/Pagination";
-import { useAuthStore } from "../../../store/auth.store";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
+import { showSuccess, showError } from "../../../utils";
+import { useAuthStore } from "../../../store";
 
 const ITEMS_PER_PAGE = 10;
 
+const STATUS_OPTIONS = [
+  { value: "DRAFT",            label: "Nháp" },
+  { value: "CONFIRMED",        label: "Đã xác nhận" },
+  { value: "PREPARING",        label: "Đang chuẩn bị" },
+  { value: "READY_FOR_PICKUP", label: "Sẵn sàng lấy hàng" },
+  { value: "COMPLETED",        label: "Hoàn thành" },
+  { value: "CANCELLED",        label: "Đã hủy" },
+];
+
 const OrderListPage = () => {
+  const managerFranchiseId = useManagerFranchiseId();
   const { user } = useAuthStore();
+
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
-  const [stores, setStores] = useState<Store[]>([]);
+  const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
+  const [selectedFranchiseId, setSelectedFranchiseId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "">("");
-  const [storeFilter, setStoreFilter] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("");  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  // inline status popover
+  const [statusPopoverId, setStatusPopoverId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [staffList, setStaffList] = useState<UserFranchiseRole[]>([]);
+  const [assignPopoverId, setAssignPopoverId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const assignPopoverRef = useRef<HTMLDivElement | null>(null);
+  const loadedFranchiseRef = useRef<string | null>(null);
+  const activeFranchiseId = managerFranchiseId ?? selectedFranchiseId;
+  // close popover on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setStatusPopoverId(null);
+      }
+      if (assignPopoverRef.current && !assignPopoverRef.current.contains(e.target as Node)) {
+        setAssignPopoverId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
-  // Get franchise ID from user
-  const franchiseId = user?.roles?.[0]?.franchise_id;
-
-  const loadOrders = async () => {
-    if (!franchiseId) {
-      console.warn("No franchise ID found for current user");
-      setOrders([]);
-      return;
+  // ─── Quick status update ──────────────────────────────────────────────────────
+  const handleQuickStatus = async (orderId: string, newStatus: OrderStatus) => {
+    setUpdatingId(orderId);
+    setStatusPopoverId(null);
+    try {
+      const adminId = user?.user?.id || user?.id || "1";
+      const updated = await updateOrderStatus(orderId, newStatus, adminId);
+      if (updated) {
+        setOrders(prev => prev.map(o => String(o._id ?? o.id) === orderId ? { ...o, status: newStatus } : o));
+        showSuccess("Cập nhật trạng thái thành công");
+      } else {
+        showError("Không thể cập nhật trạng thái");
+      }
+    } catch (err: any) {
+      showError(err?.response?.data?.message || err?.message || "Có lỗi xảy ra");
+    } finally {
+      setUpdatingId(null);
     }
-
+  };  // ─── Load orders ─────────────────────────────────────────────────────────────
+  const loadOrders = async (franchiseId: string) => {
+    if (!franchiseId) { setOrders([]); return; }
+    // skip nếu đã load franchise này rồi
+    if (loadedFranchiseRef.current === franchiseId) return;
+    loadedFranchiseRef.current = franchiseId;
     setLoading(true);
     setCurrentPage(1);
     try {
-      const data = await fetchOrdersByFranchise(franchiseId);
-      setOrders(data);
-    } catch (error) {
-      console.error("Lỗi tải danh sách đơn hàng:", error);
+      const [ordersData, staffData] = await Promise.all([
+        orderClient.getOrdersByFranchiseId(franchiseId),
+        searchUserFranchiseRoles({
+          searchCondition: { franchise_id: franchiseId, is_deleted: false },
+          pageInfo: { pageNum: 1, pageSize: 100 },
+        }).then(r => r.data).catch(() => [] as UserFranchiseRole[]),
+      ]);
+      setOrders(ordersData);
+      setStaffList(staffData);
+    } catch (err) {
+      console.error("Lỗi tải đơn hàng:", err);
+      loadedFranchiseRef.current = null;
+      setOrders([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadStores = async () => {
+  // ─── Assign staff (ready-for-pickup) ─────────────────────────────────────────
+  const handleAssign = async (orderId: string, staffId: string) => {
+    setAssigningId(orderId);
+    setAssignPopoverId(null);
     try {
-      const data = await fetchActiveStores();
-      setStores(data);
-    } catch (error) {
-      console.error("Error loading stores", error);
+      const updated = await orderClient.setReadyForPickup(orderId, { staff_id: staffId });
+      if (updated) {
+        setOrders(prev => prev.map(o =>
+          String(o._id ?? o.id) === orderId ? { ...o, status: "READY_FOR_PICKUP" as OrderStatus } : o
+        ));
+        showSuccess("Đã giao việc & cập nhật trạng thái Sẵn sàng lấy hàng");
+      } else {
+        showError("Không thể assign nhân viên");
+      }
+    } catch (err: any) {
+      showError(err?.response?.data?.message || err?.message || "Có lỗi xảy ra");
+    } finally {
+      setAssigningId(null);
     }
   };
 
+  // Init — fetch franchises 1 lần
   useEffect(() => {
-    // Load stores once (không phụ thuộc franchiseId)
-    loadStores();
+    fetchFranchiseSelect().then(setFranchises).catch(() => {});
   }, []);
 
   useEffect(() => {
-    // Load orders whenever franchiseId is available/changed.
-    // Fix: auth store hydrate async → franchiseId có thể null ở lần render đầu.
-    if (!franchiseId) {
-      setOrders([]);
-      return;
-    }
-    loadOrders();
+    if (!managerFranchiseId) return;
+    setSelectedFranchiseId(managerFranchiseId);
+    loadOrders(managerFranchiseId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [franchiseId]);
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      loadOrders();
-      return;
-    }
-    if (!franchiseId) {
-      console.warn("No franchise ID found for current user");
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = await searchOrders(searchQuery, franchiseId);
-      setOrders(data);
-    } catch (error) {
-      console.error("Lỗi tìm kiếm đơn hàng:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFilter = async () => {
-    if (!franchiseId) {
-      console.warn("No franchise ID found for current user");
-      return;
-    }
-    setLoading(true);
-    try {
-      let data = await filterOrders(
-        statusFilter || undefined,
-        undefined, // type filter
-        storeFilter || franchiseId, // Use selected store or default to user's franchise
-        startDate || undefined,
-        endDate || undefined
-      );
-      setOrders(data);
-    } catch (error) {
-      console.error("Lỗi lọc đơn hàng:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  }, [managerFranchiseId]);
   const handleResetFilter = () => {
     setStatusFilter("");
-    setStoreFilter("");
-    setStartDate("");
-    setEndDate("");
-    setSearchQuery("");
-    loadOrders();
+    setCurrentPage(1);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount);
-  };
+  // ─── Filter ──────────────────────────────────────────────────────────────────
+  const filteredOrders = orders.filter((order) => {
+    return !statusFilter || order.status === statusFilter;
+  });
 
-  const getDiscountSummary = (order: OrderDisplay) => {
-    const promotion = order.promotion_discount ?? 0;
-    const voucher = order.voucher_discount ?? 0;
-    const loyalty = order.loyalty_discount ?? 0;
-    const discountTotal = promotion + voucher + loyalty;
-
-    const parts: string[] = [];
-    if (promotion > 0) parts.push(`KM${order.promotion_type ? `(${order.promotion_type})` : ""}`);
-    if (voucher > 0) parts.push(`Voucher${order.voucher_type ? `(${order.voucher_type})` : ""}`);
-    if (loyalty > 0) parts.push(`Điểm${order.loyalty_points_used != null ? `(${order.loyalty_points_used})` : ""}`);
-
-    return { discountTotal, parts };
-  };
-
-  const totalPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
-  const paginatedOrders = orders.slice(
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE,
   );
 
+  const franchiseMap = Object.fromEntries(franchises.map(f => [f.value, f.name]));
+  const franchiseSelectOptions = franchises.map(f => ({
+    value: f.value,
+    label: `${f.name} (${f.code})`,
+  }));
+
+  const formatCurrency= (amount: number) =>
+    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+
+  const getDiscountSummary = (order: OrderDisplay) => {
+    const promotion = order.promotion_discount ?? 0;
+    const voucher   = order.voucher_discount   ?? 0;
+    const loyalty   = order.loyalty_discount   ?? 0;
+    const discountTotal = promotion + voucher + loyalty;
+    const parts: string[] = [];
+    if (promotion > 0) parts.push("KM");
+    if (voucher   > 0) parts.push("Voucher");
+    if (loyalty   > 0) parts.push("Điểm");
+    return { discountTotal, parts };
+  };
+
   return (
     <div className="space-y-6">
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý đơn hàng</h1>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý đơn hàng</h1>
           <p className="text-xs sm:text-sm text-slate-600">Quản lý tất cả đơn hàng của khách hàng</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Tìm kiếm</label>
-            <input
-              type="text"
-              placeholder="Mã đơn hoặc tên khách hàng"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            />
-          </div>
+      {/* FILTERS */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+        <div className="flex flex-wrap items-end gap-3">
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Cửa hàng</label>
-            <GlassSelect
-              value={storeFilter}
-              onChange={(v) => setStoreFilter(v)}
-              className="w-full"
-              options={[
-                { value: "", label: "Tất cả" },
-                ...stores.map((store) => ({ value: store.id, label: `${store.code} - ${store.name}` })),
-              ]}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Trạng thái</label>
-            <GlassSelect
+          {/* Chi nhánh */}
+          <div className="min-w-[220px] space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Chi nhánh</label>
+            {managerFranchiseId ? (
+              <div className="flex items-center gap-2 rounded-lg border border-primary-500/40 bg-primary-50 px-3 py-2 text-sm text-primary-700">
+                <svg className="size-4 shrink-0 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span className="font-medium truncate">{franchiseMap[managerFranchiseId] || managerFranchiseId}</span>
+              </div>
+            ) : (
+              <GlassSearchSelect
+                value={selectedFranchiseId}
+                onChange={(v) => { loadedFranchiseRef.current = null; setSelectedFranchiseId(v); loadOrders(v); }}
+                options={franchiseSelectOptions}
+                placeholder="-- Chọn chi nhánh --"
+                searchPlaceholder="Tìm theo tên hoặc mã..."
+                allLabel="-- Tất cả franchise --"
+              />
+            )}
+          </div>          {/* Trạng thái */}
+          <div className="min-w-[180px] space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</label>
+            <GlassSearchSelect
               value={statusFilter}
-              onChange={(v) => setStatusFilter(v as OrderStatus | "")}
-              className="w-full"
-              options={[
-                { value: "", label: "Tất cả" },
-                { value: "DRAFT", label: "Nháp" },
-                { value: "CONFIRMED", label: "Đã xác nhận" },
-                { value: "PREPARING", label: "Đang chuẩn bị" },
-                { value: "COMPLETED", label: "Hoàn thành" },
-                { value: "CANCELLED", label: "Đã hủy" },
-              ]}
+              onChange={(v) => { setStatusFilter(v); setCurrentPage(1); }}
+              options={STATUS_OPTIONS}
+              placeholder="-- Tất cả --"
+              searchPlaceholder="Tìm trạng thái..."
+              allLabel="-- Tất cả --"
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Từ ngày</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700">Đến ngày</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            />
+          {/* Đặt lại */}
+          <div className="space-y-1.5">
+            <label className="invisible block text-xs">&nbsp;</label>
+            <Button onClick={handleResetFilter} variant="outline">Đặt lại</Button>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={handleSearch} size="sm">
-            Tìm kiếm
-          </Button>
-          <Button onClick={handleFilter} size="sm" variant="outline">
-            Lọc
-          </Button>
-          <Button onClick={handleResetFilter} size="sm" variant="outline">
-            Đặt lại
-          </Button>
-        </div>
+        {activeFranchiseId && (
+          <p className="mt-3 text-xs text-slate-400">
+            Hiển thị <span className="font-semibold text-slate-600">{filteredOrders.length}</span> đơn hàng
+            {orders.length !== filteredOrders.length && ` (lọc từ ${orders.length})`}
+          </p>
+        )}
       </div>
 
-      {/* Orders Table */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-              <tr>
-                <th className="px-4 py-3">Mã đơn</th>
-                <th className="px-4 py-3">Cửa hàng</th>
-                <th className="px-4 py-3">Khách hàng</th>
-                <th className="px-4 py-3">Tổng tiền</th>
-                <th className="px-4 py-3">Giảm giá</th>
-                <th className="px-4 py-3">Loại đơn</th>
-                <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3">Ngày tạo</th>
-                <th className="px-4 py-3">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {paginatedOrders.map((order) => (
-                <tr key={order._id ?? order.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <span className="font-semibold text-primary-600">{order.code}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="leading-tight">
-                      <p className="font-semibold text-slate-900">
-                        {String(order.franchise?.code || order.franchise_code || 'N/A')}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {order.franchise?.name || order.franchise_name || 'N/A'}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="leading-tight">
-                      <p className="font-semibold text-slate-900">
-                        {order.customer?.name || order.customer_name || 'N/A'}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {String(order.customer?.email || order.email || 'N/A')}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {order.customer?.phone || order.phone || 'N/A'}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-semibold text-slate-900">
-                    {formatCurrency(order.final_amount ?? order.total_amount ?? 0)}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {(() => {
-                      const { discountTotal, parts } = getDiscountSummary(order);
-                      if (discountTotal <= 0) return <span className="text-slate-400">—</span>;
-                      return (
-                        <div className="leading-tight">
-                          <p className="font-semibold text-green-600">-{formatCurrency(discountTotal)}</p>
-                          <p className="text-[11px] text-slate-500">{parts.join(", ")}</p>
-                        </div>
-                      );
-                    })()}
-                  </td>
-                  <td className="px-4 py-3 text-slate-700">
-                    {ORDER_TYPE_LABELS[order.type]}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${ORDER_STATUS_COLORS[order.status]}`}
-                    >
-                      {ORDER_STATUS_LABELS[order.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-500">
-                    {new Date(order.created_at).toLocaleString("vi-VN")}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${order._id ?? order.id}`}>
-                      <Button size="sm" variant="outline">
-                        Chi tiết
-                      </Button>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-              {orders.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">
-                    Không có đơn hàng
-                  </td>
-                </tr>
-              )}
-              {loading && (
-                <tr>
-                  <td colSpan={9}>
-                    <div className="flex justify-center items-center py-20">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      {/* No franchise selected */}
+      {!activeFranchiseId && !loading && (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-slate-400">
+          <svg className="mb-3 size-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+          </svg>
+          <p className="text-sm font-medium">Vui lòng chọn chi nhánh để xem đơn hàng</p>
         </div>
-        <div className="px-4">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-            totalItems={orders.length}
-            itemsPerPage={ITEMS_PER_PAGE}
-          />
-        </div>
-      </div>
+      )}
+
+      {/* TABLE */}
+      {(activeFranchiseId || loading) && (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <tr>
+                  <th className="px-4 py-3">Mã đơn</th>
+                  <th className="px-4 py-3">Chi nhánh</th>
+                  <th className="px-4 py-3">Khách hàng</th>
+                  <th className="px-4 py-3">Tổng tiền</th>
+                  <th className="px-4 py-3">Giảm giá</th>
+                  <th className="px-4 py-3">Loại đơn</th>                  <th className="px-4 py-3">Trạng thái</th>
+                  <th className="px-4 py-3">Ngày tạo</th>
+                  <th className="px-4 py-3">Assign</th>
+                  <th className="px-4 py-3">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {loading ? (                  <tr><td colSpan={10}>
+                    <div className="flex justify-center items-center py-16">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500" />
+                    </div>
+                  </td></tr>
+                ) : paginatedOrders.length === 0 ? (
+                  <tr><td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-500">Không có đơn hàng nào</td></tr>
+                ) : (
+                  paginatedOrders.map((order) => {
+                    const { discountTotal, parts } = getDiscountSummary(order);
+                    const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-slate-100 text-slate-600 border-slate-200";                    const custPhone = order.customer?.phone || order.phone || "—";
+                    const custName  = order.customer?.name || order.customer_name || "—";
+                    return (
+                      <tr key={order._id ?? order.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-primary-600">{order.code}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-slate-900">{String(order.franchise?.name || (order as any).franchise_name || "—")}</p>
+                          <p className="text-xs text-slate-500">{String(order.franchise?.code || (order as any).franchise_code || "")}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-semibold text-slate-900">{custName}</p>
+                          <p className="text-xs text-slate-500">{custPhone}</p>
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">
+                          {formatCurrency(order.final_amount ?? order.total_amount ?? 0)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {discountTotal > 0 ? (
+                            <div>
+                              <p className="font-semibold text-green-600 whitespace-nowrap">-{formatCurrency(discountTotal)}</p>
+                              <p className="text-[11px] text-slate-500">{parts.join(", ")}</p>
+                            </div>
+                          ) : <span className="text-slate-400">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{ORDER_TYPE_LABELS[order.type] ?? order.type ?? "—"}</td>                        <td className="px-4 py-3">
+                          <div className="relative inline-block" ref={statusPopoverId === String(order._id ?? order.id) ? popoverRef : null}>
+                            <button
+                              onClick={() => setStatusPopoverId(prev => prev === String(order._id ?? order.id) ? null : String(order._id ?? order.id))}
+                              disabled={updatingId === String(order._id ?? order.id)}
+                              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-opacity hover:opacity-75 cursor-pointer disabled:opacity-50 ${statusColor}`}
+                              title="Nhấn để đổi trạng thái"
+                            >
+                              {updatingId === String(order._id ?? order.id)
+                                ? "Đang cập nhật..."
+                                : ORDER_STATUS_LABELS[order.status] ?? order.status}
+                            </button>
+                            {statusPopoverId === String(order._id ?? order.id) && (
+                              <div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-xl">
+                                {STATUS_OPTIONS.map(opt => (
+                                  <button
+                                    key={opt.value}
+                                    onClick={() => handleQuickStatus(String(order._id ?? order.id), opt.value as OrderStatus)}
+                                    className={`w-full px-3 py-2 text-left text-xs font-medium transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-primary-50 hover:text-primary-700 ${order.status === opt.value ? "bg-primary-50 text-primary-700 font-semibold" : "text-slate-700"}`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                          {order.created_at ? new Date(order.created_at).toLocaleString("vi-VN") : "—"}
+                        </td>
+                        {/* Assign staff → ready-for-pickup */}
+                        <td className="px-4 py-3">
+                          <div className="relative inline-block" ref={assignPopoverId === String(order._id ?? order.id) ? assignPopoverRef : null}>
+                            <button
+                              onClick={() => setAssignPopoverId(prev => prev === String(order._id ?? order.id) ? null : String(order._id ?? order.id))}
+                              disabled={assigningId === String(order._id ?? order.id)}
+                              className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50"
+                              title="Giao việc cho nhân viên (Ready for Pickup)"
+                            >
+                              {assigningId === String(order._id ?? order.id) ? (
+                                <span>Đang giao...</span>
+                              ) : (
+                                <>
+                                  <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                  Assign
+                                </>
+                              )}
+                            </button>
+                            {assignPopoverId === String(order._id ?? order.id) && (
+                              <div className="absolute left-0 top-full z-50 mt-1 w-52 rounded-xl border border-slate-200 bg-white shadow-xl">
+                                <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">Chọn nhân viên</p>
+                                {staffList.length === 0 ? (
+                                  <p className="px-3 py-3 text-xs text-slate-500">Không có nhân viên</p>
+                                ) : (
+                                  staffList.map(s => (
+                                    <button
+                                      key={s.id}
+                                      onClick={() => handleAssign(String(order._id ?? order.id), s.user_id)}
+                                      className="w-full px-3 py-2 text-left transition-colors first:rounded-t-none last:rounded-b-xl hover:bg-blue-50 hover:text-blue-700"
+                                    >
+                                      <p className="text-xs font-semibold text-slate-800">{s.user_name}</p>
+                                      <p className="text-[10px] text-slate-400">{s.role_name}</p>
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => setSelectedOrderId(String(order._id ?? order.id))}
+                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
+                            title="Xem chi tiết"
+                          >                            <svg xmlns="http://www.w3.org/2000/svg" className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.25 2.25 0 013.182 3.182L7.5 19.213l-4 1 1-4L16.862 3.487z" />
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredOrders.length}
+              itemsPerPage={ITEMS_PER_PAGE}
+            />
+          </div>
+        </div>      )}
+
+      <OrderDetailModal orderId={selectedOrderId} onClose={() => setSelectedOrderId(null)} />
     </div>
   );
 };

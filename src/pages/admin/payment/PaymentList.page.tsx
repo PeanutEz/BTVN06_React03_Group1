@@ -107,9 +107,12 @@ const PaymentListPage = () => {
               className="w-full"
               options={[
                 { value: "", label: "Tất cả" },
+                { value: "PENDING", label: "Chờ thanh toán" },
                 { value: "DRAFT", label: "Chưa thanh toán" },
                 { value: "CONFIRMED", label: "Đã xác nhận" },
                 { value: "PREPARING", label: "Đang xử lý" },
+                { value: "READY_FOR_PICKUP", label: "Sẵn sàng lấy hàng" },
+                { value: "DELIVERING", label: "Đang giao hàng" },
                 { value: "COMPLETED", label: "Thành công" },
                 { value: "CANCELLED", label: "Đã hủy" },
               ]}

@@ -284,6 +284,7 @@ export default function MenuCheckoutPage() {
     phone: "",
     address: "",
     note: "",
+    bankName: "",
     paymentMethod: "CASH" as PaymentMethod,
   });
 
@@ -415,12 +416,20 @@ export default function MenuCheckoutPage() {
 
     setOrderingCartId(cartId);
     try {
+      const paymentMethod = form.paymentMethod === "BANK" ? "BANK" : "CASH";
+      const bankName = form.bankName.trim() || undefined;
+
       await cartClient.updateCart(cartId, {
         phone: form.phone.trim(),
         address: form.address.trim() || undefined,
         message: form.note.trim() || undefined,
+        payment_method: paymentMethod,
+        bank_name: bankName,
       });
-      await cartClient.checkoutCart(cartId);
+      await cartClient.checkoutCart(cartId, {
+        payment_method: paymentMethod,
+        bank_name: bankName,
+      });
       const order = await orderClient.getOrderByCartId(cartId);
       const orderId = order?._id ?? order?.id ?? "";
 
@@ -433,11 +442,23 @@ export default function MenuCheckoutPage() {
         queryKey: ["cart-detail", cartId],
       });
 
-      toast.success(`Đã đặt đơn tại ${franchiseName}`);
+      toast.success(
+        paymentMethod === "BANK"
+          ? `Đã tạo đơn tại ${franchiseName}. Chuyển sang bước thanh toán.`
+          : `Đã đặt đơn tại ${franchiseName}`
+      );
       if (orderId) {
+        if (paymentMethod === "BANK") {
+          navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(orderId)));
+          return;
+        }
         setCompletedOrderId(String(orderId));
         setCompletedFranchiseName(franchiseName);
+        navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", String(orderId)));
+        return;
       }
+
+      toast.error("Không lấy được thông tin đơn hàng sau khi checkout.");
     } catch (error: unknown) {
       const msg = getErrorMessage(error) ?? "Không thể đặt hàng. Vui lòng thử lại.";
       toast.error(msg);
@@ -721,6 +742,22 @@ export default function MenuCheckoutPage() {
                   ))}
                 </div>
               </div>
+
+              {form.paymentMethod === "BANK" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Tên ngân hàng <span className="text-gray-400">(không bắt buộc)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="VD: Vietcombank"
+                    value={form.bankName}
+                    onChange={(e) => setField("bankName", e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-amber-300 focus:border-amber-400 text-sm outline-none transition-all bg-white"
+                  />
+                  {errors.bankName && <p className="mt-1 text-xs text-red-500">{errors.bankName}</p>}
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
