@@ -64,10 +64,12 @@ function formatItemOptions(options: unknown): string | null {
 /** Map API order status to delivery timeline status */
 function apiOrderStatusToDeliveryStatus(apiStatus: ApiOrderStatus): DeliveryOrderStatus {
   const map: Record<ApiOrderStatus, DeliveryOrderStatus> = {
+    PENDING: "PENDING",
     DRAFT: "PENDING",
     CONFIRMED: "CONFIRMED",
     PREPARING: "PREPARING",
-    READY_FOR_PICKUP: "READY",
+    READY_FOR_PICKUP: "READY_FOR_PICKUP",
+    DELIVERING: "DELIVERING",
     COMPLETED: "COMPLETED",
     CANCELLED: "CANCELLED",
   };
@@ -97,7 +99,7 @@ function getDeliveryTimelineStatus(order: OrderDisplay, delivery: ApiDelivery | 
   if (order.status === "READY_FOR_PICKUP") return "DELIVERING";
 
   const base = apiOrderStatusToDeliveryStatus(order.status);
-  return base === "READY" ? "DELIVERING" : base;
+  return base === "READY_FOR_PICKUP" ? "DELIVERING" : base;
 }
 
 function StatusTimeline({

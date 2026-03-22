@@ -1,6 +1,18 @@
 // Order Types
 export type OrderType = "POS" | "ONLINE";
-export type OrderStatus = "DRAFT" | "CONFIRMED" | "PREPARING" | "READY_FOR_PICKUP" | "COMPLETED" | "CANCELLED";
+
+// Order Status - Aligned with API Spec
+// API Spec: PENDING → PREPARING → READY_FOR_PICKUP → DELIVERING → COMPLETED (+ CANCELLED)
+// Legacy statuses (DRAFT, CONFIRMED) kept for backward compatibility
+export type OrderStatus =
+  | "PENDING"           // API Spec: Initial status after checkout
+  | "DRAFT"             // Legacy: Same as PENDING (kept for backward compat)
+  | "CONFIRMED"         // Legacy: Order confirmed by staff
+  | "PREPARING"         // API Spec: Order being prepared
+  | "READY_FOR_PICKUP"  // API Spec: Ready for pickup/delivery
+  | "DELIVERING"        // API Spec: Order being delivered
+  | "COMPLETED"         // API Spec: Order completed
+  | "CANCELLED";        // API Spec: Order cancelled
 
 // OrderItem - Chi tiết sản phẩm trong đơn hàng
 export interface OrderItem {
@@ -108,19 +120,32 @@ export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
 };
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
+  PENDING: "Chờ xử lý",
   DRAFT: "Nháp",
   CONFIRMED: "Đã xác nhận",
   PREPARING: "Đang chuẩn bị",
   READY_FOR_PICKUP: "Sẵn sàng lấy hàng",
+  DELIVERING: "Đang giao hàng",
   COMPLETED: "Hoàn thành",
   CANCELLED: "Đã hủy",
 };
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, string> = {
+  PENDING: "bg-yellow-50 text-yellow-700 border-yellow-200",
   DRAFT: "bg-gray-50 text-gray-700 border-gray-200",
   CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
-  PREPARING: "bg-yellow-50 text-yellow-700 border-yellow-200",
+  PREPARING: "bg-orange-50 text-orange-700 border-orange-200",
   READY_FOR_PICKUP: "bg-amber-50 text-amber-700 border-amber-200",
+  DELIVERING: "bg-purple-50 text-purple-700 border-purple-200",
   COMPLETED: "bg-green-50 text-green-700 border-green-200",
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
 };
+
+// Order status flow according to API spec
+export const ORDER_STATUS_FLOW: OrderStatus[] = [
+  "PENDING",
+  "PREPARING",
+  "READY_FOR_PICKUP",
+  "DELIVERING",
+  "COMPLETED",
+];

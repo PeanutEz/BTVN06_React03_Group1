@@ -280,8 +280,15 @@ export const useDeliveryStore = create<DeliveryState>((set, get) => ({
 
   advanceOrderStatus: (orderId) => {
     const { placedOrders } = get();
-    const FLOW_DELIVERY: PlacedOrder["status"][] = ["PENDING", "CONFIRMED", "PREPARING", "DELIVERING", "COMPLETED"];
-    const FLOW_PICKUP: PlacedOrder["status"][] = ["PENDING", "CONFIRMED", "PREPARING", "READY", "COMPLETED"];
+    // Status flows aligned with API spec
+    // API: PENDING → PREPARING → READY_FOR_PICKUP → DELIVERING → COMPLETED
+    // CONFIRMED kept for backward compatibility in existing flow
+    const FLOW_DELIVERY: PlacedOrder["status"][] = [
+      "PENDING", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP", "DELIVERING", "COMPLETED"
+    ];
+    const FLOW_PICKUP: PlacedOrder["status"][] = [
+      "PENDING", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP", "COMPLETED"
+    ];
 
     const next = placedOrders.map((o) => {
       if (o.id !== orderId) return o;

@@ -91,6 +91,7 @@ export default function MenuOrderPanel({
   const cartIds = useMenuCartStore((s) => s.cartIds);
   const setCarts = useMenuCartStore((s) => s.setCarts);
   const removeCartId = useMenuCartStore((s) => s.removeCartId);
+  const clearLocalCart = useMenuCartStore((s) => s.clearCart);
   const localItems = useMenuCartStore((s) => s.items);
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
@@ -100,8 +101,6 @@ export default function MenuOrderPanel({
     (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? (user as any)?._id ?? "",
   );
 
-  const [voucherCode, setVoucherCode] = useState("");
-  const [applyingVoucher, setApplyingVoucher] = useState(false);
   const [cancellingCart, setCancellingCart] = useState(false);
   const [editingItem, setEditingItem] = useState<DisplayCartItem | null>(null);
   const [pendingReorder, setPendingReorder] = useState<{
@@ -180,8 +179,6 @@ export default function MenuOrderPanel({
 
   const sectionsWithItems = sections.filter((s) => s.items.length > 0);
   const apiItems: DisplayCartItem[] = sections.flatMap((s) => s.items);
-  const firstCartDetail = sections[0]?.detail ?? null;
-  const apiCart = firstCartDetail;
 
   // Map local items as fallback
   const localDisplayItems: DisplayCartItem[] = localItems.map((li) => {
@@ -376,21 +373,32 @@ export default function MenuOrderPanel({
   }
 
   async function handleCancelCart() {
-    const cartIdToCancel = cartIds[0] ?? null;
+    const cartIdToCancel = sectionsWithItems[0]?.cartId ?? cartIds[0] ?? null;
     if (cartIdToCancel == null) {
-      useMenuCartStore.getState().clearCart();
+      clearLocalCart();
+      toast.success("Đã xóa giỏ hàng");
       return;
     }
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      clearLocalCart();
+      toast.success("Đã xóa giỏ tạm trên thiết bị");
+      return;
+    }
     if (cancellingCart) return;
     setCancellingCart(true);
     try {
       await cartClient.cancelCart(cartIdToCancel);
+      const isLastCart = cartIds.length <= 1;
       removeCartId(cartIdToCancel);
       queryClient.invalidateQueries({ queryKey: ["cart-detail", cartIdToCancel] });
+      queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
       queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
+      if (isLastCart) {
+        // Avoid showing stale local fallback items after cancelling the final server cart.
+        clearLocalCart();
+      }
       toast.success("Đã hủy giỏ hàng");
-      if (cartIds.length <= 1) {
+      if (isLastCart) {
         onRequestClose?.();
         navigate(ROUTER_URL.MENU);
       }
@@ -409,34 +417,6 @@ export default function MenuOrderPanel({
       return;
     }
     navigate(ROUTER_URL.MENU_CHECKOUT);
-  }
-
-  const primaryCartId = cartIds[0] ?? null;
-
-  async function handleApplyVoucher() {
-    if (!primaryCartId || !voucherCode.trim()) return;
-    setApplyingVoucher(true);
-    try {
-      await cartClient.applyVoucher(primaryCartId, voucherCode.trim());
-      invalidateCart(primaryCartId);
-      toast.success("Đã áp dụng mã giảm giá");
-      setVoucherCode("");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message ?? "Mã giảm giá không hợp lệ");
-    } finally {
-      setApplyingVoucher(false);
-    }
-  }
-
-  async function handleRemoveVoucher() {
-    if (!primaryCartId) return;
-    try {
-      await cartClient.removeVoucher(primaryCartId);
-      invalidateCart(primaryCartId);
-      toast.success("Đã xóa mã giảm giá");
-    } catch {
-      toast.error("Không thể xóa mã giảm giá");
-    }
   }
 
   const hasLocation = orderMode === "PICKUP" ? !!selectedFranchiseName : !!selectedBranch;
@@ -893,48 +873,6 @@ export default function MenuOrderPanel({
             <div className="flex justify-between text-gray-600">
               <span>Phí giao hàng</span>
               {currentDeliveryFee === 0 ? <span className="text-emerald-600 font-medium">Miễn phí</span> : <span>{fmt(currentDeliveryFee)}</span>}
-            </div>
-          )}
-
-          {/* Voucher Section */}
-          {apiCart?.voucher ? (
-            <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm">🎟️</span>
-                <div>
-                  <p className="text-[10px] font-semibold text-emerald-700 uppercase">{String(apiCart.voucher)}</p>
-                  <p className="text-[10px] text-emerald-600">Giảm {fmt(Number(apiCart.discount_amount ?? 0))}</p>
-                </div>
-              </div>
-              <button
-                onClick={handleRemoveVoucher}
-                className="text-[10px] text-emerald-600 hover:text-emerald-700 font-medium"
-              >
-                Xóa
-              </button>
-            </div>
-          ) : (
-            <div className="flex gap-1.5">
-              <input
-                type="text"
-                value={voucherCode}
-                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === "Enter" && handleApplyVoucher()}
-                placeholder="Nhập mã giảm giá"
-                className="flex-1 px-2.5 py-1.5 text-[11px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent"
-              />
-              <button
-                onClick={handleApplyVoucher}
-                disabled={!voucherCode.trim() || applyingVoucher}
-                className={cn(
-                  "px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-colors",
-                  voucherCode.trim() && !applyingVoucher
-                    ? "bg-amber-500 hover:bg-amber-600 text-white"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                )}
-              >
-                {applyingVoucher ? "..." : "Áp dụng"}
-              </button>
             </div>
           )}
 
