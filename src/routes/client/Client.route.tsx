@@ -1,4 +1,4 @@
-import { Route } from "react-router-dom";
+import { Navigate, Route } from "react-router-dom";
 import React from "react";
 import ClientLayout from "../../layouts/client/Client.layout";
 import CustomerAccountLayout from "../../layouts/client/CustomerAccount.layout";
@@ -22,6 +22,7 @@ export const ClientRoutes = (
       {CLIENT_MENU.filter((item) => item.path !== ROUTER_URL.ACCOUNT).map((item) => (
         <Route key={item.path} path={item.path} element={<item.component />} />
       ))}
+      <Route path={ROUTER_URL.CART.replace(/^\//, "")} element={<Navigate to={ROUTER_URL.CUSTOMER_CART} replace />} />
       <Route path="customer" element={<CustomerAccountLayout />}>
         <Route path="account" element={<CustomerProfile />} />
         <Route path="change-password" element={<CustomerChangePassword />} />

@@ -1,8 +1,9 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { isAdminRole } from "../../models";
 import LoadingLayout from "../../layouts/Loading.layout";
 import { useAuthStore } from "../../store";
 import { ROUTER_URL } from "../router.const";
+
+const ALLOWED_ADMIN_ROLES = ["admin", "system", "manager", "staff"];
 
 const AdminGuard = () => {
   const location = useLocation();
@@ -12,8 +13,10 @@ const AdminGuard = () => {
     return <LoadingLayout />;
   }
 
-  // Kiểm tra user có role admin/system không
-  const hasAdminRole = user?.roles?.some(r => isAdminRole(r.role)) || isAdminRole(user?.role);
+  // Kiểm tra user có role được phép vào admin panel không
+  const hasAdminRole = user?.roles?.some(r =>
+    ALLOWED_ADMIN_ROLES.includes((r.role ?? "").toString().toLowerCase())
+  ) || ALLOWED_ADMIN_ROLES.includes((user?.role ?? "").toString().toLowerCase());
 
   if (!user || !hasAdminRole) {
     return <Navigate to={ROUTER_URL.ADMIN_LOGIN} replace state={{ from: location }} />;

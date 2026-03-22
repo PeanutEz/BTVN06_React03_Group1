@@ -30,7 +30,7 @@ export interface UserFranchiseRole {
 export interface SearchUserFranchiseRolePayload {
 	searchCondition: {
 		user_id?: string;
-		franchise_id?: string;
+		franchise_id?: string | null;
 		role_id?: string;
 		is_deleted?: boolean;
 	};
@@ -145,4 +145,75 @@ export async function createUserFranchiseRole(
 		throw new Error(msg);
 	}
 	return (result as { data: UserFranchiseRole }).data;
+}
+
+// ==================== USER-FRANCHISE-ROLE-05: Delete Item ====================
+// DELETE /api/user-franchise-roles/:id — Token: YES — Role: ADMIN
+// Output: { success: true, data: null }
+
+export async function deleteUserFranchiseRole(id: string): Promise<void> {
+	const response = await apiClient.delete<ApiResponse<null>>(
+		`/user-franchise-roles/${id}`,
+	);
+	const result = response.data;
+	if (!result.success) {
+		throw new Error("Xóa user-franchise-role thất bại");
+	}
+}
+
+// ==================== USER-FRANCHISE-ROLE-06: Restore Item ====================
+// PATCH /api/user-franchise-roles/:id/restore — Token: YES — Role: ADMIN
+// Output: { success: true, data: null }
+
+export async function restoreUserFranchiseRole(id: string): Promise<void> {
+	const response = await apiClient.patch<ApiResponse<null>>(
+		`/user-franchise-roles/${id}/restore`,
+	);
+	const result = response.data;
+	if (!result.success) {
+		throw new Error("Khôi phục user-franchise-role thất bại");
+	}
+}
+
+// ==================== USER-FRANCHISE-ROLE-07: Get All Roles By UserId ====================
+// GET /api/user-franchise-roles/user/:userId — Token: YES — Role: SYSTEM & FRANCHISE
+// Output: { success: true, data: UserFranchiseRole[] }
+
+export async function getUserFranchiseRolesByUserId(
+	userId: string,
+): Promise<UserFranchiseRole[]> {
+	const response = await apiClient.get<ApiResponse<UserFranchiseRole[]>>(
+		`/user-franchise-roles/user/${userId}`,
+	);
+	const result = response.data;
+	if (!result.success) {
+		throw new Error("Lấy roles theo userId thất bại");
+	}
+	return (result as { data: UserFranchiseRole[] }).data;
+}
+
+// ==================== USER-FRANCHISE-ROLE-08: Get All Users by FranchiseId ====================
+// GET /api/user-franchise-roles/franchise/:franchiseId — Token: YES — Role: SYSTEM & FRANCHISE
+// Output: { success: true, data: UserByFranchise[] }
+
+export interface UserByFranchise {
+	value: string;
+	code: string;
+	name: string;
+	email: string;
+	phone: string;
+	image: string;
+}
+
+export async function getUsersByFranchiseId(
+	franchiseId: string,
+): Promise<UserByFranchise[]> {
+	const response = await apiClient.get<{ success: boolean; data: UserByFranchise[] }>(
+		`/user-franchise-roles/franchise/${franchiseId}`,
+	);
+	const result = response.data;
+	if (!result.success) {
+		throw new Error("Lấy danh sách user theo franchise thất bại");
+	}
+	return result.data;
 }

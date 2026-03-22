@@ -32,83 +32,139 @@ export interface CreateFranchisePayload {
 	address?: string;    // optional, default ""
 }
 
-// Mock data - WBS_Coffee Franchise Stores
-const mockStores: Store[] = [
-  {
-    id: "STORE001",
-    name: "WBS Coffee Nguyễn Huệ",
-    code: "WBS-NH",
-    address: "135 Nguyễn Huệ, Quận 1",
-    city: "TP. Hồ Chí Minh",
-    phone: "028-3822-5678",
-    email: "nguyenhue@wbscoffee.vn",
-    manager: "Nguyễn Văn Minh",
-    status: "ACTIVE",
-    openingHours: "07:00 - 22:00",
-    createDate: "2024-01-15T00:00:00Z",
-    totalOrders: 1250,
-    totalRevenue: 125000000,
-  },
-  {
-    id: "STORE002",
-    name: "WBS Coffee Lê Lợi",
-    code: "WBS-LL",
-    address: "89 Lê Lợi, Quận 1",
-    city: "TP. Hồ Chí Minh",
-    phone: "028-3825-9999",
-    email: "leloi@wbscoffee.vn",
-    manager: "Trần Thị Hương",
-    status: "ACTIVE",
-    openingHours: "06:30 - 23:00",
-    createDate: "2024-02-20T00:00:00Z",
-    totalOrders: 980,
-    totalRevenue: 98000000,
-  },
-  {
-    id: "STORE003",
-    name: "WBS Coffee Thảo Điền",
-    code: "WBS-TD",
-    address: "12 Xuân Thủy, Thảo Điền, Quận 2",
-    city: "TP. Hồ Chí Minh",
-    phone: "028-3744-5566",
-    email: "thaodien@wbscoffee.vn",
-    manager: "Lê Quang Hải",
-    status: "ACTIVE",
-    openingHours: "07:00 - 22:30",
-    createDate: "2024-03-10T00:00:00Z",
-    totalOrders: 750,
-    totalRevenue: 85000000,
-  },
-  {
-    id: "STORE004",
-    name: "WBS Coffee Phú Mỹ Hưng",
-    code: "WBS-PMH",
-    address: "15 Nguyễn Lương Bằng, Quận 7",
-    city: "TP. Hồ Chí Minh",
-    phone: "028-5412-3344",
-    email: "phumyhung@wbscoffee.vn",
-    manager: "Phạm Thu Thảo",
-    status: "MAINTENANCE",
-    openingHours: "07:00 - 22:00",
-    createDate: "2024-05-01T00:00:00Z",
-    totalOrders: 420,
-    totalRevenue: 42000000,
-  },
-];
+// // Mock data - WBS_Coffee Franchise Stores
+// const mockStores: Store[] = [
+//   {
+//     id: "STORE001",
+//     name: "WBS Coffee Nguyễn Huệ",
+//     code: "WBS-NH",
+//     address: "135 Nguyễn Huệ, Quận 1",
+//     city: "TP. Hồ Chí Minh",
+//     phone: "028-3822-5678",
+//     email: "nguyenhue@wbscoffee.vn",
+//     manager: "Nguyễn Văn Minh",
+//     status: "ACTIVE",
+//     openingHours: "07:00 - 22:00",
+//     createDate: "2024-01-15T00:00:00Z",
+//     totalOrders: 1250,
+//     totalRevenue: 125000000,
+//   },
+//   {
+//     id: "STORE002",
+//     name: "WBS Coffee Lê Lợi",
+//     code: "WBS-LL",
+//     address: "89 Lê Lợi, Quận 1",
+//     city: "TP. Hồ Chí Minh",
+//     phone: "028-3825-9999",
+//     email: "leloi@wbscoffee.vn",
+//     manager: "Trần Thị Hương",
+//     status: "ACTIVE",
+//     openingHours: "06:30 - 23:00",
+//     createDate: "2024-02-20T00:00:00Z",
+//     totalOrders: 980,
+//     totalRevenue: 98000000,
+//   },
+//   {
+//     id: "STORE003",
+//     name: "WBS Coffee Thảo Điền",
+//     code: "WBS-TD",
+//     address: "12 Xuân Thủy, Thảo Điền, Quận 2",
+//     city: "TP. Hồ Chí Minh",
+//     phone: "028-3744-5566",
+//     email: "thaodien@wbscoffee.vn",
+//     manager: "Lê Quang Hải",
+//     status: "ACTIVE",
+//     openingHours: "07:00 - 22:30",
+//     createDate: "2024-03-10T00:00:00Z",
+//     totalOrders: 750,
+//     totalRevenue: 85000000,
+//   },
+//   {
+//     id: "STORE004",
+//     name: "WBS Coffee Phú Mỹ Hưng",
+//     code: "WBS-PMH",
+//     address: "15 Nguyễn Lương Bằng, Quận 7",
+//     city: "TP. Hồ Chí Minh",
+//     phone: "028-5412-3344",
+//     email: "phumyhung@wbscoffee.vn",
+//     manager: "Phạm Thu Thảo",
+//     status: "MAINTENANCE",
+//     openingHours: "07:00 - 22:00",
+//     createDate: "2024-05-01T00:00:00Z",
+//     totalOrders: 420,
+//     totalRevenue: 42000000,
+//   },
+// ];
 
-export const fetchStores = async (): Promise<Store[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return mockStores;
+export interface FranchiseResponse {
+	success: boolean;
+	data: ApiFranchise;
+}
+
+export interface FranchiseListResponse {
+	success: boolean;
+	data: ApiFranchise[];
+}
+
+export const fetchStores = async (): Promise<ApiFranchise[]> => {
+	const payload = {
+		searchCondition: {
+			keyword: "",
+			opened_at: "",
+			closed_at: "",
+			is_active: "",
+			is_deleted: false
+		},
+		pageInfo: {
+			pageNum: 1,
+			pageSize: 100
+		}
+	};
+
+	const res = await apiClient.post<SearchFranchiseResponse>(
+		"/franchises/search",
+		payload
+	);
+
+	return res.data.data;
 };
 
-export const fetchStoreById = async (id: string): Promise<Store | null> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return mockStores.find((store) => store.id === id) || null;
+export const fetchStoreById = async (id: string): Promise<ApiFranchise> => {
+	const res = await apiClient.get<FranchiseResponse>(`/franchises/${id}`);
+	return res.data.data;
 };
 
 export const fetchActiveStores = async (): Promise<Store[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return mockStores.filter((store) => store.status === "ACTIVE");
+	const res = await apiClient.post<SearchFranchiseResponse>("/franchises/search", {
+		searchCondition: {
+			is_active: true,
+			is_deleted: false
+		},
+		pageInfo: {
+			pageNum: 1,
+			pageSize: 100
+		},
+	});
+
+	const franchises = res.data.data;
+
+	const stores: Store[] = franchises.map((f) => ({
+		id: f.id,
+		name: f.name,
+		code: f.code,
+		address: f.address,
+		city: "",
+		phone: f.hotline,
+		email: "",
+		manager: "",
+		status: f.is_active ? "ACTIVE" : "INACTIVE",
+		openingHours: `${f.opened_at} - ${f.closed_at}`,
+		createDate: f.created_at,
+		totalOrders: 0,
+		totalRevenue: 0
+	}));
+
+	return stores;
 };
 
 // ==================== FRANCHISE-02: Search Items by Conditions ====================
@@ -229,10 +285,19 @@ export async function updateFranchise(id: string, data: CreateFranchisePayload):
 // DELETE /api/franchises/:id — Token: YES — Role: ADMIN
 // Output: { success: true, data: null }
 export async function deleteFranchise(id: string): Promise<void> {
-	const response = await apiClient.delete<ApiResponse<null>>(`/franchises/${id}`);
-	const result = response.data;
-	if (!result.success) {
-		throw new Error("Xóa franchise thất bại");
+	if (!id) throw new Error("ID franchise không hợp lệ");
+	try {
+		const response = await apiClient.delete<ApiResponse<null>>(`/franchises/${id}`);
+		const result = response.data;
+		if (!result.success) {
+			const msg = (result as { message?: string }).message || "Xóa franchise thất bại";
+			throw new Error(msg);
+		}
+	} catch (error) {
+		if (error instanceof AxiosError && error.response?.data) {
+			throw new Error(extractApiErrorMessage(error.response.data, "Xóa franchise thất bại"));
+		}
+		throw error;
 	}
 }
 
@@ -240,10 +305,19 @@ export async function deleteFranchise(id: string): Promise<void> {
 // PATCH /api/franchises/:id/restore — Token: YES — Role: ADMIN
 // Output: { success: true, data: null }
 export async function restoreFranchise(id: string): Promise<void> {
-	const response = await apiClient.patch<ApiResponse<null>>(`/franchises/${id}/restore`);
-	const result = response.data;
-	if (!result.success) {
-		throw new Error("Khôi phục franchise thất bại");
+	if (!id) throw new Error("ID franchise không hợp lệ");
+	try {
+		const response = await apiClient.patch<ApiResponse<null>>(`/franchises/${id}/restore`);
+		const result = response.data;
+		if (!result.success) {
+			const msg = (result as { message?: string }).message || "Khôi phục franchise thất bại";
+			throw new Error(msg);
+		}
+	} catch (error) {
+		if (error instanceof AxiosError && error.response?.data) {
+			throw new Error(extractApiErrorMessage(error.response.data, "Khôi phục franchise thất bại"));
+		}
+		throw error;
 	}
 }
 
@@ -252,12 +326,31 @@ export async function restoreFranchise(id: string): Promise<void> {
 // Input: { is_active: boolean }
 // Output: { success: true, data: null }
 export async function changeFranchiseStatus(id: string, isActive: boolean): Promise<void> {
-	const response = await apiClient.patch<ApiResponse<null>>(`/franchises/${id}/status`, {
-		is_active: isActive,
-	});
-	const result = response.data;
-	if (!result.success) {
-		throw new Error("Thay đổi trạng thái franchise thất bại");
+	if (!id) throw new Error("ID franchise không hợp lệ");
+	try {
+		// Try RESTful: PATCH /franchises/:id/status
+		const response = await apiClient.patch<ApiResponse<null>>(`/franchises/${id}/status`, {
+			is_active: isActive,
+		});
+		const result = response.data;
+		if (!result.success) {
+			const msg = (result as { message?: string }).message || "Thay đổi trạng thái franchise thất bại";
+			throw new Error(msg);
+		}
+	} catch (err) {
+		// Fallback: PATCH /franchises/status with { id, is_active } in body (some backends use this)
+		if (err instanceof AxiosError && (err.response?.status === 404 || err.response?.status === 405)) {
+			const response2 = await apiClient.patch<ApiResponse<null>>("/franchises/status", {
+				id,
+				is_active: isActive,
+			});
+			if (!response2.data.success) {
+				const msg2 = (response2.data as { message?: string }).message || "Thay đổi trạng thái franchise thất bại";
+				throw new Error(msg2);
+			}
+			return;
+		}
+		throw err;
 	}
 }
 

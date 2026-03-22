@@ -47,17 +47,23 @@ export interface PaymentLog {
 }
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  PENDING: "Chờ thanh toán",
   DRAFT: "Chưa thanh toán",
   CONFIRMED: "Đã xác nhận",
   PREPARING: "Đang xử lý",
+  READY_FOR_PICKUP: "Sẵn sàng lấy hàng",
+  DELIVERING: "Đang giao hàng",
   COMPLETED: "Thành công",
   CANCELLED: "Đã hủy",
 };
 
 export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
+  PENDING: "bg-yellow-50 text-yellow-700 border-yellow-200",
   DRAFT: "bg-gray-50 text-gray-700 border-gray-200",
   CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
-  PREPARING: "bg-yellow-50 text-yellow-700 border-yellow-200",
+  PREPARING: "bg-orange-50 text-orange-700 border-orange-200",
+  READY_FOR_PICKUP: "bg-amber-50 text-amber-700 border-amber-200",
+  DELIVERING: "bg-purple-50 text-purple-700 border-purple-200",
   COMPLETED: "bg-green-50 text-green-700 border-green-200",
   CANCELLED: "bg-red-50 text-red-700 border-red-200",
 };

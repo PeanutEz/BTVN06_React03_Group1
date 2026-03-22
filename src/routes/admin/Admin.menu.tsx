@@ -24,6 +24,22 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(() => import("../../pages/admin/user/User.page.tsx")),
   },
   {
+    label: "Roles",
+    path: ROUTER_URL.ADMIN_ROUTES.ROLES,
+    component: React.lazy(
+      () => import("../../pages/admin/role/RoleList.page.tsx"),
+    ),
+  },
+  {
+    label: "User Franchise Roles",
+    path: ROUTER_URL.ADMIN_ROUTES.USER_FRANCHISE_ROLES,
+    component: React.lazy(
+      () =>
+        import("../../pages/admin/user-franchise-role/UserFranchiseRole.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Orders",
     path: ROUTER_URL.ADMIN_ROUTES.ORDERS,
     component: React.lazy(
@@ -83,19 +99,28 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
+    label: "Vouchers",
+    path: ROUTER_URL.ADMIN_ROUTES.VOUCHERS,
+    component: React.lazy(
+      () => import("../../pages/admin/voucher/VoucherList.page.tsx"),
+    ),
+  },
+  {
+    label: "Product Franchises",
+    path: ROUTER_URL.ADMIN_ROUTES.PRODUCT_FRANCHISES,
+    component: React.lazy(
+      () =>
+        import("../../pages/admin/product-franchise/ProductFranchise.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Franchises",
     path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_LIST,
     component: React.lazy(
       () => import("../../pages/admin/franchise/FranchiseList.page.tsx"),
     ),
     isEnd: true,
-  },
-  {
-    label: "Franchise Detail",
-    path: ROUTER_URL.ADMIN_ROUTES.FRANCHISE_DETAIL,
-    component: React.lazy(
-      () => import("../../pages/admin/franchise/FranchiseDetail.page.tsx"),
-    ),
   },
   {
     label: "Franchise Create",
@@ -110,20 +135,29 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(
       () => import("../../pages/admin/franchise/FranchiseCreateEdit.page.tsx"),
     ),
-  },  {
-    label: "Franchise Inventory",
-    path: ROUTER_URL.ADMIN_ROUTES.INVENTORY_BY_FRANCHISE,
+  },
+  {
+    label: "Franchise Categories",
+    path: ROUTER_URL.ADMIN_ROUTES.CATEGORY_FRANCHISE,
     component: React.lazy(
-      () => import("../../pages/admin/inventory/InventoryByFranchise.page.tsx"),
+      () => import("../../pages/admin/franchise/CategoryFranchise.page.tsx"),
     ),
-  },  {
+  },
+  {
+    label: "Promotions",
+    path: ROUTER_URL.ADMIN_ROUTES.PROMOTIONS,
+    component: React.lazy(
+      () => import("../../pages/admin/promotion/Promotion.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Inventories",
     path: ROUTER_URL.ADMIN_ROUTES.INVENTORIES,
     component: React.lazy(
       () => import("../../pages/admin/inventory/InventoryList.page.tsx"),
     ),
-  },
-  {
+  },  {
     label: "Categories",
     path: ROUTER_URL.ADMIN_ROUTES.CATEGORIES,
     component: React.lazy(
@@ -131,11 +165,12 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     ),
   },
   {
-    label: "Roles",
-    path: ROUTER_URL.ADMIN_ROUTES.ROLES,
+    label: "Category Franchises",
+    path: ROUTER_URL.ADMIN_ROUTES.CATEGORY_FRANCHISES,
     component: React.lazy(
-      () => import("../../pages/admin/role/RoleList.page.tsx"),
+      () => import("../../pages/admin/franchise/CategoryFranchise.page.tsx"),
     ),
+    isEnd: true,
   },
   {
     label: "Profile",
@@ -143,5 +178,30 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(
       () => import("../../pages/admin/profile/AdminProfile.page.tsx"),
     ),
+  },
+  {
+    label: "Product Category Franchises",
+    path: ROUTER_URL.ADMIN_ROUTES.PRODUCT_CATEGORY_FRANCHISES,
+    component: React.lazy(
+      () =>
+        import("../../pages/admin/product-category-franchise/ProductCategoryFranchise.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
+    label: "Shifts",
+    path: ROUTER_URL.ADMIN_ROUTES.SHIFTS,
+    component: React.lazy(
+      () => import("../../pages/admin/shift/Shift.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
+    label: "Shift Assignments",
+    path: ROUTER_URL.ADMIN_ROUTES.SHIFT_ASSIGNMENTS,
+    component: React.lazy(
+      () => import("../../pages/admin/shift-assignment/ShiftAssignment.page.tsx"),
+    ),
+    isEnd: true,
   },
 ];

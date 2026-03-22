@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { LOCAL_STORAGE_KEY } from "../const/data.const";
 import type { UserProfile } from "../services/auth.service";
+import { removeItem } from "@/utils/localstorage.util";
 
 type AuthState = {
 	user: UserProfile | null;
@@ -29,6 +30,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 	logout: () => {
 		localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
+		removeItem("hylux_delivery_state");
+		// Cart data (hylux_menu_cart, hylux_cart_id) is intentionally preserved
+		// so the user's cart survives logout/login cycles. The backend cart is
+		// tied to the customer account and will be re-fetched on next login.
 		set({ user: null, isLoggedIn: false });
 	},
 

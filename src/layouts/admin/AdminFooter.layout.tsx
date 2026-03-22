@@ -1,7 +1,7 @@
 const AdminFooter = () => {
   return (
-    <footer className="border-t border-slate-200 bg-white px-6 py-3 text-sm text-slate-500">
-      © 2026 BTVN06 Group1 Admin
+    <footer className="px-6 py-3 mt-6 text-center text-xs text-white/30">
+      © 2026 Hylux — Admin Panel
     </footer>
   );
 };

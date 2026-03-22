@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "../../../components";
+import { Button, GlassSelect } from "../../../components";
 import type { Payment, PaymentStatus, PaymentMethodType } from "../../../models/payment.model";
 import {
   PAYMENT_STATUS_LABELS,
@@ -77,13 +77,9 @@ const PaymentListPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý thanh toán</h1>
+        <div>          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý thanh toán</h1>
           <p className="text-xs sm:text-sm text-slate-600">Theo dõi và quản lý các giao dịch thanh toán</p>
         </div>
-        <Button variant="outline" onClick={loadPayments} loading={loading}>
-          Làm mới
-        </Button>
       </div>
 
       {/* Filters */}
@@ -91,31 +87,36 @@ const PaymentListPage = () => {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">Phương thức</label>
-            <select
+            <GlassSelect
               value={methodFilter}
-              onChange={(e) => setMethodFilter(e.target.value as PaymentMethodType | "")}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="">Tất cả</option>
-              <option value="POS">Tại quầy (POS)</option>
-              <option value="ONLINE">Online</option>
-            </select>
+              onChange={(v) => setMethodFilter(v as PaymentMethodType | "")}
+              className="w-full"
+              options={[
+                { value: "", label: "Tất cả" },
+                { value: "POS", label: "Tại quầy (POS)" },
+                { value: "ONLINE", label: "Online" },
+              ]}
+            />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">Trạng thái</label>
-            <select
+            <GlassSelect
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as PaymentStatus | "")}
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            >
-              <option value="">Tất cả</option>
-              <option value="DRAFT">Chưa thanh toán</option>
-              <option value="CONFIRMED">Đã xác nhận</option>
-              <option value="PREPARING">Đang xử lý</option>
-              <option value="COMPLETED">Thành công</option>
-              <option value="CANCELLED">Đã hủy</option>
-            </select>
+              onChange={(v) => setStatusFilter(v as PaymentStatus | "")}
+              className="w-full"
+              options={[
+                { value: "", label: "Tất cả" },
+                { value: "PENDING", label: "Chờ thanh toán" },
+                { value: "DRAFT", label: "Chưa thanh toán" },
+                { value: "CONFIRMED", label: "Đã xác nhận" },
+                { value: "PREPARING", label: "Đang xử lý" },
+                { value: "READY_FOR_PICKUP", label: "Sẵn sàng lấy hàng" },
+                { value: "DELIVERING", label: "Đang giao hàng" },
+                { value: "COMPLETED", label: "Thành công" },
+                { value: "CANCELLED", label: "Đã hủy" },
+              ]}
+            />
           </div>
         </div>
 

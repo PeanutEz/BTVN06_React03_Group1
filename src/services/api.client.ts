@@ -1,5 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { MSG_CONSTANT, LOCAL_STORAGE_KEY } from "../const/data.const";
+import { LOCAL_STORAGE_KEY } from "../const/data.const";
 
 // Cờ để tránh gọi refresh token nhiều lần cùng lúc
 let isRefreshing = false;
@@ -16,10 +16,28 @@ function processQueue(error: unknown) {
     failedQueue = [];
 }
 
-// Base URL: dùng proxy trong dev (same-origin để cookie hoạt động), direct URL khi production
+function normalizeApiBaseUrl(raw: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed) return "";
+    // Accept both ".../api" and "..." (then append "/api")
+    const withoutTrailingSlash = trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
+    return withoutTrailingSlash.endsWith("/api")
+        ? withoutTrailingSlash
+        : `${withoutTrailingSlash}/api`;
+}
+
+const productionApiBaseUrl = normalizeApiBaseUrl(
+    import.meta.env.VITE_API_URL || "https://ecommerce-franchise-training-nodejs.vercel.app/"
+);
+
+// Base URL:
+// - DEV: prefer direct HTTPS API if VITE_API_URL is set (Secure cookies require https response),
+//        otherwise fallback to Vite proxy "/api".
+// - PROD: always direct API base.
+const devApiBaseUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_URL || "");
 const baseURL = import.meta.env.DEV
-    ? "/api"  // Vite proxy → tránh cross-origin cookie bị chặn
-    : (import.meta.env.VITE_API_URL || "https://ecommerce-franchise-training-nodejs.vercel.app/") + "api";
+    ? (devApiBaseUrl || "/api")
+    : productionApiBaseUrl;
 
 const apiClient = axios.create({
     baseURL,
@@ -62,31 +80,55 @@ apiClient.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // AUTO REFRESH: khi 401 + message ACCESS_TOKEN_EXPIRED và chưa retry
         if (error.response?.status === 401 && !originalRequest._retry) {
-            const responseData = error.response.data as { message?: string };
-            if (responseData?.message === MSG_CONSTANT.ACCESS_TOKEN_EXPIRED) {
+            const url = originalRequest.url ?? "";
+            // Avoid infinite loop: do not try refresh when the refresh endpoint itself fails.
+            const isRefreshTokenCall =
+                url.includes("/auth/refresh-token") || url.includes("/customer-auth/refresh-token");
+
+            if (!isRefreshTokenCall) {
+                // Determine if current user is a customer.
+                // - Prefer roles from localStorage.
+                // - Fallback: infer from requested endpoint.
+                const userRaw = localStorage.getItem(LOCAL_STORAGE_KEY.AUTH_USER);
+                let isCustomer = false;
+                if (userRaw) {
+                    try {
+                        const parsed = JSON.parse(userRaw);
+                        const roles = parsed?.roles ?? [];
+                        isCustomer =
+                            roles.length === 0 ||
+                            roles.some((r: any) => String(r?.role ?? r?.scope ?? "").toUpperCase().includes("CUSTOMER"));
+                    } catch {
+                        isCustomer = true;
+                    }
+                } else {
+                    isCustomer = url.startsWith("/customer-auth") || url.startsWith("/customers");
+                }
+
+                // If refresh is already in progress, queue this request.
                 if (isRefreshing) {
-                    // Đang refresh → đưa vào hàng đợi, chờ refresh xong mới retry
                     return new Promise((resolve, reject) => {
                         failedQueue.push({ resolve, reject });
-                    }).then(() => apiClient(originalRequest))
-                      .catch((err) => Promise.reject(err));
+                    })
+                        .then(() => apiClient(originalRequest))
+                        .catch((err) => Promise.reject(err));
                 }
 
                 originalRequest._retry = true;
                 isRefreshing = true;
 
                 try {
-                    await apiClient.get("/auth/refresh-token");
+                    const refreshPath = isCustomer ? "/customer-auth/refresh-token" : "/auth/refresh-token";
+                    await apiClient.get(refreshPath);
                     processQueue(null);
                     return apiClient(originalRequest);
                 } catch (refreshError) {
                     processQueue(refreshError);
-                    // Refresh thất bại → xoá user khỏi localStorage và reload về login
                     console.warn("[Auth] Refresh token thất bại, đăng xuất người dùng.");
                     localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
-                    window.location.href = "/auth/login";
+                    // Customer login route in this project is "/login".
+                    window.location.href = isCustomer ? "/login" : "/auth/login";
                     return Promise.reject(refreshError);
                 } finally {
                     isRefreshing = false;

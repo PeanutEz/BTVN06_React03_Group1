@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "../../../components";
+import { Button, GlassSelect, useConfirm } from "../../../components";
 import { useAuthStore } from "../../../store";
-import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles, changeUserStatus } from "../../../services/user.service";
+import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles, changeUserStatus, restoreUser } from "../../../services/user.service";
 import type { ApiUser, CreateUserPayload, RoleSelectItem } from "../../../services/user.service";
 import { createUserFranchiseRole, searchUserFranchiseRoles, updateUserFranchiseRole } from "../../../services/user-franchise-role.service";
 import type { CreateUserFranchiseRolePayload, UserFranchiseRole } from "../../../services/user-franchise-role.service";
@@ -22,6 +22,7 @@ const DEFAULT_FORM: CreateUserPayload = {
 };
 
 const UserPage = () => {
+  const showConfirm = useConfirm();
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,6 +35,7 @@ const UserPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [roles, setRoles] = useState<RoleSelectItem[]>([]);
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
 
@@ -71,12 +73,12 @@ const UserPage = () => {
     }
   };
 
-  const load = async (keyword = searchQuery, page = currentPage, status = statusFilter) => {
-    console.log("[User.page] load() called with keyword:", keyword, "page:", page, "status:", status);
+  const load = async (keyword = searchQuery, page = currentPage, status = statusFilter, isDeleted = showDeleted) => {
+    console.log("[User.page] load() called with keyword:", keyword, "page:", page, "status:", status, "isDeleted:", isDeleted);
     setLoading(true);
     try {
-      const isActive = status === "true" ? true : status === "false" ? false : "";
-      const result = await fetchUsers(keyword, page, ITEMS_PER_PAGE, isActive);
+      const isActive = isDeleted ? "" : (status === "true" ? true : status === "false" ? false : "");
+      const result = await fetchUsers(keyword, page, ITEMS_PER_PAGE, isActive, isDeleted);
       console.log("[User.page] fetchUsers result:", result);
       console.log("[User.page] pageData length:", result.pageData?.length);
       console.log("[User.page] pageInfo:", result.pageInfo);
@@ -210,12 +212,19 @@ const UserPage = () => {
   };
 
   const handleDeleteUser = async (u: ApiUser) => {
-    if (!confirm(`Bạn có chắc muốn XÓA VĨNH VIỄN user "${u.name}"? Hành động này không thể hoàn tác.`)) return;
+    if (!await showConfirm({
+      title: `Bạn có chắc muốn XÓA VĨNH VIỄN`,
+      message: `user "${u.name}"? Hành động này không thể hoàn tác.`,
+      variant: "danger",
+      confirmText: "Xóa vĩnh viễn",
+    })) return;
     setSubmitting(true);
     try {
       await deleteUser(u.id);
       showSuccess(`Đã xóa user "${u.name}"`);
-      await load();
+      const nextPage = users.length <= 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+      setCurrentPage(nextPage);
+      await load(searchQuery, nextPage, statusFilter, showDeleted);
     } catch {
       showError("Xóa user thất bại");
     } finally {
@@ -225,7 +234,12 @@ const UserPage = () => {
 
   const handleToggleStatus = async (u: ApiUser) => {
     const action = u.is_active ? "Block" : "Unblock";
-    if (!confirm(`Bạn có chắc muốn ${action} user "${u.name}"?`)) return;
+    if (!await showConfirm({
+      title: `Bạn có chắc muốn ${action}`,
+      message: `user "${u.name}"?`,
+      variant: u.is_active ? "warning" : "info",
+      confirmText: action,
+    })) return;
     setSubmitting(true);
     try {
       await changeUserStatus(u.id, !u.is_active);
@@ -233,6 +247,25 @@ const UserPage = () => {
       await load();
     } catch {
       showError(`${action} user thất bại`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRestoreUser = async (u: ApiUser) => {
+    if (!await showConfirm({
+      title: `Bạn có chắc muốn KHÔI PHỤC`,
+      message: `user "${u.name}"?`,
+      variant: "warning",
+      confirmText: "Khôi phục",
+    })) return;
+    setSubmitting(true);
+    try {
+      await restoreUser(u.id);
+      showSuccess(`Đã khôi phục user "${u.name}"`);
+      await load(searchQuery, currentPage, statusFilter, showDeleted);
+    } catch {
+      showError("Khôi phục user thất bại");
     } finally {
       setSubmitting(false);
     }
@@ -263,20 +296,35 @@ const UserPage = () => {
               placeholder="Tìm kiếm theo tên hoặc email..."
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              onKeyDown={(e) => { if (e.key === "Enter") load(searchQuery, 1, statusFilter); }}
+              onKeyDown={(e) => { if (e.key === "Enter") load(searchQuery, 1, statusFilter, showDeleted); }}
               className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
-          <select
+          <GlassSelect
             value={statusFilter}
-            onChange={(e) => { setStatusFilter(e.target.value); setCurrentPage(1); load(searchQuery, 1, e.target.value); }}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="true">Active</option>
-            <option value="false">Blocked</option>
-          </select>
-          <Button onClick={() => load(searchQuery, 1, statusFilter)} loading={loading}>
+            onChange={(v) => { setStatusFilter(v); setCurrentPage(1); load(searchQuery, 1, v, showDeleted); }}
+            disabled={showDeleted}
+            options={[
+              { value: "", label: "Tất cả trạng thái" },
+              { value: "true", label: "Active" },
+              { value: "false", label: "Blocked" },
+            ]}
+          />
+          <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm cursor-pointer hover:bg-slate-50 transition select-none">
+            <input
+              type="checkbox"
+              checked={showDeleted}
+              onChange={(e) => {
+                const val = e.target.checked;
+                setShowDeleted(val);
+                setCurrentPage(1);
+                load(searchQuery, 1, statusFilter, val);
+              }}
+              className="size-4 rounded accent-red-500"
+            />
+            <span className="text-slate-700 whitespace-nowrap">Đã xóa</span>
+          </label>
+          <Button onClick={() => load(searchQuery, 1, statusFilter, showDeleted)} loading={loading}>
             Tìm kiếm
           </Button>
         </div>
@@ -292,23 +340,34 @@ const UserPage = () => {
               <th className="px-4 py-3">SĐT</th>
               <th className="px-4 py-3">Trạng thái</th>
               <th className="px-4 py-3">Ngày tạo</th>
-              <th className="px-4 py-3">Set Role</th>
               <th className="px-4 py-3">Thao tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200">
             {users.map((u) => (
-              <tr key={u.id} className="hover:bg-slate-50">
+              <tr key={u.id} className={`hover:bg-slate-50 ${u.is_deleted ? "bg-red-50/60 opacity-75" : ""}`}>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <img
-                      src={u.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.email}`}
-                      alt={u.name}
-                      className="size-9 rounded-full object-cover"
-                    />
+                    <div className="relative size-9 shrink-0">
+                      <div className="size-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-slate-100">
+                        {u.name
+                          ? u.name.split(" ").filter(Boolean).slice(-2).map((w: string) => w[0].toUpperCase()).join("")
+                          : u.email?.[0]?.toUpperCase() ?? "?"}
+                      </div>
+                      {u.avatar_url && (
+                        <img
+                          src={u.avatar_url}
+                          alt={u.name}
+                          className="absolute inset-0 size-9 rounded-full object-cover ring-2 ring-slate-100"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                    </div>
                     <div className="leading-tight">
                       <p className="font-semibold text-slate-900">{u.name || "(Chưa đặt tên)"}</p>
-                      {u.is_verified ? (
+                      {u.is_deleted ? (
+                        <span className="text-xs text-red-500 font-medium">✕ Đã xóa</span>
+                      ) : u.is_verified ? (
                         <span className="text-xs text-green-600">✓ Đã xác thực</span>
                       ) : (
                         <span className="text-xs text-amber-600">○ Chưa xác thực</span>
@@ -319,7 +378,9 @@ const UserPage = () => {
                 <td className="px-4 py-3 text-slate-700">{u.email}</td>
                 <td className="px-4 py-3 text-slate-700">{u.phone || "—"}</td>
                 <td className="px-4 py-3">
-                  {u.is_active ? (
+                  {u.is_deleted ? (
+                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600">Đã xóa</span>
+                  ) : u.is_active ? (
                     <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Active</span>
                   ) : (
                     <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">Blocked</span>
@@ -329,61 +390,76 @@ const UserPage = () => {
                   {new Date(u.created_at).toLocaleDateString("vi-VN")}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    onClick={() => handleOpenSetRole(u)}
-                    className="rounded-lg border border-primary-300 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-600 transition hover:bg-primary-100"
-                  >
-                    Set Role
-                  </button>
-                </td>
-                <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <button
-                      title="Xem chi tiết"
-                      onClick={() => handleOpenEdit(u)}
-                      className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    {currentUser?.id !== u.id && (
+                    {u.is_deleted ? (
+                      <button
+                        title="Khôi phục user"
+                        onClick={() => handleRestoreUser(u)}
+                        disabled={submitting}
+                        className="inline-flex items-center justify-center size-8 rounded-lg border border-emerald-300 bg-white text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      </button>
+                    ) : (
                       <>
                         <button
-                          title={u.is_active ? "Block user" : "Unblock user"}
-                          onClick={() => handleToggleStatus(u)}
-                          disabled={submitting}
-                          className={`inline-flex items-center justify-center size-8 rounded-lg border transition-colors disabled:opacity-50 ${
-                            u.is_active
-                              ? "border-amber-200 bg-white text-amber-500 hover:border-amber-400 hover:bg-amber-50"
-                              : "border-green-200 bg-white text-green-500 hover:border-green-400 hover:bg-green-50"
-                          }`}
-                        >
-                          {u.is_active ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                            </svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          )}
-                        </button>
-                        <button
-                          title="Xóa user"
-                          onClick={() => handleDeleteUser(u)}
-                          disabled={submitting}
-                          className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          title="Chỉnh sửa"
+                          onClick={() => handleOpenEdit(u)}
+                          className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                           </svg>
                         </button>
+                        <button
+                          title="Gán role"
+                          onClick={() => handleOpenSetRole(u)}
+                          className="inline-flex items-center justify-center size-8 rounded-lg border border-indigo-200 bg-white text-indigo-500 hover:border-indigo-400 hover:bg-indigo-50 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </button>
+                        {currentUser?.id !== u.id && (
+                          <>
+                            <button
+                              title={u.is_active ? "Block user" : "Unblock user"}
+                              onClick={() => handleToggleStatus(u)}
+                              disabled={submitting}
+                              className={`inline-flex items-center justify-center size-8 rounded-lg border transition-colors disabled:opacity-50 ${
+                                u.is_active
+                                  ? "border-amber-200 bg-white text-amber-500 hover:border-amber-400 hover:bg-amber-50"
+                                  : "border-green-200 bg-white text-green-500 hover:border-green-400 hover:bg-green-50"
+                              }`}
+                            >
+                              {u.is_active ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                            </button>
+                            <button
+                              title="Xóa user"
+                              onClick={() => handleDeleteUser(u)}
+                              disabled={submitting}
+                              className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors disabled:opacity-50"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                        {currentUser?.id === u.id && (
+                          <span className="text-xs text-amber-600">(Bạn)</span>
+                        )}
                       </>
-                    )}
-                    {currentUser?.id === u.id && (
-                      <span className="text-xs text-amber-600">(Bạn)</span>
                     )}
                   </div>
                 </td>
@@ -420,17 +496,27 @@ const UserPage = () => {
 
       {/* Set Role Modal */}
       {setRoleUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" onClick={() => setSetRoleUser(null)} />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
             {/* Header */}
             <div className="mb-5 flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Set Role</h2>
-                <p className="mt-0.5 text-sm text-slate-500">Gán role cho user vào franchise / system</p>
+                <h2 className="text-xl font-bold text-white/95">Set Role</h2>
+                <p className="mt-0.5 text-sm text-white/50">Gán role cho user vào franchise / system</p>
               </div>
               <button
                 onClick={() => setSetRoleUser(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white/70"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -439,39 +525,39 @@ const UserPage = () => {
             </div>
 
             {/* User info badge */}
-            <div className="mb-5 flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
+            <div className="mb-5 flex items-center gap-3 rounded-xl bg-white/[0.06] px-4 py-3">
               <img
                 src={setRoleUser.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${setRoleUser.email}`}
                 alt={setRoleUser.name}
                 className="size-10 rounded-full object-cover ring-2 ring-primary-200"
               />
               <div className="leading-tight">
-                <p className="font-semibold text-slate-900">{setRoleUser.name || "(Chưa đặt tên)"}</p>
-                <p className="text-xs text-slate-500">{setRoleUser.email}</p>
+                <p className="font-semibold text-white/95">{setRoleUser.name || "(Chưa đặt tên)"}</p>
+                <p className="text-xs text-white/50">{setRoleUser.email}</p>
               </div>
             </div>
 
             {/* Existing roles */}
             {loadingExistingRoles && (
-              <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+              <div className="mb-4 flex items-center gap-2 text-sm text-white/50">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/[0.12] border-t-white/70" />
                 Đang kiểm tra role hiện tại...
               </div>
             )}
             {!loadingExistingRoles && existingUserRoles.length > 0 && (
               <div className="mb-5 space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Roles đã gán</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Roles đã gán</p>
                 {existingUserRoles.map((er) => (
-                  <div key={er.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <div key={er.id} className="flex items-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.06] px-3 py-2.5">
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-500 truncate">
+                      <p className="text-xs text-white/50 truncate">
                         {er.franchise_name ? `${er.franchise_name} (${er.franchise_code})` : "System (Global)"}
                       </p>
                     </div>
                     <select
                       value={updateRoleMap[er.id] ?? er.role_id}
                       onChange={(e) => setUpdateRoleMap((m) => ({ ...m, [er.id]: e.target.value }))}
-                      className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-primary-500"
+                      className="rounded-lg border border-white/[0.15] bg-white/[0.08] px-2 py-1.5 text-xs text-white/90 outline-none focus:border-primary-500 [&>option]:bg-slate-900 [&>option]:text-white"
                     >
                       {roles.map((r) => (
                         <option key={r.value} value={r.value}>
@@ -495,8 +581,8 @@ const UserPage = () => {
             <form onSubmit={handleSetRoleSubmit} className="space-y-4">
               {/* Role */}
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700">
-                  Role <span className="text-red-500">*</span>
+                <label className="text-sm font-semibold text-white/80">
+                  Role <span className="text-red-400">*</span>
                 </label>
                 <select
                   required
@@ -510,7 +596,7 @@ const UserPage = () => {
                       franchise_id: isGlobal ? null : f.franchise_id,
                     }));
                   }}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
                 >
                   <option value="">-- Chọn role --</option>
                   {roles.map((r) => (
@@ -527,7 +613,7 @@ const UserPage = () => {
                 const isGlobal = selectedRole?.scope === "GLOBAL";
                 return (
                   <div className="space-y-1.5">
-                    <label className={`text-sm font-semibold ${isGlobal ? "text-slate-400" : "text-slate-700"}`}>
+                    <label className={`text-sm font-semibold ${isGlobal ? "text-white/40" : "text-white/80"}`}>
                       Franchise
                     </label>
 
@@ -536,7 +622,7 @@ const UserPage = () => {
                       onChange={(e) =>
                         setSetRoleForm((f) => ({ ...f, franchise_id: e.target.value || null }))
                       }
-                      className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
                     >
                       <option value="">-- System (không chọn franchise) --</option>
                       {franchises.map((fr) => (
@@ -565,7 +651,7 @@ const UserPage = () => {
                   variant="outline"
                   onClick={() => setSetRoleUser(null)}
                   disabled={setRoleSubmitting}
-                  className="flex-1"
+                  className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </Button>
@@ -577,64 +663,74 @@ const UserPage = () => {
 
       {/* Create User Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <h2 className="mb-5 text-xl font-bold text-slate-900">Tạo người dùng mới</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" onClick={() => setShowModal(false)} />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
+            <h2 className="mb-5 text-xl font-bold text-white/95">Tạo người dùng mới</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Email *</label>
+                <label className="text-sm font-semibold text-white/80">Email *</label>
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="user@example.com"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Mật khẩu *</label>
+                <label className="text-sm font-semibold text-white/80">Mật khẩu *</label>
                 <input
                   type="password"
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Họ tên</label>
+                <label className="text-sm font-semibold text-white/80">Họ tên</label>
                 <input
                   type="text"
                   value={formData.name || ""}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Nguyễn Văn A"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Số điện thoại</label>
+                <label className="text-sm font-semibold text-white/80">Số điện thoại</label>
                 <input
                   type="tel"
                   value={formData.phone || ""}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="0938947221"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Avatar URL</label>
+                <label className="text-sm font-semibold text-white/80">Avatar URL</label>
                 <input
                   type="url"
                   value={formData.avatar_url || ""}
                   onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
                   placeholder="https://picsum.photos/id/237/200/300"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
@@ -647,7 +743,7 @@ const UserPage = () => {
                   variant="outline"
                   onClick={() => setShowModal(false)}
                   disabled={submitting}
-                  className="flex-1"
+                  className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </Button>
@@ -659,21 +755,31 @@ const UserPage = () => {
 
       {/* Edit / Detail User Modal */}
       {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <h2 className="mb-5 text-xl font-bold text-slate-900">Chi tiết người dùng</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/25" onClick={() => setEditingUser(null)} />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6"
+            style={{
+              background: "rgba(255, 255, 255, 0.12)",
+              backdropFilter: "blur(40px) saturate(200%)",
+              WebkitBackdropFilter: "blur(40px) saturate(200%)",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+            }}
+          >
+            <h2 className="mb-5 text-xl font-bold text-white/95">Chi tiết người dùng</h2>
 
             <div className="space-y-4">
               {/* Avatar & basic info */}
-              <div className="flex items-center gap-4 rounded-xl bg-slate-50 p-4">
+              <div className="flex items-center gap-4 rounded-xl bg-white/[0.06] p-4">
                 <img
                   src={editingUser.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${editingUser.email}`}
                   alt={editingUser.name}
                   className="size-14 rounded-full object-cover ring-2 ring-primary-200"
                 />
                 <div className="leading-tight">
-                  <p className="font-semibold text-slate-900">{editingUser.name || "(Chưa đặt tên)"}</p>
-                  <p className="text-sm text-slate-500">{editingUser.email}</p>
+                  <p className="font-semibold text-white/95">{editingUser.name || "(Chưa đặt tên)"}</p>
+                  <p className="text-sm text-white/50">{editingUser.email}</p>
                   <div className="mt-1 flex gap-2">
                     {editingUser.is_active ? (
                       <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">Active</span>
@@ -690,42 +796,42 @@ const UserPage = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Email</label>
+                <label className="text-sm font-semibold text-white/80">Email</label>
                 <input
                   type="email"
                   disabled
                   value={editingUser.email}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500 cursor-not-allowed"
+                  className="w-full rounded-lg border border-white/[0.12] bg-white/[0.06] px-4 py-2 text-sm text-white/50 cursor-not-allowed"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Họ tên</label>
+                <label className="text-sm font-semibold text-white/80">Họ tên</label>
                 <input
                   type="text"
                   value={editingUser.name}
                   onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Số điện thoại</label>
+                <label className="text-sm font-semibold text-white/80">Số điện thoại</label>
                 <input
                   type="tel"
                   value={editingUser.phone}
                   onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Ngày tạo</label>
+                <label className="text-sm font-semibold text-white/80">Ngày tạo</label>
                 <input
                   type="text"
                   disabled
                   value={new Date(editingUser.created_at).toLocaleString("vi-VN")}
-                  className="w-full rounded-lg border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-500 cursor-not-allowed"
+                  className="w-full rounded-lg border border-white/[0.12] bg-white/[0.06] px-4 py-2 text-sm text-white/50 cursor-not-allowed"
                 />
               </div>
 
@@ -738,7 +844,7 @@ const UserPage = () => {
                   variant="outline"
                   onClick={() => setEditingUser(null)}
                   disabled={submitting}
-                  className="flex-1"
+                  className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </Button>

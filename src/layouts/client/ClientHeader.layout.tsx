@@ -28,17 +28,13 @@ const ClientHeader = () => {
   const navigate = useNavigate();
 
   // ── Delivery / receiving store ────────────────────────────────────────
-  const { orderMode, selectedBranch, deliveryAddress, hydrate } = useDeliveryStore();
+  const { orderMode, selectedBranch, hydrate, selectedFranchiseName, selectedFranchiseId } = useDeliveryStore();
   useEffect(() => { hydrate(); }, [hydrate]);
 
   const branchOpen = selectedBranch ? isBranchOpen(selectedBranch) : false;
 
-  // Label shown in the header pill
-  const receivingLabel = !selectedBranch
-    ? null
-    : orderMode === "PICKUP"
-    ? selectedBranch.name
-    : deliveryAddress.rawAddress || selectedBranch.name;
+  // Chỉ hiển thị tên franchise khi đã chọn
+  const receivingLabel = selectedFranchiseId != null ? selectedFranchiseName : null;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -48,27 +44,17 @@ const ClientHeader = () => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);  const handleLogout = async () => {
-    await logoutUser().catch(() => {});
+  }, []); const handleLogout = async () => {
+    await logoutUser().catch(() => { });
     logout();
     setAccountOpen(false);
     showSuccess("Đăng xuất thành công");
     navigate(ROUTER_URL.HOME);
   };
 
-  // Auth-gated — guests must log in before configuring receiving
   const openPicker = useCallback(() => {
-    if (!user) {
-      toast.error("Vui lòng đăng nhập để chọn phương thức nhận hàng", {
-        action: {
-          label: "Đăng nhập",
-          onClick: () => navigate(ROUTER_URL.LOGIN, { state: { from: { pathname: ROUTER_URL.RECEIVING_SETUP } } }),
-        },
-      });
-      return;
-    }
     setShowBranchPicker(true);
-  }, [user, navigate]);
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-md">
@@ -112,25 +98,20 @@ const ClientHeader = () => {
               <button
                 onClick={openPicker}
                 aria-label="Phương thức nhận hàng"
-                className={`flex items-center gap-2 border-2 font-semibold text-sm px-3 py-2 rounded-full transition-all duration-200 hover:shadow-md whitespace-nowrap ${
-                  !selectedBranch
-                    ? "border-amber-400 bg-amber-50 text-amber-700 animate-pulse"
-                    : !branchOpen
+                className={`flex items-center gap-2 border-2 font-semibold text-sm px-3 py-2 rounded-full transition-all duration-200 hover:shadow-md whitespace-nowrap ${!selectedBranch
+                  ? "border-amber-400 bg-amber-50 text-amber-700 animate-pulse"
+                  : !branchOpen
                     ? "border-red-400 bg-red-50 text-red-700"
                     : orderMode === "PICKUP"
-                    ? "border-blue-400 bg-blue-50 text-blue-700"
-                    : "border-emerald-400 bg-emerald-50 text-emerald-700"
-                }`}
+                      ? "border-blue-400 bg-blue-50 text-blue-700"
+                      : "border-emerald-400 bg-emerald-50 text-emerald-700"
+                  }`}
               >
-                <span className="text-base">
-                  {!selectedBranch ? "🛵" : orderMode === "PICKUP" ? "🏪" : "🛵"}
-                </span>
+                <span className="text-base">🏪</span>
                 <span className="max-w-[180px] truncate">
-                  {!selectedBranch
-                    ? "Chọn phương thức nhận hàng"
-                    : orderMode === "PICKUP"
-                    ? `Lấy tại quán – ${receivingLabel}`
-                    : `Giao hàng – ${receivingLabel}`}
+                  {!receivingLabel
+                    ? "Chọn chi nhánh"
+                    : `Franchise – ${receivingLabel}`}
                 </span>
                 {selectedBranch && !branchOpen && (
                   <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">Đóng</span>
@@ -142,8 +123,14 @@ const ClientHeader = () => {
             {showBranchPicker && (
               <BranchPickerModal
                 onClose={() => {
-                  const { selectedBranch: b } = useDeliveryStore.getState();
-                  if (b) toast.success(`Đã chọn: ${b.name}`, { description: "Phương thức nhận hàng đã được cập nhật." });
+                  const { selectedFranchiseName } = useDeliveryStore.getState();
+
+                  if (selectedFranchiseName) {
+                    toast.success(`Đã chọn: ${selectedFranchiseName}`, {
+                      description: "Franchise đã được cập nhật.",
+                    });
+                  }
+
                   setShowBranchPicker(false);
                 }}
               />
@@ -169,9 +156,8 @@ const ClientHeader = () => {
                   </button>
 
                   {/* Dropdown Panel */}
-                  <div className={`absolute right-0 top-[calc(100%+8px)] w-60 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden transition-all duration-200 origin-top-right ${
-                    accountOpen ? "opacity-100 scale-100 visible" : "opacity-0 scale-95 invisible"
-                  }`}>
+                  <div className={`absolute right-0 top-[calc(100%+8px)] w-60 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden transition-all duration-200 origin-top-right ${accountOpen ? "opacity-100 scale-100 visible" : "opacity-0 scale-95 invisible"
+                    }`}>
                     {/* Header */}
                     <div className="px-4 py-3 bg-gradient-to-r from-red-700 to-red-600">
                       <p className="text-white font-bold text-sm truncate">{user.name}</p>
@@ -261,12 +247,11 @@ const ClientHeader = () => {
                 end={link.path === ROUTER_URL.HOME}
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                 className={({ isActive }) =>
-                  `px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap ${
-                    isActive
-                      ? "text-red-700 bg-red-50 font-semibold"
-                      : (link as { highlight?: boolean }).highlight
-                        ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50 font-semibold"
-                        : "text-gray-700 hover:text-red-700 hover:bg-red-50"
+                  `px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap ${isActive
+                    ? "text-red-700 bg-red-50 font-semibold"
+                    : (link as { highlight?: boolean }).highlight
+                      ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50 font-semibold"
+                      : "text-gray-700 hover:text-red-700 hover:bg-red-50"
                   }`
                 }
               >
@@ -293,21 +278,20 @@ const ClientHeader = () => {
             {/* Mobile receiving method */}
             <button
               onClick={() => { setMenuOpen(false); openPicker(); }}
-              className={`flex items-center gap-2 w-full px-4 py-2.5 rounded text-sm font-medium transition-colors ${
-                !selectedBranch
-                  ? "text-amber-700 bg-amber-50"
-                  : orderMode === "PICKUP"
+              className={`flex items-center gap-2 w-full px-4 py-2.5 rounded text-sm font-medium transition-colors ${!selectedBranch
+                ? "text-amber-700 bg-amber-50"
+                : orderMode === "PICKUP"
                   ? "text-blue-700 bg-blue-50"
                   : "text-emerald-700 bg-emerald-50"
-              }`}
+                }`}
             >
               <span>{!selectedBranch ? "🛵" : orderMode === "PICKUP" ? "🏪" : "🛵"}</span>
               <span className="truncate">
                 {!selectedBranch
                   ? "Chọn phương thức nhận hàng"
                   : orderMode === "PICKUP"
-                  ? `Lấy tại quán – ${receivingLabel}`
-                  : `Giao hàng – ${receivingLabel}`}
+                    ? `Lấy tại quán – ${receivingLabel}`
+                    : `Giao hàng – ${receivingLabel}`}
               </span>
             </button>
             <div className="h-px bg-gray-200 my-1" />

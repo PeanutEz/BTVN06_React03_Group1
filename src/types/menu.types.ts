@@ -7,6 +7,7 @@ export interface Topping {
   name: string;
   price: number;
   emoji: string;
+  product_franchise_id?: string; // Optional: từ API khi fetch topping products
 }
 
 export interface MenuItemOptions {
@@ -15,11 +16,28 @@ export interface MenuItemOptions {
   ice: IceLevel;
   toppings: Topping[];
   note?: string;
+
+  // Used to keep track which franchise a cart item belongs to.
+  // Important when user switches franchise and adds products again.
+  franchiseId?: string;
+  franchiseName?: string;
+
+  // API-level product-franchise id (per size) - may be helpful for debugging
+  // and for correct cart key separation.
+  productFranchiseId?: string;
 }
 
 export interface MenuCartItem {
   cartKey: string;
   productId: number;
+  /**
+   * Metadata required for reusing MenuProductModal to fetch real sizes/toppings from API.
+   * These are stored when adding item from menu.
+   */
+  apiFranchiseId?: string;
+  apiProductId?: string;
+  apiCategoryName?: string;
+  apiSizes?: unknown[];
   name: string;
   image: string;
   basePrice: number;

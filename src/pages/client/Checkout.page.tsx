@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Navigate, Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
 import { ROUTER_URL } from "@/routes/router.const";
@@ -15,6 +15,10 @@ export default function CheckoutPage() {
   const clearCart = useMenuCartStore((s) => s.clearCart);
   const { itemCount, subtotal, deliveryFee, total } = useMenuCartTotals();
   const [isConfirming, setIsConfirming] = useState(false);
+
+  // Route legacy: trang `/checkout` không còn dùng flow checkout theo API.
+  // Điều hướng về flow chuẩn `/menu/checkout` (multi-franchise + checkout theo cartId).
+  return <Navigate to={ROUTER_URL.MENU_CHECKOUT} replace />;
 
   async function handleConfirm() {
     setIsConfirming(true);
