@@ -412,7 +412,7 @@ export default function MenuPage() {
   });
 
   const apiItemCount = (apiCart?.items ?? []).reduce((s, i) => s + (i.quantity ?? 1), 0);
-  const apiTotal = apiCart?.total_amount ?? 0;
+  const apiTotal = apiCart?.final_amount ?? 0;
   const itemCount = apiItemCount > 0 ? apiItemCount : localItemCount;
   const total = apiTotal > 0 ? apiTotal : localTotal;
 
@@ -528,69 +528,69 @@ export default function MenuPage() {
                 </p>
                 <div className="max-h-[640px] overflow-y-auto pr-1">
                   <nav className="space-y-0.5">
-                  {loading === "categories" && categories.length === 0 ? (
-                    <div className="space-y-1.5 animate-pulse px-3">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="h-9 bg-gray-100 rounded-xl" />
-                      ))}
-                    </div>
-                  ) : categories.length === 0 ? (
-                    <p className="text-xs text-gray-400 px-3">
-                      {canShowMenu ? "Chưa có danh mục" : "Chọn phương thức đặt hàng để xem"}
-                    </p>
-                  ) : (
-                    <>
-                      {/* Tất cả */}
-                      <button
-                        onClick={() => setSelectedCategory(null)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
-                          !selectedCategory
-                            ? "bg-amber-50 text-amber-700 shadow-sm"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                        )}
-                      >
-                        <span className={cn("text-xl shrink-0 transition-transform duration-150", !selectedCategory ? "scale-110" : "group-hover:scale-105")}>🍽️</span>
-                        <span className="flex-1 truncate">Tất cả</span>
-                        <span className={cn(
-                          "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
-                          !selectedCategory ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
-                        )}>
-                          {products.length}
-                        </span>
-                      </button>
+                    {loading === "categories" && categories.length === 0 ? (
+                      <div className="space-y-1.5 animate-pulse px-3">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div key={i} className="h-9 bg-gray-100 rounded-xl" />
+                        ))}
+                      </div>
+                    ) : categories.length === 0 ? (
+                      <p className="text-xs text-gray-400 px-3">
+                        {canShowMenu ? "Chưa có danh mục" : "Chọn phương thức đặt hàng để xem"}
+                      </p>
+                    ) : (
+                      <>
+                        {/* Tất cả */}
+                        <button
+                          onClick={() => setSelectedCategory(null)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
+                            !selectedCategory
+                              ? "bg-amber-50 text-amber-700 shadow-sm"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                          )}
+                        >
+                          <span className={cn("text-xl shrink-0 transition-transform duration-150", !selectedCategory ? "scale-110" : "group-hover:scale-105")}>🍽️</span>
+                          <span className="flex-1 truncate">Tất cả</span>
+                          <span className={cn(
+                            "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
+                            !selectedCategory ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
+                          )}>
+                            {products.length}
+                          </span>
+                        </button>
 
-                      {categories.map((cat) => {
-                        const isActive = cat.category_id === selectedCategory?.category_id;
-                        const count = categoryCounts[cat.category_id] ?? 0;
-                        return (
-                          <button
-                            key={cat.category_id}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={cn(
-                              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
-                              isActive
-                                ? "bg-amber-50 text-amber-700 shadow-sm"
-                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                            )}
-                          >
-                            <span className={cn("text-xl shrink-0 transition-transform duration-150", isActive ? "scale-110" : "group-hover:scale-105")}>
-                              {getCategoryIcon(cat.category_name)}
-                            </span>
-                            <span className="flex-1 truncate">{cat.category_name}</span>
-                            {count > 0 && (
-                              <span className={cn(
-                                "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
-                                isActive ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
-                              )}>
-                                {count}
+                        {categories.map((cat) => {
+                          const isActive = cat.category_id === selectedCategory?.category_id;
+                          const count = categoryCounts[cat.category_id] ?? 0;
+                          return (
+                            <button
+                              key={cat.category_id}
+                              onClick={() => setSelectedCategory(cat)}
+                              className={cn(
+                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
+                                isActive
+                                  ? "bg-amber-50 text-amber-700 shadow-sm"
+                                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                              )}
+                            >
+                              <span className={cn("text-xl shrink-0 transition-transform duration-150", isActive ? "scale-110" : "group-hover:scale-105")}>
+                                {getCategoryIcon(cat.category_name)}
                               </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
+                              <span className="flex-1 truncate">{cat.category_name}</span>
+                              {count > 0 && (
+                                <span className={cn(
+                                  "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
+                                  isActive ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
+                                )}>
+                                  {count}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
                   </nav>
                 </div>
 

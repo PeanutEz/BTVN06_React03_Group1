@@ -7,26 +7,6 @@ import { paymentClient } from "@/services/payment.client";
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
-function toNumber(value: unknown): number {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : 0;
-}
-
-function getOrderDisplayAmount(order: any, payment?: { amount?: number } | null): number {
-  const items = Array.isArray(order?.items) ? order.items : Array.isArray(order?.order_items) ? order.order_items : [];
-  const itemsTotal = items.reduce((sum: number, item: any) => {
-    const lineTotal = toNumber(item?.line_total ?? item?.subtotal);
-    return sum + lineTotal;
-  }, 0);
-
-  const orderTotal = toNumber(order?.total_amount);
-  const finalAmount = toNumber(order?.final_amount);
-  const subtotalAmount = toNumber(order?.subtotal_amount);
-  const paymentAmount = toNumber(payment?.amount);
-
-  return itemsTotal || orderTotal || finalAmount || subtotalAmount || paymentAmount || 0;
-}
-
 export default function PaymentFailedPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
@@ -43,7 +23,8 @@ export default function PaymentFailedPage() {
     enabled: !!orderId,
   });
 
-  const displayAmount = getOrderDisplayAmount(order, payment);
+  // ✅ Use final_amount from API directly (backend already calculated discount)
+  const displayAmount = order?.final_amount ?? 0;
 
   if (!order) {
     return (

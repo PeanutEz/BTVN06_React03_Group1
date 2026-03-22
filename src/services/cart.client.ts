@@ -77,9 +77,10 @@ export interface CartApiData {
   customer_id?: string;
   status?: string;
   items?: ApiCartItem[];
-  total_amount?: number;
+  subtotal_amount?: number; // ✅ Original price before discount
+  voucher_discount?: number; // ✅ Discount amount from voucher
+  final_amount?: number; // ✅ Final total (discount already applied)
   voucher?: string;
-  discount_amount?: number;
   [key: string]: unknown;
 }
 
