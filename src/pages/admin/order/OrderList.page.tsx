@@ -143,9 +143,9 @@ const OrderListPage = () => {
   };
 
   // ─── Filter ──────────────────────────────────────────────────────────────────
-  const filteredOrders = orders.filter((order) => {
-    return !statusFilter || order.status === statusFilter;
-  });
+  const filteredOrders = orders
+    .filter((order) => !statusFilter || order.status === statusFilter)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
   const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
   const paginatedOrders = filteredOrders.slice(
