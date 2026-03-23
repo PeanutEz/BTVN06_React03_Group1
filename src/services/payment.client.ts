@@ -14,15 +14,31 @@ interface ApiResponse<T> {
 export interface PaymentData {
   _id?: string;
   id?: string;
+
+  code?: string;
+
   order_id?: string;
+  franchise_id?: string;
+  customer_id?: string;
+
   method?: string;
   status?: string;
+
   amount?: number;
+
   provider_txn_id?: string;
   providerTxnId?: string;
+
+  paid_at?: string;
+
   refund_reason?: string;
+
+  is_active?: boolean;
+  is_deleted?: boolean;
+
   created_at?: string;
   updated_at?: string;
+
   [key: string]: unknown;
 }
 
