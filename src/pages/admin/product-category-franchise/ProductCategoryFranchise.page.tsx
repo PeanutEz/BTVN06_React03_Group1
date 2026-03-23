@@ -361,7 +361,7 @@ export default function ProductCategoryFranchisePage() {
           <Button
             onClick={() => {
               setCreateForm({ ...DEFAULT_CREATE });
-              setCreateFranchiseId("");
+              setCreateFranchiseId(managerFranchiseId ?? "");
               setCreatePFItems([]);
               setCreateOpen(true);
             }}
@@ -611,26 +611,37 @@ export default function ProductCategoryFranchisePage() {
             </h2>            <form onSubmit={submitCreate} className="space-y-4">              <div className="space-y-1.5">                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Franchise <span className="text-red-500">*</span>
                 </label>
-                <button
-                  ref={createFranchiseTriggerRef}
-                  type="button"
-                  onClick={() => {
-                    const rect = createFranchiseTriggerRef.current?.getBoundingClientRect() ?? null;
-                    setCreateFranchiseRect(rect);
-                    setCreateFranchiseOpen((o) => !o);
-                  }}
-                  className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-left text-sm text-white/90 outline-none transition hover:bg-white/[0.12] focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                >
-                  <span className="truncate">
-                    {createFranchiseId ? (franchiseNameMap[createFranchiseId] || createFranchiseId) : "-- Chọn franchise --"}
-                  </span>
-                  <svg
-                    className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${createFranchiseOpen ? "rotate-180" : ""}`}
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                {managerFranchiseId ? (
+                  <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed select-none">
+                    <span className="truncate font-medium">
+                      {createFranchiseId ? (franchiseNameMap[createFranchiseId] || createFranchiseId) : "-- Chọn franchise --"}
+                    </span>
+                    <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                ) : (
+                  <button
+                    ref={createFranchiseTriggerRef}
+                    type="button"
+                    onClick={() => {
+                      const rect = createFranchiseTriggerRef.current?.getBoundingClientRect() ?? null;
+                      setCreateFranchiseRect(rect);
+                      setCreateFranchiseOpen((o) => !o);
+                    }}
+                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-left text-sm text-white/90 outline-none transition hover:bg-white/[0.12] focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                    <span className="truncate">
+                      {createFranchiseId ? (franchiseNameMap[createFranchiseId] || createFranchiseId) : "-- Chọn franchise --"}
+                    </span>
+                    <svg
+                      className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${createFranchiseOpen ? "rotate-180" : ""}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                )}
               </div>
 
               <div className="space-y-1.5">

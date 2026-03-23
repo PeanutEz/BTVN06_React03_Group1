@@ -198,24 +198,29 @@ export default function DeliveryPage() {
           <div className="min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
               Chi nhánh
-              {managerFranchiseId && (
-                <svg className="inline ml-1.5 size-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            </label>
+            {managerFranchiseId ? (
+              <div className="flex w-full items-center gap-2 rounded-lg border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm">
+                <svg className="size-4 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-              )}
-            </label>
-            <GlassSearchSelect
-              value={managerFranchiseId ?? selectedFranchiseId}
-              onChange={(v) => {
-                setSelectedFranchiseId(v);
-                loadDeliveries(v, statusFilter);
-              }}
-              options={franchises.map((f) => ({ value: f.value, label: `${f.name} (${f.code})` }))}
-              placeholder="-- Chọn chi nhánh --"
-              allLabel="-- Chọn chi nhánh --"
-              searchPlaceholder="Tìm theo tên hoặc mã..."
-              disabled={!!managerFranchiseId}
-            />
+                <span className="truncate flex-1 text-red-300 font-medium">
+                  {franchises.find((f) => f.value === managerFranchiseId)?.name ?? managerFranchiseId}
+                </span>
+              </div>
+            ) : (
+              <GlassSearchSelect
+                value={selectedFranchiseId}
+                onChange={(v) => {
+                  setSelectedFranchiseId(v);
+                  loadDeliveries(v, statusFilter);
+                }}
+                options={franchises.map((f) => ({ value: f.value, label: `${f.name} (${f.code})` }))}
+                placeholder="-- Chọn chi nhánh --"
+                allLabel="-- Chọn chi nhánh --"
+                searchPlaceholder="Tìm theo tên hoặc mã..."
+              />
+            )}
           </div>          {/* Trạng thái */}
           <div className="min-w-[180px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</label>
@@ -323,7 +328,6 @@ export default function DeliveryPage() {
                       <tr key={id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3">
                           <p className="font-semibold text-primary-600">{item.order_code || safeStr(item.order_id)}</p>
-                          <p className="text-xs text-slate-400">{id}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-slate-800">{item.franchise_name || safeStr(item.franchise_id)}</p>
