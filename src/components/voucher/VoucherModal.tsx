@@ -207,8 +207,9 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="w-full max-w-xl my-4 rounded-2xl bg-white shadow-2xl flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
           <h2 className="text-xl font-bold text-gray-800">
@@ -222,7 +223,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto">
+        <div className="p-6">
           <form id="voucher-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Tên Voucher <span className="text-red-500">*</span></label>
@@ -545,6 +546,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
             {voucher ? "Cập nhật" : "Tạo mới"}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
