@@ -1,41 +1,143 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { ROUTER_URL } from "@/routes/router.const";
-import { PAYMENT_METHODS } from "@/const/payment-method.const";
 import { orderClient } from "@/services/order.client";
 import { paymentClient } from "@/services/payment.client";
+import { buildStaticPaymentQr } from "@/utils/payment-qr.util";
+import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
-function paymentStatusLabel(status?: string) {
-  switch (status?.toUpperCase()) {
+const fmtPercent = (n: number) => {
+  const normalized = Number.isInteger(n) ? n : Number(n.toFixed(2));
+  return `${normalized}%`;
+};
+
+const fmtDateTime = (d?: string) => {
+  if (!d) return null;
+  return new Date(d).toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+function getOrderItemImage(item: Record<string, unknown>): string | null {
+  const direct = item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
+  if (typeof direct === "string" && direct.trim()) return direct;
+  return null;
+}
+
+type ApiPaymentMethod = "COD" | "MOMO" | "CARD";
+
+function normalizePaymentMethod(method?: string): ApiPaymentMethod | null {
+  const raw = String(method ?? "").trim().toUpperCase();
+  if (!raw) return null;
+  if (raw === "MOMO") return "MOMO";
+  if (raw === "CARD" || raw === "VNPAY" || raw === "BANK" || raw === "BANK_TRANSFER") return "CARD";
+  if (raw === "COD" || raw === "CASH") return "COD";
+  return null;
+}
+
+function paymentStatusLabel(status?: string): string {
+  switch (String(status ?? "").toUpperCase()) {
     case "PAID":
     case "CONFIRMED":
     case "COMPLETED":
-      return { label: "Đã thanh toán", bg: "bg-green-50", color: "text-green-700", border: "border-green-200" };
+      return "Đã thanh toán";
+    case "UNPAID":
+      return "Chưa thanh toán";
+    case "PENDING":
+      return "Chờ thanh toán";
     case "REFUNDED":
-      return { label: "Đã hoàn tiền", bg: "bg-blue-50", color: "text-blue-700", border: "border-blue-200" };
+      return "Đã hoàn tiền";
     case "FAILED":
-      return { label: "Thanh toán thất bại", bg: "bg-red-50", color: "text-red-700", border: "border-red-200" };
+      return "Thanh toán thất bại";
     case "CANCELLED":
-      return { label: "Đã huỷ", bg: "bg-gray-50", color: "text-gray-700", border: "border-gray-200" };
+      return "Đã hủy";
     default:
-      return { label: "Chờ thanh toán", bg: "bg-amber-50", color: "text-amber-700", border: "border-amber-200" };
+      return "Chờ thanh toán";
   }
 }
 
-function isPaidStatus(status?: string) {
+function paymentStatusClass(status?: string): string {
+  switch (String(status ?? "").toUpperCase()) {
+    case "PAID":
+    case "CONFIRMED":
+    case "COMPLETED":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "FAILED":
+      return "bg-red-50 text-red-700 border-red-200";
+    case "REFUNDED":
+      return "bg-sky-50 text-sky-700 border-sky-200";
+    case "UNPAID":
+    case "PENDING":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    default:
+      return "bg-gray-50 text-gray-700 border-gray-200";
+  }
+}
+
+function paymentMethodLabel(method: ApiPaymentMethod | null): string {
+  if (method === "MOMO") return "MoMo";
+  if (method === "CARD") return "VNPAY";
+  if (method === "COD") return "Tiền mặt (COD)";
+  return "VNPAY";
+}
+
+function buildVnpayTxnId(orderCode?: string, paymentRef?: string): string {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0"),
+  ].join("");
+  const normalizedOrder = String(orderCode ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .toUpperCase();
+  const normalizedPayment = String(paymentRef ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .toUpperCase()
+    .slice(-6);
+  const orderSegment = normalizedOrder || "ORDER";
+  const paymentSegment = normalizedPayment || "PAY";
+  return `VNPAY_${orderSegment}_${paymentSegment}_${stamp}`;
+}
+
+function hasPlaceholderTxnSegment(txnId?: string): boolean {
+  const raw = String(txnId ?? "").toUpperCase();
+  if (!raw.startsWith("VNPAY_")) return false;
+  return raw.includes("_ORDER_") || raw.includes("_PAY_");
+}
+
+function isPaidStatus(status?: string): boolean {
   return ["PAID", "CONFIRMED", "COMPLETED"].includes(String(status ?? "").toUpperCase());
+}
+
+function getErrorText(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  if (error.message.includes("404")) return "Đơn hàng hoặc thanh toán không tồn tại";
+  if (error.message.includes("409")) return "Có yêu cầu khác đang xử lý, vui lòng thử lại";
+  if (error.message.toLowerCase().includes("network")) return "Lỗi kết nối, vui lòng kiểm tra internet";
+  return fallback;
 }
 
 export default function PaymentProcessPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const [providerTxnId, setProviderTxnId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const { data: order, isLoading: orderLoading } = useQuery({
@@ -50,38 +152,113 @@ export default function PaymentProcessPage() {
     enabled: !!orderId,
   });
 
-  // ✅ Redirect to success if payment is already paid on load
   useEffect(() => {
     if (!paymentLoading && payment && isPaidStatus(payment.status) && orderId) {
       navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
     }
-  }, [payment?.status, paymentLoading, orderId, navigate]);
+  }, [paymentLoading, payment, orderId, navigate]);
+
+  const orderItems = useMemo(() => {
+    const raw = order as Record<string, unknown> | null;
+    const direct = Array.isArray(order?.items) ? order.items : [];
+    const fallback = Array.isArray(raw?.order_items) ? (raw?.order_items as typeof direct) : [];
+    return direct.length > 0 ? direct : fallback;
+  }, [order]);
 
   const isLoading = orderLoading || paymentLoading;
   const paymentId = payment?._id ?? payment?.id ?? "";
-  const statusCfg = paymentStatusLabel(payment?.status);
-  const paymentMissing = !paymentId;
-  const paymentAlreadyPaid = isPaidStatus(payment?.status);
-  const paymentRefunded = String(payment?.status ?? "").toUpperCase() === "REFUNDED";
-  const paymentFailed = String(payment?.status ?? "").toUpperCase() === "FAILED";
-  const cannotProcess = paymentRefunded || paymentFailed;
-  // ✅ Use final_amount from API directly (backend already calculated discount)
-  const displayAmount = order?.final_amount ?? 0;
+  const statusRaw = String(payment?.status ?? "").toUpperCase();
+  const statusText = paymentStatusLabel(payment?.status);
+  const statusClass = paymentStatusClass(payment?.status);
+  const rawMethod = String(payment?.method ?? "").trim().toUpperCase();
+  const method = normalizePaymentMethod(rawMethod);
+  const effectiveMethod: ApiPaymentMethod = method ?? "CARD";
+  const methodText = paymentMethodLabel(method);
 
-  async function handleConfirmPaid() {
+  const paymentMissing = !paymentId;
+  const paymentFailed = statusRaw === "FAILED";
+  const paymentRefunded = statusRaw === "REFUNDED";
+  const paymentAlreadyPaid = isPaidStatus(statusRaw);
+  const isPendingOrUnpaid = !statusRaw || statusRaw === "PENDING" || statusRaw === "UNPAID";
+  const requiresProviderTxn = effectiveMethod === "MOMO" || effectiveMethod === "CARD";
+
+  const amount = order?.final_amount ?? order?.total_amount ?? 0;
+  const providerTxnIdFromApi = String(payment?.provider_txn_id ?? payment?.providerTxnId ?? "").trim();
+  const displayProviderTxnId = providerTxnIdFromApi || providerTxnId;
+  const paymentCreatedAtText = fmtDateTime(payment?.created_at);
+  const paymentUpdatedAtText = fmtDateTime(payment?.updated_at);
+  const customerName = order?.customer_name ?? order?.customer?.name;
+  const customerPhone = order?.phone ?? order?.customer?.phone;
+  const franchiseName = order?.franchise_name ?? order?.franchise?.name;
+  const subtotalAmount = Number(order?.subtotal_amount ?? amount ?? 0);
+  const promotionDiscount = Number((order as any)?.promotion_discount ?? 0);
+  const promotionTypeRaw = String((order as any)?.promotion_type ?? "").toUpperCase();
+  const promotionValueRaw = Number((order as any)?.promotion_value ?? 0);
+  const voucherDiscount = Number((order as any)?.voucher_discount ?? 0);
+  const voucherTypeRaw = String((order as any)?.voucher_type ?? (order as any)?.voucher?.type ?? "").toUpperCase();
+  const voucherValueRaw = Number((order as any)?.voucher_value ?? (order as any)?.voucher?.value ?? 0);
+  const loyaltyDiscount = Number((order as any)?.loyalty_discount ?? 0);
+  const promotionPercentText = (() => {
+    if (promotionDiscount <= 0) return null;
+    if ((promotionTypeRaw.includes("PERCENT") || promotionTypeRaw.includes("%")) && promotionValueRaw > 0) {
+      return fmtPercent(promotionValueRaw);
+    }
+    return null;
+  })();
+  const voucherPercentText = (() => {
+    if (voucherDiscount <= 0) return null;
+    if ((voucherTypeRaw.includes("PERCENT") || voucherTypeRaw.includes("%")) && voucherValueRaw > 0) {
+      return fmtPercent(voucherValueRaw);
+    }
+    return null;
+  })();
+  const knownDiscountTotal = Math.max(0, promotionDiscount) + Math.max(0, voucherDiscount) + Math.max(0, loyaltyDiscount);
+  const inferredDiscountTotal = Math.max(0, subtotalAmount - Number(amount ?? 0));
+  const extraDiscount = knownDiscountTotal > 0
+    ? Math.max(0, inferredDiscountTotal - knownDiscountTotal)
+    : 0;
+  const genericDiscount = knownDiscountTotal === 0 ? inferredDiscountTotal : 0;
+  const vnpayQrUrl = useMemo(() => {
+    if (effectiveMethod !== "CARD") return undefined;
+    return buildStaticPaymentQr({
+      provider: "BANK",
+      amount: Number(amount ?? 0),
+      orderRef: String(order?.code ?? orderId ?? "ORDER"),
+      bankName: "VNPAY",
+    });
+  }, [effectiveMethod, amount, order?.code, orderId]);
+  const canConfirm = !submitting && !paymentMissing && !paymentAlreadyPaid && !paymentFailed && !paymentRefunded;
+  const canRefund = !submitting && !paymentMissing && !paymentAlreadyPaid && !paymentFailed && !paymentRefunded;
+
+  useEffect(() => {
+    if (effectiveMethod !== "CARD") return;
+    const current = providerTxnId.trim();
+    if (!current || hasPlaceholderTxnSegment(current)) {
+      setProviderTxnId(buildVnpayTxnId(order?.code, paymentId));
+    }
+  }, [effectiveMethod, order?.code, paymentId, providerTxnId]);
+
+  async function handleConfirmPayment() {
     if (!paymentId || submitting) return;
 
-    // ✅ NEW: Check current status is PENDING before confirming
-    if (payment?.status?.toUpperCase() !== "PENDING") {
-      toast.error("Chỉ có thể xác nhận thanh toán ở trạng thái chờ xử lý");
+    if (!isPendingOrUnpaid) {
+      toast.error("Chỉ xác nhận khi payment ở trạng thái chờ thanh toán");
       return;
+    }
+
+    const autoTxnId = requiresProviderTxn
+      ? (providerTxnId.trim() || buildVnpayTxnId(order?.code, paymentId))
+      : undefined;
+    if (requiresProviderTxn && !providerTxnId.trim()) {
+      setProviderTxnId(autoTxnId ?? "");
     }
 
     setSubmitting(true);
     try {
       // ✅ Confirm payment with minimal required fields
       const result = await paymentClient.confirmPayment(paymentId, {
-        method: payment?.method ?? PAYMENT_METHODS.CASH,
+        method: effectiveMethod,
+        providerTxnId: autoTxnId,
       });
 
       if (!result) {
@@ -89,73 +266,34 @@ export default function PaymentProcessPage() {
         return;
       }
 
-      const newStatus = result.status?.toUpperCase();
-      if (!newStatus) {
-        toast.error("Lỗi: không thể xác định trạng thái thanh toán");
-        return;
-      }
-
       queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["payment-success-payment", orderId] });
 
-      if (isPaidStatus(newStatus)) {
-        toast.success("Thanh toán thành công!");
+      if (isPaidStatus(result.status)) {
+        toast.success("Thanh toán thành công");
         if (orderId) navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
       } else {
-        toast.error("Thanh toán thất bại");
+        toast.error("Thanh toán chưa thành công");
         if (orderId) navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId));
       }
     } catch (error) {
-      console.error(error);
-
-      // ✅ Better error handling - differentiate error types
-      if (error instanceof Error) {
-        if (error.message.includes("404")) {
-          toast.error("Đơn hàng hoặc thanh toán không tồn tại");
-        } else if (error.message.includes("409")) {
-          toast.error("Xung đột: một yêu cầu khác đang xử lý");
-        } else if (error.message.includes("Network")) {
-          toast.error("Lỗi kết nối. Vui lòng kiểm tra internet và thử lại");
-        } else {
-          toast.error("Không thể xác minh thanh toán. Vui lòng thử lại");
-        }
-      } else {
-        toast.error("Không thể xác minh thanh toán. Vui lòng thử lại");
-      }
+      toast.error(getErrorText(error, "Không thể xác nhận thanh toán"));
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleRefund() {
+  async function handleRefundPayment() {
     if (!paymentId || submitting) return;
-
-    // ✅ Can't refund if already refunded or failed
-    if (paymentRefunded || paymentFailed) {
-      toast.error("Không thể hoàn tiền cho trạng thái này");
-      return;
-    }
 
     setSubmitting(true);
     try {
-      await paymentClient.refundPayment(paymentId, { refund_reason: "Khách hàng yêu cầu huỷ" });
+      await paymentClient.refundPayment(paymentId, { refund_reason: "Khách hàng yêu cầu hủy" });
       queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
-      toast.success("Đã huỷ thanh toán");
+      toast.success("Đã hủy thanh toán");
       if (orderId) navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId));
     } catch (error) {
-      console.error(error);
-
-      // ✅ Better error handling
-      if (error instanceof Error) {
-        if (error.message.includes("404")) {
-          toast.error("Thanh toán không tồn tại");
-        } else if (error.message.includes("409")) {
-          toast.error("Xung đột: một yêu cầu khác đang xử lý");
-        } else {
-          toast.error("Không thể huỷ thanh toán. Vui lòng thử lại");
-        }
-      } else {
-        toast.error("Không thể huỷ thanh toán. Vui lòng thử lại");
-      }
+      toast.error(getErrorText(error, "Không thể hủy thanh toán"));
     } finally {
       setSubmitting(false);
     }
@@ -163,20 +301,22 @@ export default function PaymentProcessPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center text-gray-500">Đang tải thanh toán...</div>
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <p className="text-sm text-gray-600">Đang tải thông tin thanh toán...</p>
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white border rounded-2xl p-6 text-center max-w-md">
-          <div className="text-5xl mb-3">🔍</div>
-          <h1 className="text-xl font-bold text-gray-900">Không tìm thấy đơn hàng</h1>
-          <p className="text-sm text-gray-500 mt-2 mb-5">Đơn hàng không tồn tại hoặc đã bị xoá.</p>
-          <Link to={ROUTER_URL.MENU} className="inline-flex px-5 py-3 rounded-xl bg-amber-500 text-white font-semibold hover:bg-amber-600">
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+        <div className="w-full max-w-md border border-gray-200 rounded-lg p-6 text-center">
+          <h1 className="text-lg font-semibold text-gray-900">Không tìm thấy đơn hàng</h1>
+          <p className="text-sm text-gray-600 mt-2">Đơn hàng không tồn tại hoặc đã bị xóa.</p>
+          <Link
+            to={ROUTER_URL.MENU}
+            className="inline-flex mt-4 px-4 py-2 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+          >
             Quay lại menu
           </Link>
         </div>
@@ -185,113 +325,262 @@ export default function PaymentProcessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50/60">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <nav className="flex items-center gap-2 text-sm text-gray-400 mb-5">
-          <Link to={ROUTER_URL.HOME} className="hover:text-gray-600">Trang chủ</Link>
-          <span>/</span>
-          <Link to={ROUTER_URL.MENU} className="hover:text-gray-600">Menu</Link>
-          <span>/</span>
-          <span className="text-gray-900 font-medium">Thanh toán #{order.code}</span>
-        </nav>
+        <div className="border-l-4 border-amber-500 pl-3">
+          <h1 className="text-2xl font-semibold text-gray-900">Payment Process</h1>
+          <p className="text-sm text-gray-600 mt-1">Xử lý thanh toán cho đơn #{order.code}</p>
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-start justify-between gap-3 mb-5">
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Hoàn tất thanh toán</h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  Mã đơn <span className="font-semibold text-amber-700">{order.code}</span>
-                </p>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 mt-6">
+          <section className="border border-gray-200 rounded-lg p-5 bg-white shadow-sm">
+            <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+              <span>Thông tin payment</span>
+            </h2>
+
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <span className="text-gray-600">Mã đơn</span>
+                <span className="font-medium text-gray-900">#{order.code}</span>
               </div>
-              <span className={cn("inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold", statusCfg.bg, statusCfg.color, statusCfg.border)}>
-                {statusCfg.label}
-              </span>
+              {franchiseName && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2 gap-3">
+                  <span className="text-gray-600">Cửa hàng</span>
+                  <span className="font-medium text-gray-900 text-right">{franchiseName}</span>
+                </div>
+              )}
+              {customerName && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2 gap-3">
+                  <span className="text-gray-600">Khách hàng</span>
+                  <span className="font-medium text-gray-900 text-right">{customerName}</span>
+                </div>
+              )}
+              {customerPhone && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-600">Số điện thoại</span>
+                  <span className="font-medium text-gray-900">{customerPhone}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <span className="text-gray-600">Phương thức</span>
+                <span className="font-medium text-indigo-700">{methodText}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <span className="text-gray-600">Trạng thái</span>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${statusClass}`}>{statusText}</span>
+              </div>
+              {displayProviderTxnId && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-600">Mã giao dịch</span>
+                  <span className="font-mono text-xs text-amber-700">{displayProviderTxnId}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <span className="text-gray-600">Số tiền</span>
+                <span className="font-semibold text-gray-900">{fmt(amount)}</span>
+              </div>
+              {paymentCreatedAtText && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-600">Tạo payment lúc</span>
+                  <span className="font-medium text-gray-900">{paymentCreatedAtText}</span>
+                </div>
+              )}
+              {paymentUpdatedAtText && (
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <span className="text-gray-600">Cập nhật payment</span>
+                  <span className="font-medium text-gray-900">{paymentUpdatedAtText}</span>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Phương thức</p>
-                  <p className="font-semibold text-gray-900">{payment?.method ?? "—"}</p>
+            {effectiveMethod === "CARD" && (
+              <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-base">🏦</span>
+                  <p className="text-sm font-semibold text-amber-800">Quét mã QR để thanh toán VNPAY</p>
                 </div>
-                <div>
-                  <p className="text-xs text-gray-400 mb-1">Số tiền</p>
-                  <p className="text-2xl font-bold text-amber-600">{fmt(displayAmount)}</p>
-                </div>
-                {payment?.provider_txn_id && (
-                  <div>
-                    <p className="text-xs text-gray-400 mb-1">Mã giao dịch</p>
-                    <p className="font-mono text-sm font-semibold text-gray-900">{payment.provider_txn_id}</p>
+                {vnpayQrUrl && (
+                  <div className="rounded-xl border border-amber-200 bg-white p-3 flex items-center justify-center">
+                    <div className="relative w-52 h-52">
+                      <img src={vnpayQrUrl} alt="VNPAY QR" className="w-52 h-52 object-contain" />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-12 h-12 rounded-xl bg-white border border-amber-100 shadow-sm p-1.5">
+                          <img src="/logo-hylux.png" alt="Hylux" className="w-full h-full object-contain" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
+                <p className="mt-3 text-xs text-gray-600">Mã giao dịch VNPAY: <span className="font-mono font-semibold text-gray-800">{displayProviderTxnId || providerTxnId}</span></p>
               </div>
-              <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col items-center justify-center">
-                <div className="text-center py-10">
-                  <div className="text-5xl mb-3">💳</div>
-                  <p className="text-sm text-gray-600">Xác nhận thanh toán để tiếp tục xử lý đơn hàng</p>
-                  {paymentMissing && (
-                    <p className="text-xs text-red-500 mt-3 max-w-xs mx-auto">
-                      Đơn hàng này chưa có bản ghi payment từ backend nên hiện chưa thể xác nhận hoặc hoàn tiền.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
+            )}
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              {paymentMissing && (
-                <div className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  Không tìm thấy payment theo order này. Theo bộ API hiện tại, frontend chỉ xử lý được payment đã tồn tại sẵn.
-                </div>
-              )}
-              {paymentFailed && (
-                <div className="w-full rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  ⚠️ Thanh toán thất bại. Vui lòng quay lại menu và thử đặt lại đơn hàng.
-                </div>
-              )}
-              {paymentRefunded && (
-                <div className="w-full rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-                  ℹ️ Thanh toán đã bị huỷ/hoàn tiền. Vui lòng liên hệ cửa hàng để được hỗ trợ.
-                </div>
-              )}
+            {requiresProviderTxn && effectiveMethod !== "CARD" && (
+              <div className="mt-5">
+                <label className="block text-sm font-medium text-gray-700 mb-1">providerTxnId</label>
+                <input
+                  value={providerTxnId}
+                  onChange={(e) => setProviderTxnId(e.target.value)}
+                  placeholder="Nhập mã giao dịch"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
+            )}
+
+            {paymentMissing && (
+              <p className="mt-4 text-sm text-red-600">Không tìm thấy payment theo order này.</p>
+            )}
+            {paymentFailed && (
+              <p className="mt-4 text-sm text-red-600">Payment đang ở trạng thái thất bại.</p>
+            )}
+            {paymentRefunded && (
+              <p className="mt-4 text-sm text-gray-700">Payment đã được hoàn tiền hoặc hủy.</p>
+            )}
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <button
-                onClick={handleConfirmPaid}
-                disabled={submitting || paymentMissing || paymentAlreadyPaid || cannotProcess}
-                className="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-60"
+                onClick={handleConfirmPayment}
+                disabled={!canConfirm}
+                className="px-4 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50"
               >
-                {paymentAlreadyPaid ? "Đã thanh toán" : paymentFailed ? "Thất bại - không thể xác nhận" : paymentRefunded ? "Đã hoàn tiền - không thể xác nhận" : submitting ? "Đang xác minh..." : "Xác nhận đã thanh toán"}
+                {submitting ? "Đang xử lý..." : "Xác nhận thanh toán"}
               </button>
               <button
-                onClick={handleRefund}
-                disabled={submitting || paymentMissing || paymentRefunded || paymentFailed || paymentAlreadyPaid}
-                className="px-5 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-semibold disabled:opacity-60"
+                onClick={handleRefundPayment}
+                disabled={!canRefund}
+                className="px-4 py-2 rounded-md border border-sky-200 bg-sky-50 text-sm font-medium text-sky-800 disabled:opacity-50"
               >
-                Hoàn tiền / huỷ thanh toán
+                Hủy / Hoàn tiền
               </button>
             </div>
-          </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-fit">
-            <h2 className="font-semibold text-gray-900 mb-4">Tóm tắt đơn hàng</h2>
-            <div className="space-y-3">
-              {(order.items ?? []).map((item, idx) => (
-                <div key={item._id ?? item.id ?? `item-${idx}`} className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{item.product_name_snapshot}</p>
-                    <p className="text-xs text-gray-500">x{item.quantity}</p>
+            <Link
+              to={ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", String(orderId ?? ""))}
+              className="inline-block mt-4 text-sm text-amber-700 underline"
+            >
+              Xem trạng thái đơn hàng
+            </Link>
+          </section>
+
+            <aside className="border border-amber-200 rounded-2xl p-5 bg-gradient-to-b from-amber-50/70 to-white h-fit shadow-md">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <span className="inline-flex w-6 h-6 rounded-full bg-amber-100 items-center justify-center text-xs">🧾</span>
+                <span>Tóm tắt đơn hàng</span>
+              </h2>
+
+            <div className="mt-4 space-y-2 max-h-[320px] overflow-auto pr-1">
+              {orderItems.length === 0 && <p className="text-sm text-gray-600">Không có sản phẩm.</p>}
+              {orderItems.map((item, idx) => {
+                const name = item.product_name_snapshot ?? item.product_name ?? "Sản phẩm";
+                const qty = item.quantity ?? 0;
+                const lineTotal = item.line_total ?? (item.price_snapshot ?? 0) * qty;
+                const imageUrl = getOrderItemImage(item as Record<string, unknown>);
+                const itemMeta = getOrderItemDisplayMeta(item as Record<string, unknown>);
+                const fallbackMetaLine =
+                  !itemMeta.size && itemMeta.inlineMeta ? itemMeta.inlineMeta : "";
+                return (
+                  <div
+                    key={item._id ?? item.id ?? `item-${idx}`}
+                    className="relative rounded-xl border border-amber-100 bg-white p-2.5 pr-24 text-sm"
+                  >
+                    {itemMeta.size && (
+                      <span className="absolute top-2 right-2 inline-flex h-[18px] min-w-[22px] items-center justify-center rounded bg-slate-100 border border-slate-200 px-1 text-[9px] font-semibold text-slate-700 leading-none">
+                        {itemMeta.size}
+                      </span>
+                    )}
+
+                    <span className="absolute right-2 bottom-2 font-semibold text-amber-700 text-[13px]">
+                      {fmt(lineTotal)}
+                    </span>
+
+                    <div className="min-w-0 flex items-center gap-2.5">
+                      <div className="w-11 h-11 rounded-lg bg-amber-50 border border-amber-100 overflow-hidden shrink-0 flex items-center justify-center">
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-lg">☕</span>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-gray-900 truncate font-medium">{name}</p>
+                        {(itemMeta.sugar || itemMeta.ice) && (
+                          <p className="text-[9px] text-gray-500 mt-0.5 truncate whitespace-nowrap">
+                            {[itemMeta.sugar, itemMeta.ice].filter(Boolean).join(" • ")}
+                          </p>
+                        )}
+                        {fallbackMetaLine && (
+                          <p className="text-[9px] text-gray-500 mt-0.5 truncate whitespace-nowrap">
+                            {fallbackMetaLine}
+                          </p>
+                        )}
+                        {itemMeta.toppingsText && (
+                          <p className="text-[9px] text-gray-500 mt-0.5 truncate whitespace-nowrap">
+                            {`Topping: ${itemMeta.toppingsText}`}
+                          </p>
+                        )}
+                        {itemMeta.noteText && (
+                          <p className="text-[11px] text-gray-500 italic mt-0.5">
+                            Ghi chú: {itemMeta.noteText}
+                          </p>
+                        )}
+                        <span className="inline-flex mt-1 min-w-[22px] h-[18px] items-center justify-center rounded bg-gray-100 border border-gray-200 text-[10px] font-semibold text-gray-700">
+                          x{qty}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-xs font-semibold text-gray-900">{fmt(item.line_total)}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
-            <div className="mt-5 pt-4 border-t">
-              <div className="flex justify-between font-bold text-sm text-gray-900">
+
+            <div className="mt-4 pt-3 border-t border-gray-200 space-y-1 text-sm">
+              <div className="flex items-center justify-between text-gray-600">
+                <span>Tạm tính</span>
+                <span>{fmt(subtotalAmount)}</span>
+              </div>
+              {promotionDiscount > 0 && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>
+                    Giảm khuyến mãi
+                    {promotionPercentText ? ` (${promotionPercentText})` : ""}
+                  </span>
+                  <span>-{fmt(promotionDiscount)}</span>
+                </div>
+              )}
+              {voucherDiscount > 0 && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>
+                    Giảm voucher
+                    {voucherPercentText ? ` (${voucherPercentText})` : ""}
+                  </span>
+                  <span>-{fmt(voucherDiscount)}</span>
+                </div>
+              )}
+              {loyaltyDiscount > 0 && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>Giảm điểm tích lũy</span>
+                  <span>-{fmt(loyaltyDiscount)}</span>
+                </div>
+              )}
+              {extraDiscount > 0 && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>Giảm khác</span>
+                  <span>-{fmt(extraDiscount)}</span>
+                </div>
+              )}
+              {genericDiscount > 0 && (
+                <div className="flex items-center justify-between text-emerald-700">
+                  <span>Giảm giá</span>
+                  <span>-{fmt(genericDiscount)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between font-semibold text-gray-900">
                 <span>Tổng thanh toán</span>
-                <span className="text-amber-600">{fmt(displayAmount)}</span>
+                <span className="text-amber-700">{fmt(amount)}</span>
               </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </div>

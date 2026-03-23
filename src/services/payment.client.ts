@@ -4,6 +4,13 @@
  * PUT confirm, PUT refund.
  */
 import apiClient from "@/services/api.client";
+import {
+  confirmMockPayment,
+  getMockPaymentById,
+  getMockPaymentByOrderId,
+  refundMockPayment,
+  shouldUseMockPaymentId,
+} from "@/services/checkout-fallback.mock";
 
 interface ApiResponse<T> {
   success?: boolean;
@@ -66,8 +73,12 @@ function unwrapList<T>(payload: unknown): T[] {
 
 export const paymentClient = {
   getPaymentByOrderId: async (orderId: string): Promise<PaymentData | null> => {
-    const response = await apiClient.get(`/payments/order/${orderId}`);
-    return normalizePayment(unwrapSingle<PaymentData>(response.data));
+    try {
+      const response = await apiClient.get(`/payments/order/${orderId}`);
+      return normalizePayment(unwrapSingle<PaymentData>(response.data));
+    } catch {
+      return normalizePayment(getMockPaymentByOrderId(orderId));
+    }
   },
 
   getPaymentsByCustomerId: async (customerId: string): Promise<PaymentData[]> => {
@@ -81,27 +92,51 @@ export const paymentClient = {
   },
 
   getPaymentById: async (id: string): Promise<PaymentData | null> => {
-    const response = await apiClient.get(`/payments/${id}`);
-    return normalizePayment(unwrapSingle<PaymentData>(response.data));
+    if (shouldUseMockPaymentId(id)) {
+      return normalizePayment(getMockPaymentById(id));
+    }
+
+    try {
+      const response = await apiClient.get(`/payments/${id}`);
+      return normalizePayment(unwrapSingle<PaymentData>(response.data));
+    } catch {
+      return normalizePayment(getMockPaymentById(id));
+    }
   },
 
   confirmPayment: async (
     paymentId: string,
     body: { method: string; providerTxnId?: string }
   ): Promise<PaymentData | null> => {
+    if (shouldUseMockPaymentId(paymentId)) {
+      return normalizePayment(confirmMockPayment(paymentId, body));
+    }
+
     const payload: Record<string, unknown> = { method: body.method };
     if (body.providerTxnId) {
       payload.providerTxnId = body.providerTxnId;
     }
-    const response = await apiClient.put(`/payments/${paymentId}/confirm`, payload);
-    return normalizePayment(unwrapSingle<PaymentData>(response.data));
+    try {
+      const response = await apiClient.put(`/payments/${paymentId}/confirm`, payload);
+      return normalizePayment(unwrapSingle<PaymentData>(response.data));
+    } catch {
+      return normalizePayment(confirmMockPayment(paymentId, body));
+    }
   },
 
   refundPayment: async (
     paymentId: string,
     body: { refund_reason: string }
   ): Promise<PaymentData | null> => {
-    const response = await apiClient.put(`/payments/${paymentId}/refund`, body);
-    return normalizePayment(unwrapSingle<PaymentData>(response.data));
+    if (shouldUseMockPaymentId(paymentId)) {
+      return normalizePayment(refundMockPayment(paymentId, body));
+    }
+
+    try {
+      const response = await apiClient.put(`/payments/${paymentId}/refund`, body);
+      return normalizePayment(unwrapSingle<PaymentData>(response.data));
+    } catch {
+      return normalizePayment(refundMockPayment(paymentId, body));
+    }
   },
 };

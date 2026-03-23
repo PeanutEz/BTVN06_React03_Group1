@@ -8,8 +8,6 @@ import { useDeliveryStore } from "@/store/delivery.store";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useLoadingStore } from "@/store/loading.store";
-import { promotionService } from "@/services/promotion.service";
-import type { Promotion } from "@/models/promotion.model";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import MenuProductModal from "@/components/menu/MenuProductModal";
@@ -18,6 +16,16 @@ import { cartClient } from "@/services/cart.client";
 
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
+
+const normalizeText = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const isToppingCategory = (categoryName: unknown) =>
+  normalizeText(categoryName).includes("topping");
 
 type LoadingPhase = "franchises" | "categories" | "products" | "productDetail" | null;
 
@@ -191,9 +199,6 @@ export default function MenuPage() {
   const [error, setError] = useState<string | null>(null);
   const [categoriesLoadedForFranchiseId, setCategoriesLoadedForFranchiseId] = useState<string | null>(null);
 
-  // Promotions của franchise đang chọn
-  const [franchisePromotions, setFranchisePromotions] = useState<Promotion[]>([]);
-
   // Global franchise selection (from BranchPickerModal)
   const { selectedFranchiseId } = useDeliveryStore();
 
@@ -274,7 +279,13 @@ export default function MenuPage() {
       .getCategoriesByFranchise(franchiseId)
       .then((data) => {
         if (!alive) return;
-        const sorted = [...data].sort((a, b) => a.display_order - b.display_order);
+        const sorted = [...data].sort((a, b) => {
+          const aIsTopping = isToppingCategory(a.category_name);
+          const bIsTopping = isToppingCategory(b.category_name);
+          if (aIsTopping && !bIsTopping) return 1;
+          if (!aIsTopping && bIsTopping) return -1;
+          return a.display_order - b.display_order;
+        });
         setCategories(sorted);
         setSelectedCategory(null); // default to "Tất cả"
         setCategoriesLoadedForFranchiseId(franchiseId);
@@ -333,36 +344,6 @@ export default function MenuPage() {
     return () => {
       alive = false;
     };  }, [selectedFranchise?.id, categoriesLoadedForFranchiseId]);
-
-  // BƯỚC 4 – LOAD PROMOTIONS của franchise (active, chưa hết hạn)
-  useEffect(() => {
-    const franchiseId = selectedFranchise?.id ?? null;
-    if (!franchiseId) {
-      setFranchisePromotions([]);
-      return;
-    }
-    let alive = true;
-    const now = new Date().toISOString();
-    promotionService
-      .searchPromotions({
-        searchCondition: {
-          franchise_id: franchiseId,
-          is_active: true,
-          is_deleted: false,
-        },
-        pageInfo: { pageNum: 1, pageSize: 20 },
-      })
-      .then((res) => {
-        if (!alive) return;
-        // Lọc thêm client-side: còn hạn
-        const active = (res.data ?? []).filter(
-          (p) => !p.end_date || p.end_date >= now,
-        );
-        setFranchisePromotions(active);
-      })
-      .catch(() => { if (alive) setFranchisePromotions([]); });
-    return () => { alive = false; };
-  }, [selectedFranchise?.id]);
 
   // Derived UI helpers
   const canShowMenu = selectedFranchise !== null;
@@ -639,34 +620,7 @@ export default function MenuPage() {
                       </>
                     )}
                   </nav>
-                </div>                {canShowMenu && franchisePromotions.length > 0 && (
-                  <div className="mt-6 mx-3 space-y-2">
-                    {franchisePromotions.map((promo) => {
-                      const discountText =
-                        promo.type === "PERCENT"
-                          ? `Giảm ${promo.value}%`
-                          : `Giảm ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(promo.value)}`;
-                      const endDate = promo.end_date
-                        ? new Date(promo.end_date).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
-                        : null;
-                      return (
-                        <div
-                          key={promo.id}
-                          className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white"
-                        >
-                          <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80 mb-0.5">
-                            🎁 Khuyến mãi
-                          </p>
-                          <p className="text-sm font-bold leading-snug">{promo.name}</p>
-                          <p className="text-xs opacity-90 mt-0.5">{discountText}</p>
-                          {endDate && (
-                            <p className="text-[10px] opacity-70 mt-1">HSD: {endDate}</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                </div>
               </div>
             </aside>
 
