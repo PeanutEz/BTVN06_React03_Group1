@@ -8,7 +8,6 @@ import { isBranchOpen } from "../../services/branch.service";
 import { logoutUser } from "../../services/auth.service";
 import { showSuccess } from "../../utils";
 import BranchPickerModal from "../../components/menu/BranchPickerModal";
-import NotificationBell from "../../components/notification/NotificationBell";
 import logoHylux from "../../assets/logo-hylux.png";
 
 const NAV_LINKS = [
@@ -134,12 +133,7 @@ const ClientHeader = () => {
                   setShowBranchPicker(false);
                 }}
               />
-            )}
-
-            {/* Mail / Notification Bell */}
-            <NotificationBell />
-
-            {/* Account Dropdown */}
+            )}            {/* Account Dropdown */}
             <div className="relative" ref={accountRef}>
               {user ? (
                 <>
