@@ -7,6 +7,7 @@ export interface Topping {
   name: string;
   price: number;
   emoji: string;
+  image_url?: string; // Ảnh thật từ API
   product_franchise_id?: string; // Optional: từ API khi fetch topping products
 }
 

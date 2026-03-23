@@ -128,13 +128,16 @@ export default function DeliveryPage() {
       confirmText: "Pickup",
       variant: "info",
     });
-    if (!ok) return;
-    setMutating({ deliveryId: id, action: "pickup" });
+    if (!ok) return;    setMutating({ deliveryId: id, action: "pickup" });
     try {
-      const result = await deliveryClient.changeStatusPickup(id);
+      const staffId = item.assigned_to ? String(item.assigned_to) : undefined;
+      const result = await deliveryClient.changeStatusPickup(id, staffId);
       upsertDelivery(result ?? { ...item, status: "PICKING_UP" } as any);
       showSuccess("Đã chuyển sang Pickup");
-    } catch (e) { console.error(e); showError("API Pickup thất bại"); }
+    } catch (e: any) {
+      console.error(e);
+      showError(e?.response?.data?.message || e?.message || "API Pickup thất bại");
+    }
     finally { setMutating(null); }
   };
 
@@ -150,13 +153,16 @@ export default function DeliveryPage() {
       confirmText: "Hoàn thành",
       variant: "info",
     });
-    if (!ok) return;
-    setMutating({ deliveryId: id, action: "complete" });
+    if (!ok) return;    setMutating({ deliveryId: id, action: "complete" });
     try {
-      const result = await deliveryClient.changeStatusComplete(id);
+      const staffId = item.assigned_to ? String(item.assigned_to) : undefined;
+      const result = await deliveryClient.changeStatusComplete(id, staffId);
       upsertDelivery(result ?? { ...item, status: "DELIVERED" } as any);
       showSuccess("Đã hoàn thành giao hàng");
-    } catch (e) { console.error(e); showError("API Complete thất bại"); }
+    } catch (e: any) {
+      console.error(e);
+      showError(e?.response?.data?.message || e?.message || "API Complete thất bại");
+    }
     finally { setMutating(null); }
   };
   // ─── Filter client-side ───────────────────────────────────────────────────

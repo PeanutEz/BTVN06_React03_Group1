@@ -77,16 +77,18 @@ export const orderClient = {
     );
     return response.data.data ?? null;
   },
-
   setReadyForPickup: async (
     orderId: number | string,
     body?: { staff_id?: string }
-  ): Promise<OrderDisplay | null> => {
+  ): Promise<{ success: boolean; data: OrderDisplay | null }> => {
     const response = await apiClient.put<ApiResponse<OrderDisplay | null>>(
       `/orders/${orderId}/ready-for-pickup`,
       body ?? {}
     );
-    return response.data.data ?? null;
+    return {
+      success: response.data?.success ?? true,
+      data: response.data?.data ?? null,
+    };
   },
 
   // ==================== Order Transition Endpoints ====================
