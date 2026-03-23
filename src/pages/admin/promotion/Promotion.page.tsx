@@ -78,7 +78,7 @@ export default function PromotionPage() {
     })
     const [createForm, setCreateForm] = useState<CreatePromotionDto>({
         name: "",
-        franchise_id: "",
+        franchise_id: managerFranchiseId ?? "",
         product_franchise_id: "",
         type: "PERCENT",
         value: 0,
@@ -89,7 +89,7 @@ export default function PromotionPage() {
     const resetCreateForm = () => {
         setCreateForm({
             name: "",
-            franchise_id: "",
+            franchise_id: managerFranchiseId ?? "",
             product_franchise_id: "",
             type: "PERCENT",
             value: 0,
@@ -361,9 +361,15 @@ export default function PromotionPage() {
                 </div>
 
                 <Button
-                    onClick={() => {
+                    onClick={async () => {
                         resetCreateForm();
                         setCreateOpen(true);
+                        if (managerFranchiseId) {
+                            try {
+                                const products = await adminProductFranchiseService.getProductsByFranchise(managerFranchiseId);
+                                setProductOptions(products.map((p) => ({ value: p.id, label: `${p.product_name} (${p.size})` })));
+                            } catch { /* ignore */ }
+                        }
                     }}
                 >
                     + Thêm Khuyến Mãi
@@ -699,8 +705,9 @@ export default function PromotionPage() {
                                     <button
                                         ref={createFranchiseTriggerRef}
                                         type="button"
+                                        disabled={!!managerFranchiseId}
                                         onClick={() => createFranchiseOpen ? closeCreateFranchise() : openCreateFranchise()}
-                                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
+                                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: managerFranchiseId ? "not-allowed" : "pointer", outline: "none", opacity: managerFranchiseId ? 0.7 : 1 }}
                                     >
                                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.franchise_id ? "#f1f5f9" : "#94a3b8" }}>
                                             {createForm.franchise_id
