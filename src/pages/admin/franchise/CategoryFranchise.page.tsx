@@ -152,12 +152,11 @@ export default function CategoryFranchisePage() {
   }, [managerFranchiseId]);
 
   const load = async (page = 1, fid = franchiseId) => {
-    if (!fid) { setItems([]); setTotalItems(0); setTotalPages(1); return; }
     setLoading(true);
     try {
       const res = await categoryFranchiseService.searchCategoryFranchises({
         searchCondition: {
-          franchise_id: fid,
+          ...(fid && { franchise_id: fid }),
           ...(filterStatus !== "" && { is_active: filterStatus === "true" }),
           is_deleted: filterDeleted,
         },
@@ -233,9 +232,9 @@ export default function CategoryFranchisePage() {
               : "Chọn franchise để xem danh mục"}
           </p>
         </div>
-        <button type="button" disabled={!franchiseId}
+        <button type="button"
           onClick={() => { setCreateFranchiseId(franchiseId); setShowCreate(true); }}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm">
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition shadow-sm">
           <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -286,19 +285,8 @@ export default function CategoryFranchisePage() {
         </div>
       </div>
 
-      {/* Empty state */}
-      {!franchiseId && (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 py-20 text-center">
-          <svg className="size-12 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
-          </svg>
-          <p className="text-white/40 text-sm">Chọn franchise để xem danh mục</p>
-        </div>
-      )}
-
       {/* Table */}
-      {franchiseId && (
-        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
           <table className="w-full text-sm">
             <thead className="border-b border-white/10 bg-white/5 text-xs font-semibold uppercase tracking-wide text-white/50">
               <tr>
@@ -378,15 +366,16 @@ export default function CategoryFranchisePage() {
             </tbody>
           </table>
         </div>
-      )}      {/* Pagination */}
-      {franchiseId && totalPages > 1 && (
+
+      {/* Pagination */}
+      {totalPages > 1 && (
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={p => load(p)}
           totalItems={totalItems}
           itemsPerPage={PAGE_SIZE}
-          variant="dark"
+          variant="dark-red"
         />
       )}
 
