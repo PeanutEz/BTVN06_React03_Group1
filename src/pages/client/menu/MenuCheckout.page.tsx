@@ -13,9 +13,84 @@ import { orderClient } from "@/services/order.client";
 import { formatToppingsSummary, parseCartSelectionNote } from "@/utils/cartSelectionNote.util";
 import type { IceLevel, SugarLevel } from "@/types/menu.types";
 import { getCurrentCustomerProfile, updateCurrentCustomerProfile } from "@/services/customer.service";
+import { promotionService } from "@/services/promotion.service";
+import type { Promotion } from "@/models/promotion.model";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
+
+const fmtDate = (d: string) =>
+  new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+function PromotionsBanner({ franchiseId }: { franchiseId: string }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["checkout-promotions", franchiseId],
+    queryFn: () =>
+      promotionService.searchPromotions({
+        searchCondition: { franchise_id: franchiseId, is_active: true, is_deleted: false },
+        pageInfo: { pageNum: 1, pageSize: 50 },
+      }),
+    enabled: !!franchiseId,
+    staleTime: 60_000,
+    select: (res) => {
+      const now = new Date();
+      return (res.data ?? []).filter(
+        (p) =>
+          p.is_active &&
+          !p.is_deleted &&
+          new Date(p.start_date) <= now &&
+          (!p.end_date || new Date(p.end_date) >= now),
+      );
+    },
+  });
+
+  const active: Promotion[] = data ?? [];
+
+  if (isLoading) return (
+    <div className="px-4 pt-3">
+      <div className="h-14 rounded-xl bg-amber-50 animate-pulse" />
+    </div>
+  );
+  if (active.length === 0) return null;
+
+  return (
+    <div className="px-4 pt-3 pb-1">
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-base">🎁</span>
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+          Khuyến mãi đang áp dụng
+        </p>
+      </div>      <div className="flex flex-col gap-2">
+        {active.map((promo) => {
+          const discountText =
+            promo.type === "PERCENT"
+              ? `Giảm ${promo.value}%`
+              : `Giảm ${fmt(promo.value)}`;
+          return (
+            <div
+              key={promo.id}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200"
+            >
+              <div className="shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white text-base font-bold shadow-sm">
+                {promo.type === "PERCENT" ? "%" : "₫"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{promo.name}</p>
+                <p className="text-xs text-amber-700 font-medium">{discountText}</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {fmtDate(promo.start_date)} – {promo.end_date ? fmtDate(promo.end_date) : "Không giới hạn"}
+                </p>
+              </div>
+              <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                Đang áp dụng
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface DisplayItem {
   key: string;
@@ -41,6 +116,7 @@ interface DisplayItem {
 
 interface CheckoutBlock {
   cartId: string;
+  franchiseId?: string;
   franchiseName: string;
   items: DisplayItem[];
   subtotal: number;
@@ -257,8 +333,7 @@ export default function MenuCheckoutPage() {
       : 0;
     const totalAmount: number = typeof detail?.final_amount === "number"
       ? detail.final_amount
-      : Math.max(0, subtotal - discountAmount);
-    const detailRaw = detail ? (detail as Record<string, unknown>) : null;
+      : Math.max(0, subtotal - discountAmount);    const detailRaw = detail ? (detail as Record<string, unknown>) : null;
     const detailFranchise = getNestedRecord(detailRaw, "franchise");
     const voucherCode = detailRaw?.voucher_code;
     const hasVoucher = !!(detail?.voucher ?? (typeof voucherCode === "string" ? voucherCode : undefined));
@@ -267,8 +342,15 @@ export default function MenuCheckoutPage() {
       detail?.franchise_name ??
       (typeof detailFranchise?.name === "string" ? detailFranchise.name : undefined) ??
       `Chi nhánh ${idx + 1}`;
+    // Resolve franchiseId: try entry first, then detail, then nested franchise object
+    const franchiseId =
+      (entry.franchise_id ? String(entry.franchise_id) : undefined) ??
+      (detail?.franchise_id ? String(detail.franchise_id) : undefined) ??
+      (detailFranchise?._id ? String(detailFranchise._id) : undefined) ??
+      (detailFranchise?.id ? String(detailFranchise.id) : undefined);
     return {
       cartId: entry.cartId,
+      franchiseId,
       franchiseName,
       items,
       subtotal,
@@ -333,11 +415,7 @@ export default function MenuCheckoutPage() {
     setTermsByCartId((prev) => ({ ...prev, [cartId]: accepted }));
   };
   const isTermsAccepted = (cartId: string) => !!termsByCartId[cartId];
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [orderingCartId, setOrderingCartId] = useState<string | null>(null);
-  /** Sau khi đặt đơn thành công: lưu orderId để hiển thị nút điều hướng (không tự chuyển trang). */
-  const [completedOrderId, setCompletedOrderId] = useState<string | null>(null);
-  const [completedFranchiseName, setCompletedFranchiseName] = useState<string>("");
+  const [errors, setErrors] = useState<Record<string, string>>({});  const [orderingCartId, setOrderingCartId] = useState<string | null>(null);
 
   function setField<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setFormState((f) => ({ ...f, [key]: value }));
@@ -445,21 +523,10 @@ export default function MenuCheckoutPage() {
       };
       if (paymentMethod === PAYMENT_METHODS.BANK) {
         checkoutBody.bank_name = form.bankName.trim() || undefined;
-      }
-
-      await cartClient.updateCart(cartId, updateCartBody);
+      }      await cartClient.updateCart(cartId, updateCartBody);
       await cartClient.checkoutCart(cartId, checkoutBody);
       const order = await orderClient.getOrderByCartId(cartId);
       const orderId = order?._id ?? order?.id ?? "";
-
-      // Checkout theo từng cartId (1 franchise = 1 cart),
-      // nên chỉ cần refetch carts ACTIVE để block vừa đặt biến mất, block còn lại vẫn giữ.
-      await queryClient.invalidateQueries({
-        queryKey: ["carts-by-customer", customerId],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["cart-detail", cartId],
-      });
 
       toast.success(
         paymentMethod === PAYMENT_METHODS.BANK
@@ -468,12 +535,16 @@ export default function MenuCheckoutPage() {
       );
       if (orderId) {
         if (paymentMethod === PAYMENT_METHODS.BANK) {
+          // Invalidate sau khi navigate để tránh flash "giỏ trống"
           navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(orderId)));
+          queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
+          queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
           return;
         }
-        setCompletedOrderId(String(orderId));
-        setCompletedFranchiseName(franchiseName);
+        // Invalidate sau khi navigate để tránh flash "giỏ trống"
         navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", String(orderId)));
+        queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
+        queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
         return;
       }
 
@@ -536,46 +607,9 @@ export default function MenuCheckoutPage() {
           <Link to={ROUTER_URL.MENU} className="hover:text-gray-600">Menu</Link>
           <span>/</span>
           <span className="text-gray-900 font-medium">Thanh toán</span>
-        </nav>
-        <div className="flex items-center justify-between mb-8">
+        </nav>        <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Xác nhận đơn hàng</h1>
         </div>
-
-        {/* Thông báo đặt đơn thành công + nút điều hướng (không tự chuyển trang) */}
-        {completedOrderId && (
-          <section className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl">✅</span>
-              <div className="flex-1">
-                <h2 className="font-semibold text-emerald-800 mb-1">Đã đặt đơn thành công</h2>
-                <p className="text-sm text-emerald-700 mb-4">
-                  {completedFranchiseName && `Đơn tại ${completedFranchiseName} đã được xác nhận. `}
-                  Bạn có thể xem trạng thái đơn hàng hoặc tiếp tục mua sắm.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", String(completedOrderId)));
-                      setCompletedOrderId(null);
-                      setCompletedFranchiseName("");
-                    }}
-                    className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl text-sm transition-all"
-                  >
-                    Xem đơn hàng
-                  </button>
-                  <Link
-                    to={ROUTER_URL.MENU}
-                    onClick={() => { setCompletedOrderId(null); setCompletedFranchiseName(""); }}
-                    className="px-5 py-2.5 border border-emerald-600 text-emerald-700 hover:bg-emerald-100 font-semibold rounded-xl text-sm transition-all inline-block"
-                  >
-                    Tiếp tục mua
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
 
         {/* Customer Information Form */}
         <section className="bg-white rounded-2xl border border-gray-100 p-6 space-y-6 mb-6 shadow-sm">
@@ -909,6 +943,11 @@ export default function MenuCheckoutPage() {
                     </div>
                   ))}
                 </div>
+
+                {/* Promotions Banner */}
+                {block.franchiseId && (
+                  <PromotionsBanner franchiseId={block.franchiseId} />
+                )}
 
                 {/* Voucher Section */}
                 <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/30">

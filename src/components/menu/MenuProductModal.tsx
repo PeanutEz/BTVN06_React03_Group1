@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useLoadingStore } from "@/store/loading.store";
 import { cartClient } from "@/services/cart.client";
 import { buildCartSelectionNote } from "@/utils/cartSelectionNote.util";
 import {
@@ -80,14 +81,15 @@ export default function MenuProductModal({
   replaceApiItemId,
   replaceCartId,
   onSaved,
-}: MenuProductModalProps) {
-  const queryClient = useQueryClient();
+}: MenuProductModalProps) {  const queryClient = useQueryClient();
   const addItem = useMenuCartStore((s) => s.addItem);
   const replaceItemAt = useMenuCartStore((s) => s.replaceItemAt);
   const setCartId = useMenuCartStore((s) => s.setCartId);
   const setCarts = useMenuCartStore((s) => s.setCarts);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const user = useAuthStore((s) => s.user);
+  const showGlobalLoading = useLoadingStore((s) => s.show);
+  const hideGlobalLoading = useLoadingStore((s) => s.hide);
 
   const [tab, setTab] = useState<"order" | "content">("order");
   const [selectedSize, setSelectedSize] = useState<ApiSize | null>(null);
@@ -250,13 +252,12 @@ export default function MenuProductModal({
             const matchingTopping = TOPPINGS.find((t) =>
               p.name.toLowerCase().includes(t.name.toLowerCase()) ||
               t.name.toLowerCase().includes(p.name.toLowerCase())
-            );
-
-            return [{
+            );            return [{
               id: p.product_id,
               name: p.name,
               price: availableSize.price,
               emoji: matchingTopping?.emoji ?? "➕",
+              image_url: (p as any).image_url ?? undefined,
               product_franchise_id: availableSize.product_franchise_id,
             }];
           });
@@ -361,7 +362,6 @@ export default function MenuProductModal({
       return { ...prev, [topping.id]: next };
     });
   }
-
   async function handleAddToCart() {
     if (!product || isAdding) return;
     if (!isLoggedIn) {
@@ -379,6 +379,9 @@ export default function MenuProductModal({
     }
 
     setIsAdding(true);
+    // Đóng popup ngay, hiện loading toàn trang trong khi API chạy
+    onClose();
+    showGlobalLoading("Đang thêm vào giỏ hàng...");
 
     const isEditingApi = !!replaceApiItemId;
     const initSizeLabel = initialSelection?.size?.trim().toUpperCase();
@@ -494,9 +497,7 @@ export default function MenuProductModal({
 
         if (quantityChanged) {
           ops.push(cartClient.updateCartItemQuantity({ cart_item_id, quantity }));
-        }
-
-        await Promise.all(ops);
+        }        await Promise.all(ops);
         if (replaceCartId) {
           queryClient.invalidateQueries({ queryKey: ["cart-detail", replaceCartId] });
         } else {
@@ -508,7 +509,7 @@ export default function MenuProductModal({
           fingerprint: computeFingerprintFromCurrentSelection(),
         });
         setIsAdding(false);
-        onClose();
+        hideGlobalLoading();
         return;
       } catch (err) {
         console.error("Update cart item in-place failed:", err);
@@ -540,10 +541,10 @@ export default function MenuProductModal({
             queryKey: ["cart-detail", replaceCartId],
             queryFn: () => cartClient.getCartDetail(replaceCartId),
           });
-        }
-      } catch {
+        }      } catch {
         toast.error("Không thể cập nhật giỏ hàng (xóa item cũ thất bại).");
         setIsAdding(false);
+        hideGlobalLoading();
         return;
       }
     }
@@ -621,9 +622,7 @@ export default function MenuProductModal({
       }
     } catch (err) {
       console.error("Add to cart API failed (saved locally):", err);
-    }
-
-    const toppingDesc = displayToppings
+    }    const toppingDesc = displayToppings
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
@@ -631,7 +630,7 @@ export default function MenuProductModal({
       description: `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`,
     });
     setIsAdding(false);
-    onClose();
+    hideGlobalLoading();
   }
 
   const modal = (
@@ -843,9 +842,17 @@ export default function MenuProductModal({
                             className={cn(
                               "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
                               qty > 0 ? "border-amber-500 bg-amber-50" : "border-gray-200 bg-white",
+                            )}                          >
+                            {/* Ảnh topping: dùng image_url từ API, fallback emoji */}
+                            {topping.image_url ? (
+                              <img
+                                src={topping.image_url}
+                                alt={topping.name}
+                                className="shrink-0 w-9 h-9 rounded-lg object-cover border border-gray-100"
+                              />
+                            ) : (
+                              <span className="shrink-0 text-base">{topping.emoji}</span>
                             )}
-                          >
-                            <span className="shrink-0 text-base">{topping.emoji}</span>
                             <div className="flex-1 min-w-0">
                               <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>
                                 {topping.name}

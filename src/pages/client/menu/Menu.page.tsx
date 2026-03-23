@@ -8,6 +8,8 @@ import { useDeliveryStore } from "@/store/delivery.store";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useLoadingStore } from "@/store/loading.store";
+import { promotionService } from "@/services/promotion.service";
+import type { Promotion } from "@/models/promotion.model";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import MenuProductModal from "@/components/menu/MenuProductModal";
@@ -185,10 +187,12 @@ export default function MenuPage() {
 
   const [products, setProducts] = useState<ClientProductListItem[]>([]);
   const [addToCartProduct, setAddToCartProduct] = useState<MenuProduct | null>(null);
-
   const [loading, setLoading] = useState<LoadingPhase>(null);
   const [error, setError] = useState<string | null>(null);
   const [categoriesLoadedForFranchiseId, setCategoriesLoadedForFranchiseId] = useState<string | null>(null);
+
+  // Promotions của franchise đang chọn
+  const [franchisePromotions, setFranchisePromotions] = useState<Promotion[]>([]);
 
   // Global franchise selection (from BranchPickerModal)
   const { selectedFranchiseId } = useDeliveryStore();
@@ -328,20 +332,53 @@ export default function MenuPage() {
 
     return () => {
       alive = false;
-    };
-  }, [selectedFranchise?.id, categoriesLoadedForFranchiseId]);
+    };  }, [selectedFranchise?.id, categoriesLoadedForFranchiseId]);
+
+  // BƯỚC 4 – LOAD PROMOTIONS của franchise (active, chưa hết hạn)
+  useEffect(() => {
+    const franchiseId = selectedFranchise?.id ?? null;
+    if (!franchiseId) {
+      setFranchisePromotions([]);
+      return;
+    }
+    let alive = true;
+    const now = new Date().toISOString();
+    promotionService
+      .searchPromotions({
+        searchCondition: {
+          franchise_id: franchiseId,
+          is_active: true,
+          is_deleted: false,
+        },
+        pageInfo: { pageNum: 1, pageSize: 20 },
+      })
+      .then((res) => {
+        if (!alive) return;
+        // Lọc thêm client-side: còn hạn
+        const active = (res.data ?? []).filter(
+          (p) => !p.end_date || p.end_date >= now,
+        );
+        setFranchisePromotions(active);
+      })
+      .catch(() => { if (alive) setFranchisePromotions([]); });
+    return () => { alive = false; };
+  }, [selectedFranchise?.id]);
 
   // Derived UI helpers
   const canShowMenu = selectedFranchise !== null;
   const showLoadingSkeleton = loading === "products";
-
   // Show global loading screen while menu data is being fetched after franchise selection
   const showGlobalLoading = useLoadingStore((s) => s.show);
   const hideGlobalLoading = useLoadingStore((s) => s.hide);
+  // Track whether THIS effect is the one that triggered the loading overlay, so we
+  // don't accidentally clear an overlay started by something else (e.g. add-to-cart).
+  const menuLoadingActiveRef = useRef(false);
   useEffect(() => {
     if (loading === "categories" || loading === "products") {
+      menuLoadingActiveRef.current = true;
       showGlobalLoading("Đang tải thực đơn...");
-    } else {
+    } else if (menuLoadingActiveRef.current) {
+      menuLoadingActiveRef.current = false;
       hideGlobalLoading();
     }
   }, [loading, showGlobalLoading, hideGlobalLoading]);
@@ -392,17 +429,29 @@ export default function MenuPage() {
     const franchiseName = selectedFranchise?.name;
     setAddToCartProduct(toMenuProduct(p, franchiseId, franchiseName));
   }
-
-
   const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [showOrderPanel, setShowOrderPanel] = useState(false);
-  const openBranchPicker = () => {
-    setShowBranchPicker(true);
-  };
+  const openBranchPicker = () => setShowBranchPicker(true);
   const { itemCount: localItemCount, total: localTotal } = useMenuCartTotals();
-
   const cartId = useMenuCartStore((s) => s.cartId);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const authInitialized = useAuthStore((s) => s.isInitialized);
+  const deliveryInitialized = useDeliveryStore((s) => s.isInitialized);
+
+  // Auto-open picker sau khi cả 2 store đã hydrate từ localStorage
+  // (tránh nhấp nháy do render trước khi biết trạng thái thật)
+  const autoPickerFiredRef = useRef(false);
+  useEffect(() => {
+    if (!authInitialized || !deliveryInitialized) return;
+    if (autoPickerFiredRef.current) return;
+    if (isLoggedIn && !selectedFranchiseId) {
+      autoPickerFiredRef.current = true;
+      setShowBranchPicker(true);
+    } else {
+      // Đã có đủ thông tin, không cần mở
+      autoPickerFiredRef.current = true;
+    }
+  }, [authInitialized, deliveryInitialized, isLoggedIn, selectedFranchiseId]);
 
   const { data: apiCart } = useQuery({
     queryKey: ["cart-detail", cartId],
@@ -433,16 +482,14 @@ export default function MenuPage() {
                 </>
               )}
             </nav>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
+            <div className="flex items-center justify-between gap-4 flex-wrap">              <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
                   🍽️ {selectedCategory?.category_name ?? "Tất cả"}
                 </h1>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  {canShowMenu ? "Toàn bộ thực đơn Hylux" : "Vui lòng chọn phương thức đặt hàng để xem thực đơn"}
+                  {canShowMenu ? "Toàn bộ thực đơn Hylux" : "Vui lòng chọn cửa hàng để xem thực đơn"}
                 </p>
-              </div>
-              <div className="flex items-center gap-3">
+              </div>              <div className="flex items-center gap-3">
                 {/* Mobile cart button */}
                 {itemCount > 0 && (
                   <button
@@ -592,27 +639,43 @@ export default function MenuPage() {
                       </>
                     )}
                   </nav>
-                </div>
-
-                {canShowMenu && (
-                  <div className="mt-6 mx-3 p-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
-                    <p className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">
-                      Ưu đãi hôm nay
-                    </p>
-                    <p className="text-sm font-bold leading-snug">Giảm 15% đơn từ 150k</p>
-                    <p className="text-xs opacity-75 mt-1">Code: HYLUX15</p>
+                </div>                {canShowMenu && franchisePromotions.length > 0 && (
+                  <div className="mt-6 mx-3 space-y-2">
+                    {franchisePromotions.map((promo) => {
+                      const discountText =
+                        promo.type === "PERCENT"
+                          ? `Giảm ${promo.value}%`
+                          : `Giảm ${new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(promo.value)}`;
+                      const endDate = promo.end_date
+                        ? new Date(promo.end_date).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" })
+                        : null;
+                      return (
+                        <div
+                          key={promo.id}
+                          className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white"
+                        >
+                          <p className="text-[10px] font-semibold uppercase tracking-wider opacity-80 mb-0.5">
+                            🎁 Khuyến mãi
+                          </p>
+                          <p className="text-sm font-bold leading-snug">{promo.name}</p>
+                          <p className="text-xs opacity-90 mt-0.5">{discountText}</p>
+                          {endDate && (
+                            <p className="text-[10px] opacity-70 mt-1">HSD: {endDate}</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             </aside>
 
             {/* ── MIDDLE: Product Grid ── */}
-            <div className="flex-1 min-w-0">
-              {!canShowMenu ? (
+            <div className="flex-1 min-w-0">              {!canShowMenu ? (
                 <EmptyState
                   title="Chưa chọn cửa hàng"
-                  description="Hãy chọn phương thức đặt hàng để hệ thống tải thực đơn."
-                  actionLabel="📍 Chọn phương thức đặt hàng"
+                  description="Hãy chọn cửa hàng để hệ thống tải thực đơn."
+                  actionLabel="🏪 Chọn cửa hàng"
                   onAction={openBranchPicker}
                 />
               ) : showLoadingSkeleton ? (
@@ -679,11 +742,12 @@ export default function MenuPage() {
       </div>
 
       {/* Add-to-cart modal (size / sugar / ice / topping customisation) */}
-      <MenuProductModal product={addToCartProduct} onClose={() => setAddToCartProduct(null)} />
-
-      {/* Branch picker modal */}
+      <MenuProductModal product={addToCartProduct} onClose={() => setAddToCartProduct(null)} />      {/* Branch picker modal */}
       {showBranchPicker && (
-        <BranchPickerModal onClose={() => setShowBranchPicker(false)} />
+        <BranchPickerModal
+          onClose={() => setShowBranchPicker(false)}
+          required={isLoggedIn && !selectedFranchiseId}
+        />
       )}
 
       {/* Mobile: sticky bottom cart button */}

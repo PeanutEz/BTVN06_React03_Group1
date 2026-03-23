@@ -29,6 +29,32 @@ function isPendingPayment(status?: string): boolean {
   return String(status ?? "").toUpperCase() === "PENDING";
 }
 
+function fmtPaymentStatus(status?: string): string {
+  switch (String(status ?? "").toUpperCase()) {
+    case "PAID":
+    case "CONFIRMED":
+    case "COMPLETED": return "Đã thanh toán";
+    case "PENDING":   return "Chờ thanh toán";
+    case "FAILED":    return "Thất bại";
+    case "CANCELLED": return "Đã huỷ";
+    case "REFUNDED":  return "Đã hoàn tiền";
+    default:          return status ?? "—";
+  }
+}
+
+function fmtPaymentMethod(method?: string): string {
+  switch (String(method ?? "").toUpperCase()) {
+    case "CASH":         return "Tiền mặt";
+    case "BANK":
+    case "BANK_TRANSFER":
+    case "TRANSFER":     return "Chuyển khoản";
+    case "MOMO":         return "MoMo";
+    case "VNPAY":        return "VNPay";
+    case "ZALOPAY":      return "ZaloPay";
+    default:             return method ?? "—";
+  }
+}
+
 function formatItemOptions(options: unknown): string | null {
   if (!options) return null;
 
@@ -98,12 +124,7 @@ function getDeliveryTimelineStatus(order: OrderDisplay, delivery: ApiDelivery | 
 
   const fromDelivery = deliveryApiStatusToTimelineStatus(delivery);
   if (fromDelivery) return fromDelivery;
-
-  // Fallback (delivery flow): when order is ready, it transitions to delivering
-  if (order.status === "READY_FOR_PICKUP") return "DELIVERING";
-
-  const base = apiOrderStatusToDeliveryStatus(order.status);
-  return base === "READY_FOR_PICKUP" ? "DELIVERING" : base;
+  return apiOrderStatusToDeliveryStatus(order.status);
 }
 
 function StatusTimeline({
@@ -115,16 +136,20 @@ function StatusTimeline({
 }) {
   const currentIdx = steps.indexOf(currentStatus);
   const isCancelled = currentStatus === "CANCELLED";
-
   return (
     <div className="relative">
-      {/* Connector line */}
+      {/* Static background connector line */}
       <div className="absolute left-5 top-5 bottom-5 w-0.5 bg-gray-100" />
+      {/* Dynamic green progress fill — covers steps 0..currentIdx-1 */}
+      {!isCancelled && currentIdx > 0 && (
+        <div
+          className="absolute left-5 top-5 w-0.5 bg-emerald-400 transition-all duration-700"
+          style={{ height: `calc(${(currentIdx / (steps.length - 1)) * 100}% - 10px)` }}
+        />
+      )}
 
-      <div className="space-y-6">
-        {steps.map((step, idx) => {
-          const cfg = ORDER_STATUS_CONFIG[step];
-          const isDone = !isCancelled && idx <= currentIdx;
+      <div className="space-y-6">        {steps.map((step, idx) => {
+          const cfg = ORDER_STATUS_CONFIG[step];          const isPast    = !isCancelled && idx < currentIdx;
           const isCurrent = !isCancelled && idx === currentIdx;
 
           return (
@@ -135,20 +160,21 @@ function StatusTimeline({
                   "relative z-10 w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-2 transition-all duration-500",
                   isCurrent
                     ? "border-amber-500 bg-amber-500 shadow-lg shadow-amber-200 scale-110"
-                    : isDone
+                    : isPast
                       ? "border-emerald-500 bg-emerald-500"
                       : "border-gray-200 bg-white",
                 )}
               >
-                {isDone ? (
-                  isCurrent ? (
-                    <span className="text-lg animate-pulse">{cfg.icon}</span>
-                  ) : (
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )
+                {isCurrent ? (
+                  // Active step: show its unique icon, pulsing
+                  <span className="text-lg animate-pulse">{cfg.icon}</span>
+                ) : isPast ? (
+                  // Completed past step: checkmark
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
                 ) : (
+                  // Future step: dimmed icon
                   <span className="text-gray-300 text-lg">{cfg.icon}</span>
                 )}
               </div>
@@ -158,7 +184,7 @@ function StatusTimeline({
                 <p
                   className={cn(
                     "font-semibold text-sm transition-colors",
-                    isCurrent ? "text-amber-700" : isDone ? "text-gray-900" : "text-gray-400",
+                    isCurrent ? "text-amber-700" : isPast ? "text-gray-900" : "text-gray-400",
                   )}
                 >
                   {cfg.label}
@@ -403,24 +429,23 @@ function OrderStatusFromApi({
                   <div className="flex justify-between gap-3">
                     <span className="text-gray-500">Số tiền</span>
                     <span className="font-semibold text-gray-900">{fmt(payment.amount ?? finalAmount)}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
+                  </div>                  <div className="flex justify-between gap-3">
                     <span className="text-gray-500">Trạng thái</span>
-                    <span className="font-semibold text-gray-900">{payment.status ?? "—"}</span>
+                    <span className="font-semibold text-gray-900">{fmtPaymentStatus(payment.status)}</span>
                   </div>
                   {payment.method && (
                     <div className="flex justify-between gap-3">
                       <span className="text-gray-500">Phương thức</span>
-                      <span className="font-semibold text-gray-900">{payment.method}</span>
+                      <span className="font-semibold text-gray-900">{fmtPaymentMethod(payment.method)}</span>
                     </div>
                   )}
                 </div>
               ) : (
                 <p className="text-gray-500 text-sm">Chưa có thông tin thanh toán.</p>
               )}
-            </div>
-
-            {payment && isPendingPayment(payment.status) ? (
+            </div>            {payment &&
+              isPendingPayment(payment.status) &&
+              String(payment.method ?? "").toUpperCase() !== "CASH" ? (
               <Link
                 to={ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(order._id ?? order.id))}
                 className="block text-center w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm"
