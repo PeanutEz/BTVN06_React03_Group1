@@ -174,7 +174,7 @@ export default function MenuOrderPanel({
       ...apiItemToDisplay(item, i, franchiseName, detail?.franchise_id),
       cartId: entry.cartId,
     }));
-    const subtotal = detail?.total_amount ?? items.reduce((s, i) => s + i.lineTotal, 0);
+    const subtotal = Number(detail?.final_amount ?? detail?.subtotal_amount ?? 0) || items.reduce((s, i) => s + i.lineTotal, 0);
     return { cartId: entry.cartId, franchiseName, detail: detail ?? null, items, subtotal };
   });
 
