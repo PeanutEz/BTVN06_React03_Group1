@@ -20,6 +20,7 @@ export const voucherService = {
     page: number;
     limit: number;
     code?: string;
+    franchise_id?: string;
     type?: "PERCENT" | "FIXED" | "";
     is_active?: boolean | "";
     is_deleted?: boolean;
@@ -29,6 +30,7 @@ export const voucherService = {
     const payload: SearchVoucherDto = {
       searchCondition: {
         code: params.code ?? "",
+        franchise_id: params.franchise_id || undefined,
         type: params.type ?? "",
         is_active: params.is_active !== undefined ? params.is_active : "",
         is_deleted: params.is_deleted ?? false,

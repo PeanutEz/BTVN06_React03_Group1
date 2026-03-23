@@ -235,8 +235,7 @@ export default function CategoryFranchisePage() {
         </div>
         <button type="button" disabled={!franchiseId}
           onClick={() => { setCreateFranchiseId(franchiseId); setShowCreate(true); }}
-          className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-40"
-          style={{ background: "rgba(239,68,68,0.25)", border: "1px solid rgba(239,68,68,0.4)" }}>
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm">
           <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
