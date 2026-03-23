@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
@@ -10,7 +9,6 @@ import { changeCustomerStatus, fetchCustomerById } from "../../../services/custo
 import { orderClient } from "../../../services/order.client";
 import type { OrderDisplay } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "../../../models/order.model";
-import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 
 type Tab = "info" | "orders";
