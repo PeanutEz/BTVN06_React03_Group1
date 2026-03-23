@@ -174,7 +174,7 @@ export default function MenuOrderPanel({
       ...apiItemToDisplay(item, i, franchiseName, detail?.franchise_id),
       cartId: entry.cartId,
     }));
-    const subtotal = Number(detail?.final_amount ?? detail?.subtotal_amount ?? 0) || items.reduce((s, i) => s + i.lineTotal, 0);
+    const subtotal = (detail?.total_amount as number | undefined) ?? items.reduce((s, i) => s + i.lineTotal, 0);
     return { cartId: entry.cartId, franchiseName, detail: detail ?? null, items, subtotal };
   });
 
@@ -445,14 +445,14 @@ export default function MenuOrderPanel({
   const disabledReason = !isLoggedIn
     ? "Vui lòng đăng nhập"
     : !hasLocation
-    ? "Vui lòng chọn cửa hàng"
-    : orderMode === "DELIVERY" && !branchOpen
-    ? "Cửa hàng đang đóng cửa"
-    : orderMode === "DELIVERY" && !isReadyToOrder
-    ? "Địa chỉ chưa xác nhận"
-    : displayItems.length === 0
-    ? "Chưa có món"
-    : null;
+      ? "Vui lòng chọn cửa hàng"
+      : orderMode === "DELIVERY" && !branchOpen
+        ? "Cửa hàng đang đóng cửa"
+        : orderMode === "DELIVERY" && !isReadyToOrder
+          ? "Địa chỉ chưa xác nhận"
+          : displayItems.length === 0
+            ? "Chưa có món"
+            : null;
 
   const canCheckout = !disabledReason && displayItems.length > 0 && isLoggedIn;
   const editingLocalItem =
@@ -465,14 +465,55 @@ export default function MenuOrderPanel({
 
   const editingMenuProduct: MenuProduct | null = editingLocalItem
     ? Object.assign(
+      {
+        id: editingLocalItem.productId,
+        sku: "",
+        name: editingLocalItem.name,
+        description: "",
+        content: "",
+        price: editingLocalItem.basePrice,
+        image: editingLocalItem.image,
+        images: [],
+        categoryId: 0,
+        rating: 0,
+        reviewCount: 0,
+        isAvailable: true,
+        isFeatured: false,
+      } as MenuProduct,
+      {
+        _apiFranchiseId:
+          editingLocalItem.apiFranchiseId ??
+          (editingLocalItem.options as any)?.franchiseId ??
+          selectedFranchiseId ??
+          undefined,
+        _apiProductId: editingLocalItem.apiProductId ?? undefined,
+        _apiCategoryName: editingLocalItem.apiCategoryName ?? undefined,
+        _apiSizes:
+          Array.isArray(editingLocalItem.apiSizes) && editingLocalItem.apiSizes.length > 0
+            ? editingLocalItem.apiSizes
+            : (editingLocalItem.options as any)?.productFranchiseId && (editingLocalItem.options as any)?.size
+              ? [
+                {
+                  product_franchise_id: (editingLocalItem.options as any).productFranchiseId,
+                  size: (editingLocalItem.options as any).size,
+                  price: editingLocalItem.basePrice,
+                  is_available: true,
+                },
+              ]
+              : [],
+        _apiFranchiseName: editingLocalItem.options.franchiseName ?? safeSelectedFranchiseName,
+      },
+    )
+    : editingItem?.apiProductId && editingItem.apiFranchiseId
+      ? Object.assign(
         {
-          id: editingLocalItem.productId,
+          id: hashStr(String(editingItem.apiProductId)),
           sku: "",
-          name: editingLocalItem.name,
+          name: editingItem.name,
           description: "",
           content: "",
-          price: editingLocalItem.basePrice,
-          image: editingLocalItem.image,
+          price: editingItem.unitPrice,
+          image: editingItem.image,
           images: [],
           categoryId: 0,
           rating: 0,
@@ -481,63 +522,22 @@ export default function MenuOrderPanel({
           isFeatured: false,
         } as MenuProduct,
         {
-          _apiFranchiseId:
-            editingLocalItem.apiFranchiseId ??
-            (editingLocalItem.options as any)?.franchiseId ??
-            selectedFranchiseId ??
-            undefined,
-          _apiProductId: editingLocalItem.apiProductId ?? undefined,
-          _apiCategoryName: editingLocalItem.apiCategoryName ?? undefined,
+          _apiFranchiseId: editingItem.apiFranchiseId,
+          _apiProductId: editingItem.apiProductId,
           _apiSizes:
-            Array.isArray(editingLocalItem.apiSizes) && editingLocalItem.apiSizes.length > 0
-              ? editingLocalItem.apiSizes
-              : (editingLocalItem.options as any)?.productFranchiseId && (editingLocalItem.options as any)?.size
+            editingItem.apiProductFranchiseId && editingItem.size
               ? [
-                  {
-                    product_franchise_id: (editingLocalItem.options as any).productFranchiseId,
-                    size: (editingLocalItem.options as any).size,
-                    price: editingLocalItem.basePrice,
-                    is_available: true,
-                  },
-                ]
+                {
+                  product_franchise_id: editingItem.apiProductFranchiseId,
+                  size: editingItem.size,
+                  price: 0,
+                  is_available: true,
+                },
+              ]
               : [],
-          _apiFranchiseName: editingLocalItem.options.franchiseName ?? safeSelectedFranchiseName,
+          _apiFranchiseName: editingItem.franchiseName ?? safeSelectedFranchiseName,
         },
       )
-    : editingItem?.apiProductId && editingItem.apiFranchiseId
-      ? Object.assign(
-          {
-            id: hashStr(String(editingItem.apiProductId)),
-            sku: "",
-            name: editingItem.name,
-            description: "",
-            content: "",
-            price: editingItem.unitPrice,
-            image: editingItem.image,
-            images: [],
-            categoryId: 0,
-            rating: 0,
-            reviewCount: 0,
-            isAvailable: true,
-            isFeatured: false,
-          } as MenuProduct,
-          {
-            _apiFranchiseId: editingItem.apiFranchiseId,
-            _apiProductId: editingItem.apiProductId,
-            _apiSizes:
-              editingItem.apiProductFranchiseId && editingItem.size
-                ? [
-                    {
-                      product_franchise_id: editingItem.apiProductFranchiseId,
-                      size: editingItem.size,
-                      price: 0,
-                      is_available: true,
-                    },
-                  ]
-                : [],
-            _apiFranchiseName: editingItem.franchiseName ?? safeSelectedFranchiseName,
-          },
-        )
       : null;
 
   const editingInitialApiToppings =
@@ -645,250 +645,250 @@ export default function MenuOrderPanel({
                     <p className="text-[11px] font-semibold text-gray-600">{section.franchiseName}</p>
                   </div>
                   {section.items.map((item) => (
-              <div key={item.key} className="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
-                <div className="flex gap-2.5">
-                  {/* Product Image - Smaller */}
-                  {item.image ? (
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center shrink-0">
-                      <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
-                    </div>
-                  )}
-
-                  {/* Product Info - Compact */}
-                  <div className="flex-1 min-w-0">
-                    {/* Header - Compact */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate">{item.name}</h4>
-                        {item.franchiseName && (
-                          <p className="text-xs text-gray-500 truncate">{item.franchiseName}</p>
+                    <div key={item.key} className="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                      <div className="flex gap-2.5">
+                        {/* Product Image - Smaller */}
+                        {item.image ? (
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                            <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center shrink-0">
+                            <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                          </div>
                         )}
-                      </div>
 
-                      {/* Action buttons - Smaller */}
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        {/* Edit button */}
-                        {item.isLocal || (item.apiFranchiseId && item.apiProductId) ? (
-                          <button
-                            onClick={() => {
-                              const base = hasApiItems ? apiItemsStableByLocal : localDisplayItems;
-                              const fromIndex = base.findIndex((i) => i.key === item.key);
-                              if (fromIndex >= 0) {
-                                setPendingReorder({
-                                  fromIndex,
-                                  kind: item.isLocal ? "local" : "api",
-                                  fingerprint: null,
-                                });
-                              } else {
-                                setPendingReorder(null);
-                              }
-                              setEditingItem(item);
-                            }}
-                            className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-all"
-                            title="Chỉnh sửa"
-                          >
-                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4 12.5-11.5z" />
-                            </svg>
-                          </button>
-                        ) : null}
+                        {/* Product Info - Compact */}
+                        <div className="flex-1 min-w-0">
+                          {/* Header - Compact */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate">{item.name}</h4>
+                              {item.franchiseName && (
+                                <p className="text-xs text-gray-500 truncate">{item.franchiseName}</p>
+                              )}
+                            </div>
 
-                        {/* Delete button */}
-                        <button
-                          onClick={() => handleRemoveItem(item)}
-                          className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                          title="Xóa"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                            {/* Action buttons - Smaller */}
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              {/* Edit button */}
+                              {item.isLocal || (item.apiFranchiseId && item.apiProductId) ? (
+                                <button
+                                  onClick={() => {
+                                    const base = hasApiItems ? apiItemsStableByLocal : localDisplayItems;
+                                    const fromIndex = base.findIndex((i) => i.key === item.key);
+                                    if (fromIndex >= 0) {
+                                      setPendingReorder({
+                                        fromIndex,
+                                        kind: item.isLocal ? "local" : "api",
+                                        fingerprint: null,
+                                      });
+                                    } else {
+                                      setPendingReorder(null);
+                                    }
+                                    setEditingItem(item);
+                                  }}
+                                  className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-all"
+                                  title="Chỉnh sửa"
+                                >
+                                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4 12.5-11.5z" />
+                                  </svg>
+                                </button>
+                              ) : null}
 
-                    {/* Details - Single line when possible */}
-                    <div className="mt-1 space-y-0.5">
-                      {(item.size || item.sugar || item.ice) && (
-                        <p className="text-xs text-gray-500">
-                          {[item.size, item.sugar && `${item.sugar} đường`, item.ice].filter(Boolean).join(" • ")}
-                        </p>
-                      )}
+                              {/* Delete button */}
+                              <button
+                                onClick={() => handleRemoveItem(item)}
+                                className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                title="Xóa"
+                              >
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
 
-                      {/* Toppings - Inline */}
-                      {(item.toppingsText || (item.apiOptions && item.apiOptions.length > 0)) && (
-                        <div className="flex flex-wrap items-center gap-1">
-                          <span className="text-xs text-amber-700 font-medium">Topping:</span>
-                          {item.toppingsText && (
-                            <span className="text-xs text-gray-600">{item.toppingsText}</span>
-                          )}
-                          {item.apiOptions?.map((opt) => {
-                            const optId = opt.product_franchise_id;
-                            if (!optId) return null;
-                            const qty = opt.quantity ?? 0;
-                            return (
-                              <span key={optId} className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
-                                #{optId.slice(-4)} × {qty}
-                              </span>
-                            );
-                          })}
+                          {/* Details - Single line when possible */}
+                          <div className="mt-1 space-y-0.5">
+                            {(item.size || item.sugar || item.ice) && (
+                              <p className="text-xs text-gray-500">
+                                {[item.size, item.sugar && `${item.sugar} đường`, item.ice].filter(Boolean).join(" • ")}
+                              </p>
+                            )}
+
+                            {/* Toppings - Inline */}
+                            {(item.toppingsText || (item.apiOptions && item.apiOptions.length > 0)) && (
+                              <div className="flex flex-wrap items-center gap-1">
+                                <span className="text-xs text-amber-700 font-medium">Topping:</span>
+                                {item.toppingsText && (
+                                  <span className="text-xs text-gray-600">{item.toppingsText}</span>
+                                )}
+                                {item.apiOptions?.map((opt) => {
+                                  const optId = opt.product_franchise_id;
+                                  if (!optId) return null;
+                                  const qty = opt.quantity ?? 0;
+                                  return (
+                                    <span key={optId} className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
+                                      #{optId.slice(-4)} × {qty}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {item.note && (
+                              <p className="text-xs text-gray-500 italic">
+                                <span className="font-medium">Ghi chú:</span> {item.note}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Bottom row - Quantity & Price */}
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-semibold">
+                              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 3v10a2 2 0 002 2h6a2 2 0 002-2V7M7 7h10" />
+                              </svg>
+                              {item.quantity}
+                            </span>
+                            <span className="text-sm font-bold text-gray-900">
+                              {fmt(item.lineTotal)}
+                            </span>
+                          </div>
                         </div>
-                      )}
-
-                      {item.note && (
-                        <p className="text-xs text-gray-500 italic">
-                          <span className="font-medium">Ghi chú:</span> {item.note}
-                        </p>
-                      )}
+                      </div>
                     </div>
-
-                    {/* Bottom row - Quantity & Price */}
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-semibold">
-                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 3v10a2 2 0 002 2h6a2 2 0 002-2V7M7 7h10" />
-                        </svg>
-                        {item.quantity}
-                      </span>
-                      <span className="text-sm font-bold text-gray-900">
-                        {fmt(item.lineTotal)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
                   ))}
                 </div>
               ))
             ) : (
               displayItems.map((item) => (
-              <div key={item.key} className="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
-                <div className="flex gap-2.5">
-                  {/* Product Image - Smaller */}
-                  {item.image ? (
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-lg shrink-0">
-                      🍵
-                    </div>
-                  )}
+                <div key={item.key} className="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                  <div className="flex gap-2.5">
+                    {/* Product Image - Smaller */}
+                    {item.image ? (
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-lg shrink-0">
+                        🍵
+                      </div>
+                    )}
 
-                  {/* Product Info - Compact */}
-                  <div className="flex-1 min-w-0">
-                    {/* Header - Compact */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate">{item.name}</h4>
-                        {item.franchiseName && (
-                          <p className="text-xs text-gray-500 truncate">🏪 {item.franchiseName}</p>
+                    {/* Product Info - Compact */}
+                    <div className="flex-1 min-w-0">
+                      {/* Header - Compact */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate">{item.name}</h4>
+                          {item.franchiseName && (
+                            <p className="text-xs text-gray-500 truncate">🏪 {item.franchiseName}</p>
+                          )}
+                        </div>
+
+                        {/* Action buttons - Smaller */}
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {/* Edit button */}
+                          {item.isLocal || (item.apiFranchiseId && item.apiProductId) ? (
+                            <button
+                              onClick={() => {
+                                const base = hasApiItems ? apiItemsStableByLocal : localDisplayItems;
+                                const fromIndex = base.findIndex((i) => i.key === item.key);
+                                if (fromIndex >= 0) {
+                                  setPendingReorder({
+                                    fromIndex,
+                                    kind: item.isLocal ? "local" : "api",
+                                    fingerprint: null,
+                                  });
+                                } else {
+                                  setPendingReorder(null);
+                                }
+                                setEditingItem(item);
+                              }}
+                              className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-all"
+                              title="Chỉnh sửa"
+                            >
+                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 20h9" />
+                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4 12.5-11.5z" />
+                              </svg>
+                            </button>
+                          ) : null}
+
+                          {/* Delete button */}
+                          <button
+                            onClick={() => handleRemoveItem(item)}
+                            className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                            title="Xóa"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Details - Single line when possible */}
+                      <div className="mt-1 space-y-0.5">
+                        {(item.size || item.sugar || item.ice) && (
+                          <p className="text-xs text-gray-500">
+                            {[item.size, item.sugar && `${item.sugar} đường`, item.ice].filter(Boolean).join(" • ")}
+                          </p>
+                        )}
+
+                        {/* Toppings - Inline */}
+                        {(item.toppingsText || (item.apiOptions && item.apiOptions.length > 0)) && (
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="text-xs text-amber-700 font-medium">Topping:</span>
+                            {item.toppingsText && (
+                              <span className="text-xs text-gray-600">{item.toppingsText}</span>
+                            )}
+                            {item.apiOptions?.map((opt) => {
+                              const optId = opt.product_franchise_id;
+                              if (!optId) return null;
+                              const qty = opt.quantity ?? 0;
+                              return (
+                                <span key={optId} className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
+                                  #{optId.slice(-4)} × {qty}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {item.note && (
+                          <p className="text-xs text-gray-500 italic">
+                            <span className="font-medium">Ghi chú:</span> {item.note}
+                          </p>
                         )}
                       </div>
 
-                      {/* Action buttons - Smaller */}
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        {/* Edit button */}
-                        {item.isLocal || (item.apiFranchiseId && item.apiProductId) ? (
-                          <button
-                            onClick={() => {
-                              const base = hasApiItems ? apiItemsStableByLocal : localDisplayItems;
-                              const fromIndex = base.findIndex((i) => i.key === item.key);
-                              if (fromIndex >= 0) {
-                                setPendingReorder({
-                                  fromIndex,
-                                  kind: item.isLocal ? "local" : "api",
-                                  fingerprint: null,
-                                });
-                              } else {
-                                setPendingReorder(null);
-                              }
-                              setEditingItem(item);
-                            }}
-                            className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition-all"
-                            title="Chỉnh sửa"
-                          >
-                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4 12.5-11.5z" />
-                            </svg>
-                          </button>
-                        ) : null}
-
-                        {/* Delete button */}
-                        <button
-                          onClick={() => handleRemoveItem(item)}
-                          className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                          title="Xóa"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      {/* Bottom row - Quantity & Price */}
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-semibold">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 3v10a2 2 0 002 2h6a2 2 0 002-2V7M7 7h10" />
                           </svg>
-                        </button>
+                          {item.quantity}
+                        </span>
+                        <span className="text-sm font-bold text-gray-900">
+                          {fmt(item.lineTotal)}
+                        </span>
                       </div>
-                    </div>
-
-                    {/* Details - Single line when possible */}
-                    <div className="mt-1 space-y-0.5">
-                      {(item.size || item.sugar || item.ice) && (
-                        <p className="text-xs text-gray-500">
-                          {[item.size, item.sugar && `${item.sugar} đường`, item.ice].filter(Boolean).join(" • ")}
-                        </p>
-                      )}
-
-                      {/* Toppings - Inline */}
-                      {(item.toppingsText || (item.apiOptions && item.apiOptions.length > 0)) && (
-                        <div className="flex flex-wrap items-center gap-1">
-                          <span className="text-xs text-amber-700 font-medium">Topping:</span>
-                          {item.toppingsText && (
-                            <span className="text-xs text-gray-600">{item.toppingsText}</span>
-                          )}
-                          {item.apiOptions?.map((opt) => {
-                            const optId = opt.product_franchise_id;
-                            if (!optId) return null;
-                            const qty = opt.quantity ?? 0;
-                            return (
-                              <span key={optId} className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600">
-                                #{optId.slice(-4)} × {qty}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      )}
-
-                      {item.note && (
-                        <p className="text-xs text-gray-500 italic">
-                          <span className="font-medium">Ghi chú:</span> {item.note}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Bottom row - Quantity & Price */}
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-semibold">
-                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 3v10a2 2 0 002 2h6a2 2 0 002-2V7M7 7h10" />
-                        </svg>
-                        {item.quantity}
-                      </span>
-                      <span className="text-sm font-bold text-gray-900">
-                        {fmt(item.lineTotal)}
-                      </span>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
           </div>
         </div>
 
         {/* Fixed footer (không nằm trong scroll) */}
-        <div className="mx-4 mt-3 bg-gray-50 rounded-xl p-3.5 space-y-2 text-xs flex-shrink-0">
+        <div className="mx-3 mt-2 bg-gray-50 rounded-xl p-2.5 space-y-1.5 text-xs flex-shrink-0">
           <div className="flex justify-between text-gray-600">
             <span>Tạm tính ({itemCount} món)</span>
             <span>{fmt(subtotal)}</span>
@@ -950,7 +950,7 @@ export default function MenuOrderPanel({
             <span className="text-amber-600">{fmt(total)}</span>
           </div>
         </div>
-        <div className="border-t border-gray-100 bg-white px-4 py-3 flex flex-col gap-2 flex-shrink-0">
+        <div className="border-t border-gray-100 bg-white px-3 py-2 flex flex-col gap-1.5 flex-shrink-0">
           {disabledReason && (
             <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
               <span className="inline-flex items-center justify-center w-5 h-5">
@@ -963,7 +963,7 @@ export default function MenuOrderPanel({
             disabled={cancellingCart}
             onClick={() => !cancellingCart && handleCancelCart()}
             className={cn(
-              "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150",
+              "w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl font-semibold text-xs transition-all duration-150",
               cancellingCart ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-100"
             )}
             title="Hủy giỏ hàng"
@@ -973,7 +973,7 @@ export default function MenuOrderPanel({
             </svg>
             {cancellingCart ? "Đang hủy..." : "Hủy giỏ"}
           </button>
-          <button disabled={!canCheckout} onClick={() => canCheckout && handleCheckout()} className={cn("w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-150", canCheckout ? "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
+          <button disabled={!canCheckout} onClick={() => canCheckout && handleCheckout()} className={cn("w-full flex items-center justify-center gap-1.5 py-2 rounded-xl font-semibold text-xs transition-all duration-150", canCheckout ? "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
             Đặt hàng · {fmt(total)}
           </button>

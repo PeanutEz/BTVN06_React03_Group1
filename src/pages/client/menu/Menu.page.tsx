@@ -395,6 +395,7 @@ export default function MenuPage() {
 
   const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [showOrderPanel, setShowOrderPanel] = useState(false);
+
   const openBranchPicker = () => {
     setShowBranchPicker(true);
   };
@@ -411,7 +412,7 @@ export default function MenuPage() {
   });
 
   const apiItemCount = (apiCart?.items ?? []).reduce((s, i) => s + (i.quantity ?? 1), 0);
-  const apiTotal = apiCart?.total_amount ?? 0;
+  const apiTotal = Number(apiCart?.total_amount ?? 0);
   const itemCount = apiItemCount > 0 ? apiItemCount : localItemCount;
   const total = apiTotal > 0 ? apiTotal : localTotal;
 
@@ -637,7 +638,7 @@ export default function MenuPage() {
                 />
               ) : (
                 <>
-                  <p className="text-sm text-gray-500 mb-5">{visibleProducts.length} sản phẩm</p>
+
 
                   {groupedProducts ? (
                     /* ── Grouped by category (Tất cả) ── */
@@ -704,11 +705,14 @@ export default function MenuPage() {
         </div>
       )}
 
-      {/* Mobile: Order panel bottom sheet */}
+      {/* Mobile: Order panel modal */}
       {showOrderPanel && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowOrderPanel(false)} />
-          <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden min-h-0">
+        <div className="lg:hidden fixed inset-0 z-50 flex items-start justify-center p-2 overflow-hidden" onClick={() => setShowOrderPanel(false)}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div
+            className="relative w-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[600px]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <MenuOrderPanel
               onRequestClose={() => setShowOrderPanel(false)}
             />

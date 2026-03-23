@@ -135,9 +135,9 @@ export default function MenuProductModal({
       const desiredBySizeLabel =
         !desiredByProductFranchiseId && desiredSizeLabel
           ? (() => {
-              const matches = listSizes.filter((s) => String(s.size ?? "").trim().toUpperCase() === desiredSizeLabel);
-              return matches.length ? (matches.find((s) => s.is_available) ?? matches[0]) : null;
-            })()
+            const matches = listSizes.filter((s) => String(s.size ?? "").trim().toUpperCase() === desiredSizeLabel);
+            return matches.length ? (matches.find((s) => s.is_available) ?? matches[0]) : null;
+          })()
           : null;
 
       const firstAvailable = desiredByProductFranchiseId ?? desiredBySizeLabel ?? listSizes.find((s) => s.is_available) ?? listSizes[0] ?? null;
@@ -297,6 +297,7 @@ export default function MenuProductModal({
     }
     return () => { document.body.style.overflow = ""; };
   }, [product]);
+
 
   if (!product) return null;
 
@@ -630,7 +631,7 @@ export default function MenuProductModal({
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
-      toast.success(`Đã cập nhật "${product.name}" trong giỏ!`, {
+    toast.success(`Đã cập nhật "${product.name}" trong giỏ!`, {
       description: `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`,
     });
     setIsAdding(false);
@@ -640,19 +641,19 @@ export default function MenuProductModal({
   const modal = (
     /* Backdrop */
     <div
-      className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-[1000] flex items-start justify-center pt-4 px-2 pb-2 sm:p-4 overflow-hidden"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       {/* Modal */}
       <div
-        className="relative w-full sm:max-w-lg bg-white sm:rounded-2xl shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[88dvh] flex flex-col"
+        className="relative w-full sm:max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[600px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header + image */}
         <div className="relative shrink-0">
-          <div className="h-36 sm:h-48 overflow-hidden bg-gray-100">
+          <div className="h-20 sm:h-44 overflow-hidden bg-gray-100">
             <img
               src={displayImage}
               alt={product.name}
@@ -684,25 +685,15 @@ export default function MenuProductModal({
           </div>
 
           {/* Product info overlay */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+          <div className="absolute bottom-0 left-0 right-0 px-3 pb-2">
             {categoryName && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
                 {categoryName}
               </span>
             )}
-            <h2 className="text-lg font-bold text-white mt-1 tracking-tight leading-tight">
+            <h2 className="text-sm font-bold text-white mt-0.5 tracking-tight leading-tight">
               {product.name}
             </h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <div className="flex items-center gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <svg key={i} className={cn("w-3 h-3", i < Math.floor(product.rating) ? "text-amber-400 fill-current" : "text-white/40 fill-current")} viewBox="0 0 20 20">
-                    <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                  </svg>
-                ))}
-              </div>
-              <span className="text-xs text-white/80">{product.rating.toFixed(1)} ({product.reviewCount})</span>
-            </div>
           </div>
         </div>
 
@@ -711,7 +702,7 @@ export default function MenuProductModal({
           <button
             onClick={() => setTab("order")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold transition-all duration-150 border-b-2",
+              "flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold transition-all duration-150 border-b-2",
               tab === "order"
                 ? "border-amber-500 text-amber-600"
                 : "border-transparent text-gray-400 hover:text-gray-600",
@@ -725,7 +716,7 @@ export default function MenuProductModal({
           <button
             onClick={() => setTab("content")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold transition-all duration-150 border-b-2",
+              "flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold transition-all duration-150 border-b-2",
               tab === "content"
                 ? "border-amber-500 text-amber-600"
                 : "border-transparent text-gray-400 hover:text-gray-600",
@@ -739,12 +730,12 @@ export default function MenuProductModal({
         </div>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-4 py-2.5 space-y-2.5">
+        <div className="overflow-y-auto flex-1 min-h-0 px-3 py-2 space-y-2">
           {tab === "order" ? (
             <>
               {/* Size */}
               <div>
-                <p className="text-xs font-semibold text-gray-500 mb-1.5">Chọn size</p>
+                <p className="text-[11px] font-semibold text-gray-500 mb-1">Chọn size</p>
                 {displaySizes.length === 0 ? (
                   <p className="text-xs text-gray-400">Đang tải...</p>
                 ) : (
@@ -755,12 +746,12 @@ export default function MenuProductModal({
                         onClick={() => s.is_available && setSelectedSize(s)}
                         disabled={!s.is_available}
                         className={cn(
-                          "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg border text-sm font-semibold transition-all",
+                          "flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border text-xs font-semibold transition-all",
                           !s.is_available
                             ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
                             : selectedSize?.product_franchise_id === s.product_franchise_id
-                            ? "border-amber-500 bg-amber-50 text-amber-700 ring-1 ring-amber-200"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
+                              ? "border-amber-500 bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+                              : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
                         )}
                       >
                         {s.size}
@@ -772,16 +763,16 @@ export default function MenuProductModal({
               </div>
 
               {/* Sugar + Ice */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Đường</p>
+                  <p className="text-[11px] font-semibold text-gray-500 mb-1">Đường</p>
                   <div className="flex flex-wrap gap-1">
                     {SUGAR_LEVELS.map((level) => (
                       <button
                         key={level}
                         onClick={() => setSugar(level)}
                         className={cn(
-                          "px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-all",
+                          "px-2.5 py-1 rounded-lg border text-xs font-medium transition-all",
                           sugar === level
                             ? "border-amber-500 bg-amber-50 text-amber-700"
                             : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
@@ -793,14 +784,14 @@ export default function MenuProductModal({
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1.5">Đá</p>
+                  <p className="text-[11px] font-semibold text-gray-500 mb-1">Đá</p>
                   <div className="flex flex-wrap gap-1">
                     {ICE_LEVELS.map((level) => (
                       <button
                         key={level}
                         onClick={() => setIce(level)}
                         className={cn(
-                          "px-3.5 py-1.5 rounded-lg border text-sm font-medium transition-all",
+                          "px-2.5 py-1 rounded-lg border text-xs font-medium transition-all",
                           ice === level
                             ? "border-blue-500 bg-blue-50 text-blue-700"
                             : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
@@ -815,14 +806,14 @@ export default function MenuProductModal({
 
               {/* Note — compact inline */}
               <div>
-                <p className="text-xs font-semibold text-gray-500 mb-1.5">Ghi chú</p>
+                <p className="text-[11px] font-semibold text-gray-500 mb-1">Ghi chú</p>
                 <input
                   type="text"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="VD: ít đường hơn, không hành..."
                   maxLength={200}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-400 transition-all"
+                  className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-400 transition-all"
                 />
               </div>
 
@@ -903,23 +894,23 @@ export default function MenuProductModal({
         </div>
 
         {/* Footer: qty + total + CTA */}
-        <div className="shrink-0 border-t border-gray-100 bg-white px-4 py-3">
-          <div className="flex items-center gap-3">
+        <div className="shrink-0 border-t border-gray-100 bg-white px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <div className="flex items-center gap-2">
             {/* Quantity */}
             <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden shrink-0">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                 disabled={quantity <= 1}
-                className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                 </svg>
               </button>
-              <span className="w-8 text-center text-sm font-semibold select-none">{quantity}</span>
+              <span className="w-6 text-center text-xs font-semibold select-none">{quantity}</span>
               <button
                 onClick={() => setQuantity((q) => q + 1)}
-                className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
+                className="w-8 h-8 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -932,7 +923,7 @@ export default function MenuProductModal({
               onClick={handleAddToCart}
               disabled={isAdding || !selectedSize}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold transition-all duration-150 text-sm",
+                "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-semibold transition-all duration-150 text-xs",
                 isAdding || !selectedSize
                   ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                   : "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200",
