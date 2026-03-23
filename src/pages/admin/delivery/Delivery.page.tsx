@@ -13,13 +13,13 @@ const ITEMS_PER_PAGE = 10;
 
 const STATUS_OPTIONS = [
   { value: "", label: "-- Tất cả --" },
-  { value: "PENDING",    label: "Chờ xử lý" },
-  { value: "CONFIRMED",  label: "Đã xác nhận" },
-  { value: "PREPARING",  label: "Đang chuẩn bị" },
-  { value: "READY",      label: "Sẵn sàng" },
-  { value: "DELIVERING", label: "Đang giao" },
-  { value: "COMPLETED",  label: "Hoàn thành" },
-  { value: "CANCELLED",  label: "Đã hủy" },
+  { value: "PENDING",          label: "Chờ xử lý" },
+  { value: "CONFIRMED",        label: "Đã xác nhận" },
+  { value: "PREPARING",        label: "Đang chuẩn bị" },
+  { value: "READY_FOR_PICKUP", label: "Sẵn sàng lấy hàng" },
+  { value: "DELIVERING",       label: "Đang giao" },
+  { value: "COMPLETED",        label: "Hoàn thành" },
+  { value: "CANCELLED",        label: "Đã hủy" },
 ];
 
 function deliveryIdOf(d: DeliveryData): string {

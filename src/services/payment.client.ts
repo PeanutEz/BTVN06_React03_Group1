@@ -35,8 +35,8 @@ function normalizePayment(raw: unknown): PaymentData | null {
       typeof payment.provider_txn_id === "string"
         ? payment.provider_txn_id
         : typeof payment.providerTxnId === "string"
-        ? payment.providerTxnId
-        : undefined,
+          ? payment.providerTxnId
+          : undefined,
   };
 }
 
@@ -89,10 +89,11 @@ export const paymentClient = {
     paymentId: string,
     body: { method: string; providerTxnId?: string }
   ): Promise<PaymentData | null> => {
-    const response = await apiClient.put(`/payments/${paymentId}/confirm`, {
-      method: body.method,
-      providerTxnId: body.providerTxnId ?? "",
-    });
+    const payload: Record<string, unknown> = { method: body.method };
+    if (body.providerTxnId) {
+      payload.providerTxnId = body.providerTxnId;
+    }
+    const response = await apiClient.put(`/payments/${paymentId}/confirm`, payload);
     return normalizePayment(unwrapSingle<PaymentData>(response.data));
   },
 

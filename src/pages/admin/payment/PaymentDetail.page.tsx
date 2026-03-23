@@ -280,9 +280,12 @@ const PaymentDetailPage = () => {
                   onChange={(e) => setNewStatus(e.target.value as PaymentStatus)}
                   className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
                 >
+                  <option value="PENDING">Chờ thanh toán</option>
                   <option value="DRAFT">Chưa thanh toán</option>
                   <option value="CONFIRMED">Đã xác nhận</option>
                   <option value="PREPARING">Đang xử lý</option>
+                  <option value="READY_FOR_PICKUP">Sẵn sàng lấy hàng</option>
+                  <option value="DELIVERING">Đang giao hàng</option>
                   <option value="COMPLETED">Thành công</option>
                   <option value="CANCELLED">Đã hủy</option>
                 </select>

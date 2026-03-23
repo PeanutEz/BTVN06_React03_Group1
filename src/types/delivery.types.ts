@@ -2,14 +2,20 @@
 
 export type OrderMode = "DELIVERY" | "PICKUP";
 
+// Order Status - Aligned with API Spec
+// API Spec: PENDING → PREPARING → READY_FOR_PICKUP → DELIVERING → COMPLETED (+ CANCELLED)
+// CONFIRMED kept for backward compatibility with existing flows
 export type DeliveryOrderStatus =
   | "PENDING"
   | "CONFIRMED"
   | "PREPARING"
-  | "READY"
+  | "READY_FOR_PICKUP"  // Changed from "READY" to match API spec
   | "DELIVERING"
   | "COMPLETED"
   | "CANCELLED";
+
+// Legacy alias for backward compatibility
+export type OrderStatusLegacy = DeliveryOrderStatus | "READY";
 
 export type PaymentMethod = "CASH" | "BANK" | "MOMO" | "ZALOPAY" | "SHOPEEPAY";
 export type PaymentStatus = "UNPAID" | "PENDING" | "PAID" | "FAILED" | "CANCELLED";
@@ -60,7 +66,7 @@ export interface DeliveryAddress {
 export interface AppliedPromo {
   code: string;
   label: string;
-  discountAmount: number;
+  discountAmount?: number; // ✅ Optional: computed from API after refetch, not during application
 }
 
 export interface PaymentTransaction {
@@ -127,13 +133,13 @@ export const ORDER_STATUS_CONFIG: Record<
   DeliveryOrderStatus,
   { label: string; color: string; bg: string; icon: string; description: string }
 > = {
-  PENDING:    { label: "Chờ xác nhận", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200", icon: "⏳", description: "Đơn hàng đang chờ cửa hàng xác nhận" },
-  CONFIRMED:  { label: "Đã xác nhận", color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: "✅", description: "Cửa hàng đã nhận đơn, chuẩn bị pha chế" },
-  PREPARING:  { label: "Đang pha chế", color: "text-orange-700", bg: "bg-orange-50 border-orange-200", icon: "☕", description: "Đồ uống đang được pha chế" },
-  READY:      { label: "Sẵn sàng lấy", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: "🛍️", description: "Đơn hàng đã sẵn sàng, bạn có thể đến lấy" },
+  PENDING: { label: "Chờ xác nhận", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200", icon: "⏳", description: "Đơn hàng đang chờ cửa hàng xác nhận" },
+  CONFIRMED: { label: "Đã xác nhận", color: "text-blue-700", bg: "bg-blue-50 border-blue-200", icon: "✅", description: "Cửa hàng đã nhận đơn, chuẩn bị pha chế" },
+  PREPARING: { label: "Đang pha chế", color: "text-orange-700", bg: "bg-orange-50 border-orange-200", icon: "☕", description: "Đồ uống đang được pha chế" },
+  READY_FOR_PICKUP: { label: "Sẵn sàng lấy", color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200", icon: "🛍️", description: "Đơn hàng đã sẵn sàng, bạn có thể đến lấy" },
   DELIVERING: { label: "Đang giao", color: "text-purple-700", bg: "bg-purple-50 border-purple-200", icon: "🛵", description: "Đơn hàng đang trên đường giao đến bạn" },
-  COMPLETED:  { label: "Hoàn thành", color: "text-green-700", bg: "bg-green-50 border-green-200", icon: "🎉", description: "Đơn hàng đã giao thành công!" },
-  CANCELLED:  { label: "Đã huỷ", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: "❌", description: "Đơn hàng đã bị huỷ" },
+  COMPLETED: { label: "Hoàn thành", color: "text-green-700", bg: "bg-green-50 border-green-200", icon: "🎉", description: "Đơn hàng đã giao thành công!" },
+  CANCELLED: { label: "Đã huỷ", color: "text-red-700", bg: "bg-red-50 border-red-200", icon: "❌", description: "Đơn hàng đã bị huỷ" },
 };
 
 export const PAYMENT_STATUS_CONFIG: Record<
@@ -147,10 +153,18 @@ export const PAYMENT_STATUS_CONFIG: Record<
   CANCELLED: { label: "Đã huỷ thanh toán", color: "text-gray-700", bg: "bg-gray-100 border-gray-200" },
 };
 
+// Status flow for delivery orders (API Spec aligned)
 export const DELIVERY_STATUS_STEPS: DeliveryOrderStatus[] = [
-  "PENDING", "CONFIRMED", "PREPARING", "DELIVERING", "COMPLETED",
+  "PENDING", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP", "DELIVERING", "COMPLETED",
 ];
 
+// Status flow for pickup orders (API Spec aligned)
 export const PICKUP_STATUS_STEPS: DeliveryOrderStatus[] = [
-  "PENDING", "CONFIRMED", "PREPARING", "READY", "COMPLETED",
+  "PENDING", "CONFIRMED", "PREPARING", "READY_FOR_PICKUP", "COMPLETED",
 ];
+
+// Helper to normalize legacy "READY" status to "READY_FOR_PICKUP"
+export function normalizeOrderStatus(status: string): DeliveryOrderStatus {
+  if (status === "READY") return "READY_FOR_PICKUP";
+  return status as DeliveryOrderStatus;
+}
