@@ -19,17 +19,20 @@ const toNumber = (value: unknown) => {
 function formatDiscountType(type?: string, value?: number) {
   const rawType = String(type ?? "").trim().toUpperCase();
   if (!rawType) return "";
+  const parsedValue = toNumber(value);
 
   if (rawType.includes("PERCENT") || rawType.includes("%")) {
-    const percentValue = toNumber(value);
-    if (percentValue > 0) {
-      return ` (${percentValue}%)`;
+    if (parsedValue > 0) {
+      return ` (${parsedValue}%)`;
     }
     return " (%)";
   }
 
   if (rawType.includes("FIXED") || rawType.includes("AMOUNT")) {
-    return " (VND)";
+    if (parsedValue > 0) {
+      return ` (${fmt(parsedValue)})`;
+    }
+    return "";
   }
 
   return "";
