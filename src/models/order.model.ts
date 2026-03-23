@@ -120,12 +120,12 @@ export const ORDER_TYPE_LABELS: Record<OrderType, string> = {
 };
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING: "Chờ xử lý",
-  DRAFT: "Nháp",
+  PENDING: "Chờ xác nhận",
+  DRAFT: "Chờ thanh toán",
   CONFIRMED: "Đã xác nhận",
-  PREPARING: "Đang chuẩn bị",
-  READY_FOR_PICKUP: "Sẵn sàng lấy hàng",
-  DELIVERING: "Đang giao hàng",
+  PREPARING: "Đang pha chế",
+  READY_FOR_PICKUP: "Sẵn sàng lấy",
+  DELIVERING: "Đang giao",
   COMPLETED: "Hoàn thành",
   CANCELLED: "Đã hủy",
 };

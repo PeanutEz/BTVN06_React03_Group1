@@ -5,6 +5,7 @@ import { ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
 import { deliveryClient, type DeliveryData } from "@/services/delivery.client";
 import { paymentClient, type PaymentData } from "@/services/payment.client";
+import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
 import type { OrderDisplay } from "@/models/order.model";
 import type { OrderStatus as ApiOrderStatus } from "@/models/order.model";
 import {
@@ -22,120 +23,137 @@ function toNumber(v: unknown): number {
   return 0;
 }
 
+function pickFirstText(...values: unknown[]): string {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+  return "";
+}
+
 const fmt = (n: unknown) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(toNumber(n));
+
+const fmtDateTime = (d?: string) => {
+  if (!d) return null;
+  return new Date(d).toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 function isPendingPayment(status?: string): boolean {
   return ["PENDING", "UNPAID"].includes(String(status ?? "").toUpperCase());
 }
 
-function fmtPaymentStatus(status?: string): string {
-  switch (String(status ?? "").toUpperCase()) {
-    case "PAID":
-    case "CONFIRMED":
-    case "COMPLETED": return "Đã thanh toán";
-    case "PENDING":   return "Chờ thanh toán";
-    case "UNPAID":    return "Chưa thanh toán";
-    case "FAILED":    return "Thất bại";
-    case "CANCELLED": return "Đã huỷ";
-    case "REFUNDED":  return "Đã hoàn tiền";
-    default:          return status ?? "—";
-  }
+function isPaidPayment(status?: string): boolean {
+  return ["PAID", "CONFIRMED", "COMPLETED"].includes(String(status ?? "").toUpperCase());
 }
 
 function fmtPaymentMethod(method?: string): string {
   switch (String(method ?? "").toUpperCase()) {
     case "COD":
     case "CASH":         return "Tiền mặt";
-    case "CARD":         return "VNPAY / Thẻ";
+    case "CARD":         return "VNPAY";
     case "BANK":
     case "BANK_TRANSFER":
-    case "TRANSFER":     return "Chuyển khoản";
+    case "TRANSFER":     return "VNPAY";
     case "MOMO":         return "MoMo";
-    case "VNPAY":        return "VNPay";
+    case "VNPAY":        return "VNPAY";
     case "ZALOPAY":      return "ZaloPay";
     default:             return method ?? "—";
   }
 }
 
-function formatItemOptions(options: unknown): string | null {
-  if (!options) return null;
+function resolveOrderMode(order: OrderDisplay, delivery: ApiDelivery | null): "PICKUP" | "DELIVERY" {
+  const explicitType = String((order as any)?.type ?? "").trim().toUpperCase();
+  if (explicitType === "POS" || explicitType === "PICKUP") return "PICKUP";
+  if (explicitType === "ONLINE" || explicitType === "DELIVERY") return "DELIVERY";
 
-  // Backend order_items thường trả về options dạng mảng object: [{ name: "...", ... }, ...]
-  if (Array.isArray(options)) {
-    const parts = options
-      .map((opt: any) => {
-        if (!opt) return null;
-        if (typeof opt === "string") return opt;
-        if (typeof opt === "object") return opt.name ?? opt.option_name ?? opt.label ?? null;
-        return null;
-      })
-      .filter(Boolean) as string[];
-    return parts.length ? parts.join(", ") : null;
-  }
+  const hasDeliveryObject = !!delivery;
+  const hasDeliveryAddress = !!String(
+    (delivery as any)?.order_address ??
+    (order as any)?.address ??
+    (order as any)?.delivery_address ??
+    "",
+  ).trim();
 
-  // Fallback: cấu trúc giống cart item (Checkout): { size, sugar, ice, toppings: [{ name }] }
-  if (typeof options === "object") {
-    const obj = options as any;
-    const parts: string[] = [];
-    if (obj.size) parts.push(`Size ${obj.size}`);
-    if (obj.sugar != null) parts.push(`${obj.sugar} đường`);
-    if (obj.ice != null) parts.push(String(obj.ice));
-    if (Array.isArray(obj.toppings) && obj.toppings.length > 0) {
-      const toppingNames = obj.toppings
-        .map((t: any) => t?.name ?? t)
-        .filter(Boolean)
-        .map(String);
-      if (toppingNames.length) parts.push(toppingNames.join(", "));
-    }
-    return parts.length ? parts.join(" · ") : null;
+  return hasDeliveryObject || hasDeliveryAddress ? "DELIVERY" : "PICKUP";
+}
+
+/** Map API order status to delivery timeline status */
+function toDeliveryOrderStatus(value: unknown): DeliveryOrderStatus | null {
+  const raw = String(value ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+  if (!raw) return null;
+
+  if (raw === "READY") return "READY_FOR_PICKUP";
+  if (raw.includes("CANCEL")) return "CANCELLED";
+  if (raw.includes("COMPLETE") || raw.includes("DELIVERED")) return "COMPLETED";
+  if (raw.includes("READY")) return "READY_FOR_PICKUP";
+  if (raw.includes("DELIVER") || raw.includes("SHIPPING") || raw.includes("PICKUP")) return "DELIVERING";
+  if (raw.includes("PREPAR")) return "PREPARING";
+  if (raw.includes("CONFIRM")) return "CONFIRMED";
+  if (raw.includes("PENDING") || raw.includes("UNPAID") || raw.includes("DRAFT")) return "PENDING";
+
+  if (
+    raw === "PENDING" ||
+    raw === "CONFIRMED" ||
+    raw === "PREPARING" ||
+    raw === "READY_FOR_PICKUP" ||
+    raw === "DELIVERING" ||
+    raw === "COMPLETED" ||
+    raw === "CANCELLED"
+  ) {
+    return raw as DeliveryOrderStatus;
   }
 
   return null;
 }
 
-/** Map API order status to delivery timeline status */
 function apiOrderStatusToDeliveryStatus(apiStatus: ApiOrderStatus): DeliveryOrderStatus {
-  const map: Record<ApiOrderStatus, DeliveryOrderStatus> = {
-    PENDING: "PENDING",
-    DRAFT: "PENDING",
-    CONFIRMED: "CONFIRMED",
-    PREPARING: "PREPARING",
-    READY_FOR_PICKUP: "READY_FOR_PICKUP",
-    DELIVERING: "DELIVERING",
-    COMPLETED: "COMPLETED",
-    CANCELLED: "CANCELLED",
-  };
-  return map[apiStatus] ?? "PENDING";
+  return toDeliveryOrderStatus(apiStatus) ?? "PENDING";
 }
 
 type ApiDelivery = DeliveryData;
 
 function deliveryApiStatusToTimelineStatus(delivery: ApiDelivery | null): DeliveryOrderStatus | null {
-  const raw = String(delivery?.status ?? "").toUpperCase();
-  if (!raw) return null;
-  // API delivery endpoints: /pickup, /complete → status thường chứa PICKUP / COMPLETE
-  if (raw.includes("COMPLETE") || raw.includes("DELIVERED") || raw === "COMPLETED") return "COMPLETED";
-  if (raw.includes("PICKUP") || raw.includes("SHIPPING") || raw.includes("DELIVERING")) return "DELIVERING";
-  if (raw.includes("CANCEL")) return "CANCELLED";
-  return null;
+  return toDeliveryOrderStatus(delivery?.status);
 }
 
 function getDeliveryTimelineStatus(order: OrderDisplay, delivery: ApiDelivery | null): DeliveryOrderStatus {
-  if (order.status === "CANCELLED") return "CANCELLED";
-  if (order.status === "COMPLETED") return "COMPLETED";
+  const fromOrder = toDeliveryOrderStatus(order.status) ?? "PENDING";
+  if (fromOrder === "CANCELLED") return "CANCELLED";
+  if (fromOrder === "COMPLETED") return "COMPLETED";
 
   const fromDelivery = deliveryApiStatusToTimelineStatus(delivery);
   if (fromDelivery) return fromDelivery;
   return apiOrderStatusToDeliveryStatus(order.status);
 }
 
+type TrackingStatus = "PAYMENT_PENDING" | DeliveryOrderStatus;
+
+const PAYMENT_PENDING_CONFIG = {
+  label: "Chờ thanh toán",
+  color: "text-amber-700",
+  bg: "bg-amber-50 border-amber-200",
+  icon: "💳",
+  description: "Đơn hàng đang chờ xử lý thanh toán",
+};
+
+function getTrackingConfig(status: TrackingStatus) {
+  if (status === "PAYMENT_PENDING") return PAYMENT_PENDING_CONFIG;
+  return ORDER_STATUS_CONFIG[status];
+}
+
 function StatusTimeline({
   steps,
   currentStatus,
 }: {
-  steps: DeliveryOrderStatus[];
-  currentStatus: DeliveryOrderStatus;
+  steps: TrackingStatus[];
+  currentStatus: TrackingStatus;
 }) {
   const currentIdx = steps.indexOf(currentStatus);
   const isCancelled = currentStatus === "CANCELLED";
@@ -151,8 +169,10 @@ function StatusTimeline({
         />
       )}
 
-      <div className="space-y-6">        {steps.map((step, idx) => {
-          const cfg = ORDER_STATUS_CONFIG[step];          const isPast    = !isCancelled && idx < currentIdx;
+      <div className="space-y-6">
+        {steps.map((step, idx) => {
+          const cfg = getTrackingConfig(step);
+          const isPast = !isCancelled && idx < currentIdx;
           const isCurrent = !isCancelled && idx === currentIdx;
 
           return (
@@ -192,9 +212,14 @@ function StatusTimeline({
                 >
                   {cfg.label}
                 </p>
-                {isCurrent && (
-                  <p className="text-xs text-amber-600 mt-0.5 animate-pulse">{cfg.description}</p>
-                )}
+                <p
+                  className={cn(
+                    "text-xs mt-0.5 transition-colors",
+                    isCurrent ? "text-amber-600" : isPast ? "text-gray-500" : "text-gray-400",
+                  )}
+                >
+                  {cfg.description}
+                </p>
               </div>
             </div>
           );
@@ -229,8 +254,9 @@ function OrderStatusFromApi({
   fmt: (n: unknown) => string;
 }) {
   const mappedStatus = getDeliveryTimelineStatus(order, delivery);
-  const statusCfg = ORDER_STATUS_CONFIG[mappedStatus];
-  const steps = DELIVERY_STATUS_STEPS;
+  const orderMode = resolveOrderMode(order, delivery);
+  const isPickupFlow = orderMode === "PICKUP";
+  const steps: TrackingStatus[] = ["PAYMENT_PENDING", ...DELIVERY_STATUS_STEPS];
 
   const rawItems = (order as any).items ??
     (order as any).order?.items ??
@@ -269,32 +295,228 @@ function OrderStatusFromApi({
     order.customer?.name ?? (order as any).customer_name ?? "—";
   const phone = order.phone ?? order.customer?.phone ?? "—";
   const franchiseName = order.franchise?.name ?? (order as any).franchise_name ?? "—";
-
+  const orderCreatedAt = fmtDateTime((order as any).created_at);
+  const orderUpdatedAt = fmtDateTime((order as any).updated_at);
+  const confirmedAt = fmtDateTime((order as any).confirmed_at);
+  const completedAt = fmtDateTime((order as any).completed_at);
+  const cancelledAt = fmtDateTime((order as any).cancelled_at);
+  const deliveryAssignedTo = pickFirstText(
+    (delivery as any)?.assigned_to_name,
+    (delivery as any)?.assigned_to,
+    (delivery as any)?.shipper_name,
+    (delivery as any)?.shipper?.name,
+    (delivery as any)?.staff_name,
+    (delivery as any)?.staff?.name,
+    (delivery as any)?.rider_name,
+    (delivery as any)?.rider?.name,
+    (order as any)?.shipper_name,
+    (order as any)?.shipper?.name,
+    (order as any)?.staff_name,
+    (order as any)?.staff?.name,
+    (order as any)?.rider_name,
+    (order as any)?.rider?.name,
+    (order as any)?.assigned_to_name,
+    (order as any)?.assigned_to,
+    (order as any)?.delivery?.assigned_to_name,
+    (order as any)?.delivery?.assigned_to,
+    (order as any)?.delivery?.shipper_name,
+    (order as any)?.delivery?.shipper?.name,
+    (order as any)?.delivery?.staff_name,
+    (order as any)?.delivery?.staff?.name,
+  );
+  const deliveryShipperPhone = pickFirstText(
+    (delivery as any)?.assigned_to_phone,
+    (delivery as any)?.shipper_phone,
+    (delivery as any)?.shipper?.phone,
+    (delivery as any)?.staff_phone,
+    (delivery as any)?.staff?.phone,
+    (delivery as any)?.rider_phone,
+    (delivery as any)?.rider?.phone,
+    (order as any)?.shipper_phone,
+    (order as any)?.shipper?.phone,
+    (order as any)?.staff_phone,
+    (order as any)?.staff?.phone,
+    (order as any)?.rider_phone,
+    (order as any)?.rider?.phone,
+    (order as any)?.assigned_to_phone,
+    (order as any)?.delivery?.assigned_to_phone,
+    (order as any)?.delivery?.shipper_phone,
+    (order as any)?.delivery?.shipper?.phone,
+    (order as any)?.delivery?.staff_phone,
+    (order as any)?.delivery?.staff?.phone,
+  );
+  const deliveryStatusRaw = pickFirstText(
+    (delivery as any)?.status,
+    (order as any)?.delivery_status,
+    (order as any)?.delivery?.status,
+  );
+  const deliveryAddress = pickFirstText(
+    (delivery as any)?.order_address,
+    (order as any)?.address,
+    (order as any)?.delivery_address,
+    (order as any)?.delivery?.order_address,
+  );
+  const hasAnyDeliveryInfo = Boolean(
+    delivery || deliveryAssignedTo || deliveryShipperPhone || deliveryStatusRaw || deliveryAddress,
+  );
+  const paymentCreatedAt = fmtDateTime((payment as any)?.created_at);
+  const paymentUpdatedAt = fmtDateTime((payment as any)?.updated_at);
+  const paymentMethodRaw = String(payment?.method ?? "").toUpperCase();
+  const isCashMethod = paymentMethodRaw === "CASH" || paymentMethodRaw === "COD";
+  const timelineCurrentStatus: TrackingStatus =
+    mappedStatus === "CANCELLED" || isPaidPayment(payment?.status)
+      ? mappedStatus
+      : "PAYMENT_PENDING";
+  const itemCount = (rawItems as any[]).reduce((sum, item) => sum + toNumber(item.quantity ?? item.qty ?? 0), 0);
+  const promotionTypeText = String((order as any).promotion_type ?? "").toUpperCase();
+  const voucherTypeText = String((order as any).voucher_type ?? "").toUpperCase();
+  const promotionPercentText = promotionTypeText.includes("PERCENT") && toNumber((order as any).promotion_value) > 0
+    ? `${toNumber((order as any).promotion_value)}%`
+    : null;
+  const voucherPercentText = voucherTypeText.includes("PERCENT") && toNumber((order as any).voucher_value) > 0
+    ? `${toNumber((order as any).voucher_value)}%`
+    : null;
   return (
-    <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-8 sm:-my-10 lg:-my-12 bg-gray-50">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <nav className="flex items-center gap-2 text-sm text-gray-400 mb-5">
-          <Link to="/" className="hover:text-gray-600">Trang chủ</Link>
-          <span>/</span>
-          <Link to="/menu" className="hover:text-gray-600">Menu</Link>
-          <span>/</span>
-          <span className="text-gray-900 font-medium">Đơn #{order.code}</span>
-        </nav>
-        <div className={cn("rounded-2xl border px-5 py-4 flex items-center gap-4 mb-6", statusCfg.bg)}>
-          <div className="text-3xl shrink-0">{statusCfg.icon}</div>
-          <div className="flex-1 min-w-0">
-            <h1 className={cn("text-base font-bold leading-tight", statusCfg.color)}>{statusCfg.label}</h1>
-            <p className={cn("text-xs mt-0.5", statusCfg.color)}>{statusCfg.description}</p>
-          </div>
+    <div className="bg-[#faf8f4] min-h-screen text-[#3d2b1f]">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="px-3 py-2 rounded-lg border border-[#3d2b1f]/15 bg-white text-[#6b4c3b] hover:bg-[#f2ede4] text-xs font-medium"
+          >
+            ← Quay lại
+          </button>
+          <Link
+            to={ROUTER_URL.CUSTOMER_ORDER_HISTORY}
+            className="px-3 py-2 rounded-lg border border-[#3d2b1f]/15 bg-white text-[#6b4c3b] hover:bg-[#f2ede4] text-xs font-medium"
+          >
+            Xem đơn hàng
+          </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_260px] gap-5 items-start">
-          <div className="flex flex-col gap-5">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="font-semibold text-gray-900 text-sm mb-4">Trạng thái đơn hàng</h2>
-              <StatusTimeline steps={steps} currentStatus={mappedStatus} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 items-start">
+          <div className="space-y-4">
+            <div className="bg-white rounded-[14px] border border-[#3d2b1f]/10 overflow-hidden shadow-sm">
+              <div className="px-5 py-4">
+                <h2 className="font-semibold text-sm mb-4">Trạng thái đơn hàng</h2>
+                <StatusTimeline steps={steps} currentStatus={timelineCurrentStatus} />
+              </div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h2 className="font-semibold text-gray-900 text-sm mb-4">Thông tin đơn hàng</h2>
+
+            <div className="bg-white rounded-[14px] border border-[#3d2b1f]/10 overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-[#3d2b1f]/10 flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[#8a8070]">Sản phẩm</span>
+                <span className="text-xs text-[#8a8070]">{itemCount} món</span>
+              </div>
+              <div className="px-5 py-3 divide-y divide-[#3d2b1f]/10">
+                {(rawItems as any[]).map((item, idx) => {
+                  const qty = toNumber(item.quantity ?? item.qty ?? 0);
+                  const priceSnapshot = toNumber(
+                    item.price_snapshot ?? item.price ?? item.unit_price ?? 0
+                  );
+                  const lineTotal =
+                    toNumber(item.line_total ?? item.lineTotal ?? item.total ?? 0) ||
+                    priceSnapshot * qty;
+
+                  const name =
+                    item.product_name_snapshot ?? item.product_name ?? item.name ?? "Sản phẩm";
+                  const imageUrl =
+                    item.product_image_url ?? item.product_image ?? item.image_url ?? item.image ?? "";
+                  const itemMeta = getOrderItemDisplayMeta(item as Record<string, unknown>);
+
+                  const key = item._id ?? item.id ?? item.order_item_id ?? `item-${idx}`;
+
+                  return (
+                    <div key={key} className="py-3 flex gap-3">
+                      {imageUrl ? (
+                        <img
+                          src={String(imageUrl)}
+                          alt={name}
+                          className="w-14 h-14 rounded-lg object-cover bg-[#f2ede4] border border-[#3d2b1f]/10 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-[#f2ede4] border border-[#3d2b1f]/10 shrink-0 flex items-center justify-center text-xl">
+                          ☕
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-[#3d2b1f] leading-snug">{name}</p>
+                        {itemMeta.inlineMeta && (
+                          <p className="text-[10px] text-[#8a8070] mt-1">{itemMeta.inlineMeta}</p>
+                        )}
+                        {itemMeta.toppings.length > 0 && (
+                          <div className="mt-1">
+                            <p className="text-[10px] text-[#6b4c3b]">Topping:</p>
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {itemMeta.toppings.map((entry) => (
+                                <span
+                                  key={`${key}-top-${entry.name}-${entry.quantity}`}
+                                  className="text-[9px] leading-none px-1 py-[3px] rounded bg-[#f6ede1] text-[#6b4c3b] border border-[#e5d6c3]"
+                                >
+                                  {entry.name} x{entry.quantity}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {itemMeta.noteText && (
+                          <p className="text-[11px] text-[#8a8070] italic mt-1">Ghi chú: {itemMeta.noteText}</p>
+                        )}
+                        <div className="flex justify-between items-center mt-1.5">
+                          <span className="inline-flex min-w-[24px] h-[20px] items-center justify-center rounded-md bg-[#efe6d8] border border-[#e0d0bc] text-[10px] font-semibold text-[#6b4c3b]">
+                            x{qty}
+                          </span>
+                          <span className="text-[13px] font-semibold text-[#3d2b1f]">{fmt(lineTotal)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="px-5 py-3 bg-white border-t border-[#3d2b1f]/10">
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center justify-between text-[#6b4c3b]">
+                    <span>Tạm tính</span>
+                    <span className="font-semibold text-[#3d2b1f]">{fmt(subtotalAmount)}</span>
+                  </div>
+                {(promotionDiscount ?? 0) > 0 && (
+                  <div className="flex items-center justify-between text-[#2e7d52]">
+                    <span>
+                      Giảm khuyến mãi
+                      {promotionPercentText ? ` (${promotionPercentText})` : ""}
+                    </span>
+                    <span className="font-semibold">-{fmt(promotionDiscount)}</span>
+                  </div>
+                )}
+                {(voucherDiscount ?? 0) > 0 && (
+                  <div className="flex items-center justify-between text-[#2e7d52]">
+                    <span>
+                      Giảm voucher
+                      {voucherPercentText ? ` (${voucherPercentText})` : ""}
+                    </span>
+                    <span className="font-semibold">-{fmt(voucherDiscount)}</span>
+                  </div>
+                )}
+                {(loyaltyDiscount ?? 0) > 0 && (
+                  <div className="flex items-center justify-between text-[#2e7d52]">
+                    <span>⭐ Điểm thưởng</span>
+                    <span className="font-semibold">-{fmt(loyaltyDiscount)}</span>
+                  </div>
+                )}
+                </div>
+              </div>
+              <div className="px-5 py-3.5 bg-white border-t border-[#3d2b1f]/10 flex items-center justify-between">
+                <span className="text-[#6b4c3b] font-medium">Tổng cộng</span>
+                <span className="text-[#a05e10] text-xl font-semibold">{fmt(finalAmount)}</span>
+              </div>
+            </div>
+
+          </div>
+          <div className="flex flex-col gap-4">
+            <div className="bg-white rounded-[14px] border border-[#3d2b1f]/10 shadow-sm p-5">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-[#8a8070] mb-4">Thông tin đơn hàng</h2>
               <div className="space-y-2.5 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400 w-24 shrink-0">Mã đơn:</span>
@@ -314,110 +536,74 @@ function OrderStatusFromApi({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-gray-400 w-24 shrink-0">Loại:</span>
-                  <span className="text-gray-900">{order.type === "ONLINE" ? "Online" : "Tại quầy"}</span>
+                  <span className="text-gray-900">{isPickupFlow ? "Tại quầy" : "Online"}</span>
                 </div>
+                {orderCreatedAt && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 w-24 shrink-0">Tạo lúc:</span>
+                    <span className="text-gray-900">{orderCreatedAt}</span>
+                  </div>
+                )}
+                {orderUpdatedAt && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 w-24 shrink-0">Cập nhật:</span>
+                    <span className="text-gray-900">{orderUpdatedAt}</span>
+                  </div>
+                )}
+                {confirmedAt && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 w-24 shrink-0">Xác nhận:</span>
+                    <span className="text-gray-900">{confirmedAt}</span>
+                  </div>
+                )}
+                {completedAt && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 w-24 shrink-0">Hoàn thành:</span>
+                    <span className="text-gray-900">{completedAt}</span>
+                  </div>
+                )}
+                {cancelledAt && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 w-24 shrink-0">Hủy lúc:</span>
+                    <span className="text-gray-900">{cancelledAt}</span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-          <div className="flex flex-col gap-4">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100">
-                <h2 className="font-semibold text-gray-900 text-sm">Sản phẩm</h2>
-              </div>
-              <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
-                {(rawItems as any[]).map((item, idx) => {
-                  const qty = toNumber(item.quantity ?? item.qty ?? 0);
-                  const priceSnapshot = toNumber(
-                    item.price_snapshot ?? item.price ?? item.unit_price ?? 0
-                  );
-                  const lineTotal =
-                    toNumber(item.line_total ?? item.lineTotal ?? item.total ?? 0) ||
-                    priceSnapshot * qty;
 
-                  const name =
-                    item.product_name_snapshot ?? item.product_name ?? item.name ?? "Sản phẩm";
-                  const imageUrl =
-                    item.product_image_url ?? item.product_image ?? item.image_url ?? item.image ?? "";
-                  const optionsText = formatItemOptions(item.options);
-
-                  const key = item._id ?? item.id ?? item.order_item_id ?? `item-${idx}`;
-
-                  return (
-                    <div key={key} className="px-4 py-3 flex gap-3">
-                      {imageUrl ? (
-                        <img
-                          src={String(imageUrl)}
-                          alt={name}
-                          className="w-14 h-14 rounded-lg object-cover bg-gray-50 border border-gray-100 shrink-0"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 rounded-lg bg-gray-50 border border-gray-100 shrink-0" />
-                      )}
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-900 leading-snug">{name}</p>
-                        {optionsText && (
-                          <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
-                            {optionsText}
-                          </p>
-                        )}
-                        <div className="flex justify-between mt-1">
-                          <span className="text-[10px] text-gray-500">x{qty}</span>
-                          <span className="text-xs font-semibold text-gray-900">{fmt(lineTotal)}</span>
-                        </div>
-                      </div>
+            <div className="bg-white rounded-[14px] border border-[#3d2b1f]/10 shadow-sm p-5">
+              <h2 className="font-semibold text-gray-900 text-sm mb-3">Giao hàng</h2>
+              {hasAnyDeliveryInfo ? (
+                <div className="space-y-2 text-sm text-gray-700 mb-4">
+                  {deliveryStatusRaw && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500">Trạng thái</span>
+                      <span className="font-semibold text-gray-900">{deliveryStatusRaw}</span>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 space-y-2.5">
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Tạm tính</span>
-                  <span className="font-semibold text-gray-900">{fmt(subtotalAmount)}</span>
+                  )}
+                  {deliveryAssignedTo && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500">Người giao</span>
+                      <span className="font-semibold text-gray-900 text-right">{deliveryAssignedTo}</span>
+                    </div>
+                  )}
+                  {deliveryShipperPhone && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500">SĐT shipper</span>
+                      <span className="font-semibold text-gray-900 text-right">{deliveryShipperPhone}</span>
+                    </div>
+                  )}
+                  {deliveryAddress && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500">Địa chỉ</span>
+                      <span className="font-semibold text-gray-900 text-right">{deliveryAddress}</span>
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <p className="text-gray-500 text-sm mb-4">Chưa có thông tin giao hàng.</p>
+              )}
 
-                {(promotionDiscount ?? 0) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-700">
-                      🎉 Khuyến mãi{" "}
-                      {(order as any).promotion_type ? `(${(order as any).promotion_type})` : ""}
-                    </span>
-                    <span className="text-green-700 font-semibold">-{fmt(promotionDiscount)}</span>
-                  </div>
-                )}
-
-                {(voucherDiscount ?? 0) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-700">
-                      🎫 Voucher{" "}
-                      {(order as any).voucher_type ? `(${(order as any).voucher_type})` : ""}
-                    </span>
-                    <span className="text-green-700 font-semibold">-{fmt(voucherDiscount)}</span>
-                  </div>
-                )}
-
-                {(loyaltyDiscount ?? 0) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-green-700">
-                      ⭐ Điểm thưởng{" "}
-                      {(order as any).loyalty_points_used != null
-                        ? `(${(order as any).loyalty_points_used} điểm)`
-                        : ""}
-                    </span>
-                    <span className="text-green-700 font-semibold">-{fmt(loyaltyDiscount)}</span>
-                  </div>
-                )}
-
-                <div className="h-px bg-gray-100 my-1" />
-
-                <div className="flex justify-between items-baseline">
-                  <span className="font-bold text-gray-900">Tổng cộng</span>
-                  <span className="text-amber-700 text-lg font-extrabold">{fmt(finalAmount)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
               <h2 className="font-semibold text-gray-900 text-sm mb-3">Thanh toán</h2>
               {payment ? (
                 <div className="space-y-2 text-sm text-gray-700">
@@ -432,9 +618,6 @@ function OrderStatusFromApi({
                   <div className="flex justify-between gap-3">
                     <span className="text-gray-500">Số tiền</span>
                     <span className="font-semibold text-gray-900">{fmt(payment.amount ?? finalAmount)}</span>
-                  </div>                  <div className="flex justify-between gap-3">
-                    <span className="text-gray-500">Trạng thái</span>
-                    <span className="font-semibold text-gray-900">{fmtPaymentStatus(payment.status)}</span>
                   </div>
                   {payment.method && (
                     <div className="flex justify-between gap-3">
@@ -442,26 +625,41 @@ function OrderStatusFromApi({
                       <span className="font-semibold text-gray-900">{fmtPaymentMethod(payment.method)}</span>
                     </div>
                   )}
+                  {paymentCreatedAt && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500">Tạo lúc</span>
+                      <span className="font-semibold text-gray-900">{paymentCreatedAt}</span>
+                    </div>
+                  )}
+                  {paymentUpdatedAt && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500">Cập nhật</span>
+                      <span className="font-semibold text-gray-900">{paymentUpdatedAt}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">Chưa có thông tin thanh toán.</p>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <p className="text-gray-500 text-xs">Chưa có bản ghi payment chi tiết từ API.</p>
+                </div>
               )}
-            </div>            {payment &&
+
+              <div className="mt-4 flex flex-col gap-2">
+                {payment &&
               isPendingPayment(payment.status) &&
-              String(payment.method ?? "").toUpperCase() !== "CASH" ? (
-              <Link
-                to={ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(order._id ?? order.id))}
-                className="block text-center w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm"
-              >
-                Thanh toán
-              </Link>
-            ) : null}
-            <Link to="/menu" className="block text-center w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold text-sm">
-              Đặt thêm đơn mới
-            </Link>
-            <Link to={ROUTER_URL.CUSTOMER_ORDER_HISTORY} className="block text-center w-full py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl font-semibold text-sm">
-              Xem tất cả đơn hàng
-            </Link>
+              !isCashMethod ? (
+                  <Link
+                    to={ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(order._id ?? order.id))}
+                    className="block text-center w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm"
+                  >
+                    Thanh toán
+                  </Link>
+                ) : null}
+                <Link to="/menu" className="block text-center w-full py-3 bg-[#d4832a] hover:bg-[#a05e10] text-white rounded-xl font-semibold text-sm">
+                  Đặt thêm đơn mới
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -481,7 +679,7 @@ export default function OrderStatusPage() {
     refetchOnWindowFocus: false,
   });
 
-  const { data: apiPayment } = useQuery({
+  const paymentQuery = useQuery({
     queryKey: ["payment-by-order-status", orderId],
     queryFn: async () => {
       try {
@@ -494,8 +692,9 @@ export default function OrderStatusPage() {
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const apiPayment = paymentQuery.data;
 
-  const { data: apiDelivery } = useQuery({
+  const deliveryQuery = useQuery({
     queryKey: ["delivery-by-order", orderId],
     queryFn: async () => {
       try {
@@ -508,9 +707,9 @@ export default function OrderStatusPage() {
     retry: false,
     refetchOnWindowFocus: false,
   });
+  const apiDelivery = deliveryQuery.data;
 
   const apiOrder = orderQuery.data;
-
   if (orderQuery.isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

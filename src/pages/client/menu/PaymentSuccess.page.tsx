@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
 import { paymentClient } from "@/services/payment.client";
+import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -17,42 +18,48 @@ const fmtDateTime = (d?: string) => {
   });
 };
 
-function getPaymentStatusMeta(status?: string): { label: string; color: string } {
-  switch (status?.toUpperCase()) {
-    case "PAID": case "CONFIRMED": case "COMPLETED":
-      return { label: "Đã thanh toán", color: "text-emerald-700 bg-emerald-100" };
+function resolveOrderProgressStep(status?: string): number {
+  switch (String(status ?? "").toUpperCase()) {
     case "PENDING":
-      return { label: "Chờ thanh toán", color: "text-amber-700 bg-amber-100" };
-    case "FAILED":
-      return { label: "Thanh toán thất bại", color: "text-red-700 bg-red-100" };
+    case "DRAFT":
+      return 1;
+    case "CONFIRMED":
+      return 2;
+    case "PREPARING":
+      return 3;
+    case "READY_FOR_PICKUP":
+    case "DELIVERING":
+      return 4;
+    case "COMPLETED":
+      return 5;
     case "CANCELLED":
-      return { label: "Đã huỷ", color: "text-gray-600 bg-gray-100" };
-    case "REFUNDED":
-      return { label: "Đã hoàn tiền", color: "text-blue-700 bg-blue-100" };
+      return 0;
     default:
-      return { label: "Chờ thanh toán", color: "text-amber-700 bg-amber-100" };
+      return 1;
   }
 }
 
-function getOrderStatusMeta(status?: string): { label: string; color: string; step: number } {
-  switch (status?.toUpperCase()) {
-    case "PENDING": case "DRAFT":
-      return { label: "Chờ xác nhận", color: "text-amber-700 bg-amber-100", step: 1 };
-    case "CONFIRMED":
-      return { label: "Đã xác nhận", color: "text-blue-700 bg-blue-100", step: 2 };
-    case "PREPARING":
-      return { label: "Đang pha chế", color: "text-purple-700 bg-purple-100", step: 2 };
-    case "READY_FOR_PICKUP":
-      return { label: "Sẵn sàng lấy", color: "text-teal-700 bg-teal-100", step: 3 };
-    case "DELIVERING":
-      return { label: "Đang giao", color: "text-indigo-700 bg-indigo-100", step: 3 };
-    case "COMPLETED":
-      return { label: "Hoàn thành", color: "text-emerald-700 bg-emerald-100", step: 4 };
-    case "CANCELLED":
-      return { label: "Đã huỷ", color: "text-red-700 bg-red-100", step: 0 };
+function paymentMethodLabel(method?: string): string {
+  switch (String(method ?? "").toUpperCase()) {
+    case "COD":
+    case "CASH":
+      return "Tiền mặt (COD)";
+    case "CARD":
+    case "VNPAY":
+    case "BANK":
+    case "BANK_TRANSFER":
+      return "VNPAY";
+    case "MOMO":
+      return "MoMo";
     default:
-      return { label: "Đang xử lý", color: "text-gray-600 bg-gray-100", step: 1 };
+      return "Chưa xác định";
   }
+}
+
+function getOrderItemImage(item: Record<string, unknown>): string | null {
+  const value = item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
+  if (typeof value === "string" && value.trim()) return value;
+  return null;
 }
 
 function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
@@ -100,11 +107,25 @@ export default function PaymentSuccessPage() {
 
   const isLoading = orderLoading || paymentLoading;
   const displayAmount = (order as any)?.final_amount ?? (order as any)?.total_amount ?? 0;
-  const paymentMeta = getPaymentStatusMeta(payment?.status);
-  const orderMeta = getOrderStatusMeta((order as any)?.status);
+  const subtotalAmount = Number((order as any)?.subtotal_amount ?? displayAmount ?? 0);
+  const promotionDiscount = Number((order as any)?.promotion_discount ?? 0);
+  const voucherDiscount = Number((order as any)?.voucher_discount ?? 0);
+  const loyaltyDiscount = Number((order as any)?.loyalty_discount ?? 0);
+  const knownDiscountTotal = Math.max(0, promotionDiscount) + Math.max(0, voucherDiscount) + Math.max(0, loyaltyDiscount);
+  const inferredDiscountTotal = Math.max(0, subtotalAmount - Number(displayAmount ?? 0));
+  const extraDiscount = knownDiscountTotal > 0 ? Math.max(0, inferredDiscountTotal - knownDiscountTotal) : 0;
+  const genericDiscount = knownDiscountTotal === 0 ? inferredDiscountTotal : 0;
+  const orderTypeRaw = String((order as any)?.type ?? "").toUpperCase();
+  const isPickupFlow = orderTypeRaw === "POS" || orderTypeRaw === "PICKUP";
+  const currentStep = resolveOrderProgressStep((order as any)?.status);
   const createdAt = fmtDateTime((order as any)?.created_at);
+  const paymentCreatedAt = fmtDateTime(payment?.created_at);
+  const paymentUpdatedAt = fmtDateTime(payment?.updated_at);
   const orderItems: any[] = (order as any)?.order_items ?? (order as any)?.items ?? [];
-  const franchiseName = (order as any)?.franchise_name ?? (order as any)?.franchise?.name;
+  const customerName = (order as any)?.customer_name ?? (order as any)?.customer?.name;
+  const customerPhone = (order as any)?.phone ?? (order as any)?.customer?.phone;
+  const paymentMethodText = paymentMethodLabel(payment?.method);
+  const providerTxnId = String(payment?.provider_txn_id ?? payment?.providerTxnId ?? "");
 
   if (isLoading) {
     return (
@@ -135,14 +156,15 @@ export default function PaymentSuccessPage() {
 
   const steps = [
     { label: "Đặt hàng", step: 1 },
-    { label: "Pha chế", step: 2 },
-    { label: "Giao hàng", step: 3 },
-    { label: "Hoàn thành", step: 4 },
+    { label: "Xác nhận", step: 2 },
+    { label: "Pha chế", step: 3 },
+    { label: isPickupFlow ? "Sẵn sàng lấy" : "Đang giao", step: 4 },
+    { label: "Hoàn thành", step: 5 },
   ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-4">
+      <div className="w-full max-w-xl space-y-4">
 
         {/* ── Main receipt card ── */}
         <div className="bg-white rounded-3xl shadow-xl shadow-emerald-100 overflow-hidden border border-gray-100">
@@ -186,54 +208,56 @@ export default function PaymentSuccessPage() {
 
           <div className="px-6 pb-6 space-y-5">
 
-            {/* Info grid */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <div className="bg-gray-50 rounded-2xl p-3.5">
-                <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1">Mã đơn hàng</p>
-                <p className="text-sm font-bold text-gray-900">#{(order as any).code}</p>
-              </div>
-              <div className="bg-amber-50 rounded-2xl p-3.5">
-                <p className="text-[10px] text-amber-500 font-semibold uppercase tracking-wider mb-1">Tổng tiền</p>
-                <p className="text-sm font-extrabold text-amber-600">{fmt(displayAmount)}</p>
-              </div>
-              {franchiseName && (
-                <div className="bg-gray-50 rounded-2xl p-3.5">
-                  <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1">Cửa hàng</p>
-                  <p className="text-sm font-bold text-gray-900 truncate">{franchiseName}</p>
-                </div>
-              )}
-              {createdAt && (
+            {createdAt && (
+              <div className="pt-2">
                 <div className="bg-gray-50 rounded-2xl p-3.5">
                   <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-1">Thời gian</p>
                   <p className="text-sm font-bold text-gray-900">{createdAt}</p>
                 </div>
+              </div>
+            )}
+
+            {/* Payment + customer detail */}
+            <div className="rounded-2xl border border-gray-100 bg-gray-50/70 p-3.5 space-y-2.5">
+              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Chi tiết thanh toán</p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Phương thức</span>
+                <span className="font-semibold text-gray-800">{paymentMethodText}</span>
+              </div>
+              {providerTxnId && (
+                <div className="flex items-center justify-between text-sm gap-3">
+                  <span className="text-gray-500">Mã giao dịch</span>
+                  <span className="font-mono text-xs font-bold text-blue-800 text-right break-all">{providerTxnId}</span>
+                </div>
+              )}
+              {customerName && (
+                <div className="flex items-center justify-between text-sm gap-3">
+                  <span className="text-gray-500">Khách hàng</span>
+                  <span className="font-semibold text-gray-800 text-right">{customerName}</span>
+                </div>
+              )}
+              {customerPhone && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Số điện thoại</span>
+                  <span className="font-semibold text-gray-800">{customerPhone}</span>
+                </div>
+              )}
+              {paymentCreatedAt && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Tạo payment lúc</span>
+                  <span className="font-semibold text-gray-800">{paymentCreatedAt}</span>
+                </div>
+              )}
+              {paymentUpdatedAt && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Cập nhật payment</span>
+                  <span className="font-semibold text-gray-800">{paymentUpdatedAt}</span>
+                </div>
               )}
             </div>
 
-            {/* Status badges */}
-            <div className="flex items-stretch gap-3">
-              <div className="flex-1 flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
-                <span className="text-xl shrink-0">💳</span>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-gray-400 font-semibold mb-0.5">Thanh toán</p>
-                  <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full", paymentMeta.color)}>
-                    {paymentMeta.label}
-                  </span>
-                </div>
-              </div>
-              <div className="flex-1 flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
-                <span className="text-xl shrink-0">📦</span>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-gray-400 font-semibold mb-0.5">Trạng thái</p>
-                  <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full", orderMeta.color)}>
-                    {orderMeta.label}
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {/* Progress bar */}
-            {orderMeta.step > 0 && (
+            {currentStep > 0 && (
               <div className="px-1">
                 <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mb-3">Tiến trình đơn hàng</p>
                 <div className="flex items-start">
@@ -241,26 +265,18 @@ export default function PaymentSuccessPage() {
                     <div key={s.step} className="flex items-center flex-1">
                       <StepDot
                         label={s.label}
-                        done={orderMeta.step > s.step}
-                        active={orderMeta.step === s.step}
+                        done={currentStep > s.step}
+                        active={currentStep === s.step}
                       />
                       {i < steps.length - 1 && (
                         <div className={cn(
                           "flex-1 h-0.5 mb-5 mx-0.5 rounded-full transition-all",
-                          orderMeta.step > s.step ? "bg-emerald-400" : "bg-gray-150",
+                          currentStep > s.step ? "bg-emerald-400" : "bg-gray-150",
                         )} />
                       )}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Txn ID */}
-            {payment?.provider_txn_id && (
-              <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 rounded-xl border border-blue-100">
-                <span className="text-xs text-blue-600 font-medium">Mã giao dịch</span>
-                <span className="text-xs font-mono font-bold text-blue-800 truncate ml-2 max-w-[160px]">{payment.provider_txn_id}</span>
               </div>
             )}
 
@@ -275,12 +291,32 @@ export default function PaymentSuccessPage() {
                   const name = item.product_name_snapshot ?? item.product_name ?? item.name ?? "Sản phẩm";
                   const qty = item.quantity ?? 1;
                   const price = item.line_total ?? item.subtotal ?? ((item.price_snapshot ?? item.price ?? 0) * qty);
+                  const imageUrl = getOrderItemImage(item as Record<string, unknown>);
+                  const itemMeta = getOrderItemDisplayMeta(item as Record<string, unknown>);
                   return (
-                    <div key={item._id ?? item.id ?? idx} className="flex items-center justify-between text-sm py-0.5">
-                      <span className="text-gray-600 truncate flex-1 mr-3">
-                        <span className="text-gray-400 text-xs mr-1.5 font-semibold">×{qty}</span>
-                        {name}
-                      </span>
+                    <div key={item._id ?? item.id ?? idx} className="flex items-start justify-between gap-2.5 text-sm py-1.5 px-2 rounded-xl bg-gray-50 border border-gray-100">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div className="w-10 h-10 rounded-lg bg-white border border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-base">☕</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-gray-600 truncate min-w-0">
+                            <span className="text-gray-400 text-xs mr-1.5 font-semibold">×{qty}</span>
+                            {name}
+                          </p>
+                          {(itemMeta.inlineMeta || itemMeta.toppingsText) && (
+                            <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                              {[itemMeta.inlineMeta, itemMeta.toppingsText ? `Topping: ${itemMeta.toppingsText}` : ""]
+                                .filter(Boolean)
+                                .join(" • ")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
                       <span className="font-semibold text-gray-900 shrink-0">{fmt(price)}</span>
                     </div>
                   );
@@ -288,9 +324,45 @@ export default function PaymentSuccessPage() {
                 {orderItems.length > 4 && (
                   <p className="text-xs text-gray-400 text-right">+{orderItems.length - 4} sản phẩm khác</p>
                 )}
-                <div className="flex justify-between font-bold text-sm pt-2 border-t border-gray-100">
-                  <span className="text-gray-700">Tổng cộng</span>
-                  <span className="text-amber-600">{fmt(displayAmount)}</span>
+                <div className="space-y-1.5 pt-2 border-t border-gray-100 text-sm">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Tạm tính</span>
+                    <span>{fmt(subtotalAmount)}</span>
+                  </div>
+                  {promotionDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Giảm khuyến mãi</span>
+                      <span>-{fmt(promotionDiscount)}</span>
+                    </div>
+                  )}
+                  {voucherDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Giảm voucher</span>
+                      <span>-{fmt(voucherDiscount)}</span>
+                    </div>
+                  )}
+                  {loyaltyDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Giảm điểm tích lũy</span>
+                      <span>-{fmt(loyaltyDiscount)}</span>
+                    </div>
+                  )}
+                  {extraDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Giảm khác</span>
+                      <span>-{fmt(extraDiscount)}</span>
+                    </div>
+                  )}
+                  {genericDiscount > 0 && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>Giảm giá</span>
+                      <span>-{fmt(genericDiscount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold pt-1">
+                    <span className="text-gray-700">Tổng cộng</span>
+                    <span className="text-amber-600">{fmt(displayAmount)}</span>
+                  </div>
                 </div>
               </div>
             )}
