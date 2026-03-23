@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, GlassSelect, useConfirm } from "../../../components";
+import { Button, useConfirm } from "../../../components";
 import { GlassSearchSelect } from "../../../components/ui";
 import Pagination from "../../../components/ui/Pagination";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
@@ -12,14 +12,10 @@ import { showError, showSuccess } from "../../../utils";
 const ITEMS_PER_PAGE = 10;
 
 const STATUS_OPTIONS = [
-  { value: "", label: "-- Tất cả --" },
-  { value: "PENDING",          label: "Chờ xử lý" },
-  { value: "CONFIRMED",        label: "Đã xác nhận" },
-  { value: "PREPARING",        label: "Đang chuẩn bị" },
-  { value: "READY_FOR_PICKUP", label: "Sẵn sàng lấy hàng" },
-  { value: "DELIVERING",       label: "Đang giao" },
-  { value: "COMPLETED",        label: "Hoàn thành" },
-  { value: "CANCELLED",        label: "Đã hủy" },
+  { value: "",           label: "-- Tất cả --" },
+  { value: "ASSIGNED",   label: "Đã phân công" },
+  { value: "PICKING_UP", label: "Đang lấy hàng" },
+  { value: "DELIVERED",  label: "Đã giao" },
 ];
 
 function deliveryIdOf(d: DeliveryData): string {
@@ -31,12 +27,9 @@ function safeStr(v: unknown): string {
 }
 function getStatusBadgeClass(statusRaw: unknown): string {
   const s = String(statusRaw ?? "").toUpperCase();
-  if (s.includes("COMPLET")) return "bg-emerald-50 text-emerald-800 border-emerald-200";
-  if (s.includes("CANCEL"))  return "bg-rose-50 text-rose-800 border-rose-200";
-  if (s.includes("DELIVER") || s.includes("READY")) return "bg-purple-50 text-purple-800 border-purple-200";
-  if (s.includes("PREPAR"))  return "bg-yellow-50 text-yellow-800 border-yellow-200";
-  if (s.includes("CONFIRM")) return "bg-blue-50 text-blue-800 border-blue-200";
-  if (s.includes("PENDING")) return "bg-amber-50 text-amber-800 border-amber-200";
+  if (s === "DELIVERED")  return "bg-emerald-50 text-emerald-800 border-emerald-200";
+  if (s === "PICKING_UP") return "bg-yellow-50 text-yellow-800 border-yellow-200";
+  if (s === "ASSIGNED")   return "bg-blue-50 text-blue-800 border-blue-200";
   return "bg-slate-50 text-slate-700 border-slate-200";
 }
 
@@ -167,8 +160,6 @@ export default function DeliveryPage() {
     finally { setMutating(null); }
   };
   // ─── Filter client-side ───────────────────────────────────────────────────
-  const franchiseMap = Object.fromEntries(franchises.map((f) => [f.value, f.name]));
-
   const customerSelectOptions = customerOptions.map(c => ({
     value: String(c.id),
     label: c.name,
@@ -205,37 +196,44 @@ export default function DeliveryPage() {
 
           {/* Chi nhánh */}
           <div className="min-w-[220px] space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Chi nhánh</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Chi nhánh
+            </label>
             {managerFranchiseId ? (
-              <div className="flex items-center gap-2 rounded-lg border border-primary-500/40 bg-primary-50 px-3 py-2 text-sm text-primary-700">
-                <svg className="size-4 shrink-0 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex w-full items-center gap-2 rounded-lg border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm">
+                <svg className="size-4 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
-                <span className="font-medium truncate">{franchiseMap[managerFranchiseId] || managerFranchiseId}</span>
+                <span className="truncate flex-1 text-red-300 font-medium">
+                  {franchises.find((f) => f.value === managerFranchiseId)?.name ?? managerFranchiseId}
+                </span>
               </div>
             ) : (
-              <GlassSelect
+              <GlassSearchSelect
                 value={selectedFranchiseId}
                 onChange={(v) => {
                   setSelectedFranchiseId(v);
                   loadDeliveries(v, statusFilter);
                 }}
-                options={[
-                  { value: "", label: "-- Chọn chi nhánh --" },
-                  ...franchises.map((f) => ({ value: f.value, label: `${f.name} (${f.code})` })),
-                ]}
+                options={franchises.map((f) => ({ value: f.value, label: `${f.name} (${f.code})` }))}
+                placeholder="-- Chọn chi nhánh --"
+                allLabel="-- Chọn chi nhánh --"
+                searchPlaceholder="Tìm theo tên hoặc mã..."
               />
             )}
           </div>          {/* Trạng thái */}
           <div className="min-w-[180px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</label>
-            <GlassSelect
+            <GlassSearchSelect
               value={statusFilter}
               onChange={(v) => {
                 setStatusFilter(v);
                 if (activeFranchiseId) loadDeliveries(activeFranchiseId, v);
               }}
-              options={STATUS_OPTIONS}
+              options={STATUS_OPTIONS.filter((o) => o.value !== "")}
+              placeholder="-- Tất cả --"
+              allLabel="-- Tất cả --"
+              searchPlaceholder="Tìm trạng thái..."
             />
           </div>
 
@@ -330,7 +328,6 @@ export default function DeliveryPage() {
                       <tr key={id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3">
                           <p className="font-semibold text-primary-600">{item.order_code || safeStr(item.order_id)}</p>
-                          <p className="text-xs text-slate-400">{id}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-slate-800">{item.franchise_name || safeStr(item.franchise_id)}</p>
