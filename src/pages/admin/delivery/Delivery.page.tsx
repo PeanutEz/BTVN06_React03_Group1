@@ -160,8 +160,6 @@ export default function DeliveryPage() {
     finally { setMutating(null); }
   };
   // ─── Filter client-side ───────────────────────────────────────────────────
-  const franchiseMap = Object.fromEntries(franchises.map((f) => [f.value, f.name]));
-
   const customerSelectOptions = customerOptions.map(c => ({
     value: String(c.id),
     label: c.name,
