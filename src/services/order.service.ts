@@ -19,10 +19,11 @@ const normalizeOrder = (order: any): OrderDisplay => {
     ...order,
     total_amount: totalAmount,
     items, // Normalize to items
-    customer: order.customer ?? {
-      name: order.customer_name ?? "N/A",
-      phone: order.phone,
-      email: order.email,
+    customer: {
+      ...(order.customer ?? {}),
+      name: order.customer?.name || order.customer_name || "N/A",
+      phone: order.customer?.phone ?? order.phone,
+      email: order.customer?.email ?? order.email,
     },
     franchise: order.franchise ?? {
       name: order.franchise_name ?? "N/A",

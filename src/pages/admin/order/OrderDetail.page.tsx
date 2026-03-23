@@ -61,13 +61,9 @@ export function OrderDetailContent({ orderId, onClose }: OrderDetailContentProps
     try {
       const adminId = user?.user?.id || user?.id || "1";
       const updated = await updateOrderStatus(orderId, newStatus, adminId);
-      if (updated) {
-        setOrder(updated);
-        showSuccess("Cập nhật trạng thái thành công");
-        setShowStatusModal(false);
-      } else {
-        showError("Không thể cập nhật trạng thái");
-      }
+      setOrder(prev => prev ? { ...prev, status: newStatus, ...(updated ?? {}) } : prev);
+      showSuccess("Cập nhật trạng thái thành công");
+      setShowStatusModal(false);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||

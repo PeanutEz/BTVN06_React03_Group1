@@ -67,12 +67,12 @@ const OrderListPage = () => {
     try {
       const adminId = user?.user?.id || user?.id || "1";
       const updated = await updateOrderStatus(orderId, newStatus, adminId);
-      if (updated) {
-        setOrders(prev => prev.map(o => String(o._id ?? o.id) === orderId ? { ...o, status: newStatus } : o));
-        showSuccess("Cập nhật trạng thái thành công");
-      } else {
-        showError("Không thể cập nhật trạng thái");
-      }
+      setOrders(prev => prev.map(o =>
+        String(o._id ?? o.id) === orderId
+          ? { ...o, status: newStatus, ...(updated ?? {}) }
+          : o
+      ));
+      showSuccess("Cập nhật trạng thái thành công");
     } catch (err: any) {
       showError(err?.response?.data?.message || err?.message || "Có lỗi xảy ra");
     } finally {
@@ -275,8 +275,8 @@ const OrderListPage = () => {
                 ) : (
                   paginatedOrders.map((order) => {
                     const { discountTotal, parts } = getDiscountSummary(order);
-                    const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-slate-100 text-slate-600 border-slate-200";                    const custPhone = order.customer?.phone || order.phone || "—";
-                    const custName  = order.customer?.name || order.customer_name || "—";
+                    const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-slate-100 text-slate-600 border-slate-200";                    const custPhone = order.customer?.phone || (order as any).phone || "—";
+                    const custName  = order.customer_name || order.customer?.name || "—";
                     return (
                       <tr key={order._id ?? order.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 font-semibold text-primary-600">{order.code}</td>
