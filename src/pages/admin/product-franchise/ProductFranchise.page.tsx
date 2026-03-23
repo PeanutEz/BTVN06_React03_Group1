@@ -194,6 +194,17 @@ export default function ProductFranchisePage() {
         fetchFranchiseSelect(),
       ]);
       setFranchises(frs);
+      // Load all products for create modal dropdown
+      setCreatePFLoading(true);
+      try {
+        const allProd = await adminProductService.getProducts({ limit: 1000 });
+        const mapped = allProd.data.map((p) => ({ product_id: String(p.id), name: p.name }));
+        setCreatePFProducts(mapped);
+      } catch {
+        // non-fatal
+      } finally {
+        setCreatePFLoading(false);
+      }
     } catch (err) {
       console.error("[ProductFranchise] loadSelects error:", err);
     }
@@ -273,31 +284,6 @@ export default function ProductFranchisePage() {
       .finally(() => setFilterPFLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.franchise_id]);
-
-  // Load products by franchise for create modal (API-08)
-  useEffect(() => {
-    if (!createForm.franchise_id) {
-      setCreatePFProducts([]);
-      return;
-    }
-    setCreatePFLoading(true);
-    adminProductFranchiseService
-      .getProductsByFranchise(createForm.franchise_id, true)
-      .then((res) => {
-        const seen = new Set<string>();
-        const unique: { product_id: string; name: string }[] = [];
-        res.forEach((pf) => {
-          if (!seen.has(pf.product_id)) {
-            seen.add(pf.product_id);
-            unique.push({ product_id: pf.product_id, name: pf.product_name || pf.product_id });
-          }
-        });
-        setCreatePFProducts(unique);
-      })
-      .catch(() => showError("Không thể tải sản phẟm của franchise"))
-      .finally(() => setCreatePFLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [createForm.franchise_id]);
 
   const load = async (pageNum = currentPage) => {
     setLoading(true);
@@ -916,18 +902,17 @@ export default function ProductFranchisePage() {
                     <button
                       ref={createProductTriggerRef}
                       type="button"
-                      disabled={!createForm.franchise_id}
                       onClick={() => createProductOpen ? closeCreateProduct() : openCreateProduct()}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: createForm.franchise_id ? "#1e293b" : "#0f172a", border: "1px solid #475569", borderRadius: 8, color: createForm.franchise_id ? "#f1f5f9" : "#475569", fontSize: 14, cursor: createForm.franchise_id ? "pointer" : "not-allowed", outline: "none", opacity: createForm.franchise_id ? 1 : 0.5 }}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
                     >
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.product_id ? "#f1f5f9" : "#94a3b8" }}>
-                        {createPFLoading ? "Đang tải..." : createForm.product_id ? (productNameMap[createForm.product_id] || createForm.product_id) : createForm.franchise_id ? "-- Chọn product --" : "Chọn franchise trước"}
+                        {createPFLoading ? "Đang tải..." : createForm.product_id ? (productNameMap[createForm.product_id] || createForm.product_id) : "-- Chọn product --"}
                       </span>
                       <svg style={{ width: 16, height: 16, flexShrink: 0, marginLeft: 8, color: "#94a3b8", transform: createProductOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
                         fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
 
-                    {createProductOpen && createForm.franchise_id && createProductRect && ReactDOM.createPortal(
+                    {createProductOpen && createProductRect && ReactDOM.createPortal(
                       <div ref={createProductDropdownRef} style={{ position: "fixed", top: createProductRect.bottom + 4, left: createProductRect.left, width: createProductRect.width, zIndex: 99999, background: "#1e293b", border: "1px solid #475569", borderRadius: 8, boxShadow: "0 10px 40px rgba(0,0,0,0.7)", overflow: "hidden" }}>
                         <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
                           <input autoFocus value={createProductKeyword} onChange={(e) => setCreateProductKeyword(e.target.value)} placeholder="Tìm theo tên sản phẩm..."
