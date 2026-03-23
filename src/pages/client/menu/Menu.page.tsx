@@ -8,8 +8,6 @@ import { useDeliveryStore } from "@/store/delivery.store";
 import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useLoadingStore } from "@/store/loading.store";
-import { promotionService } from "@/services/promotion.service";
-import type { Promotion } from "@/models/promotion.model";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import MenuProductModal from "@/components/menu/MenuProductModal";
@@ -200,9 +198,6 @@ export default function MenuPage() {
   const [loading, setLoading] = useState<LoadingPhase>(null);
   const [error, setError] = useState<string | null>(null);
   const [categoriesLoadedForFranchiseId, setCategoriesLoadedForFranchiseId] = useState<string | null>(null);
-
-  // Promotions của franchise đang chọn
-  const [franchisePromotions, setFranchisePromotions] = useState<Promotion[]>([]);
 
   // Global franchise selection (from BranchPickerModal)
   const { selectedFranchiseId } = useDeliveryStore();

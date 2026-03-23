@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ROUTER_URL } from "@/routes/router.const";
-import { PAYMENT_METHODS } from "@/const/payment-method.const";
 import { orderClient } from "@/services/order.client";
 import { paymentClient } from "@/services/payment.client";
 import { buildStaticPaymentQr } from "@/utils/payment-qr.util";
