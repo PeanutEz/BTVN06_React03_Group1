@@ -124,7 +124,7 @@ export default function DeliveryPage() {
     }
     const ok = await showConfirm({
       title: "Xác nhận Pickup",
-      message: `Chuyển trạng thái giao hàng #${id} sang PICKUP?`,
+      message: `Chuyển trạng thái đơn hàng #${item.order_code || id} sang PICKUP?`,
       confirmText: "Pickup",
       variant: "info",
     });
@@ -132,8 +132,8 @@ export default function DeliveryPage() {
     setMutating({ deliveryId: id, action: "pickup" });
     try {
       const result = await deliveryClient.changeStatusPickup(id);
-      if (result) { upsertDelivery(result); showSuccess("Đã chuyển sang Pickup"); }
-      else showError("Cập nhật Pickup thất bại");
+      upsertDelivery(result ?? { ...item, status: "PICKING_UP" } as any);
+      showSuccess("Đã chuyển sang Pickup");
     } catch (e) { console.error(e); showError("API Pickup thất bại"); }
     finally { setMutating(null); }
   };
@@ -146,7 +146,7 @@ export default function DeliveryPage() {
     }
     const ok = await showConfirm({
       title: "Xác nhận hoàn thành",
-      message: `Chuyển trạng thái giao hàng #${id} sang COMPLETED?`,
+      message: `Chuyển trạng thái đơn hàng #${item.order_code || id} sang COMPLETED?`,
       confirmText: "Hoàn thành",
       variant: "info",
     });
@@ -154,8 +154,8 @@ export default function DeliveryPage() {
     setMutating({ deliveryId: id, action: "complete" });
     try {
       const result = await deliveryClient.changeStatusComplete(id);
-      if (result) { upsertDelivery(result); showSuccess("Đã hoàn thành giao hàng"); }
-      else showError("Cập nhật Complete thất bại");
+      upsertDelivery(result ?? { ...item, status: "DELIVERED" } as any);
+      showSuccess("Đã hoàn thành giao hàng");
     } catch (e) { console.error(e); showError("API Complete thất bại"); }
     finally { setMutating(null); }
   };
@@ -252,21 +252,7 @@ export default function DeliveryPage() {
             />
           </div>
 
-          {/* Đặt lại */}
-          <div className="space-y-1.5">
-            <label className="invisible block text-xs">&nbsp;</label>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setStatusFilter("");
-                setCustomerFilter("");
-                setCurrentPage(1);
-                if (activeFranchiseId) loadDeliveries(activeFranchiseId, "");
-              }}
-            >
-              Đặt lại
-            </Button>
-          </div>
+
         </div>
 
         {activeFranchiseId && (
@@ -359,26 +345,34 @@ export default function DeliveryPage() {
                             : "—"}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={isDone}
-                              loading={isRunning && mutating?.action === "pickup"}
-                              onClick={(e) => { e.stopPropagation(); handlePickup(item); }}
-                            >
-                              Pickup
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              disabled={isDone}
-                              loading={isRunning && mutating?.action === "complete"}
-                              onClick={(e) => { e.stopPropagation(); handleComplete(item); }}
-                            >
-                              Hoàn thành
-                            </Button>
-                          </div>
+                          {!isDone && (
+                            <div className="flex gap-1.5">
+                              {statusStr !== "PICKING_UP" && (
+                                <button
+                                  disabled={isRunning}
+                                  onClick={(e) => { e.stopPropagation(); handlePickup(item); }}
+                                  className="inline-flex items-center gap-1.5 rounded-lg border border-primary-500 bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 shadow-sm transition hover:bg-primary-100 hover:shadow-md disabled:opacity-50"
+                                >
+                                  {isRunning && mutating?.action === "pickup" ? (
+                                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+                                  ) : (
+                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12h12L19 8" /></svg>
+                                  )}
+                                  Pickup
+                                </button>
+                              )}
+                              {statusStr !== "ASSIGNED" && (
+                                <Button
+                                  size="sm"
+                                  variant="primary"
+                                  loading={isRunning && mutating?.action === "complete"}
+                                  onClick={(e) => { e.stopPropagation(); handleComplete(item); }}
+                                >
+                                  Hoàn thành
+                                </Button>
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
