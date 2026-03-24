@@ -163,260 +163,260 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
     order.status !== "READY_FOR_PICKUP" &&
     order.status !== "DELIVERING" &&
     order.status !== "COMPLETED" &&
-    order.status !== "CANCELLED";  return (
-    <div className="space-y-6 text-white">
-      {/* ── Hero Header ── */}
-      <div
-        className="rounded-2xl p-6"
-        style={{
-          background: "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.10) 100%)",
-          border: "1px solid rgba(255,255,255,0.10)",
-        }}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/40">Đơn hàng</p>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{order.code}</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${ORDER_STATUS_COLORS[order.status]}`}>
-                {ORDER_STATUS_LABELS[order.status]}
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60">
-                {ORDER_TYPE_LABELS[order.type]}
-              </span>
-              <span className="text-white/30">•</span>
-              <span className="text-xs text-white/40">{new Date(order.created_at).toLocaleString("vi-VN")}</span>
+    order.status !== "CANCELLED"; return (
+      <div className="space-y-6 text-white">
+        {/* ── Hero Header ── */}
+        <div
+          className="rounded-2xl p-6"
+          style={{
+            background: "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.10) 100%)",
+            border: "1px solid rgba(255,255,255,0.10)",
+          }}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/40">Đơn hàng</p>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{order.code}</h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                <span className={`rounded-full border px-3 py-1 text-xs font-bold ${ORDER_STATUS_COLORS[order.status]}`}>
+                  {ORDER_STATUS_LABELS[order.status]}
+                </span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60">
+                  {ORDER_TYPE_LABELS[order.type]}
+                </span>
+                <span className="text-white/30">•</span>
+                <span className="text-xs text-white/40">{new Date(order.created_at).toLocaleString("vi-VN")}</span>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="text-right">
-              <p className="text-xs text-white/40 uppercase tracking-wide">Tổng thanh toán</p>
-              <p className="text-2xl font-bold text-primary-400">{formatCurrency(order.final_amount ?? order.total_amount)}</p>
-            </div>
-            {canPrepare && (
-              <Button onClick={handlePreparing} loading={updating} disabled={updating} className="shrink-0">
-                🍳 Chuyển sang Đang chuẩn bị
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>      {/* ── Main grid ── */}
-      <div className="space-y-5">
-        <div className="space-y-5">
-
-          {/* Products */}
-          <div
-            className="rounded-2xl p-5"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-          >
-            <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
-              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-              Sản phẩm
-            </h2>
-
-            {/* Table header */}
-            <div className="mb-2 grid grid-cols-12 gap-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-white/25">
-              <span className="col-span-6">Tên sản phẩm</span>
-              <span className="col-span-2 text-right">Đơn giá</span>
-              <span className="col-span-2 text-center">SL</span>
-              <span className="col-span-2 text-right">Thành tiền</span>
-            </div>            <div className="divide-y divide-white/[0.06]">
-              {(order.items ?? []).length === 0 && (
-                <p className="py-6 text-center text-sm text-white/30">Chưa có sản phẩm</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-right">
+                <p className="text-xs text-white/40 uppercase tracking-wide">Tổng thanh toán</p>
+                <p className="text-2xl font-bold text-primary-400">{formatCurrency(order.final_amount ?? order.total_amount)}</p>
+              </div>
+              {canPrepare && (
+                <Button onClick={handlePreparing} loading={updating} disabled={updating} className="shrink-0">
+                  🍳 Chuyển sang Đang chuẩn bị
+                </Button>
               )}
-              {(order.items ?? []).map((item, idx) => {
-                const productName = item.product_name_snapshot ?? item.product_name ?? "Sản phẩm";
-                const price = item.price_snapshot ?? item.price ?? 0;
-                const qty = item.quantity ?? 0;
-                const lineTotal = item.line_total ?? item.subtotal ?? (price * qty);
-                const imageUrl = getOrderItemImage(item as Record<string, unknown>, imageMap);
-                const meta = getOrderItemDisplayMeta(item as Record<string, unknown>);
-                return (
-                  <div key={item._id ?? item.id ?? `item-${idx}`}>
-                    {/* Main row */}
-                    <div className="grid grid-cols-12 items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-white/[0.04]">
-                      <div className="col-span-6 flex items-center gap-3">
-                        {/* Product image */}
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-white/[0.06] border border-white/[0.08]">
-                          {imageUrl ? (
-                            <img src={imageUrl} alt={String(productName)} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-lg">☕</span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-white/90 leading-snug">{String(productName)}</p>
-                          {meta.inlineMeta && (
-                            <p className="text-[11px] text-white/40 mt-0.5">{meta.inlineMeta}</p>
-                          )}
-                          {(item as any).note && (
-                            <p className="text-[11px] text-white/35 mt-0.5 italic">"{String((item as any).note)}"</p>
-                          )}
-                        </div>
-                      </div>
-                      <p className="col-span-2 text-right text-sm text-white/55">{formatCurrency(price)}</p>
-                      <p className="col-span-2 text-center">
-                        <span className="inline-block rounded-lg bg-white/[0.08] px-2.5 py-0.5 text-sm font-bold text-white/80">×{qty}</span>
-                      </p>
-                      <p className="col-span-2 text-right font-bold text-white/90">{formatCurrency(lineTotal)}</p>
-                    </div>
-                    {/* Topping rows */}
-                    {meta.toppings.length > 0 && (
-                      <div className="mb-1 ml-[52px] space-y-0.5 pb-1">
-                        {meta.toppings.map((tp, tIdx) => (
-                          <div key={tIdx} className="grid grid-cols-12 items-center gap-3 px-2 py-1 rounded-lg bg-white/[0.02]">
-                            <div className="col-span-6 flex items-center gap-2 pl-1">
-                              <span className="text-white/20">└</span>
-                              <span className="text-xs text-white/50">{tp.name}</span>
-                            </div>
-                            <p className="col-span-2 text-right text-xs text-white/30">—</p>
-                            <p className="col-span-2 text-center text-xs text-white/40">×{tp.quantity * qty}</p>
-                            <p className="col-span-2 text-right text-xs text-white/30">—</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
             </div>
+          </div>
+        </div>      {/* ── Main grid ── */}
+        <div className="space-y-5">
+          <div className="space-y-5">
 
-            {/* Subtotal row */}
-            {(order.items ?? []).length > 0 && (
-              <div className="mt-3 flex justify-end border-t border-white/[0.06] pt-3">
-                <div className="space-y-1.5 text-sm min-w-[220px]">                  {(order.subtotal_amount ?? 0) > 0 && (
+            {/* Products */}
+            <div
+              className="rounded-2xl p-5"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                Sản phẩm
+              </h2>
+
+              {/* Table header */}
+              <div className="mb-2 grid grid-cols-12 gap-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+                <span className="col-span-6">Tên sản phẩm</span>
+                <span className="col-span-2 text-right">Đơn giá</span>
+                <span className="col-span-2 text-center">SL</span>
+                <span className="col-span-2 text-right">Thành tiền</span>
+              </div>            <div className="divide-y divide-white/[0.06]">
+                {(order.items ?? []).length === 0 && (
+                  <p className="py-6 text-center text-sm text-white/30">Chưa có sản phẩm</p>
+                )}
+                {(order.items ?? []).map((item, idx) => {
+                  const productName = item.product_name_snapshot ?? item.product_name ?? "Sản phẩm";
+                  const price = item.price_snapshot ?? item.price ?? 0;
+                  const qty = item.quantity ?? 0;
+                  const lineTotal = item.line_total ?? item.subtotal ?? (price * qty);
+                  const imageUrl = getOrderItemImage(item as Record<string, unknown>, imageMap);
+                  const meta = getOrderItemDisplayMeta(item as Record<string, unknown>);
+                  return (
+                    <div key={item._id ?? item.id ?? `item-${idx}`}>
+                      {/* Main row */}
+                      <div className="grid grid-cols-12 items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-white/[0.04]">
+                        <div className="col-span-6 flex items-center gap-3">
+                          {/* Product image */}
+                          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-white/[0.06] border border-white/[0.08]">
+                            {imageUrl ? (
+                              <img src={imageUrl} alt={String(productName)} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-lg">☕</span>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-white/90 leading-snug">{String(productName)}</p>
+                            {meta.inlineMeta && (
+                              <p className="text-[11px] text-white/40 mt-0.5">{meta.inlineMeta}</p>
+                            )}
+                            {(item as any).note && (
+                              <p className="text-[11px] text-white/35 mt-0.5 italic">"{String((item as any).note)}"</p>
+                            )}
+                          </div>
+                        </div>
+                        <p className="col-span-2 text-right text-sm text-white/55">{formatCurrency(price)}</p>
+                        <p className="col-span-2 text-center">
+                          <span className="inline-block rounded-lg bg-white/[0.08] px-2.5 py-0.5 text-sm font-bold text-white/80">×{qty}</span>
+                        </p>
+                        <p className="col-span-2 text-right font-bold text-white/90">{formatCurrency(lineTotal)}</p>
+                      </div>
+                      {/* Topping rows */}
+                      {meta.toppings.length > 0 && (
+                        <div className="mb-1 ml-[52px] space-y-0.5 pb-1">
+                          {meta.toppings.map((tp, tIdx) => (
+                            <div key={tIdx} className="grid grid-cols-12 items-center gap-3 px-2 py-1 rounded-lg bg-white/[0.02]">
+                              <div className="col-span-6 flex items-center gap-2 pl-1">
+                                <span className="text-white/20">└</span>
+                                <span className="text-xs text-white/50">{tp.name}</span>
+                              </div>
+                              <p className="col-span-2 text-right text-xs text-white/30">—</p>
+                              <p className="col-span-2 text-center text-xs text-white/40">×{tp.quantity * qty}</p>
+                              <p className="col-span-2 text-right text-xs text-white/30">—</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Subtotal row */}
+              {(order.items ?? []).length > 0 && (
+                <div className="mt-3 flex justify-end border-t border-white/[0.06] pt-3">
+                  <div className="space-y-1.5 text-sm min-w-[220px]">                  {(order.subtotal_amount ?? 0) > 0 && (
                     <div className="flex justify-between gap-8 text-white/50">
                       <span>Tạm tính</span>
                       <span>{formatCurrency(order.subtotal_amount ?? 0)}</span>
                     </div>
                   )}
-                  {(order.promotion_discount ?? 0) > 0 && (
-                    <div className="flex justify-between gap-8 text-emerald-400">
-                      <span>Khuyến mãi</span>
-                      <span>-{formatCurrency(order.promotion_discount ?? 0)}</span>
+                    {(order.promotion_discount ?? 0) > 0 && (
+                      <div className="flex justify-between gap-8 text-emerald-400">
+                        <span>Khuyến mãi</span>
+                        <span>-{formatCurrency(order.promotion_discount ?? 0)}</span>
+                      </div>
+                    )}
+                    {(order.voucher_discount ?? 0) > 0 && (
+                      <div className="flex justify-between gap-8 text-emerald-400">
+                        <span>Voucher</span>
+                        <span>-{formatCurrency(order.voucher_discount ?? 0)}</span>
+                      </div>
+                    )}
+                    {(order.loyalty_discount ?? 0) > 0 && (
+                      <div className="flex justify-between gap-8 text-emerald-400">
+                        <span>Điểm thưởng</span>
+                        <span>-{formatCurrency(order.loyalty_discount ?? 0)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-8 border-t border-white/10 pt-2 text-base font-bold">
+                      <span className="text-white/70">Tổng cộng</span>
+                      <span className="text-primary-400">{formatCurrency(order.final_amount ?? order.total_amount)}</span>
                     </div>
-                  )}
-                  {(order.voucher_discount ?? 0) > 0 && (
-                    <div className="flex justify-between gap-8 text-emerald-400">
-                      <span>Voucher</span>
-                      <span>-{formatCurrency(order.voucher_discount ?? 0)}</span>
-                    </div>
-                  )}
-                  {(order.loyalty_discount ?? 0) > 0 && (
-                    <div className="flex justify-between gap-8 text-emerald-400">
-                      <span>Điểm thưởng</span>
-                      <span>-{formatCurrency(order.loyalty_discount ?? 0)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between gap-8 border-t border-white/10 pt-2 text-base font-bold">
-                    <span className="text-white/70">Tổng cộng</span>
-                    <span className="text-primary-400">{formatCurrency(order.final_amount ?? order.total_amount)}</span>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom row: Store + Customer + Timestamps */}
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            {/* Store */}
-            <div
-              className="rounded-2xl p-5"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
-                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                </svg>
-                Chi nhánh
-              </h2>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <p className="text-xs text-white/35">Tên</p>
-                  <p className="font-semibold text-white/90">{order.franchise?.name || (order as any).franchise_name || "N/A"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-white/35">Mã</p>
-                  <p className="font-mono text-sm text-white/70">{String(order.franchise?.code || (order as any).franchise_code || "N/A")}</p>
-                </div>
-                {order.created_by_user && (
-                  <div>
-                    <p className="text-xs text-white/35">Nhân viên tạo</p>
-                    <p className="font-semibold text-white/90">{order.created_by_user.name}</p>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
-            {/* Customer */}
-            <div
-              className="rounded-2xl p-5"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
-                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                Khách hàng
-              </h2>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <p className="text-xs text-white/35">Tên</p>
-                  <p className="font-semibold text-white/90">{order.customer?.name || (order as any).customer_name || "N/A"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-white/35">SĐT</p>
-                  <p className="font-semibold text-white/90">{order.customer?.phone || (order as any).phone || "N/A"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-white/35">Email</p>
-                  <p className="text-sm text-white/70 break-all">{String(order.customer?.email || (order as any).email || "N/A")}</p>
+            {/* Bottom row: Store + Customer + Timestamps */}
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              {/* Store */}
+              <div
+                className="rounded-2xl p-5"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                  </svg>
+                  Chi nhánh
+                </h2>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-white/35">Tên</p>
+                    <p className="font-semibold text-white/90">{order.franchise?.name || (order as any).franchise_name || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/35">Mã</p>
+                    <p className="font-mono text-sm text-white/70">{String(order.franchise?.code || (order as any).franchise_code || "N/A")}</p>
+                  </div>
+                  {order.created_by_user && (
+                    <div>
+                      <p className="text-xs text-white/35">Nhân viên tạo</p>
+                      <p className="font-semibold text-white/90">{order.created_by_user.name}</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Timestamps */}
-            <div
-              className="rounded-2xl p-5"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-            >
-              <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
-                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Thời gian
-              </h2>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <p className="text-xs text-white/35">Ngày tạo</p>
-                  <p className="font-semibold text-white/90">{new Date(order.created_at).toLocaleString("vi-VN")}</p>
+              {/* Customer */}
+              <div
+                className="rounded-2xl p-5"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Khách hàng
+                </h2>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-white/35">Tên</p>
+                    <p className="font-semibold text-white/90">{order.customer?.name || (order as any).customer_name || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/35">SĐT</p>
+                    <p className="font-semibold text-white/90">{order.customer?.phone || (order as any).phone || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/35">Email</p>
+                    <p className="text-sm text-white/70 break-all">{String(order.customer?.email || (order as any).email || "N/A")}</p>
+                  </div>
                 </div>
-                {order.confirmed_at && (
-                  <div>
-                    <p className="text-xs text-white/35">Xác nhận</p>
-                    <p className="font-semibold text-white/90">{new Date(order.confirmed_at).toLocaleString("vi-VN")}</p>
-                  </div>
-                )}
-                {order.completed_at && (
-                  <div>
-                    <p className="text-xs text-white/35">Hoàn thành</p>
-                    <p className="font-semibold text-emerald-400">{new Date(order.completed_at).toLocaleString("vi-VN")}</p>
-                  </div>
-                )}
-                {order.cancelled_at && (
-                  <div>
-                    <p className="text-xs text-white/35">Hủy</p>
-                    <p className="font-semibold text-red-400">{new Date(order.cancelled_at).toLocaleString("vi-VN")}</p>
-                  </div>
-                )}
               </div>
-            </div>
-          </div>        </div>
+
+              {/* Timestamps */}
+              <div
+                className="rounded-2xl p-5"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Thời gian
+                </h2>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-white/35">Ngày tạo</p>
+                    <p className="font-semibold text-white/90">{new Date(order.created_at).toLocaleString("vi-VN")}</p>
+                  </div>
+                  {order.confirmed_at && (
+                    <div>
+                      <p className="text-xs text-white/35">Xác nhận</p>
+                      <p className="font-semibold text-white/90">{new Date(order.confirmed_at).toLocaleString("vi-VN")}</p>
+                    </div>
+                  )}
+                  {order.completed_at && (
+                    <div>
+                      <p className="text-xs text-white/35">Hoàn thành</p>
+                      <p className="font-semibold text-emerald-400">{new Date(order.completed_at).toLocaleString("vi-VN")}</p>
+                    </div>
+                  )}
+                  {order.cancelled_at && (
+                    <div>
+                      <p className="text-xs text-white/35">Hủy</p>
+                      <p className="font-semibold text-red-400">{new Date(order.cancelled_at).toLocaleString("vi-VN")}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>        </div>
+        </div>
       </div>
-    </div>
-  );
+    );
 }
 
 // ─── Popup Modal wrapper(dùng từ OrderList) ─────────────────────────────────
