@@ -151,11 +151,9 @@ export default function ShiftAssignmentPage() {
                 const matchFranchise = !franchise
                     || shift?.franchise_id === franchise;
                 return matchName && matchFranchise;
-            });
-
-            setData(filtered);
-            setTotalPages(res?.pageInfo?.totalPages || 1);
-            setTotalItems(res?.pageInfo?.totalItems || 0);
+            });            setData(filtered);
+            setTotalItems(filtered.length);
+            setTotalPages(Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE)));
             setCurrentPage(res?.pageInfo?.pageNum || 1);
         } catch (err) {
             console.log(err);
@@ -554,12 +552,17 @@ export default function ShiftAssignmentPage() {
                             <option value="ABSENT">Absent</option>
                             <option value="CANCELED">Canceled</option>
                         </select>
-                    </div>                    {/* 🔎 Tìm kiếm */}
+                    </div>                    {/* 🔎 Tìm kiếm + Đặt lại */}
                     <div className="flex flex-col justify-end">
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 invisible">&nbsp;</label>
-                        <Button onClick={handleReset} loading={loading} variant="outline">
-                            Đặt lại
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button onClick={handleSearch} loading={loading}>
+                                Tìm kiếm
+                            </Button>
+                            <Button onClick={handleReset} variant="outline">
+                                Đặt lại
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -71,7 +71,9 @@ export default function ProductFranchisePage() {
   const [createForm, setCreateForm] = useState<CreateProductFranchiseDto>({
     ...DEFAULT_CREATE,
   });
-  const [creating, setCreating] = useState(false);  const [createFranchiseOpen, setCreateFranchiseOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
+  const [createFranchiseOpen, setCreateFranchiseOpen] = useState(false);
   const [createFranchiseKeyword, setCreateFranchiseKeyword] = useState("");
   const [createProductOpen, setCreateProductOpen] = useState(false);
   const [createProductKeyword, setCreateProductKeyword] = useState("");
@@ -112,26 +114,27 @@ export default function ProductFranchisePage() {
 
   const hasRun = useRef(false);
   const isInitialized = useRef(false);
-
-  const getApiErrorMessage = (err: unknown, fallback: string) => {
-    const data = (err as { response?: { data?: unknown } })?.response?.data as
-      | {
-          message?: string | null;
-          errors?: Array<{ message?: string; field?: string }>;
-        }
-      | undefined;
-
-    const errors = data?.errors;
-    if (Array.isArray(errors) && errors.length > 0) {
-      const msg = errors
-        .map((e) => e?.message)
-        .filter(Boolean)
-        .join(", ");
-      if (msg) return msg;
+  // Trả về mảng lỗi (mỗi phần tử là 1 dòng) để hiển thị riêng lẻ
+  const getApiErrors = (err: unknown, fallback: string): string[] => {
+    // interceptor đã join bằng "\n"
+    if (err instanceof Error && err.message) {
+      const lines = err.message.split("\n").map(s => s.trim()).filter(Boolean);
+      if (lines.length > 0) return lines;
     }
-    if (data?.message) return String(data.message);
-    return err instanceof Error ? err.message : fallback;
+    // axios error chưa qua interceptor
+    const data = (err as { response?: { data?: unknown } })?.response?.data as
+      | { message?: string | null; errors?: Array<{ message?: string; field?: string } | string> }
+      | undefined;
+    if (Array.isArray(data?.errors) && data!.errors!.length > 0) {
+      const msgs = data!.errors!.map(e => typeof e === "string" ? e : e?.message).filter(Boolean) as string[];
+      if (msgs.length > 0) return msgs;
+    }
+    if (data?.message) return [String(data.message)];
+    return [fallback];
   };
+
+  const getApiErrorMessage = (err: unknown, fallback: string) =>
+    getApiErrors(err, fallback).join(" | ");
 
   const franchiseOptions = useMemo(() => {
     if (!franchiseKeyword.trim()) return franchises;
@@ -354,19 +357,19 @@ export default function ProductFranchisePage() {
 
   const openCreate = () => {
     setCreateForm({ ...DEFAULT_CREATE });
+    setCreateErrors({});
     setCreateOpen(true);
   };
 
   const submitCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createForm.franchise_id || !createForm.product_id || !createForm.size) {
-      showError("Vui lòng chọn franchise, product và size");
-      return;
-    }
-    if (!createForm.price_base || Number.isNaN(Number(createForm.price_base))) {
-      showError("Vui lòng nhập price_base hợp lệ");
-      return;
-    }
+    const localErrors: Record<string, string> = {};
+    if (!createForm.franchise_id) localErrors.franchise_id = "Vui lòng chọn franchise";
+    if (!createForm.product_id) localErrors.product_id = "Vui lòng chọn product";
+    if (!createForm.size) localErrors.size = "Vui lòng chọn size";
+    if (!createForm.price_base || Number.isNaN(Number(createForm.price_base))) localErrors.price_base = "Vui lòng nhập price base hợp lệ";
+    if (Object.keys(localErrors).length > 0) { setCreateErrors(localErrors); return; }
+    setCreateErrors({});
     setCreating(true);
     try {
       await adminProductFranchiseService.createProductFranchise({
@@ -374,12 +377,24 @@ export default function ProductFranchisePage() {
         product_id: createForm.product_id,
         size: createForm.size,
         price_base: Number(createForm.price_base),
-      });
-      showSuccess("Thêm sản phẩm vào franchise thành công");
+      });      showSuccess("Thêm sản phẩm vào franchise thành công");
       setCreateOpen(false);
       await load(1);
     } catch (err: unknown) {
-      showError(getApiErrorMessage(err, "Tạo thất bại"));
+      // Lấy responseData từ custom error (interceptor đã attach) hoặc axios error gốc
+      const responseData = (err as any)?.responseData || (err as any)?.response?.data;
+      const apiErrors: Array<{ field?: string; message?: string }> | undefined = responseData?.errors;
+      if (Array.isArray(apiErrors) && apiErrors.length > 0) {
+        const fieldErrors: Record<string, string> = {};
+        apiErrors.forEach(e => { if (e.field && e.message) fieldErrors[e.field] = e.message; });
+        if (Object.keys(fieldErrors).length > 0) {
+          setCreateErrors(fieldErrors);
+          setCreating(false);
+          return;
+        }
+      }
+      // Fallback khi lỗi không có field cụ thể → dùng toast
+      showError((err instanceof Error && err.message) ? err.message : "Tạo thất bại");
     } finally {
       setCreating(false);
     }
@@ -862,9 +877,8 @@ export default function ProductFranchisePage() {
                   <div className="relative">
                     <button
                       ref={createFranchiseTriggerRef}
-                      type="button"
-                      onClick={() => createFranchiseOpen ? closeCreateFranchise() : openCreateFranchise()}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
+                      type="button"                      onClick={() => createFranchiseOpen ? closeCreateFranchise() : openCreateFranchise()}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: `1px solid ${createErrors.franchise_id ? "#f87171" : "#475569"}`, borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
                     >
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.franchise_id ? "#f1f5f9" : "#94a3b8" }}>
                         {createForm.franchise_id ? (franchiseNameMap[createForm.franchise_id] || createForm.franchise_id) : "-- Chọn franchise --"}
@@ -893,7 +907,7 @@ export default function ProductFranchisePage() {
                       </div>,
                       document.body
                     )}
-                  </div>
+                  </div>                  {createErrors.franchise_id && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{createErrors.franchise_id}</p>}
                 </div>
 
                 <div className="space-y-1.5">
@@ -901,9 +915,8 @@ export default function ProductFranchisePage() {
                   <div className="relative">
                     <button
                       ref={createProductTriggerRef}
-                      type="button"
-                      onClick={() => createProductOpen ? closeCreateProduct() : openCreateProduct()}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: "1px solid #475569", borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
+                      type="button"                      onClick={() => createProductOpen ? closeCreateProduct() : openCreateProduct()}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: `1px solid ${createErrors.product_id ? "#f87171" : "#475569"}`, borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
                     >
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.product_id ? "#f1f5f9" : "#94a3b8" }}>
                         {createPFLoading ? "Đang tải..." : createForm.product_id ? (productNameMap[createForm.product_id] || createForm.product_id) : "-- Chọn product --"}
@@ -933,16 +946,16 @@ export default function ProductFranchisePage() {
                       document.body
                     )}
                   </div>
+                  {createErrors.product_id && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{createErrors.product_id}</p>}
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-white/80">Size *</label>
-                  <select
+                  <label className="text-sm font-semibold text-white/80">Size *</label>                  <select
                     value={createForm.size}
                     onChange={(e) => setCreateForm((f) => ({ ...f, size: e.target.value }))}
-                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className={`w-full rounded-lg border bg-white/[0.08] text-white/90 px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-primary-500/20 ${createErrors.size ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
                   >
                     <option value="">-- Chọn size --</option>
                     <option value="S">S</option>
@@ -951,15 +964,16 @@ export default function ProductFranchisePage() {
                     <option value="XL">XL</option>
                     <option value="DEFAULT">DEFAULT</option>
                   </select>
+                  {createErrors.size && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{createErrors.size}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-white/80">Price Base *</label>
-                  <input
+                  <label className="text-sm font-semibold text-white/80">Price Base *</label>                  <input
                     value={String(createForm.price_base ?? "")}
                     onChange={(e) => setCreateForm((f) => ({ ...f, price_base: Number(e.target.value) }))}
                     placeholder="VD: 35000"
-                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    className={`w-full rounded-lg border bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-primary-500/20 ${createErrors.price_base ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
                   />
+                  {createErrors.price_base && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{createErrors.price_base}</p>}
                 </div>
               </div>
 

@@ -384,10 +384,8 @@ export default function CustomerFranchisePage() {
       {/* Table */}
       <div className="relative z-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
               <tr>
-                <th className="px-4 py-3">#</th>
                 <th className="px-4 py-3">Khách hàng</th>
                 <th className="px-4 py-3">Franchise</th>
                 <th className="px-4 py-3 text-right">Điểm hiện tại</th>
@@ -398,10 +396,9 @@ export default function CustomerFranchisePage() {
                 <th className="px-4 py-3">Chi tiết</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
-              {loading ? (
+            <tbody className="divide-y divide-slate-200">              {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center">
+                  <td colSpan={8} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-3 text-slate-400">
                       <svg className="size-8 animate-spin" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -411,10 +408,9 @@ export default function CustomerFranchisePage() {
                       <span className="text-sm">Đang tải...</span>
                     </div>
                   </td>
-                </tr>
-              ) : items.length === 0 ? (
+                </tr>              ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center">
+                  <td colSpan={8} className="py-16 text-center">
                     <div className="flex flex-col items-center gap-2 text-slate-400">
                       <svg className="size-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
                         <path strokeLinecap="round" strokeLinejoin="round"
@@ -424,17 +420,13 @@ export default function CustomerFranchisePage() {
                     </div>
                   </td>
                 </tr>
-              ) : (
-                items.map((item, idx) => (
+              ) : (                items.map((item) => (
                   <tr
                     key={item.id}
                     className={`transition-colors ${
                       item.is_deleted ? "bg-red-50 hover:bg-red-100/60" : "hover:bg-slate-50"
                     }`}
                   >
-                    <td className="px-4 py-3 text-slate-400 text-xs font-mono">
-                      {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
-                    </td>
                     <td className="px-4 py-3">
                       <p className="font-semibold text-slate-900">{item.customer_name || "N/A"}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{item.customer_email || ""}</p>

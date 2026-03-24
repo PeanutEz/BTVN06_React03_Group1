@@ -34,11 +34,11 @@ const ShiftPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
-
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<CreateShiftPayload>({ ...DEFAULT_FORM });
   const [submitting, setSubmitting] = useState(false);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [searchName, setSearchName] = useState("");
   const [filterFranchise, setFilterFranchise] = useState(managerFranchiseId ?? "");
@@ -172,30 +172,27 @@ const ShiftPage = () => {
     );
   }, [franchises, modalFranchiseKeyword]);
 
-  const handleOpenCreate = () => {
-    setFormData({ ...DEFAULT_FORM });
+  const handleOpenCreate = () => {    setFormData({ ...DEFAULT_FORM });
     setEditingShift(null);
+    setFormErrors({});
     setShowModal(true);
   };
 
   const handleOpenEdit = (shift: Shift) => {
-    setEditingShift(shift);
-    setFormData({
+    setEditingShift(shift);    setFormData({
       franchise_id: shift.franchise_id,
       name: shift.name,
       start_time: shift.start_time,
       end_time: shift.end_time,
     });
+    setFormErrors({});
     setShowModal(true);
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.franchise_id) { showError("Vui lòng chọn franchise"); return; }
-    if (!formData.name.trim()) { showError("Vui lòng nhập tên ca"); return; }
-    if (!formData.start_time) { showError("Vui lòng nhập giờ bắt đầu"); return; }
-    if (!formData.end_time) { showError("Vui lòng nhập giờ kết thúc"); return; }
-    if (formData.end_time <= formData.start_time) { showError("Giờ kết thúc phải lớn hơn giờ bắt đầu"); return; }
+    if (!formData.franchise_id) { setFormErrors({ franchise_id: "Vui lòng chọn franchise" }); return; }
+    if (!formData.name.trim()) { setFormErrors({ name: "Vui lòng nhập tên ca" }); return; }
+    setFormErrors({});
     setSubmitting(true);
     try {
       if (editingShift) {
@@ -212,12 +209,15 @@ const ShiftPage = () => {
       setShowModal(false);
       await load();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { errors?: { message: string }[] } } })
-          ?.response?.data?.errors?.[0]?.message ||
-        (err instanceof Error ? err.message : null) ||
-        (editingShift ? "Cập nhật thất bại" : "Tạo ca thất bại");
-      showError(msg);
+      const responseData = (err as any)?.responseData ?? (err as any)?.response?.data;
+      const apiErrors: Array<{ field?: string; message?: string }> = responseData?.errors ?? [];
+      if (apiErrors.length > 0) {
+        const fieldErrors: Record<string, string> = {};
+        apiErrors.forEach(e => { if (e.field && e.message) fieldErrors[e.field] = e.message; });
+        if (Object.keys(fieldErrors).length > 0) { setFormErrors(fieldErrors); return; }
+      }
+      const msg = responseData?.message || (err instanceof Error ? err.message : null) || (editingShift ? "Cập nhật thất bại" : "Tạo ca thất bại");
+      setFormErrors({ general: msg });
     } finally {
       setSubmitting(false);
     }
@@ -573,15 +573,14 @@ const ShiftPage = () => {
                     <button
                       ref={modalFranchiseTriggerRef}
                       type="button"
-                      onClick={() => modalFranchiseOpen ? closeModalFranchise() : openModalFranchise()}
-                      style={{
+                      onClick={() => modalFranchiseOpen ? closeModalFranchise() : openModalFranchise()}                      style={{
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
                         width: "100%",
                         padding: "8px 12px",
                         background: "#1e293b",
-                        border: "1px solid #475569",
+                        border: `1px solid ${formErrors.franchise_id ? "#f87171" : "#475569"}`,
                         borderRadius: 8,
                         color: "#f1f5f9",
                         fontSize: 14,
@@ -688,9 +687,9 @@ const ShiftPage = () => {
                       </div>,
                       document.body
                     )}
-                  </div>
-                )}
+                  </div>                )}
               </div>
+              {formErrors.franchise_id && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.franchise_id}</p>}
 
               {/* Name */}
               <div>
@@ -702,9 +701,9 @@ const ShiftPage = () => {
                   placeholder="VD: Ca Sáng"
                   value={formData.name}
                   onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-                  required
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className={`w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.name ? "border-red-400 focus:border-red-400" : "border-slate-300 focus:border-primary-500"}`}
                 />
+                {formErrors.name && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.name}</p>}
               </div>
 
               {/* Times */}
@@ -717,6 +716,7 @@ const ShiftPage = () => {
                     value={formData.start_time}
                     onChange={(v) => setFormData((p) => ({ ...p, start_time: v }))}
                   />
+                  {formErrors.start_time && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.start_time}</p>}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-slate-700">
@@ -726,8 +726,13 @@ const ShiftPage = () => {
                     value={formData.end_time}
                     onChange={(v) => setFormData((p) => ({ ...p, end_time: v }))}
                   />
+                  {formErrors.end_time && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.end_time}</p>}
                 </div>
               </div>
+
+              {formErrors.general && (
+                <p className="!text-[#f87171] rounded-lg border border-red-400/30 bg-red-50 px-3 py-2" style={{ fontSize: 12 }}>{formErrors.general}</p>
+              )}
 
               <div className="flex gap-3 pt-2">
                 <Button type="submit" loading={submitting} className="flex-1">
