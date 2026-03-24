@@ -65,7 +65,6 @@ export const adminInventoryService = {
       { id },
     );
   },
-
   // INVENTORY-06 — Edit Quantity
   adjustInventory: async (dto: AdjustInventoryDto): Promise<void> => {
     await apiClient.post<{ success: boolean; data: null }>(
@@ -75,6 +74,21 @@ export const adminInventoryService = {
         change: dto.change,
         alert_threshold: dto.alert_threshold,
         reason: dto.reason ?? "",
+      },
+    );
+  },
+
+  // INVENTORY-06B — Edit Quantity Array (POST /api/inventories/adjust/bulk)
+  adjustInventoryBulk: async (items: AdjustInventoryDto[]): Promise<void> => {
+    await apiClient.post<{ success: boolean; data: null }>(
+      "/inventories/adjust/bulk",
+      {
+        items: items.map((dto) => ({
+          product_franchise_id: dto.product_franchise_id,
+          change: dto.change,
+          alert_threshold: dto.alert_threshold ?? 10,
+          reason: dto.reason ?? "",
+        })),
       },
     );
   },

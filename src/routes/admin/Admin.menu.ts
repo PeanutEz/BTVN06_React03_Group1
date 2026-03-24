@@ -61,8 +61,7 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(
       () => import("../../pages/admin/order/OrderDetail.page.tsx"),
     ),
-  },
-  {
+  },  {
     label: "Customers",
     path: ROUTER_URL.ADMIN_ROUTES.CUSTOMERS,
     component: React.lazy(
@@ -76,6 +75,14 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(
       () => import("../../pages/admin/customer/CustomerDetail.page.tsx"),
     ),
+  },
+  {
+    label: "Customer Franchises",
+    path: ROUTER_URL.ADMIN_ROUTES.CUSTOMER_FRANCHISES,
+    component: React.lazy(
+      () => import("../../pages/admin/customer-franchise/CustomerFranchise.page.tsx"),
+    ),
+    isEnd: true,
   },
   {
     label: "Payments",

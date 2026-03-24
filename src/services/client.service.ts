@@ -33,15 +33,20 @@ export interface CustomerLoyalty {
 
 export interface CustomerFranchise {
   id: string;
-  customer_id: string;
-  franchise_id: string;
-  loyalty_points: number;
-  tier: string;
-  total_spent: number;
-  total_orders: number;
   is_active: boolean;
+  is_deleted: boolean;
   created_at: string;
   updated_at: string;
+  franchise_id: string;
+  franchise_code: string;
+  franchise_name: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  loyalty_points: number;
+  total_earned_points: number;
+  first_order_date: string;
+  last_order_date: string;
 }
 
 export interface SearchCustomerFranchisesPayload {
