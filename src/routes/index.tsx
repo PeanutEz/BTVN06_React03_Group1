@@ -1,6 +1,6 @@
 import React from "react";
 import type { ErrorInfo } from "react";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { RouteChangeLoading } from "../components";
 import ScrollToTopOnNavigate from "../components/ui/ScrollToTopOnNavigate";
 import LoadingLayout from "../layouts/Loading.layout";
@@ -58,11 +58,8 @@ const NotFound = React.lazy(() => import("../pages/NotFoundPage.page"));
 const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
 const StaffOrdersPage = React.lazy(() => import("../pages/orders/OrdersList.page"));
 const CustomerProfilePage = React.lazy(() => import("../pages/client/customer/CustomerProfile.page"));
-const CustomerAddressBookPage = React.lazy(() => import("../pages/client/customer/CustomerAddressBook.page"));
 const CustomerOrdersPage = React.lazy(() => import("../pages/client/customer/CustomerOrders.page"));
-const CustomerFavoritesPage = React.lazy(() => import("../pages/client/customer/CustomerFavorites.page"));
 const LoyaltyDashboardPage = React.lazy(() => import("../pages/client/loyalty/LoyaltyDashboard.page"));
-const LoyaltyPointsPage = React.lazy(() => import("../pages/client/loyalty/LoyaltyPoints.page"));
 const CartPage = React.lazy(() => import("../pages/client/Cart.page"));
 const ContactPage = React.lazy(() => import("../pages/client/Contact.page"));
 const CustomerChangePasswordPage = React.lazy(() => import("../pages/client/customer/CustomerChangePassword.page"));
@@ -134,13 +131,10 @@ function AppRoutes() {
               <Route path="customer" element={<CustomerAccountLayout />}>
                 <Route path="account" element={<CustomerProfilePage />} />
                 <Route path="change-password" element={<CustomerChangePasswordPage />} />
-                <Route path="address-book" element={<CustomerAddressBookPage />} />
-                <Route path="membership" element={<LoyaltyDashboardPage />} />
-                <Route path="vouchers" element={<LoyaltyPointsPage />} />
+                <Route path="loyalty" element={<LoyaltyDashboardPage />} />
+                <Route path="loyoty" element={<Navigate to={ROUTER_URL.CUSTOMER_MEMBERSHIP} replace />} />
                 <Route path="order" element={<CustomerOrdersPage />} />
                 <Route path="cart" element={<CartPage />} />
-                <Route path="product-favorite" element={<CustomerFavoritesPage />} />
-                <Route path="ordered" element={<CustomerOrdersPage />} />
                 <Route path="support" element={<ContactPage />} />
               </Route>
             </Route>

@@ -116,13 +116,13 @@ export const deliveryClient = {
     const response = await apiClient.post("/deliveries/search", params);
     return unwrapList<DeliveryData>(response.data);
   },
-
   /**
    * Update delivery status to "picked up"
    * PUT /api/deliveries/{deliveryId}/pickup
    */
-  changeStatusPickup: async (deliveryId: string): Promise<DeliveryData | null> => {
-    const response = await apiClient.put(`/deliveries/${deliveryId}/pickup`, {});
+  changeStatusPickup: async (deliveryId: string, staffId?: string): Promise<DeliveryData | null> => {
+    const body = staffId ? { staff_id: staffId } : {};
+    const response = await apiClient.put(`/deliveries/${deliveryId}/pickup`, body);
     return unwrapSingle<DeliveryData>(response.data);
   },
 
@@ -130,8 +130,9 @@ export const deliveryClient = {
    * Update delivery status to "completed"
    * PUT /api/deliveries/{deliveryId}/complete
    */
-  changeStatusComplete: async (deliveryId: string): Promise<DeliveryData | null> => {
-    const response = await apiClient.put(`/deliveries/${deliveryId}/complete`, {});
+  changeStatusComplete: async (deliveryId: string, staffId?: string): Promise<DeliveryData | null> => {
+    const body = staffId ? { staff_id: staffId } : {};
+    const response = await apiClient.put(`/deliveries/${deliveryId}/complete`, body);
     return unwrapSingle<DeliveryData>(response.data);
   },
 };

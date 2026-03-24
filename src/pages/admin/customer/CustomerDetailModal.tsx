@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
@@ -7,10 +6,9 @@ import {
   LOYALTY_TIER_COLORS,
 } from "../../../models/customer.model";
 import { changeCustomerStatus, fetchCustomerById } from "../../../services/customer.service";
-import { fetchOrders } from "../../../services/order.service";
+import { orderClient } from "../../../services/order.client";
 import type { OrderDisplay } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "../../../models/order.model";
-import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 
 type Tab = "info" | "orders";
@@ -88,9 +86,9 @@ export default function CustomerDetailModal({
         if (!data || controller.signal.aborted) return;
         setCustomer(data);
         setIsActive(data.is_active);
-        const allOrders = await fetchOrders();
+        const customerOrders = await orderClient.getOrdersByCustomerId(data.id);
         if (controller.signal.aborted) return;
-        setOrders(allOrders.filter((o) => String(o.customer_id) === String(data.id)));
+        setOrders(customerOrders);
       } catch {
         // silently handled
       } finally {
@@ -127,7 +125,7 @@ export default function CustomerDetailModal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
       onClick={(e) => e.target === overlayRef.current && onClose()}
     >
       {/* Backdrop — nhạt để màu nền admin hiện qua, tạo hiệu ứng glassmorphism */}
@@ -199,7 +197,7 @@ export default function CustomerDetailModal({
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-6">
+        <div className="overflow-y-auto flex-1 min-h-0 p-6">
           {loading && (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -316,7 +314,6 @@ export default function CustomerDetailModal({
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white/55">Ngày tạo</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white/55">Tổng tiền</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white/55">Trạng thái</th>
-                        <th className="px-4 py-3" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/[0.08]">
@@ -331,14 +328,6 @@ export default function CustomerDetailModal({
                             <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ORDER_STATUS_COLORS[order.status]}`}>
                               {ORDER_STATUS_LABELS[order.status]}
                             </span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Link
-                              to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${order.id}`}
-                              onClick={onClose}
-                            >
-                              <Button size="sm" variant="outline">Xem</Button>
-                            </Link>
                           </td>
                         </tr>
                       ))}

@@ -107,6 +107,7 @@ export function buildStaticPaymentQr({ provider, amount, orderRef, bankName }: S
   const footerLabel = provider === "BANK"
     ? `${amountLabel} · ${orderRef}`
     : `${meta.label} · ${orderRef}`;
+  const centerLogoHref = "/logo-hylux.png";
 
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
@@ -116,7 +117,7 @@ export function buildStaticPaymentQr({ provider, amount, orderRef, bankName }: S
     <g fill="#111827">${rects}</g>
     <rect x="128" y="128" width="64" height="64" rx="18" fill="#ffffff" stroke="#e5e7eb" stroke-width="2" />
     <circle cx="160" cy="160" r="21" fill="${meta.accent}" opacity="0.16" />
-    <text x="160" y="168" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24">${escapeXml(meta.icon)}</text>
+    <image href="${centerLogoHref}" x="140" y="140" width="40" height="40" preserveAspectRatio="xMidYMid meet" />
     <rect x="32" y="250" width="256" height="40" rx="14" fill="#fffaf3" stroke="#fde7c2" stroke-width="1.5" />
     <text x="160" y="267" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="#111827">${escapeXml(providerLabel)}</text>
     <text x="160" y="282" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="10" fill="#6b7280">${escapeXml(footerLabel)}</text>

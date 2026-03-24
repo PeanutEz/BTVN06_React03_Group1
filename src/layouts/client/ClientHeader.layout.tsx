@@ -8,15 +8,13 @@ import { isBranchOpen } from "../../services/branch.service";
 import { logoutUser } from "../../services/auth.service";
 import { showSuccess } from "../../utils";
 import BranchPickerModal from "../../components/menu/BranchPickerModal";
-import NotificationBell from "../../components/notification/NotificationBell";
 import logoHylux from "../../assets/logo-hylux.png";
 
-const NAV_LINKS = [
+const NAV_LINKS: Array<{ label: string; path: string; highlight?: boolean }> = [
   { label: "Trang chủ", path: ROUTER_URL.HOME },
   { label: "Menu", path: ROUTER_URL.MENU },
   { label: "Hệ thống cửa hàng", path: ROUTER_URL.STORE_LOCATOR },
   { label: "Liên hệ", path: ROUTER_URL.CONTACT },
-  { label: "Hội viên", path: ROUTER_URL.LOYALTY_DASHBOARD, highlight: true },
 ];
 
 const ClientHeader = () => {
@@ -134,12 +132,7 @@ const ClientHeader = () => {
                   setShowBranchPicker(false);
                 }}
               />
-            )}
-
-            {/* Mail / Notification Bell */}
-            <NotificationBell />
-
-            {/* Account Dropdown */}
+            )}            {/* Account Dropdown */}
             <div className="relative" ref={accountRef}>
               {user ? (
                 <>
@@ -168,13 +161,9 @@ const ClientHeader = () => {
                     <div className="py-1">
                       {[
                         { icon: "👤", label: "Thông tin cá nhân", path: ROUTER_URL.CUSTOMER_PROFILE },
-                        { icon: "📍", label: "Sổ địa chỉ", path: ROUTER_URL.CUSTOMER_ADDRESS_BOOK },
                         { icon: "⭐", label: "Khách hàng thành viên", path: ROUTER_URL.CUSTOMER_MEMBERSHIP },
-                        { icon: "🎁", label: "Ưu đãi của tôi", path: ROUTER_URL.CUSTOMER_VOUCHERS },
                         { icon: "📦", label: "Đơn hàng", path: ROUTER_URL.CUSTOMER_ORDER_HISTORY },
                         { icon: "🛒", label: "Giỏ hàng", path: ROUTER_URL.CUSTOMER_CART },
-                        { icon: "❤️", label: "Sản phẩm yêu thích", path: ROUTER_URL.CUSTOMER_FAVORITES },
-                        { icon: "🔐", label: "Sản phẩm đã đặt", path: ROUTER_URL.CUSTOMER_ORDERED },
                         { icon: "💬", label: "Trung tâm trợ giúp", path: ROUTER_URL.CUSTOMER_SUPPORT },
                       ].map((item) => (
                         <Link
@@ -229,52 +218,60 @@ const ClientHeader = () => {
           </div>
         </div>
 
-        {/* ── DIVIDER ── */}
-        <div className="relative px-4 sm:px-6 lg:px-8">
-          <div className="h-px bg-gradient-to-r from-transparent via-red-300 to-transparent" />
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-600/30 to-transparent blur-sm" />
-        </div>
+        {NAV_LINKS.length > 0 && (
+          <>
+            {/* ── DIVIDER ── */}
+            <div className="relative px-4 sm:px-6 lg:px-8">
+              <div className="h-px bg-gradient-to-r from-transparent via-red-300 to-transparent" />
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-600/30 to-transparent blur-sm" />
+            </div>
 
-        {/* ── ROW 2: Category Dropdown · Nav Links ── */}
-        <div className="hidden lg:flex items-center justify-center gap-2 px-4 sm:px-6 lg:px-8 py-2">
+            {/* ── ROW 2: Category Dropdown · Nav Links ── */}
+            <div className="hidden lg:flex items-center justify-center gap-2 px-4 sm:px-6 lg:px-8 py-2">
 
-          {/* Nav Links */}
-          <nav className="flex items-center gap-1">
-            {NAV_LINKS.map((link) => (
-              <NavLink
-                key={link.path}
-                to={link.path}
-                end={link.path === ROUTER_URL.HOME}
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className={({ isActive }) =>
-                  `px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap ${isActive
-                    ? "text-red-700 bg-red-50 font-semibold"
-                    : (link as { highlight?: boolean }).highlight
-                      ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50 font-semibold"
-                      : "text-gray-700 hover:text-red-700 hover:bg-red-50"
-                  }`
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
+              {/* Nav Links */}
+              <nav className="flex items-center gap-1">
+                {NAV_LINKS.map((link) => (
+                  <NavLink
+                    key={link.path}
+                    to={link.path}
+                    end={link.path === ROUTER_URL.HOME}
+                    onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                    className={({ isActive }) =>
+                      `px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap ${isActive
+                        ? "text-red-700 bg-red-50 font-semibold"
+                        : link.highlight
+                          ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50 font-semibold"
+                          : "text-gray-700 hover:text-red-700 hover:bg-red-50"
+                      }`
+                    }
+                  >
+                    {link.label}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+          </>
+        )}
 
         {/* ── MOBILE MENU ── */}
         {menuOpen && (
           <div className="lg:hidden pb-4 px-4 space-y-1 bg-gray-50 border-t border-gray-100">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className="block px-4 py-2.5 text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors text-sm font-medium"
-                onClick={() => { setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="h-px bg-gray-200 my-1" />
+            {NAV_LINKS.length > 0 && (
+              <>
+                {NAV_LINKS.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className="block px-4 py-2.5 text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors text-sm font-medium"
+                    onClick={() => { setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+                <div className="h-px bg-gray-200 my-1" />
+              </>
+            )}
             {/* Mobile receiving method */}
             <button
               onClick={() => { setMenuOpen(false); openPicker(); }}

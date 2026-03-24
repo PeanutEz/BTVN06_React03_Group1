@@ -19,10 +19,11 @@ const normalizeOrder = (order: any): OrderDisplay => {
     ...order,
     total_amount: totalAmount,
     items, // Normalize to items
-    customer: order.customer ?? {
-      name: order.customer_name ?? "N/A",
-      phone: order.phone,
-      email: order.email,
+    customer: {
+      ...(order.customer ?? {}),
+      name: order.customer?.name || order.customer_name || "N/A",
+      phone: order.customer?.phone ?? order.phone,
+      email: order.customer?.email ?? order.email,
     },
     franchise: order.franchise ?? {
       name: order.franchise_name ?? "N/A",
@@ -171,9 +172,9 @@ export const updateOrderToPreparing = async (orderId: number | string): Promise<
 export const updateOrderToReadyForPickup = async (
   orderId: number | string,
   staffId?: string
-): Promise<OrderDisplay | null> => {
-  try {
-    return await orderClient.setReadyForPickup(orderId, staffId ? { staff_id: staffId } : undefined);
+): Promise<OrderDisplay | null> => {  try {
+    const result = await orderClient.setReadyForPickup(orderId, staffId ? { staff_id: staffId } : undefined);
+    return result.data;
   } catch (error) {
     console.error("Error updating order to ready for pickup:", error);
     return null;
@@ -194,8 +195,10 @@ export const updateOrderStatus = async (
     case "CONFIRMED":
       return await orderClient.setConfirmed(id);
     case "PREPARING":
-      return await orderClient.setPreparing(id);    case "READY_FOR_PICKUP":
-      return await orderClient.setReadyForPickup(id, { staff_id: String(changedBy ?? "") });
+      return await orderClient.setPreparing(id);    case "READY_FOR_PICKUP": {
+      const result = await orderClient.setReadyForPickup(id, { staff_id: String(changedBy ?? "") });
+      return result.data;
+    }
     case "DELIVERING":
       return await orderClient.setDelivering(id);
     case "COMPLETED":

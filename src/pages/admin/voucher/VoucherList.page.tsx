@@ -1,15 +1,21 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { voucherService } from "@/services/voucher.service";
 import type { Voucher } from "@/models/voucher.model";
 import { toast } from "sonner";
 import { VoucherModal } from "@/components/voucher/VoucherModal";
 import dayjs from "dayjs";
+import { useManagerFranchiseId } from "@/hooks/useManagerFranchiseId";
+import { fetchFranchiseSelect } from "@/services/store.service";
+import type { FranchiseSelectItem } from "@/services/store.service";
+import { GlassSearchSelect } from "@/components/ui";
 
 export default function VoucherListPage() {
+  const managerFranchiseId = useManagerFranchiseId();
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVoucher, setEditingVoucher] = useState<Voucher | null>(null);
+  const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
 
   const [pagination, setPagination] = useState({
     page: 1,
@@ -20,10 +26,17 @@ export default function VoucherListPage() {
   // Filters
   const [searchCode, setSearchCode] = useState("");
   const [appliedSearchCode, setAppliedSearchCode] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"PERCENT" | "FIXED" | "">("");
-  const [statusFilter, setStatusFilter] = useState<boolean | "">("");
+  const [franchiseFilter, setFranchiseFilter] = useState(managerFranchiseId ?? "");
+  const [typeFilter, setTypeFilter] = useState<"PERCENT" | "FIXED" | "">("")
+  const [statusFilter, setStatusFilter] = useState<boolean | "">("")
   const [isDeletedFilter, setIsDeletedFilter] = useState<boolean>(false);
   const lastParamsRef = useRef<string | null>(null);
+
+  const franchiseNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    franchises.forEach(f => { map[f.value] = `${f.name} (${f.code})`; });
+    return map;
+  }, [franchises]);
 
   // Fetch vouchers
   const fetchVouchers = async () => {
@@ -33,6 +46,7 @@ export default function VoucherListPage() {
         page: pagination.page,
         limit: pagination.limit,
         code: appliedSearchCode || undefined,
+        franchise_id: franchiseFilter || undefined,
         type: typeFilter,
         is_active: statusFilter,
         is_deleted: isDeletedFilter,
@@ -48,12 +62,23 @@ export default function VoucherListPage() {
   };
 
   useEffect(() => {
-    const key = JSON.stringify([pagination.page, appliedSearchCode, typeFilter, statusFilter, isDeletedFilter]);
+    fetchFranchiseSelect().then(setFranchises).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+  useEffect(() => {
+    if (!managerFranchiseId) return;
+    setFranchiseFilter(managerFranchiseId);
+  }, [managerFranchiseId]);
+
+  useEffect(() => {
+    const key = JSON.stringify([pagination.page, appliedSearchCode, franchiseFilter, typeFilter, statusFilter, isDeletedFilter]);
     if (key === lastParamsRef.current) return;
     lastParamsRef.current = key;
     fetchVouchers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, appliedSearchCode, typeFilter, statusFilter, isDeletedFilter]);
+  }, [pagination.page, appliedSearchCode, franchiseFilter, typeFilter, statusFilter, isDeletedFilter]);
 
   // Modals
   const handleOpenModal = (voucher?: Voucher) => {
@@ -131,6 +156,32 @@ export default function VoucherListPage() {
 
       {/* Filters */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm mb-6 flex flex-wrap gap-3">
+        {/* Franchise */}
+        <div className="min-w-[220px]">
+          {managerFranchiseId ? (
+            <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-50 px-3 py-2 text-sm cursor-not-allowed select-none">
+              <span className="truncate font-medium text-primary-700">
+                {franchiseFilter ? (franchiseNameMap[franchiseFilter] || franchiseFilter) : "-- Tất cả franchise --"}
+              </span>
+              <svg className="ml-2 size-4 flex-shrink-0 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+          ) : (
+            <GlassSearchSelect
+              value={franchiseFilter}
+              onChange={(v) => {
+                setFranchiseFilter(v);
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
+              options={franchises.map(f => ({ value: f.value, label: `${f.name} (${f.code})` }))}
+              placeholder="-- Tất cả franchise --"
+              searchPlaceholder="Tìm theo tên hoặc mã..."
+              allLabel="-- Tất cả franchise --"
+            />
+          )}
+        </div>
+
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <svg className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
