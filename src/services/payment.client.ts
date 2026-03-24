@@ -5,10 +5,8 @@
  */
 import apiClient from "@/services/api.client";
 import {
-  confirmMockPayment,
   getMockPaymentById,
   getMockPaymentByOrderId,
-  refundMockPayment,
   shouldUseMockPaymentId,
 } from "@/services/checkout-fallback.mock";
 
@@ -108,35 +106,23 @@ export const paymentClient = {
     paymentId: string,
     body: { method: string; providerTxnId?: string }
   ): Promise<PaymentData | null> => {
-    if (shouldUseMockPaymentId(paymentId)) {
-      return normalizePayment(confirmMockPayment(paymentId, body));
-    }
+    if (shouldUseMockPaymentId(paymentId)) return null;
 
     const payload: Record<string, unknown> = { method: body.method };
     if (body.providerTxnId) {
       payload.providerTxnId = body.providerTxnId;
     }
-    try {
-      const response = await apiClient.put(`/payments/${paymentId}/confirm`, payload);
-      return normalizePayment(unwrapSingle<PaymentData>(response.data));
-    } catch {
-      return normalizePayment(confirmMockPayment(paymentId, body));
-    }
+    const response = await apiClient.put(`/payments/${paymentId}/confirm`, payload);
+    return normalizePayment(unwrapSingle<PaymentData>(response.data));
   },
 
   refundPayment: async (
     paymentId: string,
     body: { refund_reason: string }
   ): Promise<PaymentData | null> => {
-    if (shouldUseMockPaymentId(paymentId)) {
-      return normalizePayment(refundMockPayment(paymentId, body));
-    }
+    if (shouldUseMockPaymentId(paymentId)) return null;
 
-    try {
-      const response = await apiClient.put(`/payments/${paymentId}/refund`, body);
-      return normalizePayment(unwrapSingle<PaymentData>(response.data));
-    } catch {
-      return normalizePayment(refundMockPayment(paymentId, body));
-    }
+    const response = await apiClient.put(`/payments/${paymentId}/refund`, body);
+    return normalizePayment(unwrapSingle<PaymentData>(response.data));
   },
 };

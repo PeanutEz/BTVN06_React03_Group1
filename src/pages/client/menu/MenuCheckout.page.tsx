@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import LoadingLayout from "@/layouts/Loading.layout";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { ROUTER_URL } from "@/routes/router.const";
@@ -15,7 +16,6 @@ import type { IceLevel, SugarLevel } from "@/types/menu.types";
 import { getCurrentCustomerProfile, updateCurrentCustomerProfile } from "@/services/customer.service";
 import { promotionService } from "@/services/promotion.service";
 import type { Promotion } from "@/models/promotion.model";
-import { createMockCheckout } from "@/services/checkout-fallback.mock";
 
 type CheckoutPaymentMethod = "COD" | "CARD";
 
@@ -33,6 +33,8 @@ const fmtPercent = (n: number) => {
 
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+const CHECKOUT_MIN_LOADING_MS = 900;
 
 function getPromotionIdentity(promo: Promotion): string {
   const raw = promo as any;
@@ -419,6 +421,7 @@ export default function MenuCheckoutPage() {
   const queryClient = useQueryClient();
   const setCarts = useMenuCartStore((s) => s.setCarts);
   const clearCart = useMenuCartStore((s) => s.clearCart);
+  const removeCartId = useMenuCartStore((s) => s.removeCartId);
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
 
@@ -704,6 +707,7 @@ export default function MenuCheckoutPage() {
     const { cartId, franchiseName } = block;
     if (!validate() || orderingCartId || !isTermsAccepted(cartId)) return;
 
+    const loadingStartedAt = Date.now();
     setOrderingCartId(cartId);
     try {
       try {
@@ -753,38 +757,51 @@ export default function MenuCheckoutPage() {
 
       let orderId = "";
 
-      try {
-        await cartClient.updateCart(cartId, updateCartBody);
-        await cartClient.checkoutCart(cartId, checkoutBody);
-        const order = await orderClient.getOrderByCartId(cartId);
-        orderId = String(order?._id ?? order?.id ?? "");
-      } catch {
-        const mock = createMockCheckout({
-          cartId,
-          franchiseName,
-          customerName: form.name.trim(),
-          customerPhone: form.phone.trim(),
-          subtotalAmount: block.subtotal,
-          finalAmount: block.totalAmount,
-          paymentMethod,
-          items: block.items.map((item) => ({
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            lineTotal: item.lineTotal,
-          })),
-        });
-        orderId = String(mock.order._id ?? mock.order.id ?? "");
-        toast.info("API checkout chưa sẵn sàng, hệ thống đã chuyển sang mock payment.");
-      }
+      await cartClient.updateCart(cartId, updateCartBody);
+      await cartClient.checkoutCart(cartId, checkoutBody);
+      const order = await orderClient.getOrderByCartId(cartId);
+      orderId = String(order?._id ?? order?.id ?? "");
 
       toast.success(`Đã đặt đơn tại ${franchiseName}`);
       if (orderId) {
-        // Invalidate sau khi navigate để tránh flash "giỏ trống"
-        const targetPath = paymentMethod === PAYMENT_METHODS.COD
-          ? ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", String(orderId))
-          : ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(orderId));
-        navigate(targetPath);
+        const cartIdsBeforeRemove = useMenuCartStore.getState().cartIds;
+        const isLastCart = cartIdsBeforeRemove.length <= 1;
+
+        removeCartId(cartId);
+        if (isLastCart) {
+          clearCart();
+        }
+
+        queryClient.removeQueries({ queryKey: ["cart-detail", cartId], exact: true });
+        queryClient.setQueryData(["carts-by-customer", customerId], (prev: unknown) => {
+          if (Array.isArray(prev)) {
+            return prev.filter((cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId);
+          }
+          if (prev && typeof prev === "object") {
+            const cloned = { ...(prev as Record<string, unknown>) };
+            if (Array.isArray((cloned as any).data)) {
+              (cloned as any).data = (cloned as any).data.filter(
+                (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
+              );
+            }
+            if (Array.isArray((cloned as any).carts)) {
+              (cloned as any).carts = (cloned as any).carts.filter(
+                (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
+              );
+            }
+            return cloned;
+          }
+          return prev;
+        });
+
+        // Keep a short minimum loading window so users can perceive processing state.
+        const elapsedMs = Date.now() - loadingStartedAt;
+        if (elapsedMs < CHECKOUT_MIN_LOADING_MS) {
+          await new Promise((resolve) => setTimeout(resolve, CHECKOUT_MIN_LOADING_MS - elapsedMs));
+        }
+
+        // Luôn vào trang xử lý payment trước; success chỉ hiển thị sau bước xác nhận payment.
+        navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(orderId)));
         queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
         queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
         return;
@@ -797,6 +814,10 @@ export default function MenuCheckoutPage() {
     } finally {
       setOrderingCartId(null);
     }
+  }
+
+  if (orderingCartId) {
+    return <LoadingLayout />;
   }
 
   if (!isLoggedIn) {

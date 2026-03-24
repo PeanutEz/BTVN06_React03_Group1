@@ -13,13 +13,9 @@ export const ROUTER_URL = {
 
   // Customer account sub-pages
   CUSTOMER_PROFILE: "/customer/account",
-  CUSTOMER_ADDRESS_BOOK: "/customer/address-book",
-  CUSTOMER_MEMBERSHIP: "/customer/membership",
-  CUSTOMER_VOUCHERS: "/customer/vouchers",
+  CUSTOMER_MEMBERSHIP: "/customer/loyalty",
   CUSTOMER_ORDER_HISTORY: "/customer/order",
   CUSTOMER_CART: "/customer/cart",
-  CUSTOMER_FAVORITES: "/customer/product-favorite",
-  CUSTOMER_ORDERED: "/customer/ordered",
   CUSTOMER_SUPPORT: "/customer/support",
   CUSTOMER_CHANGE_PASSWORD: "/customer/change-password",
 
