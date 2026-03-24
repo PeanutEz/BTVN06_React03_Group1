@@ -6,6 +6,7 @@ import {
   searchCustomersPaged,
   deleteCustomer,
   changeCustomerStatus,
+  restoreCustomer,
 } from "../../../services/customer.service";
 import { showSuccess, showError } from "../../../utils";
 import Pagination from "../../../components/ui/Pagination";
@@ -123,10 +124,15 @@ const CustomerListPage = () => {
       showError(msg);
     }
   };
-
   const handleToggleStatus = async (id: string, currentActive: boolean, email?: string, name?: string) => {
     try {
-      await changeCustomerStatus(id, !currentActive);
+      if (!currentActive) {
+        // Kích hoạt lại → dùng endpoint /restore
+        await restoreCustomer(id);
+      } else {
+        // Vô hiệu hóa → dùng endpoint /status
+        await changeCustomerStatus(id, false);
+      }
       const label = email || name || "";
       showSuccess(`Đã ${!currentActive ? "kích hoạt" : "vô hiệu hóa"} khách hàng${label ? ` ${label}` : ""} thành công`);
       loadPage(currentPage, searchRef.current.keyword, searchRef.current.activeFilter);
