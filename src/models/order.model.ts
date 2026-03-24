@@ -148,4 +148,5 @@ export const ORDER_STATUS_FLOW: OrderStatus[] = [
   "READY_FOR_PICKUP",
   "DELIVERING",
   "COMPLETED",
+  "CANCELLED",
 ];

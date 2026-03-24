@@ -11,7 +11,6 @@ async function uploadImageToCloudinary(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-
   const res = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
     { method: "POST", body: formData }
@@ -23,11 +22,9 @@ async function uploadImageToCloudinary(file: File): Promise<string> {
 
 export default function CustomerProfilePage() {
   const { user } = useAuthStore();
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const pendingAvatarFileRef = useRef<File | null>(null);
-  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string>("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const customerIdRef = useRef<string>("");
   const hasFetched = useRef(false);
   const [form, setForm] = useState({
@@ -38,7 +35,6 @@ export default function CustomerProfilePage() {
     avatar_url: "",
   });
 
-  // Gọi API CUSTOMER-AUTH-02 để lấy thông tin profile mới nhất
   useEffect(() => {
     if (hasFetched.current) return;
     hasFetched.current = true;
@@ -69,12 +65,33 @@ export default function CustomerProfilePage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleAvatarSelect = (file: File) => {
-    pendingAvatarFileRef.current = file;
-    setPendingAvatarPreview(URL.createObjectURL(file));
+  // Upload avatar riêng, không cần lưu form
+  const handleAvatarSave = async (file: File) => {
+    if (!customerIdRef.current) {
+      showError("Không tìm thấy thông tin khách hàng");
+      return;
+    }    try {
+      setUploadingAvatar(true);
+      const avatarUrl = await uploadImageToCloudinary(file);
+      await updateCustomerProfile(customerIdRef.current, {
+        email: form.email,
+        phone: form.phone,
+        name: form.name || undefined,
+        address: form.address || undefined,
+        avatar_url: avatarUrl,
+      });
+      setForm((prev) => ({ ...prev, avatar_url: avatarUrl }));
+      showSuccess("Cập nhật ảnh đại diện thành công");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload ảnh thất bại";
+      showError(msg);
+      throw err; // re-throw để modal không đóng khi lỗi
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
-  // Gọi API CUSTOMER-05: PUT /api/customers/:id
+  // Lưu thông tin form (không đụng avatar)
   const handleSubmit = async () => {
     if (!customerIdRef.current) {
       showError("Không tìm thấy thông tin khách hàng");
@@ -86,19 +103,12 @@ export default function CustomerProfilePage() {
     }
     try {
       setSaving(true);
-      let avatarUrl = form.avatar_url;
-      if (pendingAvatarFileRef.current) {
-        avatarUrl = await uploadImageToCloudinary(pendingAvatarFileRef.current);
-        pendingAvatarFileRef.current = null;
-        setPendingAvatarPreview("");
-        setForm((prev) => ({ ...prev, avatar_url: avatarUrl }));
-      }
       await updateCustomerProfile(customerIdRef.current, {
         email: form.email,
         phone: form.phone,
         name: form.name || undefined,
         address: form.address || undefined,
-        avatar_url: avatarUrl || undefined,
+        avatar_url: form.avatar_url || undefined,
       });
       showSuccess("Cập nhật thông tin thành công");
     } catch (err) {
@@ -128,8 +138,9 @@ export default function CustomerProfilePage() {
       onFieldChange={handleFieldChange}
       onSubmit={handleSubmit}
       saving={saving}
-      avatarUrl={pendingAvatarPreview || form.avatar_url}
-      onAvatarSelect={handleAvatarSelect}
+      avatarUrl={form.avatar_url}
+      onAvatarSave={handleAvatarSave}
+      uploadingAvatar={uploadingAvatar}
     />
   );
 }

@@ -288,9 +288,7 @@ export default function CategoryFranchisePage() {
       {/* Table */}
       <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/5">
           <table className="w-full text-sm">
-            <thead className="border-b border-white/10 bg-white/5 text-xs font-semibold uppercase tracking-wide text-white/50">
-              <tr>
-                <th className="px-4 py-3 text-left">#</th>
+            <thead className="border-b border-white/10 bg-white/5 text-xs font-semibold uppercase tracking-wide text-white/50">              <tr>
                 <th className="px-4 py-3 text-left">Danh mục</th>
                 <th className="px-4 py-3 text-left">Mã</th>
                 <th className="px-4 py-3 text-left">Franchise</th>
@@ -299,12 +297,10 @@ export default function CategoryFranchisePage() {
                 <th className="px-4 py-3 text-center">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
-              {loading && <tr><td colSpan={7} className="py-10 text-center text-white/40">Đang tải...</td></tr>}
-              {!loading && items.length === 0 && <tr><td colSpan={7} className="py-10 text-center text-white/40">Không có dữ liệu</td></tr>}
-              {!loading && items.map((it, idx) => (
+            <tbody className="divide-y divide-white/5">              {loading && <tr><td colSpan={6} className="py-10 text-center text-white/40">Đang tải...</td></tr>}
+              {!loading && items.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-white/40">Không có dữ liệu</td></tr>}
+              {!loading && items.map((it) => (
                 <tr key={it.id} className={`transition-colors ${it.is_deleted ? "bg-red-500/5" : "hover:bg-white/5"}`}>
-                  <td className="px-4 py-3 text-white/40 text-xs">{(currentPage - 1) * PAGE_SIZE + idx + 1}</td>
                   <td className="px-4 py-3 text-white/90 font-medium">{it.category_name ?? "—"}</td>
                   <td className="px-4 py-3 text-white/50 font-mono text-xs">{it.category_code ?? "—"}</td>
                   <td className="px-4 py-3 text-white/60 text-xs">{it.franchise_name ?? it.franchise_code ?? it.franchise_id}</td>

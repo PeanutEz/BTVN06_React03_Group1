@@ -22,22 +22,18 @@ export default function App() {
 
   return (
     <>
-      <AppRoutes />
-      <Toaster 
-        position="top-right" 
-        richColors 
-        expand={true}
+      <AppRoutes />      <Toaster
+        position="top-right"
+        richColors
+        expand={false}
+        closeButton
         toastOptions={{
+          duration: 3000,
           style: {
-            background: 'white',
-            border: '1px solid #e5e7eb',
-            padding: '16px',
             borderRadius: '12px',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
             fontSize: '14px',
             fontWeight: '500',
           },
-          className: 'toast-slide-left',
         }}
       />
     </>

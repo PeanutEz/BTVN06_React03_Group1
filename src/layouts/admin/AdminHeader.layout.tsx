@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store";
-import { switchContextAndGetProfile, type RoleInfo } from "../../services/auth.service";
+import { switchContextAndGetProfile, type RoleInfo, logoutUser } from "../../services/auth.service";
 import { showSuccess, showError } from "../../utils";
 import FranchisePickerModal from "../../components/admin/FranchisePickerModal";
 
@@ -13,11 +13,12 @@ interface AdminHeaderProps {
 
 const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
   const navigate = useNavigate();
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [showSwitchContext, setShowSwitchContext] = useState(false);
-  const [isSwitching, setIsSwitching] = useState(false);  const activeContext = user?.active_context as { franchise_id?: string; franchise_name?: string; role?: string; scope?: string } | null;
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);  const activeContext = user?.active_context as { franchise_id?: string; franchise_name?: string; role?: string; scope?: string } | null;
   const currentRole = activeContext?.role || user?.role || "";
   const activeFranchiseId = activeContext?.franchise_id ?? null;
 
@@ -48,7 +49,6 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
   const handleSwitchContext = async (role: RoleInfo) => {
     try {
       setIsSwitching(true);
@@ -63,6 +63,22 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
       showError(msg);
     } finally {
       setIsSwitching(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logoutUser().catch(() => {});
+      logout();
+      showSuccess("Đăng xuất thành công");
+      navigate(ROUTER_URL.ADMIN_LOGIN);
+    } catch {
+      logout();
+      navigate(ROUTER_URL.ADMIN_LOGIN);
+    } finally {
+      setIsLoggingOut(false);
+      setMenuOpen(false);
     }
   };
 
@@ -214,8 +230,7 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                     </svg>
                     <span>Hồ sơ</span>
-                  </button>
-                  {user?.roles && user.roles.length > 1 && (
+                  </button>                  {user?.roles && user.roles.length > 1 && (
                     <button
                       type="button"
                       onClick={() => { setShowSwitchContext(true); setMenuOpen(false); }}
@@ -227,6 +242,26 @@ const AdminHeader = ({ onMenuToggle, isMobile }: AdminHeaderProps) => {
                       <span>Chuyển chi nhánh</span>
                     </button>
                   )}
+
+                  {/* Divider */}
+                  <div className="my-1 mx-1" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+
+                  {/* Logout */}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-400 transition-all rounded-xl hover:bg-red-500/15 hover:text-red-300 disabled:opacity-50"
+                  >
+                    {isLoggingOut ? (
+                      <div className="size-[18px] shrink-0 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
+                    ) : (
+                      <svg className="size-[18px] shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.8" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                      </svg>
+                    )}
+                    <span>{isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
+                  </button>
                 </div>
               </div>
             )}

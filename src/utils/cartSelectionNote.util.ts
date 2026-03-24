@@ -8,9 +8,6 @@ export type ParsedCartSelectionNote = {
   userNote?: string;
 };
 
-function escapeRegExp(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 export function aggregateToppings(toppings: Topping[]) {
   const map = new Map<string, { topping: Topping; quantity: number }>();
@@ -65,18 +62,37 @@ function parseFromPrefixedSegments(note: string): ParsedCartSelectionNote {
       const match = ICE_LEVELS.find((s) => s === v);
       if (match) result.ice = match;
       continue;
-    }
-    if (lower.startsWith("topping:".toLowerCase())) {
+    }    if (lower.startsWith("topping:".toLowerCase())) {
       const raw = seg.replace(/topping:\s*/i, "").trim();
-      // raw example: "Trân châu x2; Thạch x1"
+      // raw example: "Trân Châu Đen x2; Thạch Dừa x1"
+      // Strategy: extract all "SomeName xN" and "SomeName" tokens from raw,
+      // then map each token back to the closest TOPPINGS entry by substring match.
       const found: Array<{ name: string; quantity: number }> = [];
-      for (const t of TOPPINGS) {
-        const qtyMatch = raw.match(new RegExp(`${escapeRegExp(t.name)}\\s*x\\s*(\\d+)`, "i"));
-        if (qtyMatch) {
-          found.push({ name: t.name, quantity: Number(qtyMatch[1]) });
-        } else {
-          // If topping name exists without "xN", assume 1.
-          if (raw.toLowerCase().includes(t.name.toLowerCase())) found.push({ name: t.name, quantity: 1 });
+
+      // Split by ; or , to get individual topping tokens
+      const tokens = raw.split(/[;,]+/).map((s) => s.trim()).filter(Boolean);
+      const normalize = (s: string) =>
+        s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+      for (const token of tokens) {
+        // Try to extract "Name xN" or just "Name"
+        const qtyMatch = token.match(/^(.*?)\s*x\s*(\d+)\s*$/i);
+        const tokenName = qtyMatch ? qtyMatch[1].trim() : token.trim();
+        const quantity = qtyMatch ? Number(qtyMatch[2]) : 1;
+        if (!tokenName) continue;
+
+        const normToken = normalize(tokenName);
+        // Find the best matching TOPPINGS entry: prefer exact, then longest prefix match
+        const sortedToppings = [...TOPPINGS].sort((a, b) => b.name.length - a.name.length);
+        const matched = sortedToppings.find((t) => {
+          const normT = normalize(t.name);
+          return normToken === normT || normToken.startsWith(normT) || normT.startsWith(normToken);
+        });
+        if (matched) {
+          // Merge with existing entry for same topping
+          const existing = found.find((f) => f.name === matched.name);
+          if (existing) existing.quantity += quantity;
+          else found.push({ name: matched.name, quantity });
         }
       }
       if (found.length > 0) result.toppings = found;
@@ -113,13 +129,28 @@ export function parseCartSelectionNote(note?: string | null): ParsedCartSelectio
       result.sugar = sugar;
       break;
     }
-  }
-
-  const toppingMatches: Array<{ name: string; quantity: number }> = [];
-  for (const t of TOPPINGS) {
-    const qtyMatch = n.match(new RegExp(`${escapeRegExp(t.name)}\\s*x\\s*(\\d+)`, "i"));
-    if (qtyMatch) toppingMatches.push({ name: t.name, quantity: Number(qtyMatch[1]) });
-    else if (n.toLowerCase().includes(t.name.toLowerCase())) toppingMatches.push({ name: t.name, quantity: 1 });
+  }  const toppingMatches: Array<{ name: string; quantity: number }> = [];
+  // Token-based approach: split remaining by ; or , then map each token to TOPPINGS by substring match.
+  // This correctly handles API names like "Trân Châu Đen x2" when TOPPINGS only has "Trân châu".
+  const normalize = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const sortedToppings = [...TOPPINGS].sort((a, b) => b.name.length - a.name.length);
+  const tokens = n.split(/[;,|]+/).map((s) => s.trim()).filter(Boolean);
+  for (const token of tokens) {
+    const qtyMatch = token.match(/^(.*?)\s*x\s*(\d+)\s*$/i);
+    const tokenName = qtyMatch ? qtyMatch[1].trim() : token.trim();
+    const quantity = qtyMatch ? Number(qtyMatch[2]) : 1;
+    if (!tokenName) continue;
+    const normToken = normalize(tokenName);
+    const matched = sortedToppings.find((t) => {
+      const normT = normalize(t.name);
+      return normToken === normT || normToken.startsWith(normT) || normT.startsWith(normToken);
+    });
+    if (matched) {
+      const existing = toppingMatches.find((f) => f.name === matched.name);
+      if (existing) existing.quantity += quantity;
+      else toppingMatches.push({ name: matched.name, quantity });
+    }
   }
   if (toppingMatches.length > 0) result.toppings = toppingMatches;
 

@@ -270,14 +270,29 @@ export async function customerChangePassword(data: {
 }
 
 // ==================== AUTH-07: Logout ====================
-// POST /api/auth/log-out — Token: YES — Role: SYSTEM & FRANCHISE
+// POST /api/auth/logout — Token: YES — Role: SYSTEM & FRANCHISE
 // Server sẽ xóa cookie token
 export async function logoutUser(): Promise<void> {
 	try {
-		await apiClient.post<ApiResponse>("/auth/log-out");
+		await apiClient.post<ApiResponse>("/auth/logout");
 	} catch {
 		// Nếu API logout lỗi vẫn xóa local data
 		console.warn("Logout API failed, clearing local data anyway");
+	}
+
+	// Xóa profile khỏi localStorage
+	localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
+}
+
+// ==================== CUSTOMER-AUTH-06: Customer Logout ====================
+// POST /api/customer-auth/logout — Token: YES (cookie) — Role: CUSTOMER
+// Server sẽ xóa cookie token của customer
+export async function logoutCustomer(): Promise<void> {
+	try {
+		await apiClient.post<ApiResponse>("/customer-auth/logout");
+	} catch {
+		// Nếu API logout lỗi vẫn xóa local data
+		console.warn("Customer logout API failed, clearing local data anyway");
 	}
 
 	// Xóa profile khỏi localStorage

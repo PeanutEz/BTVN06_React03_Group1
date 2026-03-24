@@ -97,9 +97,12 @@ const FranchiseDetailPage = () => {
   };
 
   const handleAssignSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!assignForm.user_id || !assignForm.role_id) {
-      showError("Vui lòng chọn user và role");
+    e.preventDefault();    if (!assignForm.user_id) {
+      showError("Vui lòng chọn user");
+      return;
+    }
+    if (!assignForm.role_id) {
+      showError("Vui lòng chọn role");
       return;
     }
     setAssignSubmitting(true);
