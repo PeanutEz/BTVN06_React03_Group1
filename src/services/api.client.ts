@@ -148,8 +148,18 @@ apiClient.interceptors.response.use(
             const { status } = error.response;
             const data = error.response.data as any;
             // Extract server message from response body
-            const serverMessage: string | undefined =
-                data?.message || data?.error?.[0] || data?.errors?.[0];
+            // errors có thể là array of string hoặc array of {field, message}
+            let serverMessage: string | undefined;
+            if (Array.isArray(data?.errors) && data.errors.length > 0) {
+                const joined = data.errors
+                    .map((e: any) => (typeof e === "string" ? e : e?.message))
+                    .filter(Boolean)
+                    .join("\n");
+                serverMessage = joined || undefined;
+            }
+            if (!serverMessage) {
+                serverMessage = data?.message || undefined;
+            }
 
             switch (status) {
                 case 401:
@@ -168,11 +178,11 @@ apiClient.interceptors.response.use(
                     break;
                 default:
                     console.error(`API Error: ${status}`, data);
-            }
-
-            // Always throw with server message if available
+            }            // Always throw with server message if available, but preserve responseData for field-level error handling
             if (serverMessage) {
-                return Promise.reject(new Error(serverMessage));
+                const err = new Error(serverMessage) as Error & { responseData?: unknown };
+                err.responseData = data;
+                return Promise.reject(err);
             }
         } else if (error.request) {
             console.error("Network Error: Không nhận được phản hồi từ máy chủ.");

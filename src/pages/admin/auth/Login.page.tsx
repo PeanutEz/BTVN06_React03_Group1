@@ -1,7 +1,7 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate, useLocation } from "react-router-dom";
-import { loginAndGetProfile, switchContextAndGetProfile, type UserProfile, type RoleInfo } from "../../../services/auth.service";
+import { loginAndGetProfile, switchContextAndGetProfile, forgotPassword, type UserProfile, type RoleInfo } from "../../../services/auth.service";
 import { useAuthStore } from "../../../store";
 import type { AuthCredentials } from "../../../models";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -51,9 +51,13 @@ const AdminLoginPage = () => {
   const [showFranchisePicker, setShowFranchisePicker] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
   const [ripples, setRipples] = useState<RippleItem[]>([]);
-  const rippleId = useRef(0);
-  const [apiErrors, setApiErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const rippleId = useRef(0);  const [apiErrors, setApiErrors] = useState<{ email?: string[]; password?: string[]; general?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [fpEmail, setFpEmail] = useState("");
+  const [fpLoading, setFpLoading] = useState(false);
+  const [fpError, setFpError] = useState<string | null>(null);
+  const [fpSuccess, setFpSuccess] = useState(false);
 
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<AuthCredentials>();
 
@@ -103,25 +107,55 @@ const AdminLoginPage = () => {
       } else {
         setPendingProfile(profile);
         setShowFranchisePicker(true);
-      }
-    } catch (error) {
-      const errData = (error as { response?: { data?: { message?: string; errors?: Array<{ field?: string; message?: string }> } } })?.response?.data;      if (errData?.errors?.length) {
-        const mapped: { email?: string; password?: string; general?: string } = {};
-        const pickMsg = (field: string) => {
-          const fieldErrs = errData.errors!.filter(e => e.field === field);
-          // ưu tiên lỗi "empty" trước, nếu không có thì lấy cái đầu tiên
-          return (fieldErrs.find(e => e.message?.toLowerCase().includes("empty")) ?? fieldErrs[0])?.message;
-        };
-        mapped.email = pickMsg("email");
-        mapped.password = pickMsg("password");
-        // lỗi không thuộc email/password
-        const other = errData.errors!.find(e => e.field !== "email" && e.field !== "password");
-        if (other) mapped.general = other.message;
+      }    } catch (error) {
+      // Đọc responseData từ interceptor (đã attach) hoặc axios error gốc
+      const errData = (error as any)?.responseData || (error as any)?.response?.data;      if (Array.isArray(errData?.errors) && errData.errors.length > 0) {
+        const mapped: { email?: string[]; password?: string[]; general?: string } = {};
+        // Gom tất cả lỗi của cùng field thành mảng
+        const getFieldMsgs = (field: string): string[] =>
+          errData.errors
+            .filter((e: any) => e.field === field && e.message)
+            .map((e: any) => e.message as string);
+        const emailMsgs = getFieldMsgs("email");
+        const passwordMsgs = getFieldMsgs("password");
+        if (emailMsgs.length > 0) mapped.email = emailMsgs;
+        if (passwordMsgs.length > 0) mapped.password = passwordMsgs;
+        // Lỗi không thuộc email/password
+        const otherMsgs = errData.errors
+          .filter((e: any) => e.field !== "email" && e.field !== "password" && e.message)
+          .map((e: any) => e.message)
+          .join(". ");
+        if (otherMsgs) mapped.general = otherMsgs;
         setApiErrors(mapped);
       } else {
         setApiErrors({ general: errData?.message || (error instanceof Error ? error.message : "Đăng nhập thất bại") });
       }
     }
+  };
+  const handleForgotPassword = async () => {
+    if (!fpEmail.trim()) {
+      setFpError("Vui lòng nhập email.");
+      return;
+    }
+    setFpLoading(true);
+    setFpError(null);
+    try {
+      await forgotPassword(fpEmail.trim());
+      setFpSuccess(true);
+    } catch (err) {
+      const responseData = (err as any)?.responseData ?? (err as any)?.response?.data;
+      const msg = responseData?.message || (err instanceof Error ? err.message : "Yêu cầu thất bại");
+      setFpError(msg);
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const openForgotModal = () => {
+    setFpEmail("");
+    setFpError(null);
+    setFpSuccess(false);
+    setShowForgotModal(true);
   };
 
   return (
@@ -209,17 +243,17 @@ const AdminLoginPage = () => {
                 placeholder="Email"
                 autoComplete="email"
                 style={{
-                  ...INPUT_STYLE,
-                  ...(apiErrors.email ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
+                  ...INPUT_STYLE,                  ...(apiErrors.email?.length ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
                 }}
                 onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
                 {...register("email")}
-                onBlur={e => { e.currentTarget.style.border = apiErrors.email ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
-              />
-              {apiErrors.email && (
-                <p style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1 }}>
-                  {apiErrors.email}
-                </p>
+                onBlur={e => { e.currentTarget.style.border = apiErrors.email?.length ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
+              />              {apiErrors.email && (
+                <div style={{ marginTop: 4, paddingLeft: 14 }}>
+                  {apiErrors.email.map((msg, i) => (
+                    <p key={i} style={{ fontSize: 10, color: "#fca5a5", lineHeight: 1.4, margin: 0 }}>• {msg}</p>
+                  ))}
+                </div>
               )}
             </div>            <div style={{ width: "100%" }}>
               <div style={{ position: "relative" }}>
@@ -229,12 +263,11 @@ const AdminLoginPage = () => {
                   autoComplete="current-password"
                   style={{
                     ...INPUT_STYLE,
-                    paddingRight: 40,
-                    ...(apiErrors.password ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
-                  }}
-                  onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
-                  {...register("password")}
-                  onBlur={e => { e.currentTarget.style.border = apiErrors.password ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
+                    paddingRight: 40,                  ...(apiErrors.password?.length ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
+                }}
+                onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
+                {...register("password")}
+                onBlur={e => { e.currentTarget.style.border = apiErrors.password?.length ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
                 />
                 <button
                   type="button"
@@ -265,11 +298,12 @@ const AdminLoginPage = () => {
                     </svg>
                   )}
                 </button>
-              </div>
-              {apiErrors.password && (
-                <p style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1 }}>
-                  {apiErrors.password}
-                </p>
+              </div>              {apiErrors.password && (
+                <div style={{ marginTop: 4, paddingLeft: 14 }}>
+                  {apiErrors.password.map((msg, i) => (
+                    <p key={i} style={{ fontSize: 10, color: "#fca5a5", lineHeight: 1.4, margin: 0 }}>• {msg}</p>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -315,12 +349,207 @@ const AdminLoginPage = () => {
             >
               {ripples.map(r => (
                 <span key={r.id} className="animate-ripple" style={{ position: "absolute", left: r.x, top: r.y, width: 56, height: 56, borderRadius: "50%", background: "rgba(245,204,78,0.4)", pointerEvents: "none" }} />
-              ))}
-              {isSubmitting ? "···" : "ĐĂNG NHẬP"}
+              ))}              {isSubmitting ? "···" : "ĐĂNG NHẬP"}
+            </button>
+
+            {/* Forgot password link */}
+            <button
+              type="button"
+              onClick={openForgotModal}
+              style={{
+                marginTop: 2,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: 11,
+                color: `rgba(201,162,39,0.75)`,
+                textDecoration: "underline",
+                letterSpacing: "0.03em",
+                padding: 0,
+                transition: "color 0.15s",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = GOLD)}
+              onMouseLeave={e => (e.currentTarget.style.color = "rgba(201,162,39,0.75)")}
+            >
+              Quên mật khẩu?
             </button>
           </form>
+        </div>      </div>      {/* ── Forgot Password Modal ── */}
+      {showForgotModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 100,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={() => setShowForgotModal(false)}
+        >
+          <div
+            style={{
+              width: 340,
+              padding: "32px 28px",
+              borderRadius: 20,
+              background: "rgba(15,11,5,0.95)",
+              backdropFilter: "blur(24px)",
+              border: `1.5px solid rgba(201,162,39,0.45)`,
+              boxShadow: "0 24px 64px rgba(0,0,0,0.7), inset 0 1px 0 rgba(245,204,78,0.15)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 16,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Icon */}
+            <div style={{
+              width: 48, height: 48, borderRadius: "50%",
+              background: "rgba(201,162,39,0.12)",
+              border: `1.5px solid rgba(201,162,39,0.4)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke={GOLD} strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+              </svg>
+            </div>
+
+            {/* Title */}
+            <div style={{ textAlign: "center" }}>
+              <h3 style={{
+                margin: 0,
+                fontSize: 15,
+                fontWeight: 700,
+                background: `linear-gradient(135deg, ${GOLD_LIGHT}, ${GOLD})`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                letterSpacing: "0.05em",
+              }}>
+                Quên mật khẩu
+              </h3>
+              <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(245,230,176,0.55)", lineHeight: 1.5 }}>
+                Nhập email tài khoản admin. Mật khẩu mới sẽ được gửi qua email.
+              </p>
+            </div>
+
+            {/* Gold divider */}
+            <div style={{
+              width: "60%", height: 1,
+              background: `linear-gradient(90deg, transparent, rgba(201,162,39,0.5), transparent)`,
+            }} />
+
+            {fpSuccess ? (
+              /* Success state */
+              <div style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: 12,
+                background: "rgba(34,197,94,0.12)",
+                border: "1px solid rgba(34,197,94,0.35)",
+                textAlign: "center",
+              }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#4ade80" strokeWidth={2} style={{ display: "block", margin: "0 auto 8px" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p style={{ margin: 0, fontSize: 12, color: "#86efac", lineHeight: 1.5 }}>
+                  Email đặt lại mật khẩu đã được gửi!<br />
+                  Vui lòng kiểm tra hộp thư của bạn.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(false)}
+                  style={{
+                    marginTop: 14,
+                    padding: "8px 28px",
+                    borderRadius: 20,
+                    background: `linear-gradient(135deg, ${GOLD_LIGHT}, ${GOLD})`,
+                    border: "none",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: "#0f0b07",
+                    cursor: "pointer",
+                    letterSpacing: "0.1em",
+                  }}
+                >
+                  ĐÓNG
+                </button>
+              </div>
+            ) : (
+              /* Form state */
+              <>
+                <div style={{ width: "100%" }}>
+                  <input
+                    type="email"
+                    placeholder="Email tài khoản admin"
+                    value={fpEmail}
+                    onChange={e => { setFpEmail(e.target.value); setFpError(null); }}
+                    onKeyDown={e => e.key === "Enter" && handleForgotPassword()}
+                    style={{
+                      ...INPUT_STYLE,
+                      ...(fpError ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
+                    }}
+                    onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
+                    onBlur={e => { e.currentTarget.style.border = fpError ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
+                    autoFocus
+                  />
+                  {fpError && (
+                    <p style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1.4 }}>
+                      {fpError}
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", gap: 10, width: "100%" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    style={{
+                      flex: 1,
+                      padding: "10px 0",
+                      borderRadius: 20,
+                      background: "rgba(255,255,255,0.06)",
+                      border: `1px solid rgba(201,162,39,0.3)`,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "rgba(245,230,176,0.6)",
+                      cursor: "pointer",
+                      letterSpacing: "0.08em",
+                      transition: "border 0.15s, color 0.15s",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(201,162,39,0.6)"; e.currentTarget.style.color = "#f5e6b0"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(201,162,39,0.3)"; e.currentTarget.style.color = "rgba(245,230,176,0.6)"; }}
+                  >
+                    HỦY
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={fpLoading}
+                    style={{
+                      flex: 1,
+                      padding: "10px 0",
+                      borderRadius: 20,
+                      background: `linear-gradient(135deg, ${GOLD_LIGHT}, ${GOLD}, ${GOLD_DARK})`,
+                      border: "none",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#0f0b07",
+                      cursor: fpLoading ? "not-allowed" : "pointer",
+                      letterSpacing: "0.1em",
+                      boxShadow: "0 4px 16px rgba(201,162,39,0.4)",
+                      opacity: fpLoading ? 0.75 : 1,
+                      transition: "transform 0.15s, box-shadow 0.15s",
+                    }}
+                    onMouseEnter={e => { if (!fpLoading) { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 8px 22px rgba(201,162,39,0.55)"; } }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(201,162,39,0.4)"; }}
+                  >
+                    {fpLoading ? "···" : "GỬI"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Franchise Picker Modal */}
       {showFranchisePicker && pendingProfile && (

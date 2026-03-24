@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Button, useConfirm } from "../../../components";
 import type { ApiFranchise, CreateFranchisePayload } from "../../../services/store.service";
 import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise, updateFranchise, changeFranchiseStatus, restoreFranchise } from "../../../services/store.service";
-import { useNavigate } from "react-router-dom"; import { ROUTER_URL } from "../../../routes/router.const";
+
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 
@@ -63,7 +63,7 @@ const FranchiseListPage = () => {
   const [saving, setSaving] = useState(false);
   const [editLogoPreview, setEditLogoPreview] = useState<string>("");
   const pendingEditLogoFileRef = useRef<File | null>(null);
-  const editLogoInputRef = useRef<HTMLInputElement>(null);  const navigate = useNavigate();
+  const editLogoInputRef = useRef<HTMLInputElement>(null);
 
   // Refs để giữ latest values — tránh load bị stale closure mà không tạo lại function
   const keywordRef = useRef(keyword);
@@ -621,35 +621,9 @@ const FranchiseListPage = () => {
               </div>
             </form>
 
-            {/* Footer actions */}
-            <div className="flex items-center justify-between gap-3 border-t border-white/[0.12] px-6 py-4 shrink-0">
+            {/* Footer actions */}            <div className="flex items-center justify-between gap-3 border-t border-white/[0.12] px-6 py-4 shrink-0">
               <div className="flex gap-2">
                 <Button type="submit" form="edit-franchise-form" loading={saving}>Lưu thay đổi</Button>
-
-                <button
-                  onClick={() => {
-                    setViewingFranchise(null);
-                    navigate(
-                      `${ROUTER_URL.ADMIN}/franchises/${viewingFranchise.id}/categories`,
-                      {
-                        state: { franchiseName: viewingFranchise.name }
-                      }
-                    );
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
-                >
-                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 7h18M3 12h18M3 17h18"
-                    />
-                  </svg>
-                  Danh mục sản phẩm
-                </button>
-
-
               </div>
               <button
                 onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }}

@@ -1,5 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, GlassSelect, useConfirm } from "../../../components";
+
+const CLOUDINARY_CLOUD_NAME = "dn2xh5rxe";
+const CLOUDINARY_UPLOAD_PRESET = "btvn06_upload";
+
+async function uploadImageToCloudinary(file: File): Promise<string> {
+  const data = new FormData();
+  data.append("file", file);
+  data.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    { method: "POST", body: data }
+  );
+  if (!res.ok) throw new Error("Upload ảnh lên Cloudinary thất bại");
+  const json = await res.json();
+  return json.secure_url as string;
+}
 import { useAuthStore } from "../../../store";
 import { createUser, deleteUser, fetchUsers, fetchUserById, updateUserProfile, fetchRoles, changeUserStatus, restoreUser } from "../../../services/user.service";
 import type { ApiUser, CreateUserPayload, RoleSelectItem } from "../../../services/user.service";
@@ -49,9 +65,10 @@ const UserPage = () => {
   });
   const [setRoleSubmitting, setSetRoleSubmitting] = useState(false);
   const [existingUserRoles, setExistingUserRoles] = useState<UserFranchiseRole[]>([]);
-  const [loadingExistingRoles, setLoadingExistingRoles] = useState(false);
-  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
+  const [loadingExistingRoles, setLoadingExistingRoles] = useState(false);  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [updateRoleMap, setUpdateRoleMap] = useState<Record<string, string>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const hasRun = useRef(false);
 
@@ -162,21 +179,31 @@ const UserPage = () => {
       setSetRoleSubmitting(false);
     }
   };
-
   const handleOpenModal = () => {
     setFormData({ ...DEFAULT_FORM });
+    setFormErrors({});
     setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErrors({});
     setSubmitting(true);
-    try {      await createUser(formData);
+    try {
+      await createUser(formData);
       showSuccess("Tạo người dùng thành công");
       setShowModal(false);
       await load(searchQuery, currentPage);
-    } catch {
-      showError("Tạo người dùng thất bại");
+    } catch (err) {
+      const responseData = (err as any)?.responseData ?? (err as any)?.response?.data;
+      const apiErrors: Array<{ field?: string; message?: string }> = responseData?.errors ?? [];
+      if (apiErrors.length > 0) {
+        const fieldErrors: Record<string, string> = {};
+        apiErrors.forEach((e) => { if (e.field && e.message) fieldErrors[e.field] = e.message; });
+        if (Object.keys(fieldErrors).length > 0) { setFormErrors(fieldErrors); return; }
+      }
+      const msg = responseData?.message || (err instanceof Error ? err.message : "Tạo người dùng thất bại");
+      setFormErrors({ general: msg });
     } finally {
       setSubmitting(false);
     }
@@ -674,31 +701,32 @@ const UserPage = () => {
               border: "1px solid rgba(255, 255, 255, 0.25)",
               boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
             }}
-          >
-            <h2 className="mb-5 text-xl font-bold text-white/95">Tạo người dùng mới</h2>
+          >            <h2 className="mb-5 text-xl font-bold text-white/95">Tạo người dùng mới</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {formErrors.general && (
+                <p className="!text-[#f87171]" style={{ fontSize: 12, marginBottom: 4 }}>{formErrors.general}</p>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-white/80">Email *</label>
                 <input
                   type="email"
-                  required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="user@example.com"
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className={`w-full rounded-lg border bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.email ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
                 />
+                {formErrors.email && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.email}</p>}
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-white/80">Mật khẩu *</label>
                 <input
                   type="password"
-                  required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                />
+                  className={`w-full rounded-lg border bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.password ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
+                />                {formErrors.password && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.password}</p>}
               </div>
 
               <div className="space-y-2">
@@ -708,8 +736,9 @@ const UserPage = () => {
                   value={formData.name || ""}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Nguyễn Văn A"
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className={`w-full rounded-lg border bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.name ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
                 />
+                {formErrors.name && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.name}</p>}
               </div>
 
               <div className="space-y-2">
@@ -719,23 +748,65 @@ const UserPage = () => {
                   value={formData.phone || ""}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="0938947221"
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className={`w-full rounded-lg border bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.phone ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-white/80">Avatar URL</label>
-                <input
-                  type="url"
-                  value={formData.avatar_url || ""}
-                  onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                  placeholder="https://picsum.photos/id/237/200/300"
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <Button type="submit" loading={submitting} disabled={submitting} className="flex-1">
+                {formErrors.phone && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.phone}</p>}
+              </div>              <div className="space-y-2">
+                <label className="text-sm font-semibold text-white/80">Ảnh đại diện</label>
+                <div className="flex items-center gap-3">
+                  {/* Preview */}
+                  <div className="size-14 shrink-0 rounded-full overflow-hidden border-2 border-white/[0.15] bg-white/[0.06] flex items-center justify-center">
+                    {avatarUploading ? (
+                      <div className="size-5 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
+                    ) : formData.avatar_url ? (
+                      <img src={formData.avatar_url} alt="preview" className="size-14 object-cover rounded-full" />
+                    ) : (
+                      <svg className="size-7 text-white/25" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1.5">
+                    <label className={`flex cursor-pointer items-center gap-2 rounded-lg border border-dashed px-4 py-2.5 text-sm transition ${avatarUploading ? "cursor-not-allowed border-white/[0.1] bg-white/[0.02] text-white/30" : "border-white/[0.2] bg-white/[0.04] text-white/60 hover:border-primary-400/60 hover:bg-white/[0.08] hover:text-white/80"}`}>
+                      <svg className="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{avatarUploading ? "Đang tải lên..." : formData.avatar_url ? "Đổi ảnh..." : "Chọn ảnh..."}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={avatarUploading}
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          e.target.value = "";
+                          setAvatarUploading(true);
+                          try {
+                            const url = await uploadImageToCloudinary(file);
+                            setFormData((prev) => ({ ...prev, avatar_url: url }));
+                          } catch {
+                            showError("Upload ảnh thất bại");
+                          } finally {
+                            setAvatarUploading(false);
+                          }
+                        }}
+                      />
+                    </label>
+                    {formData.avatar_url && !avatarUploading && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, avatar_url: "" })}
+                        className="text-xs text-red-400/70 hover:text-red-400 transition"
+                      >
+                        Xóa ảnh
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {formErrors.avatar_url && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.avatar_url}</p>}
+              </div>              <div className="flex gap-3 pt-2">
+                <Button type="submit" loading={submitting} disabled={submitting || avatarUploading} className="flex-1">
                   Tạo mới
                 </Button>
                 <Button

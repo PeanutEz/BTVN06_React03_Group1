@@ -153,6 +153,8 @@ export async function createCustomer(
     name: data.name,
     password: data.password,
     is_active: data.is_active,
+    ...(data.address && { address: data.address }),
+    ...(data.avatar_url && { avatar_url: data.avatar_url }),
   });
   const result = response.data;
   if (!result.success) {

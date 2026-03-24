@@ -5,7 +5,7 @@ import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
 import { useDeliveryStore } from "../../store/delivery.store";
 import { isBranchOpen } from "../../services/branch.service";
-import { logoutUser } from "../../services/auth.service";
+import { logoutCustomer } from "../../services/auth.service";
 import { showSuccess } from "../../utils";
 import BranchPickerModal from "../../components/menu/BranchPickerModal";
 import logoHylux from "../../assets/logo-hylux.png";
@@ -43,8 +43,8 @@ const ClientHeader = () => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []); const handleLogout = async () => {
-    await logoutUser().catch(() => { });
+  }, []);  const handleLogout = async () => {
+    await logoutCustomer().catch(() => { });
     logout();
     setAccountOpen(false);
     showSuccess("Đăng xuất thành công");
