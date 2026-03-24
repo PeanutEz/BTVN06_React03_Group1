@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchOrders } from "../../../services/order.service";
-import { fetchPayments } from "../../../services/payment.service";
 import { fetchCustomers } from "../../../services/customer.service";
 import { fetchStores } from "../../../services/store.service";
 import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
@@ -67,32 +66,35 @@ const DashboardPage = () => {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const [orders, payments, customers, stores, loyalty] = await Promise.all([
+      const [orders, customers, stores, loyalty] = await Promise.all([
         fetchOrders(),
-        fetchPayments(),
         fetchCustomers(),
         fetchStores(),
         fetchLoyaltyOverview(),
       ]);
-      const completedPayments = payments.filter(
-        (p) => p.status === "COMPLETED"
+
+      const safeOrders = orders || [];
+
+      // 💰 Revenue = tổng đơn COMPLETED
+      const completedOrdersList = safeOrders.filter(
+        (o) => o?.status === "COMPLETED"
       );
 
-      const totalRevenue = completedPayments.reduce(
-        (sum, p) => sum + p.amount,
-        0
-      );
+      const totalRevenue = completedOrdersList.reduce(
+        (sum, o) => sum + (o?.total_amount || 0),
+        0);
 
       const revenueByDate: Record<string, number> = {};
 
-      completedPayments.forEach((p) => {
-        const dateKey = p.created_at.split("T")[0];
+      completedOrdersList.forEach((o) => {
+        if (!o?.created_at) return;
 
-        if (!revenueByDate[dateKey]) {
-          revenueByDate[dateKey] = 0;
-        }
+        const dateKey = new Date(o.created_at)
+          .toISOString()
+          .split("T")[0];
 
-        revenueByDate[dateKey] += p.amount;
+        revenueByDate[dateKey] =
+          (revenueByDate[dateKey] || 0) + (o.total_amount || 0);
       });
 
       const chartData: RevenueChart[] = Object.entries(revenueByDate)

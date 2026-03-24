@@ -8,7 +8,8 @@ export type PaymentMethodType =
   | "CASH"
   | "CARD"
   | "MOMO"
-  | "VNPAY";
+  | "VNPAY"
+  | "COD";
 
 export interface Payment {
   id: string;
@@ -80,4 +81,5 @@ export const PAYMENT_METHOD_TYPE_LABELS: Record<PaymentMethodType, string> = {
   CARD: "Thẻ",
   MOMO: "MoMo",
   VNPAY: "VNPay",
+  COD: "COD",
 };

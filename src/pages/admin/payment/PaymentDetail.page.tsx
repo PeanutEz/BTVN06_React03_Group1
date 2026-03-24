@@ -20,6 +20,7 @@ function PaymentDetailModal({
   onClose: () => void;
   onRefund: (id: string) => void;
 }) {
+  console.log("🔥 PaymentDetailModal - payment:", payment);
   const [orderDetail, setOrderDetail] = useState<any>(null);
   const [franchise, setFranchise] = useState<any>(null);
   const [customer, setCustomer] = useState<any>(null);
@@ -224,7 +225,7 @@ function PaymentDetailModal({
 
                 {orderDetail?.promotion_discount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>Giảm KM</span>
+                    <span>Giảm Khuyến mãi</span>
                     <span>- {formatCurrency(orderDetail.promotion_discount)}</span>
                   </div>
                 )}
@@ -238,7 +239,7 @@ function PaymentDetailModal({
 
                 {orderDetail?.loyalty_discount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>Điểm</span>
+                    <span>Điểm khách hàng</span>
                     <span>- {formatCurrency(orderDetail.loyalty_discount)}</span>
                   </div>
                 )}

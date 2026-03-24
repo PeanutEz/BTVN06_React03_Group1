@@ -38,7 +38,7 @@ const PaymentListPage = (): React.JSX.Element => {
   const [loading, setLoading] = useState(false);
 
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
-  const [orderDetail, setOrderDetail] = useState<any>(null);
+  const [setOrderDetail] = useState<any>(null);
 
   const [allCustomers, setAllCustomers] = useState<
     { id: string; name: string; email: string }[]
