@@ -104,29 +104,42 @@ export default function InventoryListPage() {
   const [viewingItem, setViewingItem] = useState<InventoryApiResponse | null>(
     null,
   );
-
   // ─── Create modal (INVENTORY-01) ──────────────────────────────────────────
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<{
+    franchise_id: string;
     product_franchise_id: string;
     quantity: string;
     alert_threshold: string;
-  }>({ product_franchise_id: "", quantity: "", alert_threshold: "" });
+  }>({ franchise_id: "", product_franchise_id: "", quantity: "", alert_threshold: "" });
   const [creating, setCreating] = useState(false);
   const [pfOptions, setPfOptions] = useState<ProductFranchiseApiResponse[]>([]);
+  const [pfOptionsLoading, setPfOptionsLoading] = useState(false);
   const [productNameMap, setProductNameMap] = useState<Record<string, string>>(
     {},
   );
+  // Combobox — franchise inside Create modal
+  const [createFranchiseKeyword, setCreateFranchiseKeyword] = useState("");
+  const [createFranchiseComboOpen, setCreateFranchiseComboOpen] = useState(false);
+  const createFranchiseComboRef = useRef<HTMLDivElement>(null);
 
   // ─── Logs modal (INVENTORY-08) ────────────────────────────────────────────
   const [logsItem, setLogsItem] = useState<InventoryApiResponse | null>(null);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
-
   // ─── Combobox — franchise filter bar ─────────────────────────────────────
   const [franchiseKeyword, setFranchiseKeyword] = useState("");
   const [franchiseComboOpen, setFranchiseComboOpen] = useState(false);
   const franchiseComboRef = useRef<HTMLDivElement>(null);
+
+  // ─── Combobox — product franchise filter bar ──────────────────────────────
+  const [filterPfId, setFilterPfId] = useState("");
+  const [filterPfKeyword, setFilterPfKeyword] = useState("");
+  const [filterPfComboOpen, setFilterPfComboOpen] = useState(false);
+  const filterPfComboRef = useRef<HTMLDivElement>(null);
+  // product franchise options phụ thuộc vào franchise đang chọn
+  const [filterPfOptions, setFilterPfOptions] = useState<ProductFranchiseApiResponse[]>([]);
+  const [filterPfLoading, setFilterPfLoading] = useState(false);
 
   // ─── Combobox — product franchise in Create modal ─────────────────────────
   const [pfKeyword, setPfKeyword] = useState("");
@@ -135,7 +148,6 @@ export default function InventoryListPage() {
 
   const hasRun = useRef(false);
   const isInitialized = useRef(false);
-
   const loadFranchises = async () => {
     try {
       const data = await fetchFranchiseSelect();
@@ -145,12 +157,37 @@ export default function InventoryListPage() {
     }
   };
 
+  // Fetch product franchises cho filter bar khi franchise thay đổi
+  const loadFilterPfOptions = useCallback(async (franchiseId: string) => {
+    if (!franchiseId) {
+      setFilterPfOptions([]);
+      setFilterPfId("");
+      setFilterPfKeyword("");
+      return;
+    }
+    setFilterPfLoading(true);
+    try {
+      const result = await adminProductFranchiseService.searchProductFranchises({
+        searchCondition: { franchise_id: franchiseId, is_deleted: false },
+        pageInfo: { pageNum: 1, pageSize: 200 },
+      });
+      setFilterPfOptions(result.data);
+    } catch {
+      setFilterPfOptions([]);
+    } finally {
+      setFilterPfLoading(false);
+    }
+    // Reset product filter khi đổi franchise
+    setFilterPfId("");
+    setFilterPfKeyword("");
+  }, []);
   const load = useCallback(
     async (
       franchiseId = searchFranchise,
       page = currentPage,
       status = statusFilter,
       isDeleted = isDeletedFilter,
+      pfId = filterPfId,
     ) => {
       setLoading(true);
       try {
@@ -159,6 +196,7 @@ export default function InventoryListPage() {
         const result = await adminInventoryService.searchInventories({
           searchCondition: {
             franchise_id: franchiseId || undefined,
+            product_franchise_id: pfId || undefined,
             is_active: isActive === "" ? undefined : isActive,
             is_deleted: isDeleted,
           },
@@ -177,23 +215,25 @@ export default function InventoryListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
-
   useEffect(() => {
     if (hasRun.current) return;
     hasRun.current = true;    const initFranchise = managerFranchiseId ?? "";
-    if (initFranchise) setSearchFranchise(initFranchise);
+    if (initFranchise) {
+      setSearchFranchise(initFranchise);
+      loadFilterPfOptions(initFranchise);
+    }
     load(initFranchise, 1, "", false).finally(() => {
       isInitialized.current = true;
     });
     loadFranchises();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
   useEffect(() => {
     if (!managerFranchiseId) return;
     setSearchFranchise(managerFranchiseId);
-    // Sync franchiseKeyword sau khi franchiseOptions được load
+    loadFilterPfOptions(managerFranchiseId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [managerFranchiseId]);
 
   // Sync franchiseKeyword khi options load xong và đang là manager
@@ -201,15 +241,23 @@ export default function InventoryListPage() {
     if (!managerFranchiseId || !franchiseOptions.length) return;
     const found = franchiseOptions.find(f => f.value === managerFranchiseId);
     if (found) setFranchiseKeyword(found.name);
-  }, [managerFranchiseId, franchiseOptions]);
-
-  useEffect(() => {
+  }, [managerFranchiseId, franchiseOptions]);  useEffect(() => {
     if (!isInitialized.current) return;
     setCurrentPage(1);
-    load(searchFranchise, 1, statusFilter, isDeletedFilter);
+    setFilterPfId("");
+    setFilterPfKeyword("");
+    load(searchFranchise, 1, statusFilter, isDeletedFilter, "");
+    loadFilterPfOptions(searchFranchise);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchFranchise, statusFilter, isDeletedFilter]);
 
+  // Reload khi product franchise filter thay đổi (tách riêng để không reset filterPfId)
+  useEffect(() => {
+    if (!isInitialized.current) return;
+    setCurrentPage(1);
+    load(searchFranchise, 1, statusFilter, isDeletedFilter, filterPfId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterPfId]);
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -219,16 +267,27 @@ export default function InventoryListPage() {
         setFranchiseComboOpen(false);
       }
       if (
+        filterPfComboRef.current &&
+        !filterPfComboRef.current.contains(e.target as Node)
+      ) {
+        setFilterPfComboOpen(false);
+      }
+      if (
         pfComboRef.current &&
         !pfComboRef.current.contains(e.target as Node)
       ) {
         setPfComboOpen(false);
-      }
-      if (
+      }      if (
         exportFranchiseComboRef.current &&
         !exportFranchiseComboRef.current.contains(e.target as Node)
       ) {
         setExportFranchiseComboOpen(false);
+      }
+      if (
+        createFranchiseComboRef.current &&
+        !createFranchiseComboRef.current.contains(e.target as Node)
+      ) {
+        setCreateFranchiseComboOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -241,22 +300,26 @@ export default function InventoryListPage() {
     setSelectedIds(new Set());
     setImportErrors([]);
     setCurrentPage(page);
-    load(searchFranchise, page, statusFilter, isDeletedFilter);
+    load(searchFranchise, page, statusFilter, isDeletedFilter, filterPfId);
   };
 
   const handleResetFilters = () => {
     setPendingEdits({});
     setSelectedIds(new Set());
     setImportErrors([]);
-    setSearchFranchise("");
+    const resetFranchise = managerFranchiseId ?? "";
+    setSearchFranchise(resetFranchise);
     setStatusFilter("");
     setIsDeletedFilter(false);
+    setFilterPfId("");
+    setFilterPfKeyword("");
     setCurrentPage(1);
-    load("", 1, "", false);
+    if (resetFranchise) loadFilterPfOptions(resetFranchise);
+    else setFilterPfOptions([]);
+    load(resetFranchise, 1, "", false, "");
   };
-
   // ─── Export ───────────────────────────────────────────────────────────────
-  const buildExcelFromItems = (dataToExport: InventoryApiResponse[], filename: string) => {
+  const _buildExcelFromItems = (dataToExport: InventoryApiResponse[], filename: string) => {
     const rows = dataToExport.map((item, idx) => ({
       STT: idx + 1,
       product_name: item.product_name ?? "",
@@ -275,7 +338,6 @@ export default function InventoryListPage() {
     XLSX.utils.book_append_sheet(wb, ws, "Inventory");
     XLSX.writeFile(wb, filename);
   };
-
   const handleExportAllInventory = async () => {
     setExportFranchiseLoading(true);
     try {
@@ -292,7 +354,7 @@ export default function InventoryListPage() {
         page++;
       }
       if (allData.length === 0) { showError("Không có dữ liệu tồn kho"); return; }
-      buildExcelFromItems(allData, `inventory_all_franchises_${Date.now()}.xlsx`);
+      _buildExcelFromItems(allData, `inventory_all_franchises_${Date.now()}.xlsx`);
       showSuccess(`Đã export ${allData.length} dòng (tất cả franchise)`);
       setExportFranchiseOpen(false);
     } catch {
@@ -319,9 +381,8 @@ export default function InventoryListPage() {
         if (page >= result.pageInfo.totalPages) break;
         page++;
       }
-      if (allData.length === 0) { showError("Không có dữ liệu tồn kho cho franchise này"); return; }
-      const franchiseName = franchiseOptions.find((f) => f.value === exportFranchiseId)?.name ?? exportFranchiseId;
-      buildExcelFromItems(allData, `inventory_${franchiseName}_${Date.now()}.xlsx`);
+      if (allData.length === 0) { showError("Không có dữ liệu tồn kho cho franchise này"); return; }      const franchiseName = franchiseOptions.find((f) => f.value === exportFranchiseId)?.name ?? exportFranchiseId;
+      _buildExcelFromItems(allData, `inventory_${franchiseName}_${Date.now()}.xlsx`);
       showSuccess(`Đã export ${allData.length} dòng cho franchise "${franchiseName}"`);
       setExportFranchiseOpen(false);
       setExportFranchiseId("");
@@ -355,64 +416,8 @@ export default function InventoryListPage() {
       fileInputRef.current?.click();
     } catch {
       showError("Lấy dữ liệu tồn kho thất bại");
-    } finally {
-      setImportFranchiseLoading(false);
+    } finally {    setImportFranchiseLoading(false);
     }
-  };
-
-  // ─── Download import template ─────────────────────────────────────────────
-  const handleDownloadTemplate = () => {
-    // Use current table rows as reference data (read-only product/franchise info)
-    // User only needs to fill in quantity and alert_threshold
-    const templateRows =
-      items.length > 0
-        ? items.map((item, idx) => ({
-            STT: idx + 1,
-            product_name: item.product_name ?? "",
-            franchise_name: item.franchise_name ?? "",
-            quantity: item.quantity,          // ← chỉnh sửa cột này
-            alert_threshold: item.alert_threshold, // ← chỉnh sửa cột này
-          }))
-        : [
-            {
-              STT: 1,
-              product_name: "Tên sản phẩm (chỉ tham khảo)",
-              franchise_name: "Tên franchise (chỉ tham khảo)",
-              quantity: 100,
-              alert_threshold: 10,
-            },
-            {
-              STT: 2,
-              product_name: "Tên sản phẩm (chỉ tham khảo)",
-              franchise_name: "Tên franchise (chỉ tham khảo)",
-              quantity: 50,
-              alert_threshold: 5,
-            },
-          ];
-
-    const ws = XLSX.utils.json_to_sheet(templateRows);
-
-    // Style column widths
-    ws["!cols"] = [
-      { wch: 6 },  // STT
-      { wch: 28 }, // product_name
-      { wch: 24 }, // franchise_name
-      { wch: 14 }, // quantity
-      { wch: 18 }, // alert_threshold
-    ];
-
-    // Add a note row at the top to guide user
-    XLSX.utils.sheet_add_aoa(
-      ws,
-      [[
-        "// Ghi chú: Chỉ chỉnh sửa 2 cột 'quantity' và 'alert_threshold'. Khớp sản phẩm theo 'product_name'.",
-      ]],
-      { origin: { r: 0, c: 0 } },
-    );
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Inventory_Template");
-    XLSX.writeFile(wb, "inventory_import_template.xlsx");
   };
 
   // ─── Import with validation ───────────────────────────────────────────────
@@ -675,19 +680,14 @@ export default function InventoryListPage() {
       showError("Khôi phục thất bại");
     }
   };
-
   // ─── Create handlers (INVENTORY-01) ───────────────────────────────────────
-  const handleOpenCreate = async () => {
-    setCreateForm({
-      product_franchise_id: "",
-      quantity: "",
-      alert_threshold: "",
-    });
-    setCreateOpen(true);
+  const loadPfOptionsForCreate = useCallback(async (franchiseId: string) => {
+    if (!franchiseId) { setPfOptions([]); return; }
+    setPfOptionsLoading(true);
     try {
       const [pfResult, productResult] = await Promise.all([
         adminProductFranchiseService.searchProductFranchises({
-          searchCondition: { is_deleted: false, is_active: true },
+          searchCondition: { franchise_id: franchiseId, is_deleted: false, is_active: true },
           pageInfo: { pageNum: 1, pageSize: 200 },
         }),
         adminProductService.searchProducts({
@@ -696,7 +696,6 @@ export default function InventoryListPage() {
         }),
       ]);
       setPfOptions(pfResult.data);
-      // Build map: product_id → product name
       const nameMap: Record<string, string> = {};
       for (const p of productResult.data) {
         nameMap[p.id] = p.name;
@@ -704,14 +703,36 @@ export default function InventoryListPage() {
       setProductNameMap(nameMap);
     } catch {
       setPfOptions([]);
+    } finally {
+      setPfOptionsLoading(false);
+    }
+  }, []);
+
+  const handleOpenCreate = async () => {
+    const initFranchise = managerFranchiseId ?? searchFranchise ?? "";
+    setCreateForm({
+      franchise_id: initFranchise,
+      product_franchise_id: "",
+      quantity: "",
+      alert_threshold: "",
+    });
+    setPfKeyword("");
+    setCreateFranchiseKeyword(
+      franchiseOptions.find((f) => f.value === initFranchise)?.name ?? ""
+    );
+    setCreateOpen(true);
+    if (initFranchise) {
+      loadPfOptionsForCreate(initFranchise);
+    } else {
+      setPfOptions([]);
     }
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const qty = Number(createForm.quantity);
+    e.preventDefault();    const qty = Number(createForm.quantity);
     const thresh = Number(createForm.alert_threshold);
     if (
+      !createForm.franchise_id ||
       !createForm.product_franchise_id ||
       isNaN(qty) ||
       qty < 0 ||
@@ -758,7 +779,6 @@ export default function InventoryListPage() {
       setLogsLoading(false);
     }
   };
-
   const isLow = (item: InventoryApiResponse) =>
     item.quantity <= item.alert_threshold;
 
@@ -771,6 +791,13 @@ export default function InventoryListPage() {
       .toLowerCase()
       .includes(pfKeyword.toLowerCase()),
   );
+
+  // Product franchise filter options (for filter bar)
+  const filteredFilterPfOptions = filterPfOptions.filter((pf) => {
+    const name = (pf.product_name ?? productNameMap[pf.product_id] ?? "").toLowerCase();
+    const kw = filterPfKeyword.toLowerCase();
+    return name.includes(kw) || pf.size.toLowerCase().includes(kw);
+  });
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -789,9 +816,8 @@ export default function InventoryListPage() {
               </span>
             )}
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Import */}
+        </div>        <div className="flex flex-wrap items-center gap-2">
+          {/* file input hidden — kept for import logic */}
           <input
             ref={fileInputRef}
             type="file"
@@ -799,37 +825,7 @@ export default function InventoryListPage() {
             onChange={handleImportFile}
             className="hidden"
           />
-          {/* Download template */}
-          <button
-            onClick={handleDownloadTemplate}
-            title="Tải file mẫu Excel để import"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100"
-          >
-            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Tải mẫu
-          </button>
-          {/* Import */}
-          <button
-            onClick={() => { setImportModalOpen(true); setImportFranchiseId(""); setImportFranchiseKeyword(""); }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-            </svg>
-            Import
-          </button>
-          {/* Export */}
-          <button
-            onClick={() => { setExportFranchiseOpen(true); setExportMode("all"); setExportFranchiseId(""); setExportFranchiseKeyword(""); }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Export
-          </button>
+          {/* Tải mẫu, Import, Export — ẩn theo yêu cầu */}
           <Button onClick={handleOpenCreate}>+ Thêm mới</Button>
         </div>
       </div>
@@ -884,53 +880,151 @@ export default function InventoryListPage() {
               </div>
             ) : (
               <>
-                <input
-                  type="text"
-                  placeholder="Tìm franchise..."
-                  value={franchiseKeyword}
-                  onChange={(e) => {
-                    setFranchiseKeyword(e.target.value);
-                    setSearchFranchise("");
-                    setFranchiseComboOpen(true);
+                {/* Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setFranchiseComboOpen((o) => !o)}
+                  className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition"
+                  style={{
+                    background: "rgba(15, 23, 42, 0.80)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    color: searchFranchise ? "#fff" : "rgba(255,255,255,0.50)",
                   }}
-                  onFocus={() => setFranchiseComboOpen(true)}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                />
-                {searchFranchise && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
-                    {franchiseOptions.find((f) => f.value === searchFranchise)?.name}
-                    <button
-                      type="button"
-                      onClick={() => { setSearchFranchise(""); setFranchiseKeyword(""); }}
-                      className="ml-0.5 text-primary-500 hover:text-primary-800"
-                    >✕</button>
+                >
+                  <span className="truncate">
+                    {searchFranchise
+                      ? franchiseOptions.find((f) => f.value === searchFranchise)?.name ?? "Franchise"
+                      : "-- Tất cả franchise --"}
                   </span>
-                )}
+                  <svg className="ml-2 size-4 shrink-0 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {/* Dropdown */}
                 {franchiseComboOpen && (
-                  <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-                    <div
-                      className="cursor-pointer px-3 py-2 text-sm text-slate-400 hover:bg-slate-50"
-                      onMouseDown={() => { setSearchFranchise(""); setFranchiseKeyword(""); setFranchiseComboOpen(false); }}
-                    >
-                      Tất cả franchise
+                  <div
+                    className="absolute z-50 mt-1 w-full rounded-lg shadow-2xl overflow-hidden"
+                    style={{
+                      background: "rgba(15, 23, 42, 0.97)",
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      backdropFilter: "blur(40px)",
+                      WebkitBackdropFilter: "blur(40px)",
+                    }}
+                  >
+                    <div className="p-2 border-b border-white/[0.08]">
+                      <input
+                        type="text"
+                        placeholder="Tìm theo tên franchise..."
+                        value={franchiseKeyword}
+                        autoFocus
+                        onChange={(e) => {
+                          setFranchiseKeyword(e.target.value);
+                          setSearchFranchise("");
+                        }}
+                        className="w-full rounded-md px-3 py-1.5 text-sm outline-none bg-transparent text-white placeholder-white/30"
+                        style={{ border: "1.5px solid #e53e3e" }}
+                      />
                     </div>
-                    {filteredFranchiseOptions.length === 0 && (
-                      <p className="px-3 py-2 text-sm text-slate-400">Không tìm thấy</p>
-                    )}
-                    {filteredFranchiseOptions.map((f) => (
+                    <div className="max-h-52 overflow-y-auto">
                       <div
-                        key={f.value}
-                        onMouseDown={() => { setSearchFranchise(f.value); setFranchiseKeyword(f.name); setFranchiseComboOpen(false); }}
-                        className={`cursor-pointer px-3 py-2 text-sm hover:bg-primary-50 hover:text-primary-700 ${searchFranchise === f.value ? "bg-primary-50 font-medium text-primary-700" : "text-slate-700"}`}
+                        className="cursor-pointer px-3 py-2 text-sm text-white/50 hover:bg-white/[0.08] hover:text-white/80"
+                        onMouseDown={() => { setSearchFranchise(""); setFranchiseKeyword(""); setFranchiseComboOpen(false); }}
                       >
-                        {f.name}
+                        -- Tất cả franchise --
                       </div>
-                    ))}
+                      {filteredFranchiseOptions.length === 0 && (
+                        <p className="px-3 py-2 text-sm text-white/30 italic">Không tìm thấy</p>
+                      )}
+                      {filteredFranchiseOptions.map((f) => (
+                        <div
+                          key={f.value}
+                          onMouseDown={() => { setSearchFranchise(f.value); setFranchiseKeyword(f.name); setFranchiseComboOpen(false); }}
+                          className={`cursor-pointer px-3 py-2 text-sm transition-colors hover:bg-white/[0.08] hover:text-white ${searchFranchise === f.value ? "bg-primary-500/20 font-medium text-primary-300" : "text-white/80"}`}
+                        >
+                          {f.name}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </>
+            )}          </div>
+
+          {/* ─── Product Franchise filter combobox ─── */}
+          <div ref={filterPfComboRef} className="relative min-w-[200px] flex-1">
+            <button
+              type="button"
+              onClick={() => setFilterPfComboOpen((o) => !o)}
+              disabled={!searchFranchise && !managerFranchiseId}
+              className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                background: "rgba(15, 23, 42, 0.80)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                color: filterPfId ? "#fff" : "rgba(255,255,255,0.50)",
+              }}
+            >
+              <span className="truncate">
+                {filterPfLoading
+                  ? "Đang tải..."
+                  : filterPfId
+                    ? (() => {
+                        const sel = filterPfOptions.find((p) => p.id === filterPfId);
+                        return sel ? `${sel.product_name ?? productNameMap[sel.product_id] ?? "N/A"} (${sel.size})` : "-- Tất cả product --";
+                      })()
+                  : !searchFranchise && !managerFranchiseId
+                    ? "Chọn franchise trước"
+                    : "-- Tất cả product --"}
+              </span>
+              <svg className="ml-2 size-4 shrink-0 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {filterPfComboOpen && (
+              <div
+                className="absolute z-50 mt-1 w-full rounded-lg shadow-2xl overflow-hidden"
+                style={{
+                  background: "rgba(15, 23, 42, 0.97)",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  backdropFilter: "blur(40px)",
+                  WebkitBackdropFilter: "blur(40px)",
+                }}
+              >
+                <div className="p-2 border-b border-white/[0.08]">
+                  <input
+                    type="text"
+                    placeholder="Tìm theo tên sản phẩm..."
+                    value={filterPfKeyword}
+                    autoFocus
+                    onChange={(e) => setFilterPfKeyword(e.target.value)}
+                    className="w-full rounded-md px-3 py-1.5 text-sm outline-none bg-transparent text-white placeholder-white/30"
+                    style={{ border: "1.5px solid #e53e3e" }}
+                  />
+                </div>
+                <div className="max-h-52 overflow-y-auto">
+                  <div
+                    className="cursor-pointer px-3 py-2 text-sm text-white/50 hover:bg-white/[0.08] hover:text-white/80"
+                    onMouseDown={() => { setFilterPfId(""); setFilterPfKeyword(""); setFilterPfComboOpen(false); }}
+                  >
+                    -- Tất cả product --
+                  </div>
+                  {filteredFilterPfOptions.length === 0 && !filterPfLoading && (
+                    <p className="px-3 py-2 text-sm text-white/30 italic">Không tìm thấy</p>
+                  )}
+                  {filteredFilterPfOptions.map((pf) => (
+                    <div
+                      key={pf.id}
+                      onMouseDown={() => { setFilterPfId(pf.id); setFilterPfKeyword(""); setFilterPfComboOpen(false); }}
+                      className={`cursor-pointer px-3 py-2 text-sm transition-colors hover:bg-white/[0.08] hover:text-white ${filterPfId === pf.id ? "bg-primary-500/20 font-medium text-primary-300" : "text-white/80"}`}
+                    >
+                      {pf.product_name ?? productNameMap[pf.product_id] ?? "N/A"}
+                      <span className="ml-2 text-xs text-white/40">Size: {pf.size}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
+
           <GlassSelect
             value={statusFilter}
             onChange={(v) => setStatusFilter(v)}
@@ -1276,85 +1370,178 @@ export default function InventoryListPage() {
                   />
                 </svg>
               </button>
-            </div>
-            <form onSubmit={handleCreateSubmit} className="space-y-4 px-6 py-5">
+            </div>            <form onSubmit={handleCreateSubmit} className="space-y-4 px-6 py-5">
+              {/* ── Franchise ── */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-white/80">
+                  Franchise <span className="text-red-500">*</span>
+                </label>
+                {managerFranchiseId ? (
+                  <div className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm cursor-not-allowed"
+                    style={{ background: "rgba(15,23,42,0.75)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}>
+                    <span className="truncate">
+                      {franchiseOptions.find((f) => f.value === managerFranchiseId)?.name ?? managerFranchiseId}
+                    </span>
+                    <svg className="ml-2 size-4 shrink-0 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div ref={createFranchiseComboRef} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setCreateFranchiseComboOpen((o) => !o)}
+                      className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition"
+                      style={{
+                        background: "rgba(15, 23, 42, 0.75)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        color: createForm.franchise_id ? "#fff" : "rgba(255,255,255,0.45)",
+                      }}
+                    >
+                      <span className="truncate">
+                        {createForm.franchise_id
+                          ? franchiseOptions.find((f) => f.value === createForm.franchise_id)?.name ?? "Franchise"
+                          : "-- Chọn franchise --"}
+                      </span>
+                      <svg className="ml-2 size-4 shrink-0 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {createFranchiseComboOpen && (
+                      <div className="absolute z-50 mt-1 w-full rounded-lg shadow-2xl overflow-hidden"
+                        style={{ background: "rgba(15,23,42,0.97)", border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)" }}>
+                        <div className="p-2 border-b border-white/[0.08]">
+                          <input
+                            type="text"
+                            placeholder="Tìm theo tên franchise..."
+                            value={createFranchiseKeyword}
+                            autoFocus
+                            onChange={(e) => setCreateFranchiseKeyword(e.target.value)}
+                            className="w-full rounded-md px-3 py-1.5 text-sm outline-none bg-transparent text-white placeholder-white/30"
+                            style={{ border: "1.5px solid #e53e3e" }}
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {franchiseOptions
+                            .filter((f) => f.name.toLowerCase().includes(createFranchiseKeyword.toLowerCase()))
+                            .map((f) => (
+                              <div
+                                key={f.value}
+                                onMouseDown={() => {
+                                  setCreateForm((prev) => ({ ...prev, franchise_id: f.value, product_franchise_id: "" }));
+                                  setCreateFranchiseKeyword(f.name);
+                                  setCreateFranchiseComboOpen(false);
+                                  setPfKeyword("");
+                                  loadPfOptionsForCreate(f.value);
+                                }}
+                                className={`cursor-pointer px-3 py-2 text-sm transition-colors hover:bg-white/[0.08] hover:text-white ${
+                                  createForm.franchise_id === f.value ? "bg-primary-500/20 font-medium text-primary-300" : "text-white/80"
+                                }`}
+                              >
+                                {f.name}
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>              {/* ── Product Franchise ── */}
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-white/80">
                   Product Franchise <span className="text-red-500">*</span>
                 </label>
                 <div ref={pfComboRef} className="relative">
-                  <input
-                    type="text"
-                    placeholder="Tìm tên sản phẩm, size..."
-                    value={pfKeyword}
-                    onChange={(e) => {
-                      setPfKeyword(e.target.value);
-                      setCreateForm((f) => ({
-                        ...f,
-                        product_franchise_id: "",
-                      }));
-                      setPfComboOpen(true);
+                  {/* Trigger button */}
+                  <button
+                    type="button"
+                    onClick={() => setPfComboOpen((o) => !o)}
+                    disabled={!createForm.franchise_id || pfOptionsLoading}
+                    className="w-full flex items-center justify-between rounded-lg px-3 py-2 text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      background: "rgba(15, 23, 42, 0.75)",
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      color: createForm.product_franchise_id ? "#fff" : "rgba(255,255,255,0.45)",
                     }}
-                    onFocus={() => setPfComboOpen(true)}
-                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  />
-                  {createForm.product_franchise_id &&
-                    (() => {
-                      const selected = pfOptions.find(
-                        (p) => p.id === createForm.product_franchise_id,
-                      );
-                      return selected ? (
-                        <div className="mt-1.5 flex items-center gap-2 rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs text-primary-300">
-                          <span className="font-medium">
-                            {productNameMap[selected.product_id] ??
-                              "N/A"}{" "}
-                            | Size: {selected.size} |{" "}
-                            {selected.price_base.toLocaleString()}đ
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCreateForm((f) => ({
-                                ...f,
-                                product_franchise_id: "",
-                              }));
-                              setPfKeyword("");
-                            }}
-                            className="ml-auto text-primary-400 hover:text-primary-700"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ) : null;
-                    })()}
+                  >
+                    <span className="truncate">
+                      {pfOptionsLoading
+                        ? "Đang tải sản phẩm..."
+                        : !createForm.franchise_id
+                          ? "Chọn franchise trước"
+                          : createForm.product_franchise_id
+                            ? (() => {
+                                const sel = pfOptions.find((p) => p.id === createForm.product_franchise_id);
+                                return sel ? `${productNameMap[sel.product_id] ?? "N/A"} | Size: ${sel.size}` : "-- Tất cả product --";
+                              })()
+                            : "-- Chọn product franchise --"}
+                    </span>
+                    <svg className="ml-2 size-4 shrink-0 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {/* Dropdown panel */}
                   {pfComboOpen && (
-                    <div className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-white/[0.12] bg-white/[0.08] shadow-lg" style={{ backdropFilter: "blur(40px)", WebkitBackdropFilter: "blur(40px)" }}>
-                      {filteredPfOptions.length === 0 && (
-                        <p className="px-3 py-2 text-sm text-white/40">
-                          Không tìm thấy
-                        </p>
-                      )}
-                      {filteredPfOptions.map((pf) => (
+                    <div
+                      className="absolute z-30 mt-1 w-full rounded-lg shadow-2xl overflow-hidden"
+                      style={{
+                        background: "rgba(15, 23, 42, 0.97)",
+                        border: "1px solid rgba(255,255,255,0.10)",
+                        backdropFilter: "blur(40px)",
+                        WebkitBackdropFilter: "blur(40px)",
+                      }}
+                    >
+                      {/* Search input */}
+                      <div className="p-2 border-b border-white/[0.08]">
+                        <input
+                          type="text"
+                          placeholder="Tìm theo tên sản phẩm..."
+                          value={pfKeyword}
+                          autoFocus
+                          onChange={(e) => {
+                            setPfKeyword(e.target.value);
+                            setCreateForm((f) => ({ ...f, product_franchise_id: "" }));
+                          }}
+                          className="w-full rounded-md px-3 py-1.5 text-sm outline-none bg-transparent text-white placeholder-white/30"
+                          style={{ border: "1.5px solid #e53e3e" }}
+                        />
+                      </div>
+                      {/* List */}
+                      <div className="max-h-52 overflow-y-auto">
+                        {/* Reset option */}
                         <div
-                          key={pf.id}
                           onMouseDown={() => {
-                            setCreateForm((f) => ({
-                              ...f,
-                              product_franchise_id: pf.id,
-                            }));
+                            setCreateForm((f) => ({ ...f, product_franchise_id: "" }));
                             setPfKeyword("");
                             setPfComboOpen(false);
                           }}
-                          className={`cursor-pointer px-3 py-2 text-sm hover:bg-white/[0.1] hover:text-white ${
-                            createForm.product_franchise_id === pf.id
-                              ? "bg-white/[0.1] font-medium text-white"
-                              : "text-white/80"
-                          }`}
+                          className="cursor-pointer px-3 py-2 text-sm text-white/50 hover:bg-white/[0.08] hover:text-white/80"
                         >
-                          {productNameMap[pf.product_id] ?? "N/A"} |
-                          Size: {pf.size} | {pf.price_base.toLocaleString()}đ
+                          -- Tất cả product --
                         </div>
-                      ))}
+                        {filteredPfOptions.length === 0 && (
+                          <p className="px-3 py-2 text-sm text-white/30 italic">Không tìm thấy</p>
+                        )}
+                        {filteredPfOptions.map((pf) => (
+                          <div
+                            key={pf.id}
+                            onMouseDown={() => {
+                              setCreateForm((f) => ({ ...f, product_franchise_id: pf.id }));
+                              setPfKeyword("");
+                              setPfComboOpen(false);
+                            }}
+                            className={`cursor-pointer px-3 py-2 text-sm transition-colors hover:bg-white/[0.08] hover:text-white ${
+                              createForm.product_franchise_id === pf.id
+                                ? "bg-primary-500/20 font-medium text-primary-300"
+                                : "text-white/80"
+                            }`}
+                          >
+                            {productNameMap[pf.product_id] ?? "N/A"}
+                            <span className="ml-2 text-xs text-white/40">Size: {pf.size} | {pf.price_base.toLocaleString()}đ</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
