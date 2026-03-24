@@ -31,7 +31,7 @@ export const ADMIN_MENU: AdminMenuItem[] = [
         import("../../pages/admin/user-franchise-role/UserFranchiseRole.page.tsx"),
     ),
     isEnd: true,
-  }, {
+  },  {
     label: "Orders",
     path: ROUTER_URL.ADMIN_ROUTES.ORDERS,
     component: React.lazy(
@@ -44,6 +44,14 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     path: ROUTER_URL.ADMIN_ROUTES.CARTS,
     component: React.lazy(
       () => import("../../pages/admin/cart/CartList.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
+    label: "Staff Create Cart",
+    path: ROUTER_URL.ADMIN_ROUTES.STAFF_CREATE_CART,
+    component: React.lazy(
+      () => import("../../pages/admin/cart/StaffCreateCart.page.tsx"),
     ),
     isEnd: true,
   },
@@ -91,6 +99,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
       () => import("../../pages/admin/payment/PaymentList.page.tsx"),
     ),
     isEnd: true,
+  },
+  {
+    label: "Payment Detail",
+    path: ROUTER_URL.ADMIN_ROUTES.PAYMENT_DETAIL,
+    component: React.lazy(
+      () => import("../../pages/admin/payment/PaymentDetail.page.tsx"),
+    ),
   },
   {
     label: "Loyalty",
@@ -165,7 +180,7 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     component: React.lazy(
       () => import("../../pages/admin/inventory/InventoryList.page.tsx"),
     ),
-  }, {
+  },  {
     label: "Categories",
     path: ROUTER_URL.ADMIN_ROUTES.CATEGORIES,
     component: React.lazy(

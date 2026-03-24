@@ -1,85 +1,74 @@
+// Note: Theo ERD, Payment không được định nghĩa như một bảng riêng
+// Payment được xử lý thông qua Order với trường type (POS/ONLINE)
+// và status của Order để theo dõi trạng thái thanh toán
 
-export type PaymentStatus =
-  | "PENDING"
-  | "PAID"
-  | "REFUNDED"
+// Import Order types để tham chiếu
+import type { OrderType, OrderStatus } from "./order.model";
 
-export type PaymentMethodType =
-  | "CASH"
-  | "CARD"
-  | "MOMO"
-  | "VNPAY"
-  | "COD";
+// Nếu cần tracking payment riêng, có thể dùng Order với các trường:
+// - type: POS/ONLINE (phương thức thanh toán)
+// - status: theo dõi trạng thái đơn hàng
+// - total_amount: số tiền thanh toán
 
+export type PaymentMethodType = OrderType; // "POS" | "ONLINE"
+export type PaymentStatus = OrderStatus; // Status của order
+
+// Payment view - Mapping từ Order để hiển thị thông tin thanh toán
 export interface Payment {
-  id: string;
-  code: string;
-
-  order_id: string;
-  franchise_id: string;
-  customer_id: string;
-
-  method: PaymentMethodType;
-  status: PaymentStatus;
-
-  amount: number;
-
-  paid_at?: string;
-
-  is_active: boolean;
-  is_deleted: boolean;
-
-  created_at: string;
-  updated_at: string;
+  id: number; // order.id
+  order_id: number;
+  order_code: string;
+  franchise_id: number;
+  franchise_name?: string;
+  franchise_code?: string;
+  customer_id: number;
+  customer_name?: string;
+  customer_phone?: string;
+  method: PaymentMethodType; // order.type
+  status: PaymentStatus; // order.status
+  amount: number; // order.total_amount
+  transaction_id?: string; // Có thể lưu trong note hoặc custom field
+  created_at: string; // order.created_at
+  updated_at: string; // order.updated_at
+  confirmed_at?: string; // order.confirmed_at
+  completed_at?: string; // order.completed_at
+  cancelled_at?: string; // order.cancelled_at
 }
 
+// Payment Log có thể dùng OrderStatusLog
 export interface PaymentLog {
-  id: string;
-  order_id: string;
+  id: number;
+  order_id: number;
   from_status: PaymentStatus;
   to_status: PaymentStatus;
-  changed_by: string;
+  changed_by: number;
   note?: string;
   created_at: string;
 }
 
-export const mapPayment = (data: any): Payment => ({
-  id: data._id,
-  code: data.code,
-
-  order_id: data.order_id,
-  franchise_id: data.franchise_id,
-  customer_id: data.customer_id,
-
-  method: data.method,
-  status: data.status,
-
-  amount: data.amount,
-  paid_at: data.paid_at,
-
-  is_active: data.is_active,
-  is_deleted: data.is_deleted,
-
-  created_at: data.created_at,
-  updated_at: data.updated_at,
-});
-
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   PENDING: "Chờ thanh toán",
-  PAID: "Đã thanh toán",
-  REFUNDED: "Đã hoàn tiền",
+  DRAFT: "Chưa thanh toán",
+  CONFIRMED: "Đã xác nhận",
+  PREPARING: "Đang xử lý",
+  READY_FOR_PICKUP: "Sẵn sàng lấy hàng",
+  DELIVERING: "Đang giao hàng",
+  COMPLETED: "Thành công",
+  CANCELLED: "Đã hủy",
 };
 
 export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
   PENDING: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  PAID: "bg-green-50 text-green-700 border-green-200",
-  REFUNDED: "bg-gray-50 text-gray-700 border-gray-200",
+  DRAFT: "bg-gray-50 text-gray-700 border-gray-200",
+  CONFIRMED: "bg-blue-50 text-blue-700 border-blue-200",
+  PREPARING: "bg-orange-50 text-orange-700 border-orange-200",
+  READY_FOR_PICKUP: "bg-amber-50 text-amber-700 border-amber-200",
+  DELIVERING: "bg-purple-50 text-purple-700 border-purple-200",
+  COMPLETED: "bg-green-50 text-green-700 border-green-200",
+  CANCELLED: "bg-red-50 text-red-700 border-red-200",
 };
 
 export const PAYMENT_METHOD_TYPE_LABELS: Record<PaymentMethodType, string> = {
-  CASH: "Tiền mặt",
-  CARD: "Thẻ",
-  MOMO: "MoMo",
-  VNPAY: "VNPay",
-  COD: "COD",
+  POS: "Tại quầy",
+  ONLINE: "Thanh toán online",
 };

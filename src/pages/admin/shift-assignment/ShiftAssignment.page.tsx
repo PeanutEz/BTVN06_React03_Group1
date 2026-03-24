@@ -36,13 +36,13 @@ export default function ShiftAssignmentPage() {
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState<CreateShiftAssignmentDto>({ ...DEFAULT_FORM });
 
-    const [viewing, setViewing] = useState<ShiftAssignment | null>(null); const [shifts, setShifts] = useState<any[]>([]);
+    const [viewing, setViewing] = useState<ShiftAssignment | null>(null);    const [shifts, setShifts] = useState<any[]>([]);
     const [franchises, setFranchises] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
     // Modal: franchise + shifts theo franchise đó
     const [modalFranchiseId, setModalFranchiseId] = useState("");
     const [modalShifts, setModalShifts] = useState<any[]>([]);
-    const [modalShiftsLoading, setModalShiftsLoading] = useState(false); const [searchName, setSearchName] = useState("");
+    const [modalShiftsLoading, setModalShiftsLoading] = useState(false);const [searchName, setSearchName] = useState("");
     const [searchNameApplied, setSearchNameApplied] = useState("");
     const [filterFranchise, setFilterFranchise] = useState(managerFranchiseId ?? "");
     const [filterStatus, setFilterStatus] = useState("");
@@ -82,7 +82,7 @@ export default function ShiftAssignmentPage() {
     };
     const [mode, setMode] = useState<"single" | "multiple">("single");
     const [workDates, setWorkDates] = useState<string[]>([]);
-    const [tempDate, setTempDate] = useState(""); const handleOpenModal = () => {
+    const [tempDate, setTempDate] = useState("");    const handleOpenModal = () => {
         setForm({ ...DEFAULT_FORM });
         setWorkDates([]);
         setMode("single");
@@ -187,8 +187,7 @@ export default function ShiftAssignmentPage() {
             setUsers(res || []);
         } catch (err) {
             console.log("load users error", err);
-        }
-    }; useEffect(() => {
+        }    };    useEffect(() => {
         if (hasRun.current) return;
         hasRun.current = true;
 
@@ -224,7 +223,7 @@ export default function ShiftAssignmentPage() {
         if (!managerFranchiseId) return;
         setFilterFranchise(managerFranchiseId);
         load(1, searchNameApplied, managerFranchiseId, filterStatus);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [managerFranchiseId]);
 
     // Sync franchiseKeyword khi options load xong và đang là manager
@@ -297,28 +296,13 @@ export default function ShiftAssignmentPage() {
     }, [users]);
     const getUserEmail = (userId: string) => {
         return userMap[userId]?.email || "-";
-    }; const handleSearch = () => {
+    };    const handleSearch = () => {
         setSearchNameApplied(searchName);
         setCurrentPage(1);
         load(1, searchName, filterFranchise, filterStatus);
     };
 
     const filteredData = data; // filter đã xử lý trong load()
-
-    const handleReset = () => {
-        setSearchName("");
-        setSearchNameApplied("");
-
-        const defaultFranchise = managerFranchiseId ?? "";
-        setFilterFranchise(defaultFranchise);
-
-        setFilterStatus("");
-        setFranchiseKeyword("");
-
-        setCurrentPage(1);
-
-        load(1, "", defaultFranchise, "");
-    };
 
     const handleSelectShift = (shiftId: string) => {
         setForm(prev => ({
@@ -499,17 +483,17 @@ export default function ShiftAssignmentPage() {
                                         />
                                     </div>
                                     <div className="max-h-56 overflow-y-auto py-1">                                        <button
-                                        type="button"
-                                        onMouseDown={() => {
-                                            setFilterFranchise("");
-                                            setFranchiseKeyword("");
-                                            setFranchiseComboOpen(false);
-                                            load(1, searchNameApplied, "", filterStatus);
-                                        }}
-                                        className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${!filterFranchise ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"}`}
-                                    >
-                                        -- Tất cả --
-                                    </button>
+                                            type="button"
+                                            onMouseDown={() => {
+                                                setFilterFranchise("");
+                                                setFranchiseKeyword("");
+                                                setFranchiseComboOpen(false);
+                                                load(1, searchNameApplied, "", filterStatus);
+                                            }}
+                                            className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${!filterFranchise ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"}`}
+                                        >
+                                            -- Tất cả --
+                                        </button>
                                         {filteredFranchisesForCombo.map((f) => (
                                             <button
                                                 key={f.value}
@@ -557,9 +541,7 @@ export default function ShiftAssignmentPage() {
                     </div>                    {/* 🔎 Tìm kiếm */}
                     <div className="flex flex-col justify-end">
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 invisible">&nbsp;</label>
-                        <Button onClick={handleReset} loading={loading} variant="outline">
-                            Đặt lại
-                        </Button>
+                        <Button onClick={handleSearch} loading={loading}>Tìm kiếm</Button>
                     </div>
                 </div>
             </div>
@@ -584,10 +566,8 @@ export default function ShiftAssignmentPage() {
                         <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan={8}>
-                                        <div className="flex justify-center items-center py-16">
-                                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500" />
-                                        </div>
+                                    <td colSpan={8} className="text-center py-10">
+                                        Loading...
                                     </td>
                                 </tr>
                             ) : filteredData.length === 0 ? (
@@ -675,7 +655,7 @@ export default function ShiftAssignmentPage() {
                         currentPage={currentPage}
                         totalPages={totalPages}
                         totalItems={totalItems}
-                        itemsPerPage={ITEMS_PER_PAGE} onPageChange={(page) => {
+                        itemsPerPage={ITEMS_PER_PAGE}                        onPageChange={(page) => {
                             setCurrentPage(page);
                             load(page, searchNameApplied, filterFranchise, filterStatus);
                         }}
@@ -814,10 +794,11 @@ export default function ShiftAssignmentPage() {
                                         <button
                                             type="button"
                                             onClick={() => setMode("single")}
-                                            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${mode === "single"
-                                                ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30"
-                                                : "text-white/40 hover:text-white/70"
-                                                }`}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                                                mode === "single"
+                                                    ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30"
+                                                    : "text-white/40 hover:text-white/70"
+                                            }`}
                                         >
                                             <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -827,10 +808,11 @@ export default function ShiftAssignmentPage() {
                                         <button
                                             type="button"
                                             onClick={() => setMode("multiple")}
-                                            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${mode === "multiple"
-                                                ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30"
-                                                : "text-white/40 hover:text-white/70"
-                                                }`}
+                                            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${
+                                                mode === "multiple"
+                                                    ? "bg-primary-500 text-white shadow-lg shadow-primary-500/30"
+                                                    : "text-white/40 hover:text-white/70"
+                                            }`}
                                         >
                                             <svg className="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />

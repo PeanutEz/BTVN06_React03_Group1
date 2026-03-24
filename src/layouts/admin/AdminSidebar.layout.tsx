@@ -176,6 +176,16 @@ const adminNav: Array<{
       ),
     },
     {
+      label: "Staff Create Cart",
+      to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.STAFF_CREATE_CART}`,
+      icon: (
+        <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 7.5h15v9h-15z" />
+        </svg>
+      ),
+    },
+    {
       label: "Deliveries",
       to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DELIVERIES}`,
       icon: (

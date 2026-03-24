@@ -243,6 +243,12 @@ const CartListPage = (): React.JSX.Element => {
     }
   };
 
+  const refreshSelectedCustomerCarts = () => {
+    if (!selectedCustomerId) return;
+    const customer = allCustomers.find(c => c.id === selectedCustomerId);
+    loadCartsForCustomer(selectedCustomerId, customer?.name ?? "", customer?.email ?? "");
+  };
+
   // Mount: load franchises + customers list (chỉ 2 API, không load carts)
   useEffect(() => {
     if (initDoneRef.current) return;
@@ -302,10 +308,7 @@ const CartListPage = (): React.JSX.Element => {
     try {
       await cartClient.checkoutCart(cartId);
       showSuccess("Checkout thành công");
-      if (selectedCustomerId) {
-        const customer = allCustomers.find(c => c.id === selectedCustomerId);
-        loadCartsForCustomer(selectedCustomerId, customer?.name ?? "", customer?.email ?? "");
-      }
+      refreshSelectedCustomerCarts();
     } catch (err: any) {
       showError(err?.response?.data?.message || "Không thể checkout");
     } finally { setCheckingOutId(null); }
@@ -317,10 +320,7 @@ const CartListPage = (): React.JSX.Element => {
     try {
       await cartClient.cancelCart(cartId);
       showSuccess("Đã hủy giỏ hàng");
-      if (selectedCustomerId) {
-        const customer = allCustomers.find(c => c.id === selectedCustomerId);
-        loadCartsForCustomer(selectedCustomerId, customer?.name ?? "", customer?.email ?? "");
-      }
+      refreshSelectedCustomerCarts();
     } catch (err: any) {
       showError(err?.response?.data?.message || "Không thể hủy giỏ hàng");
     } finally { setCancellingId(null); }

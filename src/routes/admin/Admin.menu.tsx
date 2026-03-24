@@ -55,6 +55,14 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     isEnd: true,
   },
   {
+    label: "Staff Create Cart",
+    path: ROUTER_URL.ADMIN_ROUTES.STAFF_CREATE_CART,
+    component: React.lazy(
+      () => import("../../pages/admin/cart/StaffCreateCart.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Order Detail",
     path: ROUTER_URL.ADMIN_ROUTES.ORDER_DETAIL,
     component: React.lazy(

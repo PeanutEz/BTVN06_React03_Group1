@@ -1,455 +1,233 @@
-import React, { useEffect, useRef, useState } from "react";
-import { GlassSearchSelect } from "../../../components/ui";
-import Pagination from "../../../components/ui/Pagination";
-
-import {
-  fetchPaymentsByCustomer,
-  fetchPaymentsByFranchise,
-  refundPayment,
-} from "../../../services/payment.service";
-
-import { fetchOrderById } from "../../../services/order.service";
-
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { Button, GlassSelect } from "../../../components";
+import type { Payment, PaymentStatus, PaymentMethodType } from "../../../models/payment.model";
 import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
   PAYMENT_METHOD_TYPE_LABELS,
 } from "../../../models/payment.model";
-import PaymentDetailModal from "./PaymentDetail.page";
-
-import type { Payment } from "../../../models/payment.model";
-
-import { searchCustomersPaged } from "../../../services/customer.service";
-import { fetchFranchiseSelect } from "../../../services/store.service";
-
-import { showSuccess, showError } from "../../../utils";
+import { fetchPayments, filterPayments } from "../../../services/payment.service";
+import { ROUTER_URL } from "../../../routes/router.const";
+import Pagination from "../../../components/ui/Pagination";
 
 const ITEMS_PER_PAGE = 10;
 
-const PaymentListPage = (): React.JSX.Element => {
-  const [rawPayments, setRawPayments] = useState<Payment[]>([]);
-
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
-  const [selectedFranchiseId, setSelectedFranchiseId] = useState("");
-
-  const [statusFilter, setStatusFilter] = useState("");
-  const [methodFilter, setMethodFilter] = useState("");
-
-  const [currentPage, setCurrentPage] = useState(1);
+const PaymentListPage = () => {
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [methodFilter, setMethodFilter] = useState<PaymentMethodType | "">("");
+  const [statusFilter, setStatusFilter] = useState<PaymentStatus | "">("")
+  const [currentPage, setCurrentPage] = useState(1);
+  const hasRun = useRef(false);
 
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
-  const [setOrderDetail] = useState<any>(null);
+  const loadPayments = async () => {
+    setLoading(true);
+    setCurrentPage(1);
+    try {
+      const data = await fetchPayments();
+      setPayments(data);
+    } catch (error) {
+      console.error("Lỗi tải danh sách thanh toán:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const [allCustomers, setAllCustomers] = useState<
-    { id: string; name: string; email: string }[]
-  >([]);
-
-  const [franchises, setFranchises] = useState<
-    { value: string; label: string }[]
-  >([]);
-
-  const initDoneRef = useRef(false);
-
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(n);
-
-  // ===== LOAD INIT (CUSTOMER + FRANCHISE)
   useEffect(() => {
-    if (initDoneRef.current) return;
-    initDoneRef.current = true;
-
-    searchCustomersPaged({
-      searchCondition: { keyword: "", is_active: "", is_deleted: false },
-      pageInfo: { pageNum: 1, pageSize: 500 },
-    })
-      .then((res) => {
-        setAllCustomers(
-          res.pageData.map((c) => ({
-            id: c.id,
-            name: c.name,
-            email: c.email ?? "",
-          }))
-        );
-      })
-      .catch(() => { });
-
-    fetchFranchiseSelect()
-      .then((res) => {
-        setFranchises(
-          res.map((f: any) => ({
-            value: f.value,
-            label: `${f.name} (${f.code})`,
-          }))
-        );
-      })
-      .catch(() => { });
+    if (hasRun.current) return;
+    hasRun.current = true;
+    loadPayments();
   }, []);
 
-  useEffect(() => {
-    if (!selectedPayment?.order_id) return;
-
-    const loadOrder = async () => {
-      try {
-        const order = await fetchOrderById(selectedPayment.order_id);
-        setOrderDetail(order);
-      } catch (err) {
-        console.error("Load order failed", err);
-        setOrderDetail(null);
-      }
-    };
-
-    loadOrder();
-  }, [selectedPayment]);
-
-  // ===== LOAD PAYMENT
-  const loadPaymentsByCustomer = async (customerId: string) => {
+  const handleFilter = async () => {
     setLoading(true);
     try {
-      const data = await fetchPaymentsByCustomer(customerId);
-      setRawPayments(data);
-    } catch {
-      setRawPayments([]);
+      const data = await filterPayments(
+        methodFilter || undefined,
+        statusFilter || undefined
+      );
+      setPayments(data);
+    } catch (error) {
+      console.error("Lỗi lọc thanh toán:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadPaymentsByFranchise = async (franchiseId: string) => {
-    setLoading(true);
-    try {
-      const data = await fetchPaymentsByFranchise(franchiseId);
-      setRawPayments(data);
-    } catch {
-      setRawPayments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCustomerChange = (customerId: string) => {
-    setSelectedCustomerId(customerId);
-    setCurrentPage(1);
-
-    if (customerId) {
-      loadPaymentsByCustomer(customerId);
-    } else if (selectedFranchiseId) {
-      // 🔥 quay lại filter theo franchise
-      loadPaymentsByFranchise(selectedFranchiseId);
-    } else {
-      // 🔥 nếu không có gì → clear hoặc load all
-      setRawPayments([]);
-    }
-  };
-
-  const handleFranchiseChange = (franchiseId: string) => {
-    setSelectedFranchiseId(franchiseId);
-    setCurrentPage(1);
-
-    if (franchiseId) {
-      loadPaymentsByFranchise(franchiseId);
-    } else if (selectedCustomerId) {
-      // 🔥 quay lại theo customer
-      loadPaymentsByCustomer(selectedCustomerId);
-    } else {
-      setRawPayments([]);
-    }
-  };
-
-  const handleReset = () => {
-    setSelectedCustomerId("");
-    setSelectedFranchiseId("");
-    setStatusFilter("");
+  const handleResetFilter = () => {
     setMethodFilter("");
-    setRawPayments([]);
-    setCurrentPage(1);
+    setStatusFilter("");
+    loadPayments();
   };
 
-  const handleRefund = async (id: string) => {
-    const reason = prompt("Nhập lý do hoàn tiền:");
-    if (!reason) return;
-
-    try {
-      await refundPayment(id, reason);
-      showSuccess("Hoàn tiền thành công");
-
-      if (selectedFranchiseId) {
-        loadPaymentsByFranchise(selectedFranchiseId);
-      } else if (selectedCustomerId) {
-        loadPaymentsByCustomer(selectedCustomerId);
-      }
-    } catch {
-      showError("Không thể hoàn tiền");
-    }
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
   };
 
-
-  // ===== FILTER (🔥 FIX CHÍNH Ở ĐÂY)
-  const filteredPayments = rawPayments.filter((p) => {
-    if (selectedFranchiseId && p.franchise_id !== selectedFranchiseId)
-      return false;
-
-    if (selectedCustomerId && p.customer_id !== selectedCustomerId)
-      return false;
-
-    if (statusFilter && p.status !== statusFilter) return false;
-
-    if (methodFilter && p.method !== methodFilter) return false;
-
-    return true;
-  });
-
-  const totalPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE);
-
-  const paginatedPayments = filteredPayments.slice(
+  const totalPages = Math.ceil(payments.length / ITEMS_PER_PAGE);
+  const paginatedPayments = payments.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    currentPage * ITEMS_PER_PAGE,
   );
-
-  // ===== OPTIONS
-  const customerOptions = allCustomers.map((c) => ({
-    value: c.id,
-    label: c.name,
-  }));
-
-  const franchiseMap = Object.fromEntries(
-    franchises.map((f) => [f.value, f.label])
-  );
-
-  const methodOptions = Object.entries(PAYMENT_METHOD_TYPE_LABELS).map(
-    ([value, label]) => ({ value, label })
-  );
-
-  const statusOptions = Object.entries(PAYMENT_STATUS_LABELS).map(
-    ([value, label]) => ({ value, label })
-  );
-
-  const showTable = !!selectedCustomerId || !!selectedFranchiseId || loading;
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">
-          Quản lý thanh toán
-        </h1>
-        <p className="text-sm text-slate-600">
-          Xem và xử lý thanh toán
-        </p>
-
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý thanh toán</h1>
+          <p className="text-xs sm:text-sm text-slate-600">Theo dõi và quản lý các giao dịch thanh toán</p>
+        </div>
       </div>
 
-      {/* FILTER */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
-        <div className="flex flex-wrap items-end gap-3">
-
-          {/* Franchise */}
-          <div className="min-w-[220px] space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Chi nhánh
-            </label>
-            <GlassSearchSelect
-              value={selectedFranchiseId}
-              onChange={handleFranchiseChange}
-              options={franchises}
-              placeholder="-- Tất cả --"
-              searchPlaceholder="Tìm chi nhánh..."
-              allLabel="-- Tất cả --"
-            />
-          </div>
-
-          {/* Customer */}
-          <div className="min-w-[220px] space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Khách hàng
-            </label>
-            <GlassSearchSelect
-              value={selectedCustomerId}
-              onChange={handleCustomerChange}
-              options={customerOptions}
-              placeholder="-- Chọn khách hàng --"
-              searchPlaceholder="Tìm theo tên..."
-              allLabel="-- Tất cả --"
-            />
-          </div>
-
-          {/* Status */}
-          <div className="min-w-[180px] space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Trạng thái
-            </label>
-            <GlassSearchSelect
-              value={statusFilter}
-              onChange={(v) => {
-                setStatusFilter(v);
-                setCurrentPage(1);
-              }}
-              options={statusOptions}
-              placeholder="-- Tất cả --"
-              searchPlaceholder="Tìm trạng thái..."
-              allLabel="-- Tất cả --"
-            />
-          </div>
-
-          {/* Method */}
-          <div className="min-w-[180px] space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Phương thức
-            </label>
-            <GlassSearchSelect
+      {/* Filters */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Phương thức</label>
+            <GlassSelect
               value={methodFilter}
-              onChange={(v) => {
-                setMethodFilter(v);
-                setCurrentPage(1);
-              }}
-              options={methodOptions}
-              placeholder="-- Tất cả --"
-              searchPlaceholder="Tìm phương thức..."
-              allLabel="-- Tất cả --"
+              onChange={(v) => setMethodFilter(v as PaymentMethodType | "")}
+              className="w-full"
+              options={[
+                { value: "", label: "Tất cả" },
+                { value: "POS", label: "Tại quầy (POS)" },
+                { value: "ONLINE", label: "Online" },
+              ]}
             />
           </div>
 
-          {/* Reset */}
-          <div className="space-y-1.5">
-            <label className="invisible block text-xs">&nbsp;</label>
-            <button
-              onClick={handleReset}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-            >
-              Đặt lại
-            </button>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-700">Trạng thái</label>
+            <GlassSelect
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v as PaymentStatus | "")}
+              className="w-full"
+              options={[
+                { value: "", label: "Tất cả" },
+                { value: "PENDING", label: "Chờ thanh toán" },
+                { value: "DRAFT", label: "Chưa thanh toán" },
+                { value: "CONFIRMED", label: "Đã xác nhận" },
+                { value: "PREPARING", label: "Đang xử lý" },
+                { value: "READY_FOR_PICKUP", label: "Sẵn sàng lấy hàng" },
+                { value: "DELIVERING", label: "Đang giao hàng" },
+                { value: "COMPLETED", label: "Thành công" },
+                { value: "CANCELLED", label: "Đã hủy" },
+              ]}
+            />
           </div>
         </div>
 
-        {/* COUNT */}
-        {(selectedCustomerId || selectedFranchiseId) && (
-          <p className="mt-3 text-xs text-slate-400">
-            Hiển thị{" "}
-            <span className="font-semibold text-slate-600">
-              {filteredPayments.length}
-            </span>{" "}
-            thanh toán
-            {rawPayments.length !== filteredPayments.length &&
-              ` (lọc từ ${rawPayments.length})`}
-          </p>
-        )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button onClick={handleFilter} size="sm">
+            Lọc
+          </Button>
+          <Button onClick={handleResetFilter} size="sm" variant="outline">
+            Đặt lại
+          </Button>
+        </div>
       </div>
 
-      {/* EMPTY */}
-      {!showTable && (
-        <div className="text-center py-10 text-gray-400">
-          Chọn khách hàng hoặc chi nhánh để xem thanh toán
-        </div>
-      )}
-
-      {/* TABLE */}
-      {showTable && (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-600">
-                <tr>
-                  <th className="px-4 py-3">Code</th>
-                  <th className="px-4 py-3">Order</th>
-                  <th className="px-4 py-3">Chi nhánh</th>
-                  <th className="px-4 py-3">Số tiền</th>
-                  <th className="px-4 py-3">Phương thức</th>
-                  <th className="px-4 py-3">Trạng thái</th>
-                  <th className="px-4 py-3">Thao tác</th>
+      {/* Payments Table */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Mã thanh toán</th>
+                <th className="px-4 py-3">Mã đơn</th>
+                <th className="px-4 py-3">Cửa hàng</th>
+                <th className="px-4 py-3">Khách hàng</th>
+                <th className="px-4 py-3">Phương thức</th>
+                <th className="px-4 py-3">Trạng thái</th>
+                <th className="px-4 py-3">Số tiền</th>
+                <th className="px-4 py-3">Ngày tạo</th>
+                <th className="px-4 py-3">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {paginatedPayments.map((payment) => (
+                <tr key={payment.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <span className="font-semibold text-primary-600">PT-{String(payment.id).padStart(4, '0')}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link
+                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${payment.order_id}`}
+                      className="font-semibold text-blue-600 hover:underline"
+                    >
+                      {payment.order_code}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="leading-tight">
+                      <p className="font-semibold text-slate-900">{payment.franchise_code || 'N/A'}</p>
+                      <p className="text-xs text-slate-500">{payment.franchise_name || 'N/A'}</p>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-slate-900">{payment.customer_name || 'N/A'}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                      {PAYMENT_METHOD_TYPE_LABELS[payment.method]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${PAYMENT_STATUS_COLORS[payment.status]}`}
+                    >
+                      {PAYMENT_STATUS_LABELS[payment.status]}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-slate-900">
+                    {formatCurrency(payment.amount)}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {new Date(payment.created_at).toLocaleString("vi-VN")}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Link
+                      to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PAYMENTS}/${payment.id}`}
+                    >
+                      <Button size="sm" variant="outline">
+                        Chi tiết
+                      </Button>
+                    </Link>
+                  </td>
                 </tr>
-              </thead>
-
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={7}>
-                      <div className="flex justify-center items-center py-16">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500" />
-                      </div>
-                    </td>
-                  </tr>
-                ) : paginatedPayments.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-10">
-                      Không có dữ liệu
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedPayments.map((p) => (
-                    <tr key={p.id} className="border-t">
-                      <td className="px-4 py-3 font-mono text-xs">
-                        {p.code}
-                      </td>
-
-                      <td className="px-4 py-3">{p.order_id}</td>
-
-                      <td className="px-4 py-3">
-                        {franchiseMap[p.franchise_id] || p.franchise_id}
-                      </td>
-
-                      <td className="px-4 py-3 font-semibold">
-                        {formatCurrency(p.amount)}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        {PAYMENT_METHOD_TYPE_LABELS[p.method]}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 text-xs rounded border ${PAYMENT_STATUS_COLORS[p.status]}`}
-                        >
-                          {PAYMENT_STATUS_LABELS[p.status]}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-
-                          {/* 👁 Xem chi tiết */}
-                          <button
-                            onClick={() => setSelectedPayment(p)}
-                            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
-                            title="Xem chi tiết"
-                          >
-                            <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                              <path strokeLinecap="round" strokeLinejoin="round"
-                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              <path strokeLinecap="round" strokeLinejoin="round"
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                          </button>
-
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-4">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              totalItems={filteredPayments.length}
-              itemsPerPage={ITEMS_PER_PAGE}
-            />
-          </div>
+              ))}
+              {payments.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-500">
+                    Không có thanh toán
+                  </td>
+                </tr>
+              )}
+              {loading && (
+                <tr>
+                  <td colSpan={9}>
+                    <div className="flex justify-center items-center py-20">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-
-      )}
-      {selectedPayment && (
-        <PaymentDetailModal
-          payment={selectedPayment}
-          onClose={() => setSelectedPayment(null)}
-          onRefund={handleRefund}
-        />
-      )}
+        <div className="px-4">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={payments.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </div>
+      </div>
     </div>
   );
 };

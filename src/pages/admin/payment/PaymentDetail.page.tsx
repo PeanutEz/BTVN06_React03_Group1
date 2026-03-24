@@ -1,287 +1,319 @@
-import { useEffect, useState } from "react";
-import { fetchOrderById } from "../../../services/order.service";
-import { getFranchiseById } from "../../../services/store.service";
-import { fetchCustomerById } from "../../../services/customer.service";
-
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { Button } from "../../../components";
+import type { Payment, PaymentStatus } from "../../../models/payment.model";
 import {
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUS_COLORS,
   PAYMENT_METHOD_TYPE_LABELS,
 } from "../../../models/payment.model";
+import { fetchPaymentById, updatePaymentStatus } from "../../../services/payment.service";
+import { fetchOrderById } from "../../../services/order.service";
+import type { OrderDisplay } from "../../../models/order.model";
+import { ROUTER_URL } from "../../../routes/router.const";
+import { showSuccess, showError } from "../../../utils";
 
-import type { Payment } from "../../../models/payment.model";
+const PaymentDetailPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [payment, setPayment] = useState<Payment | null>(null);
+  const [order, setOrder] = useState<OrderDisplay | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [newStatus, setNewStatus] = useState<PaymentStatus>("DRAFT");
+  const lastId = useRef<string | undefined>(undefined);
 
-function PaymentDetailModal({
-  payment,
-  onClose,
-  onRefund,
-}: {
-  payment: Payment;
-  onClose: () => void;
-  onRefund: (id: string) => void;
-}) {
-  console.log("🔥 PaymentDetailModal - payment:", payment);
-  const [orderDetail, setOrderDetail] = useState<any>(null);
-  const [franchise, setFranchise] = useState<any>(null);
-  const [customer, setCustomer] = useState<any>(null);
+  const loadPayment = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const paymentId = Number(id);
+      const data = await fetchPaymentById(paymentId);
+      if (!data) {
+        showError("Không tìm thấy thanh toán");
+        navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PAYMENTS}`);
+        return;
+      }
+      setPayment(data);
+      setNewStatus(data.status);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  const formatCurrency = (n: number) =>
-    new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(n);
+      // Load related order
+      const orderData = await fetchOrderById(data.order_id);
+      setOrder(orderData);
+    } catch (error) {
+      console.error("Lỗi tải chi tiết thanh toán:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!payment?.order_id) return;
+    if (id === lastId.current) return;
+    lastId.current = id;
+    loadPayment();
+  }, [id]);
 
-    let cancelled = false;
+  const handleUpdateStatus = async () => {
+    if (!payment || !id) return;
 
-    const fetchAll = async () => {
-      try {
-        setLoading(true);
-        setError(false);
+    if (newStatus === payment.status) {
+      setShowStatusModal(false);
+      return;
+    }
 
-        const [orderRes, franchiseRes] = await Promise.all([
-          fetchOrderById(payment.order_id),
-          payment.franchise_id
-            ? getFranchiseById(payment.franchise_id)
-            : Promise.resolve(null),
-        ]);
-
-        if (cancelled) return;
-
-        setOrderDetail(orderRes);
-        setFranchise(franchiseRes);
-
-        if (orderRes?.customer_id) {
-          const cus = await fetchCustomerById(orderRes.customer_id);
-          if (!cancelled) setCustomer(cus);
-        }
-      } catch (err) {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
+    setUpdating(true);
+    try {
+      const paymentId = Number(id);
+      const updated = await updatePaymentStatus(paymentId, newStatus);
+      if (updated) {
+        setPayment(updated);
+        showSuccess("Cập nhật trạng thái thành công");
+        setShowStatusModal(false);
+      } else {
+        showError("Không thể cập nhật trạng thái");
       }
-    };
+    } catch (error) {
+      showError("Có lỗi xảy ra");
+    } finally {
+      setUpdating(false);
+    }
+  };
 
-    fetchAll();
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
+  };
 
-    return () => {
-      cancelled = true;
-    };
-  }, [payment]);
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <p className="text-slate-500">Đang tải...</p>
+      </div>
+    );
+  }
+
+  if (!payment) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <p className="text-slate-500">Không tìm thấy thanh toán</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PAYMENTS}`}>
+            <Button variant="outline" size="sm">
+              ← Quay lại
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-lg sm:text-2xl font-bold text-slate-900">Chi tiết thanh toán PT-{String(payment.id).padStart(4, '0')}</h1>
+            <p className="text-xs sm:text-sm text-slate-600">
+              Tạo ngày {new Date(payment.created_at).toLocaleString("vi-VN")}
+            </p>
+          </div>
+        </div>
+        <Button onClick={() => setShowStatusModal(true)}>Cập nhật trạng thái</Button>
+      </div>
 
-      {/* Modal */}
-      <div className="relative w-full max-w-5xl h-[85vh] min-h-0 rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200 flex flex-col">
-
-        {/* Close */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-        >
-          ✕
-        </button>
-
-        <div className="p-6 flex flex-col h-full min-h-0">
-
-          <h2 className="text-lg font-bold text-slate-900 mb-1">
-            Chi tiết thanh toán
-          </h2>
-
-          <p className="text-xs text-slate-500 mb-4">
-            Code: {payment.code}
-          </p>
-
-          {/* MAIN */}
-          <div className="grid grid-cols-2 gap-6 flex-1 min-h-0 h-full">
-
-            {/* LEFT */}
-            <div className="flex flex-col border-r pr-4 min-h-0 h-full">
-              <div className="flex-1 overflow-y-auto space-y-3 pr-2 min-h-0">
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">Order</p>
-                  <p className="font-semibold">{payment.order_id}</p>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Payment Info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Main Info */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Thông tin thanh toán</h2>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Mã thanh toán:</span>
+                <span className="font-semibold text-primary-600">PT-{String(payment.id).padStart(4, '0')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Cửa hàng:</span>
+                <div className="text-right">
+                  <p className="font-semibold text-slate-900">{payment.franchise_code || 'N/A'}</p>
+                  <p className="text-xs text-slate-500">{payment.franchise_name || 'N/A'}</p>
                 </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">Chi nhánh</p>
-                  <p className="font-semibold">
-                    {franchise?.name || payment.franchise_id}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500 mb-1">Khách hàng</p>
-                  <div className="flex justify-between">
-                    <p className="font-semibold">{customer?.name || "---"}</p>
-                    <div className="text-right text-xs text-gray-500">
-                      {customer?.email && <p>✉️ {customer.email}</p>}
-                      {customer?.phone && <p>📞 {customer.phone}</p>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">Phương thức</p>
-                  <p className="font-semibold">
-                    {PAYMENT_METHOD_TYPE_LABELS[payment.method]}
-                  </p>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <p className="text-xs text-slate-500">Trạng thái</p>
-                  <span
-                    className={`px-2 py-0.5 text-xs rounded border ${PAYMENT_STATUS_COLORS[payment.status]}`}
-                  >
-                    {PAYMENT_STATUS_LABELS[payment.status]}
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Mã đơn hàng:</span>
+                <Link
+                  to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${payment.order_id}`}
+                  className="font-semibold text-blue-600 hover:underline"
+                >
+                  {payment.order_code}
+                </Link>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Khách hàng:</span>
+                <span className="font-semibold text-slate-900">{payment.customer_name || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Phương thức:</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                  {PAYMENT_METHOD_TYPE_LABELS[payment.method]}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Số tiền:</span>
+                <span className="text-xl font-bold text-primary-600">
+                  {formatCurrency(payment.amount)}
+                </span>
+              </div>
+              {payment.transaction_id && (
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Mã giao dịch:</span>
+                  <span className="font-mono text-xs font-semibold text-slate-900">
+                    {payment.transaction_id}
                   </span>
                 </div>
-
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-600">Trạng thái:</span>
+                <span
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${PAYMENT_STATUS_COLORS[payment.status]}`}
+                >
+                  {PAYMENT_STATUS_LABELS[payment.status]}
+                </span>
               </div>
-            </div>
-
-            {/* RIGHT */}
-            <div className="flex flex-col pl-4 min-h-0 h-full">
-
-              <h3 className="text-sm font-semibold text-slate-700 mb-2 shrink-0">
-                Sản phẩm
-              </h3>
-
-              {/* LIST */}
-              <div className="flex-1 overflow-y-auto min-h-0 pr-2 pb-4">
-
-                {loading ? (
-                  <div className="flex justify-center py-10">
-                    <div className="animate-spin h-8 w-8 border-b-2 border-primary-500 rounded-full" />
-                  </div>
-                ) : error ? (
-                  <p className="text-center text-sm text-red-500 py-6">
-                    Không thể tải dữ liệu
-                  </p>
-                ) : orderDetail?.items?.length === 0 ? (
-                  <p className="text-center text-sm text-slate-400 py-6">
-                    Không có sản phẩm
-                  </p>
-                ) : (
-                  orderDetail.items.map((item: any, index: number) => (
-                    <div
-                      key={`${item.order_item_id}-${index}`}
-                      className="rounded-xl border p-3 flex gap-3"
-                    >
-                      <img
-                        src={item.product_image_url}
-                        alt={item.product_name}
-                        className="w-14 h-14 rounded object-cover border"
-                      />
-
-                      <div className="flex-1">
-                        <p className="font-semibold">{item.product_name}</p>
-
-                        <p className="text-xs text-gray-500">
-                          x{item.quantity}
-                        </p>
-
-                        {item.options?.length > 0 && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {item.options.map((opt: any, i: number) => (
-                              <div key={i}>
-                                + {opt.product_name} x{opt.quantity}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="text-sm font-semibold text-primary-600">
-                        {formatCurrency(item.final_line_total)}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* TOTAL */}
-              <div className="pt-3 text-sm">
-                <div className="border-t my-2"></div>
-
-                {orderDetail?.subtotal_amount > 0 && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Tạm tính</span>
-                    <span>{formatCurrency(orderDetail.subtotal_amount)}</span>
-                  </div>
-                )}
-
-                {orderDetail?.promotion_discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Giảm Khuyến mãi</span>
-                    <span>- {formatCurrency(orderDetail.promotion_discount)}</span>
-                  </div>
-                )}
-
-                {orderDetail?.voucher_discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Voucher</span>
-                    <span>- {formatCurrency(orderDetail.voucher_discount)}</span>
-                  </div>
-                )}
-
-                {orderDetail?.loyalty_discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Điểm khách hàng</span>
-                    <span>- {formatCurrency(orderDetail.loyalty_discount)}</span>
-                  </div>
-                )}
-
-                <div className="border-t my-2"></div>
-
-                <div className="flex justify-between font-bold text-base">
-                  <span>Tổng tiền</span>
-                  <span className="text-red-500">
-                    {formatCurrency(payment.amount)}
-                  </span>
-                </div>
-              </div>
-
             </div>
           </div>
 
-          {/* ACTION */}
-          <div className="flex justify-end gap-3 mt-4">
+          {/* Related Order */}
+          {order && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">Thông tin đơn hàng</h2>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Mã đơn:</span>
+                  <span className="font-semibold text-primary-600">{order.code}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Khách hàng:</span>
+                  <div className="text-right">
+                    <p className="font-semibold text-slate-900">{order.customer?.name || 'N/A'}</p>
+                    <p className="text-xs text-slate-500">{order.customer?.email || 'N/A'}</p>
+                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Tổng giá trị:</span>
+                  <span className="font-semibold text-slate-900">{formatCurrency(order.total_amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Số sản phẩm:</span>
+                  <span className="font-semibold text-slate-900">{order.items?.length || 0} sản phẩm</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
-            {payment.status === "PAID" && (
-              <button
-                onClick={() => onRefund(payment.id)}
-                className="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600"
+        {/* Summary */}
+        <div className="space-y-6">
+          {/* Current Status */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Trạng thái hiện tại</h2>
+            <div className="text-center">
+              <span
+                className={`inline-block rounded-full border px-4 py-2 text-sm font-semibold ${PAYMENT_STATUS_COLORS[payment.status]}`}
               >
-                Hoàn tiền
-              </button>
-            )}
-
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border rounded-lg"
-            >
-              Đóng
-            </button>
-
+                {PAYMENT_STATUS_LABELS[payment.status]}
+              </span>
+              <p className="mt-4 text-xs text-slate-500">
+                Cập nhật lần cuối: {new Date(payment.updated_at).toLocaleString("vi-VN")}
+              </p>
+            </div>
           </div>
 
+          {/* Amount Summary */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">Tổng quan</h2>
+            <div className="space-y-3">
+              <div className="rounded-lg bg-primary-50 p-4 text-center">
+                <p className="text-sm text-slate-600">Số tiền thanh toán</p>
+                <p className="mt-1 text-2xl font-bold text-primary-600">
+                  {formatCurrency(payment.amount)}
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-50 p-4">
+                <p className="text-sm text-slate-600">Phương thức</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {PAYMENT_METHOD_TYPE_LABELS[payment.method]}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Status Update Modal */}
+      {showStatusModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60"
+            style={{ backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+            onClick={() => setShowStatusModal(false)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+            style={{
+              background: "rgba(255,255,255,0.13)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.22)",
+              boxShadow: "0 30px 70px rgba(0,0,0,0.4), 0 0 1px rgba(255,255,255,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+            }}
+          >
+            <h2 className="mb-4 text-xl font-bold text-white/95">Cập nhật trạng thái</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-white/80">
+                  Chọn trạng thái mới
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as PaymentStatus)}
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
+                >
+                  <option value="PENDING">Chờ thanh toán</option>
+                  <option value="DRAFT">Chưa thanh toán</option>
+                  <option value="CONFIRMED">Đã xác nhận</option>
+                  <option value="PREPARING">Đang xử lý</option>
+                  <option value="READY_FOR_PICKUP">Sẵn sàng lấy hàng</option>
+                  <option value="DELIVERING">Đang giao hàng</option>
+                  <option value="COMPLETED">Thành công</option>
+                  <option value="CANCELLED">Đã hủy</option>
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleUpdateStatus}
+                  loading={updating}
+                  disabled={updating}
+                  className="flex-1"
+                >
+                  Xác nhận
+                </Button>
+                <Button
+                  onClick={() => setShowStatusModal(false)}
+                  variant="outline"
+                  disabled={updating}
+                  className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
+                >
+                  Hủy
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+};
 
-export default PaymentDetailModal;
+export default PaymentDetailPage;

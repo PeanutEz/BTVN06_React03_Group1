@@ -19,31 +19,15 @@ interface ApiResponse<T> {
 export interface PaymentData {
   _id?: string;
   id?: string;
-
-  code?: string;
-
   order_id?: string;
-  franchise_id?: string;
-  customer_id?: string;
-
   method?: string;
   status?: string;
-
   amount?: number;
-
   provider_txn_id?: string;
   providerTxnId?: string;
-
-  paid_at?: string;
-
   refund_reason?: string;
-
-  is_active?: boolean;
-  is_deleted?: boolean;
-
   created_at?: string;
   updated_at?: string;
-
   [key: string]: unknown;
 }
 
@@ -58,44 +42,6 @@ function normalizePayment(raw: unknown): PaymentData | null {
         : typeof payment.providerTxnId === "string"
           ? payment.providerTxnId
           : undefined,
-  };
-}
-
-function flattenPaymentRelations(payment: PaymentData): PaymentData {
-  return {
-    ...payment,
-
-    // convert object → string id
-    franchise_id:
-      typeof payment.franchise_id === "object"
-        ? (payment.franchise_id as any)?._id
-        : payment.franchise_id,
-
-    customer_id:
-      typeof payment.customer_id === "object"
-        ? (payment.customer_id as any)?._id
-        : payment.customer_id,
-
-    order_id:
-      typeof payment.order_id === "object"
-        ? (payment.order_id as any)?._id
-        : payment.order_id,
-
-    // thêm field tiện dùng
-    franchise_name:
-      typeof payment.franchise_id === "object"
-        ? (payment.franchise_id as any)?.name
-        : undefined,
-
-    customer_name:
-      typeof payment.customer_id === "object"
-        ? (payment.customer_id as any)?.name
-        : undefined,
-
-    order_code:
-      typeof payment.order_id === "object"
-        ? (payment.order_id as any)?.code
-        : undefined,
   };
 }
 
@@ -135,10 +81,7 @@ export const paymentClient = {
 
   getPaymentsByCustomerId: async (customerId: string): Promise<PaymentData[]> => {
     const response = await apiClient.get(`/payments/customer/${customerId}`);
-    return unwrapList<PaymentData>(response.data)
-      .map((item) => normalizePayment(item))
-      .filter(Boolean)
-      .map((item) => flattenPaymentRelations(item as PaymentData));
+    return unwrapList<PaymentData>(response.data).map((item) => normalizePayment(item)).filter(Boolean) as PaymentData[];
   },
 
   getPaymentByCode: async (code: string): Promise<PaymentData | null> => {
@@ -157,19 +100,6 @@ export const paymentClient = {
     } catch {
       return normalizePayment(getMockPaymentById(id));
     }
-  },
-
-  getPaymentsByFranchiseId: async (
-    franchiseId: string
-  ): Promise<PaymentData[]> => {
-    const response = await apiClient.get(
-      `/payments/franchise/${franchiseId}`
-    );
-
-    return unwrapList<PaymentData>(response.data)
-      .map((item) => normalizePayment(item))
-      .filter(Boolean)
-      .map((item) => flattenPaymentRelations(item as PaymentData));
   },
 
   confirmPayment: async (

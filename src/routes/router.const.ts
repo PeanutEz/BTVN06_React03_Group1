@@ -62,6 +62,7 @@ export const ROUTER_URL = {
     PRODUCT_FRANCHISES: "product-franchises",    ORDERS: "orders",
     ORDER_DETAIL: "orders/:id",
     CARTS: "carts",
+    STAFF_CREATE_CART: "staff-create-cart",
     DELIVERIES: "deliveries",
     DELIVERY_DETAIL: "deliveries/:id",    CUSTOMERS: "customers",
     CUSTOMER_DETAIL: "customers/:id",

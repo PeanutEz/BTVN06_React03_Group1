@@ -34,6 +34,17 @@ export interface AddToCartStaffBody extends AddToCartCustomerBody {
   customer_id: string;
 }
 
+export interface AddToCartStaffBulkBody {
+  customer_id: string;
+  franchise_id: string;
+  items: Array<{
+    product_franchise_id: string;
+    quantity: number;
+    note?: string;
+    options?: CartItemOption[];
+  }>;
+}
+
 export interface UpdateCartBody {
   address?: string;
   phone?: string;
@@ -100,6 +111,14 @@ export const cartClient = {
   addProductStaff: async (body: AddToCartStaffBody): Promise<CartApiData> => {
     const response = await apiClient.post<ApiResponse<CartApiData>>(
       "/carts/items/staff",
+      body
+    );
+    return response.data.data ?? {};
+  },
+
+  addProductsStaffBulk: async (body: AddToCartStaffBulkBody): Promise<CartApiData> => {
+    const response = await apiClient.post<ApiResponse<CartApiData>>(
+      "/carts/items/staff-bulk",
       body
     );
     return response.data.data ?? {};
