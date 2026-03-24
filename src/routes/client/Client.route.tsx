@@ -8,11 +8,8 @@ import { ROUTER_URL } from "../router.const";
 
 const CustomerProfile = React.lazy(() => import("../../pages/client/customer/CustomerProfile.page"));
 const CustomerChangePassword = React.lazy(() => import("../../pages/client/customer/CustomerChangePassword.page"));
-const CustomerAddressBook = React.lazy(() => import("../../pages/client/customer/CustomerAddressBook.page"));
 const CustomerOrders = React.lazy(() => import("../../pages/client/customer/CustomerOrders.page"));
-const CustomerFavorites = React.lazy(() => import("../../pages/client/customer/CustomerFavorites.page"));
 const LoyaltyDashboard = React.lazy(() => import("../../pages/client/loyalty/LoyaltyDashboard.page"));
-const LoyaltyPoints = React.lazy(() => import("../../pages/client/loyalty/LoyaltyPoints.page"));
 const CartPage = React.lazy(() => import("../../pages/client/Cart.page"));
 const ContactPage = React.lazy(() => import("../../pages/client/Contact.page"));
 
@@ -26,13 +23,10 @@ export const ClientRoutes = (
       <Route path="customer" element={<CustomerAccountLayout />}>
         <Route path="account" element={<CustomerProfile />} />
         <Route path="change-password" element={<CustomerChangePassword />} />
-        <Route path="address-book" element={<CustomerAddressBook />} />
-        <Route path="membership" element={<LoyaltyDashboard />} />
-        <Route path="vouchers" element={<LoyaltyPoints />} />
+        <Route path="loyalty" element={<LoyaltyDashboard />} />
+        <Route path="loyoty" element={<Navigate to={ROUTER_URL.CUSTOMER_MEMBERSHIP} replace />} />
         <Route path="order" element={<CustomerOrders />} />
         <Route path="cart" element={<CartPage />} />
-        <Route path="product-favorite" element={<CustomerFavorites />} />
-        <Route path="ordered" element={<CustomerOrders />} />
         <Route path="support" element={<ContactPage />} />
       </Route>
     </Route>

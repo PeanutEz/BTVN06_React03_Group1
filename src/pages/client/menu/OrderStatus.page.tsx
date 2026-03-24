@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import LoadingLayout from "@/layouts/Loading.layout";
 import { ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
 import { deliveryClient, type DeliveryData } from "@/services/delivery.client";
@@ -361,10 +362,15 @@ function OrderStatusFromApi({
   );
   const paymentCreatedAt = fmtDateTime((payment as any)?.created_at);
   const paymentUpdatedAt = fmtDateTime((payment as any)?.updated_at);
-  const paymentMethodRaw = String(payment?.method ?? "").toUpperCase();
+  const paymentMethodRaw = String(
+    payment?.method ??
+    (order as any)?.payment_method ??
+    (order as any)?.method ??
+    "",
+  ).toUpperCase();
   const isCashMethod = paymentMethodRaw === "CASH" || paymentMethodRaw === "COD";
   const timelineCurrentStatus: TrackingStatus =
-    mappedStatus === "CANCELLED" || isPaidPayment(payment?.status)
+    mappedStatus === "CANCELLED" || isCashMethod || isPaidPayment(payment?.status)
       ? mappedStatus
       : "PAYMENT_PENDING";
   const itemCount = (rawItems as any[]).reduce((sum, item) => sum + toNumber(item.quantity ?? item.qty ?? 0), 0);
@@ -676,6 +682,8 @@ export default function OrderStatusPage() {
     queryFn: () => orderClient.getOrderById(orderId!),
     enabled: !!orderId,
     retry: false,
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
 
@@ -690,6 +698,8 @@ export default function OrderStatusPage() {
     },
     enabled: !!orderId && !!orderQuery.data,
     retry: false,
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
   const apiPayment = paymentQuery.data;
@@ -705,18 +715,14 @@ export default function OrderStatusPage() {
     },
     enabled: !!orderId && !!orderQuery.data,
     retry: false,
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchOnWindowFocus: false,
   });
   const apiDelivery = deliveryQuery.data;
 
   const apiOrder = orderQuery.data;
-  if (orderQuery.isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center text-gray-500">Đang tải đơn hàng...</div>
-      </div>
-    );
-  }
+  if (orderQuery.isLoading || orderQuery.isFetching) return <LoadingLayout />;
 
   if (orderQuery.error) {
     const status = (orderQuery.error as any)?.response?.status;

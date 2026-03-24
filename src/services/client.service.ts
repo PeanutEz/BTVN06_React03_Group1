@@ -149,10 +149,36 @@ export const clientService = {
   // Returns loyalty tier rules for a specific franchise
   getLoyaltyRuleByFranchise: async (franchiseId: string): Promise<LoyaltyRule[]> => {
     try {
-      const response = await apiClient.get<{ success: boolean; data: LoyaltyRule[] }>(
+      const response = await apiClient.get<{ success: boolean; data: unknown }>(
         `/clients/franchises/${franchiseId}/loyalty-rule`
       );
-      return response.data.data;
+      const payload = response.data?.data as unknown;
+
+      if (Array.isArray(payload)) {
+        return payload as LoyaltyRule[];
+      }
+
+      if (payload && typeof payload === "object") {
+        const boxed = payload as Record<string, unknown>;
+
+        if (Array.isArray(boxed.data)) {
+          return boxed.data as LoyaltyRule[];
+        }
+
+        if (Array.isArray(boxed.items)) {
+          return boxed.items as LoyaltyRule[];
+        }
+
+        if (Array.isArray(boxed.rules)) {
+          return boxed.rules as LoyaltyRule[];
+        }
+
+        if ("tier_name" in boxed || "min_points" in boxed) {
+          return [boxed as unknown as LoyaltyRule];
+        }
+      }
+
+      return [];
     } catch (error) {
       console.error("Failed to fetch loyalty rules:", error);
       return [];

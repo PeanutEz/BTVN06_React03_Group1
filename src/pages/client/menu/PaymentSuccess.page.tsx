@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
-import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import LoadingLayout from "@/layouts/Loading.layout";
 import { ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
 import { paymentClient } from "@/services/payment.client";
+import { clientService } from "@/services/client.service";
 import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
 
 const fmt = (n: number) =>
@@ -87,9 +89,28 @@ function StepDot({ active, done, label }: { active: boolean; done: boolean; labe
 
 export default function PaymentSuccessPage() {
   const { orderId } = useParams<{ orderId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isNavigatingToTracking, setIsNavigatingToTracking] = useState(false);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  const handleTrackOrderClick = async () => {
+    if (!orderId || isNavigatingToTracking) return;
+
+    setIsNavigatingToTracking(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["order-status", orderId] }),
+        queryClient.invalidateQueries({ queryKey: ["payment-by-order-status", orderId] }),
+        queryClient.invalidateQueries({ queryKey: ["delivery-by-order", orderId] }),
+      ]);
+      navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId));
+    } catch {
+      setIsNavigatingToTracking(false);
+    }
+  };
 
   const { data: order, isLoading: orderLoading } = useQuery({
     queryKey: ["payment-success-order", orderId],
@@ -105,12 +126,77 @@ export default function PaymentSuccessPage() {
     staleTime: 30_000,
   });
 
+  const franchiseId = String(
+    (order as any)?.franchise_id ?? (order as any)?.franchise?._id ?? (order as any)?.franchise?.id ?? ""
+  ).trim();
+
+  const { data: loyaltyRules } = useQuery({
+    queryKey: ["payment-success-loyalty-rule", franchiseId],
+    queryFn: () => clientService.getLoyaltyRuleByFranchise(franchiseId),
+    enabled: !!franchiseId,
+    staleTime: 60_000,
+  });
+
+  const { data: customerLoyalty } = useQuery({
+    queryKey: ["payment-success-customer-loyalty", franchiseId],
+    queryFn: () => clientService.getCustomerLoyaltyByFranchise(franchiseId),
+    enabled: !!franchiseId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    // Poll for a short window after order creation so loyalty points
+    // updated asynchronously by backend can appear immediately.
+    refetchInterval: (() => {
+      const createdAt = (order as any)?.created_at;
+      if (!createdAt) return false;
+      const createdAtMs = new Date(createdAt).getTime();
+      if (!Number.isFinite(createdAtMs)) return false;
+      return Date.now() - createdAtMs <= 2 * 60 * 1000 ? 3000 : false;
+    })(),
+  });
+
   const isLoading = orderLoading || paymentLoading;
   const displayAmount = (order as any)?.final_amount ?? (order as any)?.total_amount ?? 0;
   const subtotalAmount = Number((order as any)?.subtotal_amount ?? displayAmount ?? 0);
   const promotionDiscount = Number((order as any)?.promotion_discount ?? 0);
   const voucherDiscount = Number((order as any)?.voucher_discount ?? 0);
   const loyaltyDiscount = Number((order as any)?.loyalty_discount ?? 0);
+  const loyaltyPointsEarnedFromOrderRaw = [
+    (order as any)?.loyalty_points_earned,
+    (order as any)?.earned_loyalty_points,
+    (order as any)?.loyalty_point_earned,
+    (order as any)?.points_earned,
+  ].find((value) => Number.isFinite(Number(value)));
+  const loyaltyPointsEarnedFromOrder = Number.isFinite(Number(loyaltyPointsEarnedFromOrderRaw))
+    ? Math.max(0, Math.floor(Number(loyaltyPointsEarnedFromOrderRaw)))
+    : null;
+
+  const currentTierName = String(
+    (customerLoyalty as any)?.current_tier ?? (customerLoyalty as any)?.tier ?? ""
+  ).toUpperCase();
+
+  const matchedTierRule = Array.isArray(loyaltyRules)
+    ? loyaltyRules.find((rule: any) => {
+      const tierName = String(rule?.tier_name ?? rule?.tier ?? "").toUpperCase();
+      return currentTierName ? tierName === currentTierName : false;
+    }) ?? loyaltyRules[0]
+    : null;
+
+  const earnAmountPerPoint = Number(
+    (matchedTierRule as any)?.earn_amount_per_point ??
+    (loyaltyRules as any)?.earn_amount_per_point ??
+    10_000
+  );
+  const earnMultiplier = Number((matchedTierRule as any)?.earn_multiplier ?? 1);
+
+  const loyaltyPointsEarnedCalculated =
+    Number.isFinite(earnAmountPerPoint) && earnAmountPerPoint > 0
+      ? Math.max(0, Math.floor((Number(displayAmount ?? 0) / earnAmountPerPoint) * (Number.isFinite(earnMultiplier) ? earnMultiplier : 1)))
+      : 0;
+
+  const loyaltyPointsEarned = loyaltyPointsEarnedFromOrder ?? loyaltyPointsEarnedCalculated;
+  const loyaltyPointsSourceLabel = loyaltyPointsEarnedFromOrder !== null ? "Điểm đã cộng" : "Điểm cộng ước tính";
+  const loyaltyCurrentPoints = Number((customerLoyalty as any)?.loyalty_points ?? 0);
   const knownDiscountTotal = Math.max(0, promotionDiscount) + Math.max(0, voucherDiscount) + Math.max(0, loyaltyDiscount);
   const inferredDiscountTotal = Math.max(0, subtotalAmount - Number(displayAmount ?? 0));
   const extraDiscount = knownDiscountTotal > 0 ? Math.max(0, inferredDiscountTotal - knownDiscountTotal) : 0;
@@ -126,6 +212,10 @@ export default function PaymentSuccessPage() {
   const customerPhone = (order as any)?.phone ?? (order as any)?.customer?.phone;
   const paymentMethodText = paymentMethodLabel(payment?.method);
   const providerTxnId = String(payment?.provider_txn_id ?? payment?.providerTxnId ?? "");
+
+  if (isNavigatingToTracking) {
+    return <LoadingLayout />;
+  }
 
   if (isLoading) {
     return (
@@ -347,6 +437,18 @@ export default function PaymentSuccessPage() {
                       <span>-{fmt(loyaltyDiscount)}</span>
                     </div>
                   )}
+                  {loyaltyPointsEarned > 0 && (
+                    <div className="flex justify-between text-sky-700">
+                      <span>{loyaltyPointsSourceLabel}</span>
+                      <span>+{loyaltyPointsEarned} điểm</span>
+                    </div>
+                  )}
+                  {loyaltyCurrentPoints > 0 && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>Tổng điểm hiện tại</span>
+                      <span>{loyaltyCurrentPoints.toLocaleString("vi-VN")} điểm</span>
+                    </div>
+                  )}
                   {extraDiscount > 0 && (
                     <div className="flex justify-between text-emerald-700">
                       <span>Giảm khác</span>
@@ -371,15 +473,16 @@ export default function PaymentSuccessPage() {
 
         {/* ── CTA ── */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Link
-            to={ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId!)}
+          <button
+            type="button"
+            onClick={handleTrackOrderClick}
             className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-sm shadow-lg shadow-amber-200/60 transition-all active:scale-[0.97]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             Theo dõi đơn hàng
-          </Link>
+          </button>
           <Link
             to={ROUTER_URL.MENU}
             className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border-2 border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-gray-700 font-bold text-sm transition-all active:scale-[0.97]"

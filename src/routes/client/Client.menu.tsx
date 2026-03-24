@@ -62,13 +62,6 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: false,
 	},
 	{
-		label: "Điểm thưởng",
-		path: ROUTER_URL.LOYALTY_DASHBOARD,
-		component: React.lazy(() => import("../../pages/client/loyalty/LoyaltyDashboard.page")),
-		isEnd: true,
-		showInNav: true,
-	},
-	{
 		label: "Điểm tích lũy",
 		path: ROUTER_URL.LOYALTY_POINTS,
 		component: React.lazy(() => import("../../pages/client/loyalty/LoyaltyPoints.page")),

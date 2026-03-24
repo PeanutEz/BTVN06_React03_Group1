@@ -124,6 +124,12 @@ function isPaidStatus(status?: string): boolean {
   return ["PAID", "CONFIRMED", "COMPLETED"].includes(String(status ?? "").toUpperCase());
 }
 
+function isCodAcceptedStatus(status?: string): boolean {
+  return ["UNPAID", "PENDING", "PAID", "CONFIRMED", "COMPLETED"].includes(
+    String(status ?? "").toUpperCase(),
+  );
+}
+
 function getErrorText(error: unknown, fallback: string): string {
   if (!(error instanceof Error)) return fallback;
   if (error.message.includes("404")) return "Đơn hàng hoặc thanh toán không tồn tại";
@@ -152,6 +158,10 @@ export default function PaymentProcessPage() {
     enabled: !!orderId,
   });
 
+  const franchiseId = String(
+    (order as any)?.franchise_id ?? (order as any)?.franchise?._id ?? (order as any)?.franchise?.id ?? ""
+  ).trim();
+
   useEffect(() => {
     if (!paymentLoading && payment && isPaidStatus(payment.status) && orderId) {
       navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
@@ -170,10 +180,14 @@ export default function PaymentProcessPage() {
   const statusRaw = String(payment?.status ?? "").toUpperCase();
   const statusText = paymentStatusLabel(payment?.status);
   const statusClass = paymentStatusClass(payment?.status);
-  const rawMethod = String(payment?.method ?? "").trim().toUpperCase();
-  const method = normalizePaymentMethod(rawMethod);
-  const effectiveMethod: ApiPaymentMethod = method ?? "CARD";
-  const methodText = paymentMethodLabel(method);
+  const methodFromPayment = normalizePaymentMethod(String(payment?.method ?? "").trim().toUpperCase());
+  const methodFromOrder = normalizePaymentMethod(
+    String((order as any)?.payment_method ?? (order as any)?.method ?? (order as any)?.bank_name ?? "")
+      .trim()
+      .toUpperCase(),
+  );
+  const effectiveMethod: ApiPaymentMethod = methodFromPayment ?? methodFromOrder ?? "COD";
+  const methodText = paymentMethodLabel(effectiveMethod);
 
   const paymentMissing = !paymentId;
   const paymentFailed = statusRaw === "FAILED";
@@ -268,9 +282,15 @@ export default function PaymentProcessPage() {
 
       queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
       queryClient.invalidateQueries({ queryKey: ["payment-success-payment", orderId] });
+      if (franchiseId) {
+        queryClient.invalidateQueries({ queryKey: ["payment-success-customer-loyalty", franchiseId] });
+      }
 
-      if (isPaidStatus(result.status)) {
-        toast.success("Thanh toán thành công");
+      const isCodFlow = effectiveMethod === "COD";
+      const isPaymentSuccess = isPaidStatus(result.status) || (isCodFlow && isCodAcceptedStatus(result.status));
+
+      if (isPaymentSuccess) {
+        toast.success(isCodFlow ? "Đã ghi nhận đơn COD" : "Thanh toán thành công");
         if (orderId) navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
       } else {
         toast.error("Thanh toán chưa thành công");
