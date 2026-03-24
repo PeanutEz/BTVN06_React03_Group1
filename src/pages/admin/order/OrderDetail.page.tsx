@@ -11,6 +11,19 @@ import { fetchOrderById, updateOrderStatus } from "../../../services/order.servi
 import { ROUTER_URL } from "../../../routes/router.const";
 import { showSuccess, showError } from "../../../utils";
 import { useAuthStore } from "../../../store";
+import { getOrderItemDisplayMeta } from "../../../utils/orderItemDisplay.util";
+import { adminProductFranchiseService } from "../../../services/product-franchise.service";
+import { adminProductService } from "../../../services/product.service";
+
+function getOrderItemImage(item: Record<string, unknown>, imageMap: Record<string, string>): string | null {
+  // Ưu tiên lấy từ imageMap (fetch từ product service)
+  const pfId = String(item.product_franchise_id ?? "");
+  if (pfId && imageMap[pfId]) return imageMap[pfId];
+  // Fallback: field trực tiếp nếu API trả về
+  const value = item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
+  if (typeof value === "string" && value.trim()) return value;
+  return null;
+}
 
 // ─── Shared detail content (dùng cho cả page và modal) ──────────────────────
 interface OrderDetailContentProps {
@@ -25,7 +38,59 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
   const [order, setOrder] = useState<OrderDisplay | null>(null);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
+  // product_franchise_id → image_url
+  const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const lastId = useRef<string | undefined>(undefined);
+
+  // Fetch ảnh cho tất cả items sau khi có order
+  const loadImages = async (items: any[]) => {
+    if (!items.length) return;
+    try {
+      // Lấy tất cả product_franchise_id unique
+      const pfIds = [...new Set(items.map((i) => String(i.product_franchise_id ?? "")).filter(Boolean))];
+      if (!pfIds.length) return;
+
+      // Fetch từng pf → lấy product_id → fetch product → lấy image_url
+      const pfResults = await Promise.allSettled(
+        pfIds.map((id) => adminProductFranchiseService.getProductFranchiseById(id))
+      );
+
+      const productIds = [...new Set(
+        pfResults
+          .filter((r) => r.status === "fulfilled")
+          .map((r) => (r as PromiseFulfilledResult<any>).value?.product_id)
+          .filter(Boolean)
+      )];
+
+      if (!productIds.length) return;
+
+      const productResults = await Promise.allSettled(
+        productIds.map((id) => adminProductService.getProductById(id))
+      );
+
+      // Build map: product_id → image_url
+      const productImageMap: Record<string, string> = {};
+      productResults.forEach((r) => {
+        if (r.status === "fulfilled" && r.value?.id && r.value?.image_url) {
+          productImageMap[r.value.id] = r.value.image_url;
+        }
+      });
+
+      // Build final map: product_franchise_id → image_url
+      const map: Record<string, string> = {};
+      pfResults.forEach((r) => {
+        if (r.status === "fulfilled") {
+          const pf = (r as PromiseFulfilledResult<any>).value;
+          if (pf?.id && pf?.product_id && productImageMap[pf.product_id]) {
+            map[pf.id] = productImageMap[pf.product_id];
+          }
+        }
+      });
+      setImageMap(map);
+    } catch {
+      // silent — ảnh không load được thì dùng fallback
+    }
+  };
 
   const loadOrder = async () => {
     if (!orderId) return;
@@ -39,6 +104,7 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
         return;
       }
       setOrder(data);
+      loadImages(data.items ?? []);
     } catch (error) {
       console.error("Lỗi tải chi tiết đơn hàng:", error);
     } finally {
@@ -97,195 +163,258 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
     order.status !== "READY_FOR_PICKUP" &&
     order.status !== "DELIVERING" &&
     order.status !== "COMPLETED" &&
-    order.status !== "CANCELLED";
-  return (
-    <div className="space-y-5 text-white">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Chi tiết đơn hàng {order.code}</h1>
-          <div className="flex flex-wrap items-center gap-2 mt-1 text-xs sm:text-sm text-white/50">
-            <span>Tạo ngày {new Date(order.created_at).toLocaleString("vi-VN")}</span>
-            <span>•</span>
-            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ORDER_STATUS_COLORS[order.status]}`}>
-              {ORDER_STATUS_LABELS[order.status]}
-            </span>
-            <span>•</span>
-            <span className="text-white/70">{ORDER_TYPE_LABELS[order.type]}</span>
+    order.status !== "CANCELLED";  return (
+    <div className="space-y-6 text-white">
+      {/* ── Hero Header ── */}
+      <div
+        className="rounded-2xl p-6"
+        style={{
+          background: "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.10) 100%)",
+          border: "1px solid rgba(255,255,255,0.10)",
+        }}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/40">Đơn hàng</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{order.code}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${ORDER_STATUS_COLORS[order.status]}`}>
+                {ORDER_STATUS_LABELS[order.status]}
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60">
+                {ORDER_TYPE_LABELS[order.type]}
+              </span>
+              <span className="text-white/30">•</span>
+              <span className="text-xs text-white/40">{new Date(order.created_at).toLocaleString("vi-VN")}</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="text-right">
+              <p className="text-xs text-white/40 uppercase tracking-wide">Tổng thanh toán</p>
+              <p className="text-2xl font-bold text-primary-400">{formatCurrency(order.final_amount ?? order.total_amount)}</p>
+            </div>
+            {canPrepare && (
+              <Button onClick={handlePreparing} loading={updating} disabled={updating} className="shrink-0">
+                🍳 Chuyển sang Đang chuẩn bị
+              </Button>
+            )}
           </div>
         </div>
-        {canPrepare && (
-          <Button onClick={handlePreparing} loading={updating} disabled={updating} className="shrink-0">
-            🍳 Chuyển sang Đang chuẩn bị
-          </Button>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Left column */}
-        <div className="lg:col-span-2 space-y-4">
-
-          {/* Store Info */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">Thông tin chi nhánh & Nhân viên</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-white/50">Mã chi nhánh</span>
-                <span className="font-semibold text-white/90">{String(order.franchise?.code || (order as any).franchise_code || "N/A")}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-white/50">Tên chi nhánh</span>
-                <span className="font-semibold text-white/90">{order.franchise?.name || (order as any).franchise_name || "N/A"}</span>
-              </div>
-              {order.created_by_user && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-white/50">Nhân viên tạo</span>
-                  <span className="font-semibold text-white/90">{order.created_by_user.name}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Customer Info */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">Thông tin khách hàng</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-white/50">Tên</span>
-                <span className="font-semibold text-white/90">{order.customer?.name || (order as any).customer_name || "N/A"}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-white/50">Email</span>
-                <span className="font-semibold text-white/90">{String(order.customer?.email || (order as any).email || "N/A")}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="text-white/50">Số điện thoại</span>
-                <span className="font-semibold text-white/90">{order.customer?.phone || (order as any).phone || "N/A"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Timestamps */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">Thời gian</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-white/50">Ngày tạo</span>
-                <span className="font-semibold text-white/90">{new Date(order.created_at).toLocaleString("vi-VN")}</span>
-              </div>
-              {order.confirmed_at && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-white/50">Ngày xác nhận</span>
-                  <span className="font-semibold text-white/90">{new Date(order.confirmed_at).toLocaleString("vi-VN")}</span>
-                </div>
-              )}
-              {order.completed_at && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-white/50">Ngày hoàn thành</span>
-                  <span className="font-semibold text-emerald-400">{new Date(order.completed_at).toLocaleString("vi-VN")}</span>
-                </div>
-              )}
-              {order.cancelled_at && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-white/50">Ngày hủy</span>
-                  <span className="font-semibold text-red-400">{new Date(order.cancelled_at).toLocaleString("vi-VN")}</span>
-                </div>
-              )}
-            </div>
-          </div>
+      </div>      {/* ── Main grid ── */}
+      <div className="space-y-5">
+        <div className="space-y-5">
 
           {/* Products */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">Sản phẩm</h2>
-            <div className="space-y-3">
-              {(order.items ?? []).length === 0 && <p className="text-sm text-white/40">Chưa có sản phẩm</p>}
+          <div
+            className="rounded-2xl p-5"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              Sản phẩm
+            </h2>
+
+            {/* Table header */}
+            <div className="mb-2 grid grid-cols-12 gap-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-white/25">
+              <span className="col-span-6">Tên sản phẩm</span>
+              <span className="col-span-2 text-right">Đơn giá</span>
+              <span className="col-span-2 text-center">SL</span>
+              <span className="col-span-2 text-right">Thành tiền</span>
+            </div>            <div className="divide-y divide-white/[0.06]">
+              {(order.items ?? []).length === 0 && (
+                <p className="py-6 text-center text-sm text-white/30">Chưa có sản phẩm</p>
+              )}
               {(order.items ?? []).map((item, idx) => {
                 const productName = item.product_name_snapshot ?? item.product_name ?? "Sản phẩm";
                 const price = item.price_snapshot ?? item.price ?? 0;
                 const qty = item.quantity ?? 0;
                 const lineTotal = item.line_total ?? item.subtotal ?? (price * qty);
+                const imageUrl = getOrderItemImage(item as Record<string, unknown>, imageMap);
+                const meta = getOrderItemDisplayMeta(item as Record<string, unknown>);
                 return (
-                  <div key={item._id ?? item.id ?? `item-${idx}`} className="flex gap-4 border-b border-white/10 pb-3 last:border-b-0 last:pb-0">
-                    <div className="flex-1">
-                      <p className="font-semibold text-white/90">{productName}</p>
-                      <p className="text-xs text-white/50 mt-0.5">{formatCurrency(price)} × {qty}</p>
+                  <div key={item._id ?? item.id ?? `item-${idx}`}>
+                    {/* Main row */}
+                    <div className="grid grid-cols-12 items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-white/[0.04]">
+                      <div className="col-span-6 flex items-center gap-3">
+                        {/* Product image */}
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-white/[0.06] border border-white/[0.08]">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={String(productName)} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-lg">☕</span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-white/90 leading-snug">{String(productName)}</p>
+                          {meta.inlineMeta && (
+                            <p className="text-[11px] text-white/40 mt-0.5">{meta.inlineMeta}</p>
+                          )}
+                          {(item as any).note && (
+                            <p className="text-[11px] text-white/35 mt-0.5 italic">"{String((item as any).note)}"</p>
+                          )}
+                        </div>
+                      </div>
+                      <p className="col-span-2 text-right text-sm text-white/55">{formatCurrency(price)}</p>
+                      <p className="col-span-2 text-center">
+                        <span className="inline-block rounded-lg bg-white/[0.08] px-2.5 py-0.5 text-sm font-bold text-white/80">×{qty}</span>
+                      </p>
+                      <p className="col-span-2 text-right font-bold text-white/90">{formatCurrency(lineTotal)}</p>
                     </div>
-                    <p className="font-semibold text-white/90 whitespace-nowrap">{formatCurrency(lineTotal)}</p>
+                    {/* Topping rows */}
+                    {meta.toppings.length > 0 && (
+                      <div className="mb-1 ml-[52px] space-y-0.5 pb-1">
+                        {meta.toppings.map((tp, tIdx) => (
+                          <div key={tIdx} className="grid grid-cols-12 items-center gap-3 px-2 py-1 rounded-lg bg-white/[0.02]">
+                            <div className="col-span-6 flex items-center gap-2 pl-1">
+                              <span className="text-white/20">└</span>
+                              <span className="text-xs text-white/50">{tp.name}</span>
+                            </div>
+                            <p className="col-span-2 text-right text-xs text-white/30">—</p>
+                            <p className="col-span-2 text-center text-xs text-white/40">×{tp.quantity * qty}</p>
+                            <p className="col-span-2 text-right text-xs text-white/30">—</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-          </div>
-        </div>
 
-        {/* Right column */}
-        <div className="space-y-4">
-          {/* Status History */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">Lịch sử trạng thái</h2>
-            <div className="space-y-4">
-              {(order.status_history ?? []).length === 0 && (
-                <p className="text-xs text-white/40">Chưa có lịch sử</p>
-              )}
-              {order.status_history?.map((history, index) => (
-                <div key={history.id} className="relative pl-5">
-                  {index < order.status_history!.length - 1 && (
-                    <div className="absolute left-[7px] top-5 h-full w-px bg-white/10" />
+            {/* Subtotal row */}
+            {(order.items ?? []).length > 0 && (
+              <div className="mt-3 flex justify-end border-t border-white/[0.06] pt-3">
+                <div className="space-y-1.5 text-sm min-w-[220px]">                  {(order.subtotal_amount ?? 0) > 0 && (
+                    <div className="flex justify-between gap-8 text-white/50">
+                      <span>Tạm tính</span>
+                      <span>{formatCurrency(order.subtotal_amount ?? 0)}</span>
+                    </div>
                   )}
-                  <div className="absolute left-0 top-1 size-3.5 rounded-full border-2 border-primary-400 bg-slate-900" />
-                  <div>
-                    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-semibold ${ORDER_STATUS_COLORS[history.to_status]}`}>
-                      {ORDER_STATUS_LABELS[history.to_status]}
-                    </span>
-                    <p className="mt-1 text-xs text-white/40">
-                      {history.created_at ? new Date(history.created_at).toLocaleString("vi-VN") : "N/A"}
-                    </p>
-                    {history.note && <p className="mt-0.5 text-xs text-white/60">{history.note}</p>}
+                  {(order.promotion_discount ?? 0) > 0 && (
+                    <div className="flex justify-between gap-8 text-emerald-400">
+                      <span>Khuyến mãi</span>
+                      <span>-{formatCurrency(order.promotion_discount ?? 0)}</span>
+                    </div>
+                  )}
+                  {(order.voucher_discount ?? 0) > 0 && (
+                    <div className="flex justify-between gap-8 text-emerald-400">
+                      <span>Voucher</span>
+                      <span>-{formatCurrency(order.voucher_discount ?? 0)}</span>
+                    </div>
+                  )}
+                  {(order.loyalty_discount ?? 0) > 0 && (
+                    <div className="flex justify-between gap-8 text-emerald-400">
+                      <span>Điểm thưởng</span>
+                      <span>-{formatCurrency(order.loyalty_discount ?? 0)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-8 border-t border-white/10 pt-2 text-base font-bold">
+                    <span className="text-white/70">Tổng cộng</span>
+                    <span className="text-primary-400">{formatCurrency(order.final_amount ?? order.total_amount)}</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* Payment */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/50">Thanh toán</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between gap-4">
-                <span className="text-white/50">Loại đơn</span>
-                <span className="font-semibold text-white/90">{ORDER_TYPE_LABELS[order.type]}</span>
-              </div>
-              {order.subtotal_amount && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-white/50">Tạm tính</span>
-                  <span className="text-white/80">{formatCurrency(order.subtotal_amount)}</span>
+          {/* Bottom row: Store + Customer + Timestamps */}
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {/* Store */}
+            <div
+              className="rounded-2xl p-5"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                Chi nhánh
+              </h2>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <p className="text-xs text-white/35">Tên</p>
+                  <p className="font-semibold text-white/90">{order.franchise?.name || (order as any).franchise_name || "N/A"}</p>
                 </div>
-              )}
-              {(order.promotion_discount ?? 0) > 0 && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-emerald-400">Khuyến mãi</span>
-                  <span className="text-emerald-400">-{formatCurrency(order.promotion_discount ?? 0)}</span>
+                <div>
+                  <p className="text-xs text-white/35">Mã</p>
+                  <p className="font-mono text-sm text-white/70">{String(order.franchise?.code || (order as any).franchise_code || "N/A")}</p>
                 </div>
-              )}
-              {(order.voucher_discount ?? 0) > 0 && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-emerald-400">Voucher</span>
-                  <span className="text-emerald-400">-{formatCurrency(order.voucher_discount ?? 0)}</span>
-                </div>
-              )}
-              {(order.loyalty_discount ?? 0) > 0 && (
-                <div className="flex justify-between gap-4">
-                  <span className="text-emerald-400">Điểm thưởng</span>
-                  <span className="text-emerald-400">-{formatCurrency(order.loyalty_discount ?? 0)}</span>
-                </div>
-              )}
-              <div className="border-t border-white/10 pt-3 flex justify-between gap-4">
-                <span className="font-semibold text-white/80">Tổng cộng</span>
-                <span className="text-lg font-bold text-primary-400">{formatCurrency(order.final_amount ?? order.total_amount)}</span>
+                {order.created_by_user && (
+                  <div>
+                    <p className="text-xs text-white/35">Nhân viên tạo</p>
+                    <p className="font-semibold text-white/90">{order.created_by_user.name}</p>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </div>      </div>
+
+            {/* Customer */}
+            <div
+              className="rounded-2xl p-5"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Khách hàng
+              </h2>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <p className="text-xs text-white/35">Tên</p>
+                  <p className="font-semibold text-white/90">{order.customer?.name || (order as any).customer_name || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/35">SĐT</p>
+                  <p className="font-semibold text-white/90">{order.customer?.phone || (order as any).phone || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-white/35">Email</p>
+                  <p className="text-sm text-white/70 break-all">{String(order.customer?.email || (order as any).email || "N/A")}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Timestamps */}
+            <div
+              className="rounded-2xl p-5"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Thời gian
+              </h2>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <p className="text-xs text-white/35">Ngày tạo</p>
+                  <p className="font-semibold text-white/90">{new Date(order.created_at).toLocaleString("vi-VN")}</p>
+                </div>
+                {order.confirmed_at && (
+                  <div>
+                    <p className="text-xs text-white/35">Xác nhận</p>
+                    <p className="font-semibold text-white/90">{new Date(order.confirmed_at).toLocaleString("vi-VN")}</p>
+                  </div>
+                )}
+                {order.completed_at && (
+                  <div>
+                    <p className="text-xs text-white/35">Hoàn thành</p>
+                    <p className="font-semibold text-emerald-400">{new Date(order.completed_at).toLocaleString("vi-VN")}</p>
+                  </div>
+                )}
+                {order.cancelled_at && (
+                  <div>
+                    <p className="text-xs text-white/35">Hủy</p>
+                    <p className="font-semibold text-red-400">{new Date(order.cancelled_at).toLocaleString("vi-VN")}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>        </div>
+      </div>
     </div>
   );
 }
@@ -298,31 +427,62 @@ interface OrderDetailModalProps {
 }
 
 export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDetailModalProps) {
+  // Lock body scroll khi modal mở
+  useEffect(() => {
+    if (!orderId) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [orderId]);
+
   if (!orderId) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+
+      {/* Full-screen panel — solid background, không để lộ content phía sau */}
       <div
-        className="relative w-full max-w-5xl my-6 rounded-2xl shadow-2xl"
+        className="relative z-10 ml-auto flex h-full w-full flex-col overflow-hidden"
         style={{
-          background: "rgba(15, 23, 42, 0.82)",
-          backdropFilter: "blur(24px) saturate(160%)",
-          WebkitBackdropFilter: "blur(24px) saturate(160%)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
+          background: "rgb(10, 15, 30)",
+          borderLeft: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "-20px 0 60px rgba(0,0,0,0.7)",
         }}
       >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 z-10 rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition-colors"
+        {/* Top bar */}
+        <div
+          className="flex shrink-0 items-center justify-between gap-4 px-6 py-4"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
         >
-          <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        <div className="p-6 sm:p-8">
-          <OrderDetailContent orderId={orderId} onClose={onClose} onStatusChange={onStatusChange} />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white"
+            >
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Quay lại
+            </button>
+            <div className="h-5 w-px bg-white/10" />
+            <span className="text-xs text-white/30 uppercase tracking-widest font-medium">Chi tiết đơn hàng</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-full p-1.5 text-white/40 transition-colors hover:bg-white/[0.08] hover:text-white"
+          >
+            <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-7xl px-6 py-6 sm:px-10 sm:py-8">
+            <OrderDetailContent orderId={orderId} onClose={onClose} onStatusChange={onStatusChange} />
+          </div>
         </div>
       </div>
     </div>

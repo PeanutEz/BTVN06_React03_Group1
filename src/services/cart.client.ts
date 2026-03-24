@@ -10,6 +10,13 @@ export type CartStatus = string;
 export interface CartItemOption {
   product_franchise_id: string;
   quantity: number;
+  // Extra fields API may return
+  name?: string;
+  product_name_snapshot?: string;
+  image_url?: string;
+  price?: number;
+  price_snapshot?: number;
+  [key: string]: unknown;
 }
 
 export interface AddToCartCustomerBody {
