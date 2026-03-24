@@ -144,22 +144,21 @@ apiClient.interceptors.response.use(
                     isRefreshing = false;
                 }
             }
-        }
-
-        if (error.response) {
+        }        if (error.response) {
             const { status } = error.response;
+            const data = error.response.data as any;
+            // Extract server message from response body
+            const serverMessage: string | undefined =
+                data?.message || data?.error?.[0] || data?.errors?.[0];
 
             switch (status) {
                 case 401:
-                    // Chỉ log warning, KHÔNG redirect hoặc xoá localStorage tự động.
-                    // Để từng page/component tự xử lý lỗi 401 (hiển thị trống hoặc thông báo).
-                    // Route guards (AdminGuard, AuthGuard) sẽ lo việc redirect khi cần.
                     console.warn("Unauthorized: Token hết hạn hoặc không hợp lệ");
                     break;
                 case 403:
                     console.warn("Forbidden: Bạn không có quyền truy cập.");
                     console.log("[403 DETAIL] url:", error.config?.url);
-                    console.log("[403 DETAIL] response.data:", error.response.data);
+                    console.log("[403 DETAIL] response.data:", data);
                     break;
                 case 429:
                     console.warn("Too many requests: Vui lòng thử lại sau.");
@@ -168,10 +167,16 @@ apiClient.interceptors.response.use(
                     console.error("Server Error: Lỗi máy chủ, vui lòng thử lại sau.");
                     break;
                 default:
-                    console.error(`API Error: ${status}`, error.response.data);
+                    console.error(`API Error: ${status}`, data);
+            }
+
+            // Always throw with server message if available
+            if (serverMessage) {
+                return Promise.reject(new Error(serverMessage));
             }
         } else if (error.request) {
             console.error("Network Error: Không nhận được phản hồi từ máy chủ.");
+            return Promise.reject(new Error("Không nhận được phản hồi từ máy chủ"));
         } else {
             console.error("Request Error:", error.message);
         }

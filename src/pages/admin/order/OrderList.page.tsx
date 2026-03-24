@@ -42,6 +42,7 @@ const OrderListPage = () => {
   const [staffList, setStaffList] = useState<UserFranchiseRole[]>([]);
   const [assignPopoverId, setAssignPopoverId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [assignSearch, setAssignSearch] = useState("");
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const assignPopoverRef = useRef<HTMLDivElement | null>(null);
   const loadedFranchiseRef = useRef<string | null>(null);
@@ -362,24 +363,48 @@ const OrderListPage = () => {
                                       Assign
                                     </>
                                   )}
-                                </button>
-                                {assignPopoverId === String(order._id ?? order.id) && (
-                                  <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-xl border border-slate-200 bg-white shadow-xl">
-                                    <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100">Chọn nhân viên</p>
-                                    {staffList.length === 0 ? (
-                                      <p className="px-3 py-3 text-xs text-slate-500">Không có nhân viên</p>
-                                    ) : (
-                                      staffList.map(s => (
-                                        <button
-                                          key={s.id}
-                                          onClick={() => handleAssign(String(order._id ?? order.id), s.user_id)}
-                                          className="w-full px-3 py-2 text-left transition-colors first:rounded-t-none last:rounded-b-xl hover:bg-blue-50 hover:text-blue-700"
-                                        >
-                                          <p className="text-xs font-semibold text-slate-800">{s.user_name}</p>
-                                          <p className="text-[10px] text-slate-400">{s.role_name}</p>
-                                        </button>
-                                      ))
-                                    )}
+                                </button>                                {assignPopoverId === String(order._id ?? order.id) && (
+                                  <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-slate-600 bg-slate-800 shadow-2xl shadow-black/60">
+                                    {/* Header */}
+                                    <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-700">Chọn nhân viên</p>
+                                    {/* Search */}
+                                    <div className="p-2 border-b border-slate-700">
+                                      <div className="relative">
+                                        <svg className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                        <input
+                                          type="text"
+                                          value={assignSearch}
+                                          onChange={e => setAssignSearch(e.target.value)}
+                                          placeholder="Tìm theo tên..."
+                                          autoFocus
+                                          className="w-full rounded-md border border-slate-600 bg-slate-700 py-1.5 pl-8 pr-3 text-xs text-slate-100 placeholder-slate-400 outline-none focus:border-red-400/50 focus:ring-1 focus:ring-red-400/20"
+                                        />
+                                      </div>
+                                    </div>
+                                    {/* List */}
+                                    <div className="max-h-52 overflow-y-auto">
+                                      {(() => {
+                                        const filtered = staffList
+                                          .filter(s => s.role_code === "STAFF" || s.role_code === "SHIPPER")
+                                          .filter(s => !assignSearch.trim() || s.user_name.toLowerCase().includes(assignSearch.toLowerCase()));
+                                        return filtered.length === 0 ? (
+                                          <p className="px-3 py-3 text-xs text-slate-400 text-center">Không có nhân viên</p>
+                                        ) : (
+                                          filtered.map(s => (
+                                            <button
+                                              key={s.id}
+                                              onClick={() => { handleAssign(String(order._id ?? order.id), s.user_id); setAssignSearch(""); }}
+                                              className="w-full px-3 py-2 text-left transition-colors hover:bg-slate-700"
+                                            >
+                                              <p className="text-xs font-semibold text-slate-100">{s.user_name}</p>
+                                              <p className="text-[10px] text-slate-400">{s.role_name}</p>
+                                            </button>
+                                          ))
+                                        );
+                                      })()}
+                                    </div>
                                   </div>
                                 )}
                               </div>
