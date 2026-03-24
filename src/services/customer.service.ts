@@ -205,7 +205,9 @@ export async function getCurrentCustomerProfile(): Promise<CustomerDisplay | nul
 }
 
 // ==================== CUSTOMER AUTH: Update Current Profile ====================
-// PUT /api/customer-auth — Token: YES — Role: CUSTOMER
+// Backend-compatible flow:
+// 1) GET /api/customer-auth to fetch current profile and id
+// 2) PUT /api/customers/:id to update fields
 export async function updateCurrentCustomerProfile(data: {
   name?: string;
   phone?: string;
@@ -213,12 +215,40 @@ export async function updateCurrentCustomerProfile(data: {
   avatar_url?: string;
 }): Promise<CustomerDisplay | null> {
   try {
-    const response = await apiClient.put<ApiResponse<ApiCustomer>>("/customer-auth", data);
-    const result = response.data;
-    if (!result.success) {
-      throw new Error(result.message || "Cập nhật profile thất bại");
+    const profileResponse = await apiClient.get<ApiResponse<ApiCustomer>>("/customer-auth");
+    const profileResult = profileResponse.data;
+    if (!profileResult.success) {
+      throw new Error(profileResult.message || "Không lấy được profile hiện tại");
     }
-    return normalizeCustomer((result as { data: ApiCustomer }).data);
+
+    const current = (profileResult as { data: ApiCustomer }).data;
+    const customerId = String((current as unknown as { _id?: string })._id ?? current.id ?? "").trim();
+    if (!customerId) {
+      throw new Error("Thiếu customer id để cập nhật profile");
+    }
+
+    const mergedPayload = {
+      email: String(current.email ?? "").trim(),
+      phone: String(data.phone ?? current.phone ?? "").trim(),
+      name: String(data.name ?? current.name ?? "").trim(),
+      address: String(data.address ?? current.address ?? "").trim(),
+      avatar_url: String(data.avatar_url ?? current.avatar_url ?? "").trim(),
+    };
+
+    if (!mergedPayload.email || !mergedPayload.phone) {
+      throw new Error("Thiếu email hoặc số điện thoại để cập nhật profile");
+    }
+
+    const updateResponse = await apiClient.put<ApiResponse<ApiCustomer>>(
+      `/customers/${customerId}`,
+      mergedPayload,
+    );
+    const updateResult = updateResponse.data;
+    if (!updateResult.success) {
+      throw new Error(updateResult.message || "Cập nhật profile thất bại");
+    }
+
+    return normalizeCustomer((updateResult as { data: ApiCustomer }).data);
   } catch (error) {
     console.error("Update profile error:", error);
     throw error;

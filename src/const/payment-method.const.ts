@@ -3,11 +3,18 @@
  * Single source of truth for payment method values
  */
 export const PAYMENT_METHODS = {
-  CASH: "CASH",
-  BANK: "BANK",
+  // API canonical values
+  COD: "COD",
+  CARD: "CARD",
+  MOMO: "MOMO",
+
+  // Backward-compatible aliases (legacy code may still use CASH/BANK)
+  CASH: "COD",
+  BANK: "CARD",
+  VNPAY: "CARD",
 } as const;
 
-export const PAYMENT_METHOD_OPTIONS = [PAYMENT_METHODS.CASH, PAYMENT_METHODS.BANK] as const;
+export const PAYMENT_METHOD_OPTIONS = [PAYMENT_METHODS.COD, PAYMENT_METHODS.CARD] as const;
 
 export type PaymentMethodType = (typeof PAYMENT_METHODS)[keyof typeof PAYMENT_METHODS];
 

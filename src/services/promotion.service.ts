@@ -19,10 +19,34 @@ export const promotionService = {
 
         const res = await apiClient.post<PromotionSearchResponse>(
             "/promotions/search",
-            body
+            body,
+            {
+                // Checkout promo banner should not kick user out when this endpoint is unauthorized.
+                _skipAuthRecovery: true,
+            } as any
         )
 
         return res.data
+    },
+
+    // ─────────────────────────────
+    // GET PROMOTIONS BY FRANCHISE
+    // GET /api/promotions/franchise/:franchiseId
+    // ─────────────────────────────
+    async getPromotionsByFranchise(franchiseId: string): Promise<Promotion[]> {
+
+        const res = await apiClient.get<{ success?: boolean; data?: Promotion[] } | Promotion[]>(
+            `/promotions/franchise/${franchiseId}`,
+            {
+                // Promo banner is optional; endpoint failure should not trigger global logout flow.
+                _skipAuthRecovery: true,
+            } as any
+        )
+
+        const payload = res.data as any
+        if (Array.isArray(payload)) return payload
+        if (Array.isArray(payload?.data)) return payload.data
+        return []
     },
 
     // ─────────────────────────────

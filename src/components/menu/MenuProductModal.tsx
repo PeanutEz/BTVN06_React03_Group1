@@ -22,6 +22,13 @@ import { clientService } from "@/services/client.service";
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
+const normalizeText = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2.5">
@@ -231,6 +238,12 @@ export default function MenuProductModal({
       setApiToppings([]);
       return;
     }
+    const isToppingProductByCategory = normalizeText((product as any)?._apiCategoryName).includes("topping");
+    if (isToppingProductByCategory) {
+      setApiToppings([]);
+      setToppingQtys({});
+      return;
+    }
     const franchiseId = (product as any)?._apiFranchiseId;
     if (!franchiseId) return;
 
@@ -341,16 +354,17 @@ export default function MenuProductModal({
     });
   })();
 
-  const toppingTotal = apiToppings.reduce((sum, t) => sum + t.price * (toppingQtys[t.id] ?? 0), 0);
+  // Derive category info from API-enriched product or fallback
+  const categoryName = (product as any)._apiCategoryName ?? "";
+  const isToppingProduct = normalizeText(categoryName).includes("topping");
+
+  // Use API toppings only (no static fallback)
+  const displayToppings = isToppingProduct ? [] : apiToppings;
+
+  const toppingTotal = displayToppings.reduce((sum, t) => sum + t.price * (toppingQtys[t.id] ?? 0), 0);
   const basePrice = selectedSize ? sizePrice(selectedSize as ApiSize & { price_base?: number }) : product.price;
   const unitPrice = basePrice + toppingTotal;
   const totalPrice = unitPrice * quantity;
-
-  // Derive category info from API-enriched product or fallback
-  const categoryName = (product as any)._apiCategoryName ?? "";
-
-  // Use API toppings only (no static fallback)
-  const displayToppings = apiToppings;
 
   function changeToppingQty(topping: Topping, delta: number) {
     setToppingQtys((prev) => {
@@ -403,8 +417,8 @@ export default function MenuProductModal({
       return false;
     })();
 
-    const sugarChanged = initSugar !== undefined ? initSugar !== sugar : false;
-    const iceChanged = initIce !== undefined ? initIce !== ice : false;
+    const sugarChanged = isToppingProduct ? false : (initSugar !== undefined ? initSugar !== sugar : false);
+    const iceChanged = isToppingProduct ? false : (initIce !== undefined ? initIce !== ice : false);
     const noteChanged = initNote !== note.trim();
 
     const quantityChanged = initialQuantity !== undefined ? initialQuantity !== quantity : false;
@@ -424,12 +438,14 @@ export default function MenuProductModal({
         Array(toppingQtys[t.id] ?? 0).fill(t),
       );
       const currentUserNote = note.trim() || undefined;
-      const currentApiNote = buildCartSelectionNote({
-        sugar,
-        ice,
-        toppings: currentToppingsFlat,
-        userNote: currentUserNote,
-      });
+      const currentApiNote = isToppingProduct
+        ? currentUserNote
+        : buildCartSelectionNote({
+            sugar,
+            ice,
+            toppings: currentToppingsFlat,
+            userNote: currentUserNote,
+          });
 
       const map = new Map<string, number>();
       for (const t of currentToppingsFlat) {
@@ -444,9 +460,9 @@ export default function MenuProductModal({
         apiProductId: (product as any)?._apiProductId as string | undefined,
         apiProductFranchiseId: selectedSize?.product_franchise_id as string | undefined,
         size: selectedSize?.size,
-        sugar,
-        ice,
-        toppings: toppingAgg.length ? toppingAgg : undefined,
+        sugar: isToppingProduct ? undefined : sugar,
+        ice: isToppingProduct ? undefined : ice,
+        toppings: isToppingProduct ? undefined : (toppingAgg.length ? toppingAgg : undefined),
         note: currentApiNote,
       };
     };
@@ -454,6 +470,7 @@ export default function MenuProductModal({
     // Chỉ dùng in-place khi không có topping MỚI (thêm topping mới có thể khiến API tạo dòng riêng → duplicate).
     // Khi có topping mới (prevQty === 0, nextQty > 0) luôn dùng delete+add để thay thế 1 item bằng 1 item.
     const hasNewTopping =
+      !isToppingProduct &&
       initToppingQtys &&
       displayToppings.some((t) => (initToppingQtys[t.id] ?? 0) === 0 && (toppingQtys[t.id] ?? 0) > 0);
 
@@ -522,12 +539,14 @@ export default function MenuProductModal({
       Array(toppingQtys[t.id] ?? 0).fill(t)
     );
     const userNote = note.trim() || undefined;
-    const apiNote = buildCartSelectionNote({
-      sugar,
-      ice,
-      toppings: toppingsFlat,
-      userNote,
-    });
+    const apiNote = isToppingProduct
+      ? userNote
+      : buildCartSelectionNote({
+          sugar,
+          ice,
+          toppings: toppingsFlat,
+          userNote,
+        });
     // Editing from cart:
     // Use replace-in-place for local store to keep item order stable in UI.
 
@@ -622,12 +641,16 @@ export default function MenuProductModal({
       }
     } catch (err) {
       console.error("Add to cart API failed (saved locally):", err);
-    }    const toppingDesc = displayToppings
+    }
+    const toppingDesc = displayToppings
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
-      toast.success(`Đã cập nhật "${product.name}" trong giỏ!`, {
-      description: `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`,
+    const selectionDesc = isToppingProduct
+      ? `Size ${selectedSize?.size}${note.trim() ? ` • "${note.trim()}"` : ""}`
+      : `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`;
+    toast.success(`Đã cập nhật "${product.name}" trong giỏ!`, {
+      description: selectionDesc,
     });
     setIsAdding(false);
     hideGlobalLoading();
@@ -643,7 +666,7 @@ export default function MenuProductModal({
 
       {/* Modal */}
       <div
-        className="relative w-full sm:max-w-lg bg-white sm:rounded-2xl shadow-2xl overflow-hidden h-[92dvh] sm:h-[88dvh] flex flex-col"
+        className="relative w-full sm:max-w-lg bg-white text-black sm:rounded-2xl shadow-2xl overflow-hidden h-[92dvh] sm:h-[88dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header + image */}
@@ -769,47 +792,51 @@ export default function MenuProductModal({
                 )}
               </div>
 
-              {/* Sugar */}
-              <div>
-                <SectionLabel>Lượng đường</SectionLabel>
-                <div className="flex flex-wrap gap-2">
-                  {SUGAR_LEVELS.map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => setSugar(level)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150",
-                        sugar === level
-                          ? "border-amber-500 bg-amber-50 text-amber-700"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
-                      )}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {!isToppingProduct && (
+                <>
+                  {/* Sugar */}
+                  <div>
+                    <SectionLabel>Lượng đường</SectionLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {SUGAR_LEVELS.map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setSugar(level)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150",
+                            sugar === level
+                              ? "border-amber-500 bg-amber-50 text-amber-700"
+                              : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
+                          )}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Ice */}
-              <div>
-                <SectionLabel>Lượng đá</SectionLabel>
-                <div className="flex flex-wrap gap-2">
-                  {ICE_LEVELS.map((level) => (
-                    <button
-                      key={level}
-                      onClick={() => setIce(level)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150",
-                        ice === level
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
-                      )}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  {/* Ice */}
+                  <div>
+                    <SectionLabel>Lượng đá</SectionLabel>
+                    <div className="flex flex-wrap gap-2">
+                      {ICE_LEVELS.map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setIce(level)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150",
+                            ice === level
+                              ? "border-blue-500 bg-blue-50 text-blue-700"
+                              : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
+                          )}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Note */}
               <div>
@@ -824,80 +851,81 @@ export default function MenuProductModal({
                 />
               </div>
 
-              {/* Toppings */}
-              <div>
-                <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
-                {isFetchingToppings ? (
-                  <div className="text-xs text-gray-400 py-2">Đang tải topping...</div>
-                ) : (
-                  displayToppings.length === 0 ? (
-                    <div className="text-xs text-gray-400 py-2">Không có topping để chọn</div>
+              {!isToppingProduct && (
+                <div>
+                  <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
+                  {isFetchingToppings ? (
+                    <div className="text-xs text-gray-400 py-2">Đang tải topping...</div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {displayToppings.map((topping) => {
-                        const qty = toppingQtys[topping.id] ?? 0;
-                        return (
-                          <div
-                            key={topping.id}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
-                              qty > 0 ? "border-amber-500 bg-amber-50" : "border-gray-200 bg-white",
-                            )}                          >
-                            {/* Ảnh topping: dùng image_url từ API, fallback emoji */}
-                            {topping.image_url ? (
-                              <img
-                                src={topping.image_url}
-                                alt={topping.name}
-                                className="shrink-0 w-9 h-9 rounded-lg object-cover border border-gray-100"
-                              />
-                            ) : (
-                              <span className="shrink-0 text-base">{topping.emoji}</span>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>
-                                {topping.name}
+                    displayToppings.length === 0 ? (
+                      <div className="text-xs text-gray-400 py-2">Không có topping để chọn</div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {displayToppings.map((topping) => {
+                          const qty = toppingQtys[topping.id] ?? 0;
+                          return (
+                            <div
+                              key={topping.id}
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
+                                qty > 0 ? "border-amber-500 bg-amber-50" : "border-gray-200 bg-white",
+                              )}                          >
+                              {/* Ảnh topping: dùng image_url từ API, fallback emoji */}
+                              {topping.image_url ? (
+                                <img
+                                  src={topping.image_url}
+                                  alt={topping.name}
+                                  className="shrink-0 w-9 h-9 rounded-lg object-cover border border-gray-100"
+                                />
+                              ) : (
+                                <span className="shrink-0 text-base">{topping.emoji}</span>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>
+                                  {topping.name}
+                                </div>
+                                <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
                               </div>
-                              <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => changeToppingQty(topping, -1)}
+                                  disabled={qty === 0}
+                                  className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                                  title="Giảm topping"
+                                >
+                                  <span className="text-sm font-semibold text-gray-700 leading-none">−</span>
+                                </button>
+                                <span
+                                  className={cn(
+                                    "w-5 text-center font-semibold text-sm tabular-nums",
+                                    qty > 0 ? "text-amber-800" : "text-gray-600",
+                                  )}
+                                >
+                                  {qty}
+                                </span>
+                                <button
+                                  onClick={() => changeToppingQty(topping, 1)}
+                                  disabled={qty >= 3}
+                                  className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                                  title="Tăng topping"
+                                >
+                                  <span className="text-sm font-semibold text-gray-700 leading-none">+</span>
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => changeToppingQty(topping, -1)}
-                                disabled={qty === 0}
-                                className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                                title="Giảm topping"
-                              >
-                                <span className="text-sm font-semibold text-gray-700 leading-none">−</span>
-                              </button>
-                              <span
-                                className={cn(
-                                  "w-5 text-center font-semibold text-sm tabular-nums",
-                                  qty > 0 ? "text-amber-800" : "text-gray-600",
-                                )}
-                              >
-                                {qty}
-                              </span>
-                              <button
-                                onClick={() => changeToppingQty(topping, 1)}
-                                disabled={qty >= 3}
-                                className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                                title="Tăng topping"
-                              >
-                                <span className="text-sm font-semibold text-gray-700 leading-none">+</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )
-                )}
-              </div>
+                          );
+                        })}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
             </>
           ) : (
             /* Content tab */
             displayContent ? (
               <div
-                className="text-sm text-gray-600 leading-relaxed space-y-2 [&>h3]:text-gray-800 [&>h3]:font-bold [&>h3]:mt-3 [&>ul]:list-disc [&>ul]:pl-5 [&>p>strong]:text-gray-700"
+                className="text-sm text-black leading-relaxed space-y-2 [&_*]:text-black [&>h3]:text-black [&>h3]:font-bold [&>h3]:mt-3 [&>ul]:list-disc [&>ul]:pl-5"
                 dangerouslySetInnerHTML={{ __html: displayContent }}
               />
             ) : (

@@ -1,16 +1,101 @@
-// KAN-89: Loyalty Dashboard
 import { useQuery } from "@tanstack/react-query";
 import { Card, Progress, Statistic, Row, Col, Tag } from "antd";
-import { getLoyaltyDashboard } from "../../../services/mockApi";
-import { CURRENT_CUSTOMER_ID } from "../../../mocks/data";
-import {
-  LOYALTY_TIER_LABELS,
-} from "../../../types/models";
+import { Link } from "react-router-dom";
+import { ROUTER_URL } from "@/routes/router.const";
+import { useDeliveryStore } from "@/store/delivery.store";
+import { clientService, type LoyaltyRule } from "@/services/client.service";
+
+function getTierLabel(tier?: string): string {
+  const key = String(tier ?? "").toUpperCase();
+  if (key === "BRONZE") return "Đồng";
+  if (key === "SILVER") return "Bạc";
+  if (key === "GOLD") return "Vàng";
+  if (key === "PLATINUM") return "Bạch Kim";
+  return "Chưa xác định";
+}
+
+function getTierColor(tier?: string): string {
+  const key = String(tier ?? "").toUpperCase();
+  if (key === "SILVER") return "default";
+  if (key === "GOLD") return "gold";
+  if (key === "PLATINUM") return "purple";
+  return "blue";
+}
+
+function toLoyaltyRuleArray(input: unknown): LoyaltyRule[] {
+  if (Array.isArray(input)) {
+    return input as LoyaltyRule[];
+  }
+
+  if (input && typeof input === "object") {
+    const boxed = input as Record<string, unknown>;
+    if (Array.isArray(boxed.data)) return boxed.data as LoyaltyRule[];
+    if (Array.isArray(boxed.items)) return boxed.items as LoyaltyRule[];
+    if (Array.isArray(boxed.rules)) return boxed.rules as LoyaltyRule[];
+    if ("tier_name" in boxed || "min_points" in boxed) return [boxed as unknown as LoyaltyRule];
+  }
+
+  return [];
+}
+
+function getNextTierByPoints(points: number, rules?: LoyaltyRule[] | unknown): { current: string; next?: string; currentMin: number; nextMin?: number } {
+  const normalizedRules = toLoyaltyRuleArray(rules)
+    .map((rule) => ({
+      tier: String(rule.tier_name ?? "").toUpperCase(),
+      min: Number(rule.min_points ?? 0),
+    }))
+    .filter((rule) => !!rule.tier)
+    .sort((a, b) => a.min - b.min);
+
+  const tierRules = normalizedRules.length > 0
+    ? normalizedRules
+    : [
+      { tier: "BRONZE", min: 0 },
+      { tier: "SILVER", min: 300 },
+      { tier: "GOLD", min: 1000 },
+      { tier: "PLATINUM", min: 2000 },
+    ];
+
+  let currentRule = tierRules[0];
+  for (const rule of tierRules) {
+    if (points >= rule.min) {
+      currentRule = rule;
+      continue;
+    }
+    break;
+  }
+
+  const currentIdx = tierRules.findIndex((rule) => rule.tier === currentRule.tier);
+  const nextRule = currentIdx >= 0 ? tierRules[currentIdx + 1] : undefined;
+
+  return {
+    current: currentRule.tier,
+    next: nextRule?.tier,
+    currentMin: currentRule.min,
+    nextMin: nextRule?.min,
+  };
+}
 
 export default function LoyaltyDashboardPage() {
-  const { data: dashboard, isLoading } = useQuery({
-    queryKey: ["loyalty-dashboard", CURRENT_CUSTOMER_ID],
-    queryFn: () => getLoyaltyDashboard(CURRENT_CUSTOMER_ID),
+  const franchiseId = useDeliveryStore((s) => s.selectedFranchiseId);
+  const franchiseName = useDeliveryStore((s) => s.selectedFranchiseName);
+
+  const { data: customerLoyalty, isLoading } = useQuery({
+    queryKey: ["customer-loyalty-dashboard", franchiseId],
+    queryFn: () => clientService.getCustomerLoyaltyByFranchise(String(franchiseId)),
+    enabled: !!franchiseId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: loyaltyRules } = useQuery({
+    queryKey: ["loyalty-rules-dashboard", franchiseId],
+    queryFn: () => clientService.getLoyaltyRuleByFranchise(String(franchiseId)),
+    enabled: !!franchiseId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const formatCurrency = (amount: number) => {
@@ -20,31 +105,54 @@ export default function LoyaltyDashboardPage() {
     }).format(amount);
   };
 
+  if (!franchiseId) {
+    return (
+      <div className="p-6">
+        <Card className="shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">Chưa chọn cửa hàng</h2>
+          <p className="text-gray-600 mt-2">
+            Vui lòng chọn cửa hàng nhận hàng để xem điểm loyalty theo franchise.
+          </p>
+          <Link
+            to={ROUTER_URL.RECEIVING_SETUP}
+            className="inline-flex mt-4 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium"
+          >
+            Chọn cửa hàng
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return <div className="p-6">Đang tải...</div>;
   }
 
-  if (!dashboard) {
+  if (!customerLoyalty) {
     return <div className="p-6">Không tìm thấy dữ liệu</div>;
   }
 
-  // Calculate progress percentage
-  let progressPercent = 100;
-  if (dashboard.next_tier && dashboard.points_to_next_tier !== undefined) {
-    const currentTierMinPoints =
-      dashboard.tier === "SILVER" ? 0 : dashboard.tier === "GOLD" ? 500 : 2000;
-    const nextTierMinPoints =
-      dashboard.next_tier === "GOLD" ? 500 : dashboard.next_tier === "PLATINUM" ? 2000 : 0;
-    const pointsInCurrentTier = dashboard.total_points - currentTierMinPoints;
-    const pointsNeededForNextTier = nextTierMinPoints - currentTierMinPoints;
-    progressPercent = Math.min(100, Math.max(0, (pointsInCurrentTier / pointsNeededForNextTier) * 100));
-  }
+  const loyaltyPoints = Number(customerLoyalty.loyalty_points ?? 0);
+  const tierFlow = getNextTierByPoints(loyaltyPoints, loyaltyRules);
+  const currentTier = tierFlow.current;
+  const nextTier = tierFlow.next;
+  const pointsToNextTier = nextTier && tierFlow.nextMin != null
+    ? Math.max(0, tierFlow.nextMin - loyaltyPoints)
+    : undefined;
+  const progressPercent = nextTier && tierFlow.nextMin != null
+    ? Math.min(
+      100,
+      Math.max(0, ((loyaltyPoints - tierFlow.currentMin) / (tierFlow.nextMin - tierFlow.currentMin)) * 100)
+    )
+    : 100;
 
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Bảng điều khiển điểm thưởng</h1>
-        <p className="text-gray-600 mt-1">Tổng quan về chương trình khách hàng thân thiết</p>
+        <p className="text-gray-600 mt-1">
+          Tổng quan loyalty tại {franchiseName || "franchise đã chọn"}
+        </p>
       </div>
 
       <Row gutter={[16, 16]}>
@@ -52,7 +160,7 @@ export default function LoyaltyDashboardPage() {
           <Card className="shadow-sm">
             <Statistic
               title="Tổng điểm"
-              value={dashboard.total_points}
+              value={loyaltyPoints}
               suffix="điểm"
               valueStyle={{ color: "#1890ff" }}
             />
@@ -62,16 +170,10 @@ export default function LoyaltyDashboardPage() {
           <Card className="shadow-sm">
             <Statistic
               title="Hạng"
-              value={LOYALTY_TIER_LABELS[dashboard.tier]}
+              value={getTierLabel(currentTier)}
               prefix={
                 <Tag
-                  color={
-                    dashboard.tier === "SILVER"
-                      ? "default"
-                      : dashboard.tier === "GOLD"
-                        ? "gold"
-                        : "purple"
-                  }
+                  color={getTierColor(currentTier)}
                 />
               }
             />
@@ -81,7 +183,7 @@ export default function LoyaltyDashboardPage() {
           <Card className="shadow-sm">
             <Statistic
               title="Tổng đơn hàng"
-              value={dashboard.total_orders}
+              value={Number(customerLoyalty.total_orders ?? 0)}
               suffix="đơn"
               valueStyle={{ color: "#52c41a" }}
             />
@@ -91,7 +193,7 @@ export default function LoyaltyDashboardPage() {
           <Card className="shadow-sm">
             <Statistic
               title="Tổng chi tiêu"
-              value={dashboard.total_spending}
+              value={Number(customerLoyalty.total_spent ?? 0)}
               formatter={(value) => formatCurrency(Number(value))}
               valueStyle={{ color: "#fa8c16" }}
             />
@@ -99,21 +201,21 @@ export default function LoyaltyDashboardPage() {
         </Col>
       </Row>
 
-      {dashboard.next_tier && dashboard.points_to_next_tier !== undefined && (
+      {nextTier && pointsToNextTier !== undefined && (
         <Card title="Tiến độ lên hạng tiếp theo" className="shadow-sm">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-gray-600">
-                  Hạng hiện tại: <Tag>{LOYALTY_TIER_LABELS[dashboard.tier]}</Tag>
+                  Hạng hiện tại: <Tag>{getTierLabel(currentTier)}</Tag>
                 </p>
                 <p className="text-gray-600 mt-1">
-                  Hạng tiếp theo: <Tag color="gold">{LOYALTY_TIER_LABELS[dashboard.next_tier]}</Tag>
+                  Hạng tiếp theo: <Tag color="gold">{getTierLabel(nextTier)}</Tag>
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-gray-900">
-                  {dashboard.points_to_next_tier}
+                  {pointsToNextTier}
                 </p>
                 <p className="text-sm text-gray-500">điểm còn lại</p>
               </div>
@@ -124,20 +226,20 @@ export default function LoyaltyDashboardPage() {
                 "0%": "#108ee9",
                 "100%": "#87d068",
               }}
-              format={() => `${dashboard.points_to_next_tier} điểm`}
+              format={() => `${pointsToNextTier} điểm`}
             />
           </div>
         </Card>
       )}
 
-      {!dashboard.next_tier && (
+      {!nextTier && (
         <Card className="shadow-sm">
           <div className="text-center py-4">
             <Tag color="purple" className="text-lg px-4 py-2">
               Bạn đã đạt hạng cao nhất!
             </Tag>
             <p className="text-gray-600 mt-2">
-              Chúc mừng bạn đã đạt hạng {LOYALTY_TIER_LABELS[dashboard.tier]}
+              Chúc mừng bạn đã đạt hạng {getTierLabel(currentTier)}
             </p>
           </div>
         </Card>

@@ -5,15 +5,24 @@
  */
 import apiClient from "@/services/api.client";
 import type { OrderDisplay, OrderStatus } from "@/models/order.model";
+import {
+  getMockOrderByCartId,
+  getMockOrderById,
+  shouldUseMockOrderId,
+} from "@/services/checkout-fallback.mock";
 
 type ApiResponse<T> = { success: boolean; data: T };
 
 export const orderClient = {
   getOrderByCartId: async (cartId: string): Promise<OrderDisplay | null> => {
-    const response = await apiClient.get<ApiResponse<OrderDisplay | null>>(
-      `/orders/cart/${cartId}`
-    );
-    return response.data.data ?? null;
+    try {
+      const response = await apiClient.get<ApiResponse<OrderDisplay | null>>(
+        `/orders/cart/${cartId}`
+      );
+      return response.data.data ?? null;
+    } catch {
+      return getMockOrderByCartId(cartId);
+    }
   },
 
   getOrdersByCustomerId: async (
@@ -39,21 +48,33 @@ export const orderClient = {
   },
 
   getOrderById: async (orderId: number | string): Promise<OrderDisplay | null> => {
-    const response = await apiClient.get<ApiResponse<OrderDisplay | null>>(
-      `/orders/${orderId}`
-    );
-
-    // Some backend implementations return `data` as an array (e.g. when using /orders/:id).
-    // Normalize so UI always receives a single matching order.
-    const raw = (response.data as any)?.data ?? null;
-    if (Array.isArray(raw)) {
-      const target = String(orderId);
-      const matched =
-        raw.find((o: any) => String(o?._id ?? o?.id) === target) ?? raw[0];
-      return matched ?? null;
+    const orderIdStr = String(orderId);
+    if (shouldUseMockOrderId(orderIdStr)) {
+      return getMockOrderById(orderIdStr);
     }
 
-    return raw ?? null;
+    try {
+      const response = await apiClient.get<ApiResponse<OrderDisplay | null>>(
+        `/orders/${orderId}`
+      );
+
+      // Some backend implementations return `data` as an array (e.g. when using /orders/:id).
+      // Normalize so UI always receives a single matching order.
+      const raw = (response.data as any)?.data ?? null;
+      if (Array.isArray(raw)) {
+        const target = String(orderId);
+        const matched = raw.find((o: any) => {
+          const oid = String(o?._id ?? o?.id ?? "");
+          const relatedOrderId = String(o?.order_id ?? "");
+          return oid === target || relatedOrderId === target;
+        });
+        return matched ?? null;
+      }
+
+      return raw ?? null;
+    } catch {
+      return getMockOrderById(orderIdStr);
+    }
   },
 
   getOrdersByFranchiseId: async (franchiseId: string): Promise<OrderDisplay[]> => {
