@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { cartClient, type CartApiData, type ApiCartItem, type CartItemOption } f
 import { orderClient } from "@/services/order.client";
 import { formatToppingsSummary, parseCartSelectionNote } from "@/utils/cartSelectionNote.util";
 import type { IceLevel, SugarLevel } from "@/types/menu.types";
+import { clientService } from "@/services/client.service";
 import { getCurrentCustomerProfile, updateCurrentCustomerProfile } from "@/services/customer.service";
 import { promotionService } from "@/services/promotion.service";
 import type { Promotion } from "@/models/promotion.model";
@@ -198,9 +199,8 @@ interface DisplayItem {
   image: string;
   size?: string;
   sugar?: SugarLevel;
-  ice?: IceLevel;
-  toppingsText?: string;
-  toppingsParsed?: Array<{ name: string; quantity: number }>;
+  ice?: IceLevel;  toppingsText?: string;
+  toppingsParsed?: Array<{ name: string; quantity: number; image?: string; price?: number }>;
   note?: string;
   quantity: number;
   unitPrice: number;
@@ -362,7 +362,10 @@ function getItemPrice(item: ApiCartItem): number {
   return Number(v) >= 0 ? Number(v) : 0;
 }
 
-function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null): DisplayItem[] {
+// Map of product_franchise_id → { name, image_url, price } for topping lookup
+type ToppingInfoMap = Record<string, { name: string; image_url: string; price: number }>;
+
+function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null, toppingInfoMap?: ToppingInfoMap): DisplayItem[] {
   if (!apiCart) return [];
   const apiCartRaw = apiCart as Record<string, unknown>;
   const cartItems = apiCartRaw.cart_items;
@@ -403,9 +406,35 @@ function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null): Dis
       image: getItemImage(item),
       size: item.size,
       sugar: parsed.sugar,
-      ice: parsed.ice,
-      toppingsText: formatToppingsSummary(parsed.toppings),
-      toppingsParsed: parsed.toppings,
+      ice: parsed.ice,      toppingsText: formatToppingsSummary(parsed.toppings),      toppingsParsed: parsed.toppings?.map((t) => {
+        // Try to find image by matching option's product_franchise_id in the toppingInfoMap,
+        // then fall back to name-matching within item.options (which may have image_url from API)
+        const matchedOpt = (item.options as CartItemOption[] | undefined)?.find((opt) => {
+          // First try: match via toppingInfoMap by product_franchise_id
+          if (toppingInfoMap && opt.product_franchise_id) {
+            const info = toppingInfoMap[opt.product_franchise_id];
+            if (info) {
+              const infoName = info.name.trim().toLowerCase();
+              const tName = t.name.trim().toLowerCase();
+              return infoName.includes(tName) || tName.includes(infoName);
+            }
+          }
+          // Fallback: match by name stored directly on the option
+          const optName = String(opt.product_name_snapshot ?? opt.name ?? "").trim().toLowerCase();
+          return optName && (t.name.toLowerCase().includes(optName) || optName.includes(t.name.toLowerCase()));
+        });        // Resolve image: prefer toppingInfoMap (API-sourced), then option's image_url
+        let image: string | undefined;
+        let price: number | undefined;
+        if (toppingInfoMap && matchedOpt?.product_franchise_id) {
+          const info = toppingInfoMap[matchedOpt.product_franchise_id];
+          image = info?.image_url ? String(info.image_url).trim() || undefined : undefined;
+          price = info?.price != null && info.price > 0 ? info.price : undefined;
+        }
+        if (!image) {
+          image = String(matchedOpt?.image_url ?? "").trim() || undefined;
+        }
+        return { ...t, image, price };
+      }),
       note: parsed.userNote ?? (item.note ? String(item.note) : undefined),
       quantity: qty,
       unitPrice: price,
@@ -475,7 +504,6 @@ export default function MenuCheckoutPage() {
     if (cartEntries.length > 0) setCarts(cartEntries);
     else clearCart();
   }, [cartEntries, setCarts, clearCart, cartsLoading]);
-
   // Fetch detail for each cart với query key đơn giản để sync với MenuOrderPanel
   const cartDetails = useQueries({
     queries: cartEntries.map((entry) => ({
@@ -485,6 +513,41 @@ export default function MenuCheckoutPage() {
       staleTime: 0,
     })),
   });
+
+  // Derive unique franchise IDs so we fetch toppings once per franchise
+  const uniqueFranchiseIds = useMemo(() => {
+    const ids = cartEntries.map((e) => e.franchise_id ? String(e.franchise_id) : "").filter(Boolean);
+    return [...new Set(ids)];
+  }, [cartEntries]);
+
+  // Fetch topping products per franchise to resolve images
+  const toppingQueries = useQueries({
+    queries: uniqueFranchiseIds.map((franchiseId) => ({
+      queryKey: ["checkout-toppings", franchiseId],
+      queryFn: () => clientService.getToppingsByFranchise(franchiseId),
+      enabled: !!franchiseId && isLoggedIn,
+      staleTime: 5 * 60_000,
+    })),
+  });
+
+  // Build a map: franchiseId → ToppingInfoMap (product_franchise_id → { name, image_url })
+  const toppingInfoByFranchise = useMemo(() => {
+    const result: Record<string, ToppingInfoMap> = {};
+    uniqueFranchiseIds.forEach((franchiseId, idx) => {
+      const products = toppingQueries[idx]?.data ?? [];
+      const map: ToppingInfoMap = {};      for (const p of products) {
+        for (const size of (p.sizes ?? [])) {
+          map[size.product_franchise_id] = {
+            name: p.name,
+            image_url: p.image_url ?? "",
+            price: size.price ?? 0,
+          };
+        }
+      }
+      result[franchiseId] = map;
+    });
+    return result;
+  }, [uniqueFranchiseIds, toppingQueries]);
 
   // Build blocks CHỈ từ API getCartDetail (mỗi cart) — không dùng dữ liệu từ list để đảm bảo đúng sản phẩm trong giỏ
   const blocks: CheckoutBlock[] = cartEntries.map((entry, idx) => {
@@ -496,9 +559,17 @@ export default function MenuCheckoutPage() {
       : Array.isArray(dataList)
         ? dataList
         : [];
-    const detailFromList = listSource[idx] as CartApiData | undefined;
-    const detail = detailFromQuery ?? detailFromList;
-    const items = apiCartToDisplayItems(entry.cartId, detailFromQuery ?? null);
+    const detailFromList = listSource[idx] as CartApiData | undefined;    const detail = detailFromQuery ?? detailFromList;
+    // Resolve franchise id for topping map lookup
+    const detailRawForFranchise = detailFromQuery ? (detailFromQuery as Record<string, unknown>) : null;
+    const detailFranchiseForId = getNestedRecord(detailRawForFranchise, "franchise");
+    const resolvedFranchiseId =
+      (entry.franchise_id ? String(entry.franchise_id) : undefined) ??
+      (detailFromQuery?.franchise_id ? String(detailFromQuery.franchise_id) : undefined) ??
+      (detailFranchiseForId?._id ? String(detailFranchiseForId._id) : undefined) ??
+      (detailFranchiseForId?.id ? String(detailFranchiseForId.id) : undefined);
+    const toppingInfoMap = resolvedFranchiseId ? (toppingInfoByFranchise[resolvedFranchiseId] ?? {}) : {};
+    const items = apiCartToDisplayItems(entry.cartId, detailFromQuery ?? null, toppingInfoMap);
     // ✅ Ensure numbers: use API fields with fallback to calculations
     const subtotal: number = typeof detail?.subtotal_amount === "number"
       ? detail.subtotal_amount
@@ -641,6 +712,8 @@ export default function MenuCheckoutPage() {
   };
   const isTermsAccepted = (cartId: string) => !!termsByCartId[cartId];
   const [errors, setErrors] = useState<Record<string, string>>({});  const [orderingCartId, setOrderingCartId] = useState<string | null>(null);
+  // Guard chống StrictMode double-invoke (ref sync, không cần re-render)
+  const orderingCartIdRef = useRef<string | null>(null);
 
   function setField<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setFormState((f) => ({ ...f, [key]: value }));
@@ -702,10 +775,11 @@ export default function MenuCheckoutPage() {
       toast.error("Không thể xóa sản phẩm");
     }
   }
-
   async function handleOrderOneBlock(block: CheckoutBlock) {
     const { cartId, franchiseName } = block;
-    if (!validate() || orderingCartId || !isTermsAccepted(cartId)) return;
+    // Guard đồng bộ bằng ref — tránh StrictMode double-invoke gọi 2 lần
+    if (!validate() || orderingCartIdRef.current || orderingCartId || !isTermsAccepted(cartId)) return;
+    orderingCartIdRef.current = cartId;
 
     const loadingStartedAt = Date.now();
     setOrderingCartId(cartId);
@@ -753,12 +827,9 @@ export default function MenuCheckoutPage() {
       const checkoutBody: Parameters<typeof cartClient.checkoutCart>[1] = {
         payment_method: checkoutPaymentMethod,
         bank_name: bankName,
-      };
-
-      let orderId = "";
-
-      await cartClient.updateCart(cartId, updateCartBody);
+      };      let orderId = "";      await cartClient.updateCart(cartId, updateCartBody);
       await cartClient.checkoutCart(cartId, checkoutBody);
+
       const order = await orderClient.getOrderByCartId(cartId);
       orderId = String(order?._id ?? order?.id ?? "");
 
@@ -807,11 +878,11 @@ export default function MenuCheckoutPage() {
         return;
       }
 
-      toast.error("Không lấy được thông tin đơn hàng sau khi checkout.");
-    } catch (error: unknown) {
+      toast.error("Không lấy được thông tin đơn hàng sau khi checkout.");    } catch (error: unknown) {
       const msg = getErrorMessage(error) ?? "Không thể đặt hàng. Vui lòng thử lại.";
       toast.error(msg);
     } finally {
+      orderingCartIdRef.current = null;
       setOrderingCartId(null);
     }
   }
@@ -1053,11 +1124,10 @@ export default function MenuCheckoutPage() {
                     </svg>
                     Thêm món
                   </button>
-                </div>
-
-                <div className="divide-y divide-gray-100">
+                </div>                <div className="divide-y divide-gray-100">
                   {block.items.map((item) => (
-                    <div key={item.key} className="px-4 py-4 flex gap-4 items-start">
+                    <div key={item.key}>
+                      <div className="px-4 py-4 flex gap-4 items-start">
                       {/* Product Image */}
                       {item.image ? (
                         <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
@@ -1117,9 +1187,7 @@ export default function MenuCheckoutPage() {
                               </p>
                             )}
                           </div>
-                        )}
-
-                        {/* Quantity and Price */}
+                        )}                        {/* Quantity and Price */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-gray-600">Số lượng:</span>
@@ -1132,9 +1200,31 @@ export default function MenuCheckoutPage() {
                           </div>
                         </div>
                       </div>
+                    </div>                    {/* Topping rows — hiện từng topping như 1 dòng sản phẩm phụ */}
+                    {item.toppingsParsed && item.toppingsParsed.length > 0 && item.toppingsParsed.map((topping, ti) => (
+                      <div key={`${item.key}-topping-${ti}`} className="px-4 py-2.5 flex gap-4 items-center bg-amber-50/60 border-t border-amber-100/60">
+                        <div className="w-16 shrink-0 flex justify-center">
+                          {topping.image ? (
+                            <img src={topping.image} alt={topping.name} className="w-10 h-10 rounded-lg object-cover border border-amber-100" />
+                          ) : (
+                            <span className="text-2xl">🧋</span>
+                          )}
+                        </div>                        <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm text-gray-700 font-medium">{topping.name}</p>
+                            <p className="text-xs text-amber-600">Topping của <span className="font-medium">{item.name}</span></p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xs text-gray-500 block">×{topping.quantity * item.quantity}</span>
+                            {topping.price != null && (
+                              <span className="text-xs font-semibold text-amber-700">{fmt(topping.price * topping.quantity * item.quantity)}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                     </div>
-                  ))}
-                </div>
+                  ))}</div>
 
                 {/* Promotions Banner */}
                 {block.franchiseId && (
