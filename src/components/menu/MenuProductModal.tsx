@@ -668,8 +668,7 @@ export default function MenuProductModal({
     });
     setIsAdding(false);
     hideGlobalLoading();
-  }
-  const modal = (
+  }  const modal = (
     /* Backdrop */
     <div
       className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -677,15 +676,15 @@ export default function MenuProductModal({
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
-      {/* Modal — wider 2-col layout on desktop */}
+      {/* Modal */}
       <div
-        className="relative w-full sm:max-w-3xl bg-white text-black sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col sm:flex-row h-[94dvh] sm:h-[90dvh]"
+        className="relative w-full sm:max-w-3xl bg-white text-black rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col sm:flex-row h-[92dvh] sm:h-[88dvh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ─── LEFT: image panel (desktop only) ─────────────────────────── */}
+        {/* ─── LEFT: image panel ─────────────────────────── */}
         <div className="relative sm:w-[42%] shrink-0 bg-gray-100 overflow-hidden">
           {/* mobile: fixed height, desktop: full panel */}
-          <div className="h-44 sm:h-full w-full">
+          <div className="h-48 sm:h-full w-full">
             <img
               src={displayImage}
               alt={product.name}
@@ -877,55 +876,58 @@ export default function MenuProductModal({
                     maxLength={200}
                     className="w-full px-3.5 py-2.5 text-sm border-2 border-gray-200 rounded-xl bg-gray-50 resize-none focus:outline-none focus:ring-0 focus:border-amber-400 focus:bg-white placeholder:text-gray-300 transition-all"
                   />
-                </div>
-
-                {/* Toppings */}
+                </div>                {/* Toppings */}
                 {!isToppingProduct && (
                   <div>
                     <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
                     {isFetchingToppings ? (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {[1,2,3,4].map(i => <div key={i} className="h-14 rounded-xl bg-gray-100 animate-pulse" />)}
                       </div>
                     ) : displayToppings.length === 0 ? (
                       <p className="text-xs text-gray-400 py-1">Không có topping</p>
                     ) : (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {displayToppings.map((topping) => {
                           const qty = toppingQtys[topping.id] ?? 0;
                           return (
                             <div
                               key={topping.id}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-xs transition-all duration-150",
+                                "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 text-xs transition-all duration-150",
                                 qty > 0
                                   ? "border-amber-400 bg-amber-50 shadow-sm shadow-amber-100"
                                   : "border-gray-200 bg-white hover:border-gray-300",
                               )}
                             >
+                              {/* Ảnh topping */}
                               {topping.image_url ? (
                                 <img
                                   src={topping.image_url}
                                   alt={topping.name}
-                                  className="shrink-0 w-9 h-9 rounded-lg object-cover border border-gray-100"
+                                  className="shrink-0 w-10 h-10 rounded-lg object-cover border border-gray-100"
                                 />
                               ) : (
-                                <span className="shrink-0 text-lg">{topping.emoji}</span>
+                                <span className="shrink-0 text-xl">{topping.emoji}</span>
                               )}
+
+                              {/* Tên + giá */}
                               <div className="flex-1 min-w-0">
-                                <div className={cn("font-semibold truncate text-[11px]", qty > 0 ? "text-amber-800" : "text-gray-700")}>
+                                <div className={cn("font-semibold text-[12px] leading-tight", qty > 0 ? "text-amber-800" : "text-gray-700")}>
                                   {topping.name}
                                 </div>
-                                <div className="text-[10px] text-gray-400 mt-0.5">+{fmt(topping.price)}</div>
+                                <div className="text-[11px] text-gray-400 mt-0.5">+{fmt(topping.price)}</div>
                               </div>
-                              <div className="flex items-center gap-1 shrink-0">
+
+                              {/* Stepper */}
+                              <div className="flex items-center gap-1.5 shrink-0">
                                 <button
                                   onClick={() => changeToppingQty(topping, -1)}
                                   disabled={qty === 0}
                                   className={cn(
-                                    "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all text-sm font-bold leading-none",
+                                    "w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all text-base font-bold leading-none",
                                     qty > 0
-                                      ? "border-amber-400 text-amber-600 hover:bg-amber-100"
+                                      ? "border-amber-400 text-amber-600 hover:bg-amber-100 active:scale-95"
                                       : "border-gray-200 text-gray-300 cursor-not-allowed"
                                   )}
                                 >−</button>
@@ -936,9 +938,9 @@ export default function MenuProductModal({
                                   onClick={() => changeToppingQty(topping, 1)}
                                   disabled={qty >= 3}
                                   className={cn(
-                                    "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all text-sm font-bold leading-none",
+                                    "w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all text-base font-bold leading-none",
                                     qty < 3
-                                      ? "border-amber-400 text-amber-600 hover:bg-amber-100"
+                                      ? "border-amber-400 text-amber-600 hover:bg-amber-100 active:scale-95"
                                       : "border-gray-200 text-gray-300 cursor-not-allowed"
                                   )}
                                 >+</button>
