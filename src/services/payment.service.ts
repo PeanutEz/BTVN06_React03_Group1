@@ -42,6 +42,18 @@ export const fetchPaymentsByCustomer = async (
   }
 };
 
+export const fetchPaymentsByFranchise = async (
+  franchiseId: string
+): Promise<Payment[]> => {
+  try {
+    const res = await paymentClient.getPaymentsByFranchiseId(franchiseId);
+    return res.map(mapPayment);
+  } catch (error) {
+    console.error("Error fetchPaymentsByFranchise:", error);
+    return [];
+  }
+};
+
 
 /**
  * =============================

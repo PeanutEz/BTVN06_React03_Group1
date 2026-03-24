@@ -4,6 +4,7 @@ import Pagination from "../../../components/ui/Pagination";
 
 import {
   fetchPaymentsByCustomer,
+  fetchPaymentsByFranchise,
   refundPayment,
 } from "../../../services/payment.service";
 
@@ -105,10 +106,22 @@ const PaymentListPage = (): React.JSX.Element => {
   }, [selectedPayment]);
 
   // ===== LOAD PAYMENT
-  const loadPayments = async (customerId: string) => {
+  const loadPaymentsByCustomer = async (customerId: string) => {
     setLoading(true);
     try {
       const data = await fetchPaymentsByCustomer(customerId);
+      setRawPayments(data);
+    } catch {
+      setRawPayments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPaymentsByFranchise = async (franchiseId: string) => {
+    setLoading(true);
+    try {
+      const data = await fetchPaymentsByFranchise(franchiseId);
       setRawPayments(data);
     } catch {
       setRawPayments([]);
@@ -121,12 +134,29 @@ const PaymentListPage = (): React.JSX.Element => {
     setSelectedCustomerId(customerId);
     setCurrentPage(1);
 
-    if (!customerId) {
+    if (customerId) {
+      loadPaymentsByCustomer(customerId);
+    } else if (selectedFranchiseId) {
+      // 🔥 quay lại filter theo franchise
+      loadPaymentsByFranchise(selectedFranchiseId);
+    } else {
+      // 🔥 nếu không có gì → clear hoặc load all
       setRawPayments([]);
-      return;
     }
+  };
 
-    loadPayments(customerId);
+  const handleFranchiseChange = (franchiseId: string) => {
+    setSelectedFranchiseId(franchiseId);
+    setCurrentPage(1);
+
+    if (franchiseId) {
+      loadPaymentsByFranchise(franchiseId);
+    } else if (selectedCustomerId) {
+      // 🔥 quay lại theo customer
+      loadPaymentsByCustomer(selectedCustomerId);
+    } else {
+      setRawPayments([]);
+    }
   };
 
   const handleReset = () => {
@@ -146,15 +176,23 @@ const PaymentListPage = (): React.JSX.Element => {
       await refundPayment(id, reason);
       showSuccess("Hoàn tiền thành công");
 
-      if (selectedCustomerId) loadPayments(selectedCustomerId);
+      if (selectedFranchiseId) {
+        loadPaymentsByFranchise(selectedFranchiseId);
+      } else if (selectedCustomerId) {
+        loadPaymentsByCustomer(selectedCustomerId);
+      }
     } catch {
       showError("Không thể hoàn tiền");
     }
   };
 
+
   // ===== FILTER (🔥 FIX CHÍNH Ở ĐÂY)
   const filteredPayments = rawPayments.filter((p) => {
     if (selectedFranchiseId && p.franchise_id !== selectedFranchiseId)
+      return false;
+
+    if (selectedCustomerId && p.customer_id !== selectedCustomerId)
       return false;
 
     if (statusFilter && p.status !== statusFilter) return false;
@@ -189,7 +227,7 @@ const PaymentListPage = (): React.JSX.Element => {
     ([value, label]) => ({ value, label })
   );
 
-  const showTable = !!selectedCustomerId || loading;
+  const showTable = !!selectedCustomerId || !!selectedFranchiseId || loading;
 
   return (
     <div className="space-y-6">
@@ -208,6 +246,21 @@ const PaymentListPage = (): React.JSX.Element => {
       <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
         <div className="flex flex-wrap items-end gap-3">
 
+          {/* Franchise */}
+          <div className="min-w-[220px] space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Chi nhánh
+            </label>
+            <GlassSearchSelect
+              value={selectedFranchiseId}
+              onChange={handleFranchiseChange}
+              options={franchises}
+              placeholder="-- Tất cả --"
+              searchPlaceholder="Tìm chi nhánh..."
+              allLabel="-- Tất cả --"
+            />
+          </div>
+
           {/* Customer */}
           <div className="min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -219,24 +272,6 @@ const PaymentListPage = (): React.JSX.Element => {
               options={customerOptions}
               placeholder="-- Chọn khách hàng --"
               searchPlaceholder="Tìm theo tên..."
-              allLabel="-- Tất cả --"
-            />
-          </div>
-
-          {/* Franchise */}
-          <div className="min-w-[220px] space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Chi nhánh
-            </label>
-            <GlassSearchSelect
-              value={selectedFranchiseId}
-              onChange={(v) => {
-                setSelectedFranchiseId(v);
-                setCurrentPage(1);
-              }}
-              options={franchises}
-              placeholder="-- Tất cả --"
-              searchPlaceholder="Tìm chi nhánh..."
               allLabel="-- Tất cả --"
             />
           </div>
@@ -290,7 +325,7 @@ const PaymentListPage = (): React.JSX.Element => {
         </div>
 
         {/* COUNT */}
-        {selectedCustomerId && (
+        {(selectedCustomerId || selectedFranchiseId) && (
           <p className="mt-3 text-xs text-slate-400">
             Hiển thị{" "}
             <span className="font-semibold text-slate-600">
@@ -306,7 +341,7 @@ const PaymentListPage = (): React.JSX.Element => {
       {/* EMPTY */}
       {!showTable && (
         <div className="text-center py-10 text-gray-400">
-          Chọn khách hàng để xem thanh toán
+          Chọn khách hàng hoặc chi nhánh để xem thanh toán
         </div>
       )}
 

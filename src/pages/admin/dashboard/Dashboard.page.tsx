@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { fetchOrders } from "../../../services/order.service";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { fetchOrdersByFranchise, fetchOrderById } from "../../../services/order.service";
 import { fetchCustomers } from "../../../services/customer.service";
 import { fetchStores } from "../../../services/store.service";
 import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
 import { adminInventoryService } from "../../../services/inventory.service";
-import type { OrderDisplay } from "../../../models/order.model";
+import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS } from "../../../models/order.model";
 import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -17,9 +17,11 @@ type RevenueChart = {
 };
 
 type TopProduct = {
+  product_id: string;
   name: string;
   sold: number;
   revenue: number;
+  orderCount: number;
 };
 
 type LowStockItem = {
@@ -47,42 +49,104 @@ const glassCardInner: React.CSSProperties = {
 };
 
 const DashboardPage = () => {
-  const hasRun = useRef(false);
   const [loading, setLoading] = useState(false);
+  const params = useParams();
+  const franchiseId = params.franchiseId || params.id;
+  const isGlobal = !franchiseId;
   const [stats, setStats] = useState({
     totalOrders: 0,
     totalRevenue: 0,
     totalCustomers: 0,
     totalStores: 0,
     pendingOrders: 0,
+    deliveringOrders: 0,
     completedOrders: 0,
+    canceledOrders: 0,
   });
+  const PENDING_STATUSES = [
+    "DRAFT",
+    "CONFIRMED",
+    "PREPARING",
+    "READY_FOR_PICKUP",
+  ];
   const [recentOrders, setRecentOrders] = useState<OrderDisplay[]>([]);
   const [loyaltyOverview, setLoyaltyOverview] = useState<LoyaltyOverview | null>(null);
   const [revenueChartData, setRevenueChartData] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [lowStocks, setLowStocks] = useState<LowStockItem[]>([]);
 
+
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const [orders, customers, stores, loyalty] = await Promise.all([
-        fetchOrders(),
+      const [customers, loyalty] = await Promise.all([
         fetchCustomers(),
-        fetchStores(),
         fetchLoyaltyOverview(),
       ]);
 
-      const safeOrders = orders || [];
+      let allOrders: any[] = [];
+      let stores: any[] = [];
+
+      if (isGlobal) {
+        stores = await fetchStores();
+
+        const orderResults = await Promise.all(
+          stores.map(async (store: any) => {
+            if (!store?.id) return [];
+
+            const orders = await fetchOrdersByFranchise(store.id);
+
+            return orders.map((o: any) => ({
+              ...o,
+              status: o.status as OrderStatus,
+              franchise_id: store.id,
+              franchise: {
+                id: store.id,
+                name: store.name,
+              },
+            }));
+          })
+        );
+
+        allOrders = orderResults.flat();
+      } else {
+        // 🔥 chỉ 1 franchise
+        const orders = await fetchOrdersByFranchise(franchiseId);
+
+        allOrders = orders.map((o: any) => ({
+          ...o,
+          status: o.status as OrderStatus,
+          franchise_id: franchiseId,
+        }));
+
+        stores = [{ id: franchiseId }];
+      }
+
+      // 🔥 SORT
+      const sortedOrders = allOrders.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
+      );
+
+      setRecentOrders(sortedOrders.slice(0, 5));
+
+
+      const safeOrders = allOrders;
 
       // 💰 Revenue = tổng đơn COMPLETED
       const completedOrdersList = safeOrders.filter(
         (o) => o?.status === "COMPLETED"
       );
 
+      const canceledOrders = allOrders.filter(
+        o => o.status === "CANCELED"
+      ).length;
+
       const totalRevenue = completedOrdersList.reduce(
-        (sum, o) => sum + (o?.total_amount || 0),
-        0);
+        (sum, o) => sum + (o?.final_amount || 0),
+        0
+      );
 
       const revenueByDate: Record<string, number> = {};
 
@@ -94,7 +158,7 @@ const DashboardPage = () => {
           .split("T")[0];
 
         revenueByDate[dateKey] =
-          (revenueByDate[dateKey] || 0) + (o.total_amount || 0);
+          (revenueByDate[dateKey] || 0) + (o.final_amount || 0);
       });
 
       const chartData: RevenueChart[] = Object.entries(revenueByDate)
@@ -110,30 +174,52 @@ const DashboardPage = () => {
 
       setRevenueChartData(chartData);
 
-      const pendingOrders = orders.filter((o) => o.status === "DRAFT" || o.status === "CONFIRMED").length;
-      const completedOrders = orders.filter((o) => o.status === "COMPLETED").length;
+      const pendingOrders = allOrders.filter((o) =>
+        PENDING_STATUSES.includes(o.status)
+      ).length;
+      const deliveringOrders = allOrders.filter(
+        (o) => o.status === "OUT_FOR_DELIVERY"
+      ).length;
+      const completedOrders = allOrders.filter((o) => o.status === "COMPLETED").length;
+
       const productMap: Record<string, TopProduct> = {};
 
-      orders
-        .filter((order) => order.status === "COMPLETED")
-        .forEach((order: any) => {
-          order.items?.forEach((item: any) => {
-            const name = item.product_name_snapshot;
-            const quantity = item.quantity;
-            const price = item.price_snapshot;
+      const completedOrdersA = allOrders.filter(
+        (o) => o.status === "COMPLETED"
+      );
+      // 🔥 gọi detail từng order
+      const detailedOrders = await Promise.all(
+        completedOrdersA.map((o) => fetchOrderById(o._id))
+      );
 
-            if (!productMap[name]) {
-              productMap[name] = {
-                name,
-                sold: 0,
-                revenue: 0,
-              };
-            }
+      detailedOrders.forEach((order: any) => {
+        const items = order.items || [];
 
-            productMap[name].sold += quantity;
-            productMap[name].revenue += quantity * price;
-          });
+        items.forEach((item: any) => {
+          const productId =
+            item.product_id || item.product_franchise_id;
+
+          if (!productId) return;
+
+          const name = item.product_name || "Unknown";
+          const quantity = item.quantity || 0;
+          const price = item.price_snapshot || 0;
+
+          if (!productMap[productId]) {
+            productMap[productId] = {
+              product_id: productId,
+              name,
+              sold: 0,
+              revenue: 0,
+              orderCount: 0,
+            };
+          }
+
+          productMap[productId].sold += quantity;
+          productMap[productId].revenue += quantity * price;
+          productMap[productId].orderCount += 1;
         });
+      });
 
       const top = Object.values(productMap)
         .sort((a, b) => b.sold - a.sold)
@@ -164,15 +250,16 @@ const DashboardPage = () => {
       setLowStocks(mergedLowStocks);
 
       setStats({
-        totalOrders: orders.length,
+        totalOrders: allOrders.length,
         totalRevenue,
         totalCustomers: customers.length,
         totalStores: stores.length,
         pendingOrders,
+        deliveringOrders,
         completedOrders,
+        canceledOrders,
       });
 
-      setRecentOrders(orders.slice(0, 5));
       setLoyaltyOverview(loyalty);
     } finally {
       setLoading(false);
@@ -180,10 +267,8 @@ const DashboardPage = () => {
   };
 
   useEffect(() => {
-    if (hasRun.current) return;
-    hasRun.current = true;
     loadDashboard();
-  }, []);
+  }, [franchiseId]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -204,7 +289,7 @@ const DashboardPage = () => {
     s === "COMPLETED" ? { bg: "rgba(74,222,128,0.15)", text: "text-green-300" }
       : s === "CONFIRMED" ? { bg: "rgba(96,165,250,0.15)", text: "text-blue-300" }
         : s === "PREPARING" ? { bg: "rgba(250,204,21,0.15)", text: "text-yellow-300" }
-          : s === "CANCELLED" ? { bg: "rgba(248,113,113,0.15)", text: "text-red-300" }
+          : s === "CANCELED" ? { bg: "rgba(248,113,113,0.15)", text: "text-red-300" }
             : { bg: "rgba(255,255,255,0.08)", text: "text-white/60" };
 
   return (
@@ -231,7 +316,13 @@ const DashboardPage = () => {
             </div>
             <div className="mt-1 flex gap-2 text-[10px]">
               <span className="text-yellow-300/80">Chờ: <strong>{stats.pendingOrders}</strong></span>
+              <span className="text-blue-300/80">
+                Giao: <strong>{stats.deliveringOrders}</strong>
+              </span>
               <span className="text-green-300/80">Xong: <strong>{stats.completedOrders}</strong></span>
+              <span className="text-red-300/80">
+                Hủy: <strong>{stats.canceledOrders}</strong>
+              </span>
             </div>
           </div>
           <div className="px-3 py-2.5" style={glassCard}>
@@ -315,14 +406,37 @@ const DashboardPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {topProducts.map((p: any, i: number) => (
-                  <tr key={i} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                    <td className="py-1.5 text-white/50">{i + 1}</td>
-                    <td className="py-1.5 font-medium text-white truncate max-w-[120px]">{p.name}</td>
-                    <td className="py-1.5 text-white/70">{p.sold}</td>
-                    <td className="py-1.5 font-semibold text-green-400">{formatCurrency(p.revenue)}</td>
+                {topProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-3 text-white/40">
+                      Không có dữ liệu
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  topProducts.map((p: TopProduct, i: number) => (
+                    <tr key={p.product_id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+
+                      {/* STT */}
+                      <td className="py-1.5 text-white/50">{i + 1}</td>
+
+                      {/* TÊN SẢN PHẨM */}
+                      <td className="py-1.5 font-medium text-white truncate max-w-[140px]" title={p.name}>
+                        {p.name}
+                      </td>
+
+                      {/* SỐ LƯỢNG */}
+                      <td className="py-1.5 text-white/70 font-semibold">
+                        {p.sold}
+                      </td>
+
+                      {/* DOANH THU */}
+                      <td className="py-1.5 font-semibold text-green-400">
+                        {formatCurrency(p.revenue)}
+                      </td>
+
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -416,21 +530,43 @@ const DashboardPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {recentOrders.map((order) => {
+                {recentOrders.map((order: OrderDisplay) => {
                   const sc = statusColor(order.status);
+
                   return (
-                    <tr key={order.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <tr key={order._id}>
+                      {/* CODE */}
                       <td className="py-1.5">
-                        <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${order.id}`} className="font-semibold text-primary-400 hover:underline">
+                        <Link
+                          to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}/${order._id}`}
+                          className="font-semibold text-primary-400 hover:underline"
+                        >
                           {order.code}
                         </Link>
                       </td>
-                      <td className="py-1.5 text-white/60 truncate max-w-[80px]">{order.franchise?.code || 'N/A'}</td>
-                      <td className="py-1.5 text-white/60 truncate max-w-[80px]">{order.customer?.name || 'N/A'}</td>
-                      <td className="py-1.5 font-semibold text-white">{formatCurrency(order.total_amount)}</td>
+
+                      {/* STORE */}
+                      <td className="py-1.5 text-white/60 truncate max-w-[80px]">
+                        {order.franchise?.name || "N/A"}
+                      </td>
+
+                      {/* CUSTOMER */}
+                      <td className="py-1.5 text-white/60 truncate max-w-[80px]">
+                        {order.customer?.name || "N/A"}
+                      </td>
+
+                      {/* AMOUNT */}
+                      <td className="py-1.5 font-semibold text-white">
+                        {formatCurrency(order.final_amount ?? 0)}
+                      </td>
+
+                      {/* STATUS */}
                       <td className="py-1.5">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.text}`} style={{ background: sc.bg }}>
-                          {ORDER_STATUS_LABELS[order.status]}
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${sc.text}`}
+                          style={{ background: sc.bg }}
+                        >
+                          {ORDER_STATUS_LABELS[order.status] || order.status}
                         </span>
                       </td>
                     </tr>
