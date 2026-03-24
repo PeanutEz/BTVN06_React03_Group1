@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -95,7 +95,6 @@ export default function MenuOrderPanel({
   const localItems = useMenuCartStore((s) => s.items);
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
-  const resolved = useRef(false);
 
   const customerId = String(
     (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? (user as any)?._id ?? "",
@@ -137,15 +136,27 @@ export default function MenuOrderPanel({
   });
 
   useEffect(() => {
-    if (!cartsData || !Array.isArray(cartsData) || resolved.current) return;
-    resolved.current = true;
-    const entries = (cartsData as CartApiData[]).map((c) => ({
+    if (!isLoggedIn) {
+      setCarts([]);
+      return;
+    }
+
+    const raw = cartsData as any;
+    const source = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.data)
+        ? raw.data
+        : Array.isArray(raw?.carts)
+          ? raw.carts
+          : [];
+
+    const entries = (source as CartApiData[]).map((c) => ({
       cartId: String(c._id ?? c.id ?? ""),
       franchise_id: c.franchise_id,
       franchise_name: c.franchise_name ?? (c as any)?.franchise?.name,
     })).filter((e) => e.cartId);
     setCarts(entries);
-  }, [cartsData, setCarts]);
+  }, [cartsData, isLoggedIn, setCarts]);
 
   const cartDetails = useQueries({
     queries: cartIds.map((cartId) => ({
@@ -173,7 +184,7 @@ export default function MenuOrderPanel({
       ...apiItemToDisplay(item, i, franchiseName, detail?.franchise_id),
       cartId: entry.cartId,
     }));
-    const subtotal = detail?.total_amount ?? items.reduce((s, i) => s + i.lineTotal, 0);
+    const subtotal = detail?.final_amount ?? items.reduce((s, i) => s + i.lineTotal, 0);
     return { cartId: entry.cartId, franchiseName, detail: detail ?? null, items, subtotal };
   });
 

@@ -160,7 +160,7 @@ export default function OrdersListPage() {
 
       <Table
         columns={columns}
-        dataSource={orders}
+        dataSource={[...orders].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())}
         loading={isLoading}
         rowKey="id"
         scroll={{ x: 1200 }}

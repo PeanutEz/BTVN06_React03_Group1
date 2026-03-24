@@ -1,6 +1,11 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { LOCAL_STORAGE_KEY } from "../const/data.const";
 
+type ApiRequestConfig = InternalAxiosRequestConfig & {
+    _retry?: boolean;
+    _skipAuthRecovery?: boolean;
+};
+
 // Cờ để tránh gọi refresh token nhiều lần cùng lúc
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (value: unknown) => void; reject: (reason: unknown) => void }> = [];
@@ -78,9 +83,12 @@ apiClient.interceptors.response.use(
         return response;
     },
     async (error: AxiosError) => {
-        const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+        const originalRequest = error.config as ApiRequestConfig;
 
         if (error.response?.status === 401 && !originalRequest._retry) {
+            if (originalRequest._skipAuthRecovery) {
+                return Promise.reject(error);
+            }
             const url = originalRequest.url ?? "";
             // Avoid infinite loop: do not try refresh when the refresh endpoint itself fails.
             const isRefreshTokenCall =
@@ -127,8 +135,10 @@ apiClient.interceptors.response.use(
                     processQueue(refreshError);
                     console.warn("[Auth] Refresh token thất bại, đăng xuất người dùng.");
                     localStorage.removeItem(LOCAL_STORAGE_KEY.AUTH_USER);
-                    // Customer login route in this project is "/login".
-                    window.location.href = isCustomer ? "/login" : "/auth/login";
+                    // Login routes in this project:
+                    // - Customer: /login
+                    // - Admin/staff: /admin/login
+                    window.location.href = isCustomer ? "/login" : "/admin/login";
                     return Promise.reject(refreshError);
                 } finally {
                     isRefreshing = false;

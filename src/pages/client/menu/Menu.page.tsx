@@ -17,6 +17,16 @@ import { cartClient } from "@/services/cart.client";
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
 
+const normalizeText = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+
+const isToppingCategory = (categoryName: unknown) =>
+  normalizeText(categoryName).includes("topping");
+
 type LoadingPhase = "franchises" | "categories" | "products" | "productDetail" | null;
 
 function EmptyState({
@@ -185,7 +195,6 @@ export default function MenuPage() {
 
   const [products, setProducts] = useState<ClientProductListItem[]>([]);
   const [addToCartProduct, setAddToCartProduct] = useState<MenuProduct | null>(null);
-
   const [loading, setLoading] = useState<LoadingPhase>(null);
   const [error, setError] = useState<string | null>(null);
   const [categoriesLoadedForFranchiseId, setCategoriesLoadedForFranchiseId] = useState<string | null>(null);
@@ -270,7 +279,13 @@ export default function MenuPage() {
       .getCategoriesByFranchise(franchiseId)
       .then((data) => {
         if (!alive) return;
-        const sorted = [...data].sort((a, b) => a.display_order - b.display_order);
+        const sorted = [...data].sort((a, b) => {
+          const aIsTopping = isToppingCategory(a.category_name);
+          const bIsTopping = isToppingCategory(b.category_name);
+          if (aIsTopping && !bIsTopping) return 1;
+          if (!aIsTopping && bIsTopping) return -1;
+          return a.display_order - b.display_order;
+        });
         setCategories(sorted);
         setSelectedCategory(null); // default to "Tất cả"
         setCategoriesLoadedForFranchiseId(franchiseId);
@@ -328,20 +343,23 @@ export default function MenuPage() {
 
     return () => {
       alive = false;
-    };
-  }, [selectedFranchise?.id, categoriesLoadedForFranchiseId]);
+    };  }, [selectedFranchise?.id, categoriesLoadedForFranchiseId]);
 
   // Derived UI helpers
   const canShowMenu = selectedFranchise !== null;
   const showLoadingSkeleton = loading === "products";
-
   // Show global loading screen while menu data is being fetched after franchise selection
   const showGlobalLoading = useLoadingStore((s) => s.show);
   const hideGlobalLoading = useLoadingStore((s) => s.hide);
+  // Track whether THIS effect is the one that triggered the loading overlay, so we
+  // don't accidentally clear an overlay started by something else (e.g. add-to-cart).
+  const menuLoadingActiveRef = useRef(false);
   useEffect(() => {
     if (loading === "categories" || loading === "products") {
+      menuLoadingActiveRef.current = true;
       showGlobalLoading("Đang tải thực đơn...");
-    } else {
+    } else if (menuLoadingActiveRef.current) {
+      menuLoadingActiveRef.current = false;
       hideGlobalLoading();
     }
   }, [loading, showGlobalLoading, hideGlobalLoading]);
@@ -392,17 +410,29 @@ export default function MenuPage() {
     const franchiseName = selectedFranchise?.name;
     setAddToCartProduct(toMenuProduct(p, franchiseId, franchiseName));
   }
-
-
   const [showBranchPicker, setShowBranchPicker] = useState(false);
   const [showOrderPanel, setShowOrderPanel] = useState(false);
-  const openBranchPicker = () => {
-    setShowBranchPicker(true);
-  };
+  const openBranchPicker = () => setShowBranchPicker(true);
   const { itemCount: localItemCount, total: localTotal } = useMenuCartTotals();
-
   const cartId = useMenuCartStore((s) => s.cartId);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const authInitialized = useAuthStore((s) => s.isInitialized);
+  const deliveryInitialized = useDeliveryStore((s) => s.isInitialized);
+
+  // Auto-open picker sau khi cả 2 store đã hydrate từ localStorage
+  // (tránh nhấp nháy do render trước khi biết trạng thái thật)
+  const autoPickerFiredRef = useRef(false);
+  useEffect(() => {
+    if (!authInitialized || !deliveryInitialized) return;
+    if (autoPickerFiredRef.current) return;
+    if (isLoggedIn && !selectedFranchiseId) {
+      autoPickerFiredRef.current = true;
+      setShowBranchPicker(true);
+    } else {
+      // Đã có đủ thông tin, không cần mở
+      autoPickerFiredRef.current = true;
+    }
+  }, [authInitialized, deliveryInitialized, isLoggedIn, selectedFranchiseId]);
 
   const { data: apiCart } = useQuery({
     queryKey: ["cart-detail", cartId],
@@ -412,7 +442,7 @@ export default function MenuPage() {
   });
 
   const apiItemCount = (apiCart?.items ?? []).reduce((s, i) => s + (i.quantity ?? 1), 0);
-  const apiTotal = apiCart?.total_amount ?? 0;
+  const apiTotal = apiCart?.final_amount ?? 0;
   const itemCount = apiItemCount > 0 ? apiItemCount : localItemCount;
   const total = apiTotal > 0 ? apiTotal : localTotal;
 
@@ -433,16 +463,14 @@ export default function MenuPage() {
                 </>
               )}
             </nav>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div>
+            <div className="flex items-center justify-between gap-4 flex-wrap">              <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
                   🍽️ {selectedCategory?.category_name ?? "Tất cả"}
                 </h1>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  {canShowMenu ? "Toàn bộ thực đơn Hylux" : "Vui lòng chọn phương thức đặt hàng để xem thực đơn"}
+                  {canShowMenu ? "Toàn bộ thực đơn Hylux" : "Vui lòng chọn cửa hàng để xem thực đơn"}
                 </p>
-              </div>
-              <div className="flex items-center gap-3">
+              </div>              <div className="flex items-center gap-3">
                 {/* Mobile cart button */}
                 {itemCount > 0 && (
                   <button
@@ -528,91 +556,80 @@ export default function MenuPage() {
                 </p>
                 <div className="max-h-[640px] overflow-y-auto pr-1">
                   <nav className="space-y-0.5">
-                  {loading === "categories" && categories.length === 0 ? (
-                    <div className="space-y-1.5 animate-pulse px-3">
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="h-9 bg-gray-100 rounded-xl" />
-                      ))}
-                    </div>
-                  ) : categories.length === 0 ? (
-                    <p className="text-xs text-gray-400 px-3">
-                      {canShowMenu ? "Chưa có danh mục" : "Chọn phương thức đặt hàng để xem"}
-                    </p>
-                  ) : (
-                    <>
-                      {/* Tất cả */}
-                      <button
-                        onClick={() => setSelectedCategory(null)}
-                        className={cn(
-                          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
-                          !selectedCategory
-                            ? "bg-amber-50 text-amber-700 shadow-sm"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                        )}
-                      >
-                        <span className={cn("text-xl shrink-0 transition-transform duration-150", !selectedCategory ? "scale-110" : "group-hover:scale-105")}>🍽️</span>
-                        <span className="flex-1 truncate">Tất cả</span>
-                        <span className={cn(
-                          "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
-                          !selectedCategory ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
-                        )}>
-                          {products.length}
-                        </span>
-                      </button>
+                    {loading === "categories" && categories.length === 0 ? (
+                      <div className="space-y-1.5 animate-pulse px-3">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                          <div key={i} className="h-9 bg-gray-100 rounded-xl" />
+                        ))}
+                      </div>
+                    ) : categories.length === 0 ? (
+                      <p className="text-xs text-gray-400 px-3">
+                        {canShowMenu ? "Chưa có danh mục" : "Chọn phương thức đặt hàng để xem"}
+                      </p>
+                    ) : (
+                      <>
+                        {/* Tất cả */}
+                        <button
+                          onClick={() => setSelectedCategory(null)}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
+                            !selectedCategory
+                              ? "bg-amber-50 text-amber-700 shadow-sm"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                          )}
+                        >
+                          <span className={cn("text-xl shrink-0 transition-transform duration-150", !selectedCategory ? "scale-110" : "group-hover:scale-105")}>🍽️</span>
+                          <span className="flex-1 truncate">Tất cả</span>
+                          <span className={cn(
+                            "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
+                            !selectedCategory ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
+                          )}>
+                            {products.length}
+                          </span>
+                        </button>
 
-                      {categories.map((cat) => {
-                        const isActive = cat.category_id === selectedCategory?.category_id;
-                        const count = categoryCounts[cat.category_id] ?? 0;
-                        return (
-                          <button
-                            key={cat.category_id}
-                            onClick={() => setSelectedCategory(cat)}
-                            className={cn(
-                              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
-                              isActive
-                                ? "bg-amber-50 text-amber-700 shadow-sm"
-                                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                            )}
-                          >
-                            <span className={cn("text-xl shrink-0 transition-transform duration-150", isActive ? "scale-110" : "group-hover:scale-105")}>
-                              {getCategoryIcon(cat.category_name)}
-                            </span>
-                            <span className="flex-1 truncate">{cat.category_name}</span>
-                            {count > 0 && (
-                              <span className={cn(
-                                "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
-                                isActive ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
-                              )}>
-                                {count}
+                        {categories.map((cat) => {
+                          const isActive = cat.category_id === selectedCategory?.category_id;
+                          const count = categoryCounts[cat.category_id] ?? 0;
+                          return (
+                            <button
+                              key={cat.category_id}
+                              onClick={() => setSelectedCategory(cat)}
+                              className={cn(
+                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-left group",
+                                isActive
+                                  ? "bg-amber-50 text-amber-700 shadow-sm"
+                                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                              )}
+                            >
+                              <span className={cn("text-xl shrink-0 transition-transform duration-150", isActive ? "scale-110" : "group-hover:scale-105")}>
+                                {getCategoryIcon(cat.category_name)}
                               </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
+                              <span className="flex-1 truncate">{cat.category_name}</span>
+                              {count > 0 && (
+                                <span className={cn(
+                                  "text-xs px-1.5 py-0.5 rounded-full font-semibold tabular-nums shrink-0",
+                                  isActive ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200",
+                                )}>
+                                  {count}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
                   </nav>
                 </div>
-
-                {canShowMenu && (
-                  <div className="mt-6 mx-3 p-4 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white">
-                    <p className="text-xs font-semibold uppercase tracking-wider opacity-80 mb-1">
-                      Ưu đãi hôm nay
-                    </p>
-                    <p className="text-sm font-bold leading-snug">Giảm 15% đơn từ 150k</p>
-                    <p className="text-xs opacity-75 mt-1">Code: HYLUX15</p>
-                  </div>
-                )}
               </div>
             </aside>
 
             {/* ── MIDDLE: Product Grid ── */}
-            <div className="flex-1 min-w-0">
-              {!canShowMenu ? (
+            <div className="flex-1 min-w-0">              {!canShowMenu ? (
                 <EmptyState
                   title="Chưa chọn cửa hàng"
-                  description="Hãy chọn phương thức đặt hàng để hệ thống tải thực đơn."
-                  actionLabel="📍 Chọn phương thức đặt hàng"
+                  description="Hãy chọn cửa hàng để hệ thống tải thực đơn."
+                  actionLabel="🏪 Chọn cửa hàng"
                   onAction={openBranchPicker}
                 />
               ) : showLoadingSkeleton ? (
@@ -679,11 +696,12 @@ export default function MenuPage() {
       </div>
 
       {/* Add-to-cart modal (size / sugar / ice / topping customisation) */}
-      <MenuProductModal product={addToCartProduct} onClose={() => setAddToCartProduct(null)} />
-
-      {/* Branch picker modal */}
+      <MenuProductModal product={addToCartProduct} onClose={() => setAddToCartProduct(null)} />      {/* Branch picker modal */}
       {showBranchPicker && (
-        <BranchPickerModal onClose={() => setShowBranchPicker(false)} />
+        <BranchPickerModal
+          onClose={() => setShowBranchPicker(false)}
+          required={isLoggedIn && !selectedFranchiseId}
+        />
       )}
 
       {/* Mobile: sticky bottom cart button */}

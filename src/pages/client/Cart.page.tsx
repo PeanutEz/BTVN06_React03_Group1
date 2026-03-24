@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -50,12 +50,11 @@ export default function CartPage() {
   const carts = useMenuCartStore((s) => s.carts);
   const cartIds = useMenuCartStore((s) => s.cartIds);
   const setCarts = useMenuCartStore((s) => s.setCarts);
+  const clearCart = useMenuCartStore((s) => s.clearCart);
   const removeCartId = useMenuCartStore((s) => s.removeCartId);
   const localItems = useMenuCartStore((s) => s.items);
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
-  const resolved = useRef(false);
-
   const customerId = customerIdFromUser(user);
 
   const [cancellingCartId, setCancellingCartId] = useState<string | null>(null);
@@ -73,7 +72,7 @@ export default function CartPage() {
     };
   } | null>(null);
 
-  const { data: cartsData } = useQuery({
+  const { data: cartsData, isLoading: cartsLoading } = useQuery({
     queryKey: ["carts-by-customer", customerId],
     queryFn: () => cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" }),
     enabled: !!customerId && isLoggedIn,
@@ -81,15 +80,28 @@ export default function CartPage() {
   });
 
   useEffect(() => {
-    if (!cartsData || !Array.isArray(cartsData) || resolved.current) return;
-    resolved.current = true;
-    const entries = (cartsData as CartApiData[]).map((c) => ({
+    if (cartsLoading) return;
+
+    const raw = cartsData as unknown;
+    const rawObj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+    const dataList = rawObj?.data;
+    const cartsList = rawObj?.carts;
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(dataList)
+        ? dataList
+        : Array.isArray(cartsList)
+          ? cartsList
+          : [];
+
+    const entries = (list as CartApiData[]).map((c) => ({
       cartId: String(c._id ?? c.id ?? ""),
       franchise_id: c.franchise_id,
       franchise_name: c.franchise_name ?? (c as any)?.franchise?.name,
     })).filter((e) => e.cartId);
-    setCarts(entries);
-  }, [cartsData, setCarts]);
+    if (entries.length > 0) setCarts(entries);
+    else clearCart();
+  }, [cartsData, cartsLoading, setCarts, clearCart]);
 
   const cartDetails = useQueries({
     queries: cartIds.map((cartId) => ({
@@ -137,7 +149,7 @@ export default function CartPage() {
         note: parsed.userNote ?? (item.note ? String(item.note) : undefined),
       };
     });
-    const totalAmount = detail?.total_amount ?? apiItems.reduce((s, i) => s + i.lineTotal, 0);
+    const totalAmount = detail?.final_amount ?? apiItems.reduce((s, i) => s + i.lineTotal, 0);
     return { cartId: entry.cartId, franchiseName, detail: detail ?? null, items: apiItems, totalAmount };
   });
 
@@ -271,6 +283,7 @@ export default function CartPage() {
     return next;
   })();
 
+  // Keep same UX as MenuOrderPanel: fallback to local items while API items are unavailable.
   const items = hasApiItems ? orderedApiItems : localDisplayItems;
   const totalAmount = hasApiItems
     ? sections.reduce((s, sec) => s + sec.totalAmount, 0)
