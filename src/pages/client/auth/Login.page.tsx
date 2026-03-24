@@ -55,7 +55,7 @@ const LoginPage = () => {
   const hideLoading = useLoadingStore((s) => s.hide);  const [notVerifiedEmail, setNotVerifiedEmail] = useState<string | null>(null);
   const [isResending, setIsResending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [apiErrors, setApiErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+  const [apiErrors, setApiErrors] = useState<{ email?: string[]; password?: string[]; general?: string }>({});
   const [ripples, setRipples] = useState<RippleItem[]>([]);
   const rippleId = useRef(0);
 
@@ -109,23 +109,27 @@ const LoginPage = () => {
         navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
       } else {
         navigate(ROUTER_URL.MENU, { replace: true });
-      }
-    } catch (error) {
+      }    } catch (error) {
       hideLoading();
-      const errData = (error as { response?: { data?: { message?: string; errors?: Array<{ field?: string; message?: string }> } } })?.response?.data;
-      if (errData?.errors?.length) {
-        const mapped: { email?: string; password?: string; general?: string } = {};
-        const pickMsg = (field: string) => {
-          const fieldErrs = errData.errors!.filter(e => e.field === field);
-          return (fieldErrs.find(e => e.message?.toLowerCase().includes("empty")) ?? fieldErrs[0])?.message;
+      const responseData =
+        (error as any)?.responseData ??
+        (error as any)?.response?.data;
+      const errList: Array<{ field?: string; message?: string }> = responseData?.errors ?? [];
+      if (errList.length) {
+        const mapped: { email?: string[]; password?: string[]; general?: string } = {};
+        const pickMsgs = (field: string): string[] | undefined => {
+          const msgs = errList
+            .filter(e => e.field === field && e.message)
+            .map(e => e.message!);
+          return msgs.length ? msgs : undefined;
         };
-        mapped.email = pickMsg("email");
-        mapped.password = pickMsg("password");
-        const other = errData.errors!.find(e => e.field !== "email" && e.field !== "password");
+        mapped.email    = pickMsgs("email");
+        mapped.password = pickMsgs("password");
+        const other = errList.find(e => e.field !== "email" && e.field !== "password");
         if (other) mapped.general = other.message;
         setApiErrors(mapped);
       } else {
-        const msg = errData?.message || (error instanceof Error ? error.message : "Sai email hoặc mật khẩu");
+        const msg = responseData?.message || (error instanceof Error ? error.message : "Sai email hoặc mật khẩu");
         if (msg.toLowerCase().includes("not verified") || msg.toLowerCase().includes("chưa xác thực")) {
           setNotVerifiedEmail(values.email);
         }
@@ -237,20 +241,19 @@ const LoginPage = () => {
               <input
                 type="email"
                 placeholder="Email"
-                autoComplete="email"
-                style={{
+                autoComplete="email"                style={{
                   ...INPUT_STYLE,
-                  ...(apiErrors.email ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
+                  ...(apiErrors.email?.length ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
                 }}
                 onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
                 {...register("email")}
-                onBlur={e => { e.currentTarget.style.border = apiErrors.email ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
+                onBlur={e => { e.currentTarget.style.border = apiErrors.email?.length ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
               />
-              {apiErrors.email && (
-                <p style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1 }}>
-                  {apiErrors.email}
+              {apiErrors.email?.map((msg, i) => (
+                <p key={i} style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1.4 }}>
+                  • {msg}
                 </p>
-              )}
+              ))}
             </div>
 
             {/* Password + toggle */}
@@ -259,15 +262,14 @@ const LoginPage = () => {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Mật khẩu"
-                  autoComplete="current-password"
-                  style={{
+                  autoComplete="current-password"                  style={{
                     ...INPUT_STYLE,
                     paddingRight: 40,
-                    ...(apiErrors.password ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
+                    ...(apiErrors.password?.length ? { border: "1px solid rgba(220,38,38,0.7)" } : {}),
                   }}
                   onFocus={e => { e.currentTarget.style.border = `1px solid rgba(201,162,39,0.75)`; e.currentTarget.style.boxShadow = INPUT_FOCUS_SHADOW; }}
                   {...register("password")}
-                  onBlur={e => { e.currentTarget.style.border = apiErrors.password ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
+                  onBlur={e => { e.currentTarget.style.border = apiErrors.password?.length ? "1px solid rgba(220,38,38,0.7)" : `1px solid rgba(201,162,39,0.35)`; e.currentTarget.style.boxShadow = INPUT_BLUR_SHADOW; }}
                 />
                 <button
                   type="button"
@@ -286,12 +288,11 @@ const LoginPage = () => {
                     </svg>
                   )}
                 </button>
-              </div>
-              {apiErrors.password && (
-                <p style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1 }}>
-                  {apiErrors.password}
+              </div>              {apiErrors.password?.map((msg, i) => (
+                <p key={i} style={{ marginTop: 4, paddingLeft: 14, fontSize: 10, color: "#fca5a5", lineHeight: 1.4 }}>
+                  • {msg}
                 </p>
-              )}
+              ))}
             </div>
 
             {/* General error */}
