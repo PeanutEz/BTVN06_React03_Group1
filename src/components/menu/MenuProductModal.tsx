@@ -31,7 +31,7 @@ const normalizeText = (value: unknown) =>
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-2.5">
+    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2.5 flex items-center gap-2 after:flex-1 after:h-px after:bg-gray-100 after:content-['']">
       {children}
     </p>
   );
@@ -320,9 +320,23 @@ export default function MenuProductModal({
   }, [product]);
 
   if (!product) return null;
-
   // Use detail content if loaded, fallback to list data
-  const displayContent = productDetail?.content || product.content;
+  const rawContent = productDetail?.content || product.content;
+  // Decode HTML entities if the string contains escaped tags (e.g. &lt;h3&gt;)
+  const displayContent = (() => {
+    if (!rawContent) return rawContent;
+    // If it looks like escaped HTML, decode it via a textarea trick
+    if (rawContent.includes("&lt;") || rawContent.includes("&amp;") || rawContent.includes("&#")) {
+      try {
+        const txt = document.createElement("textarea");
+        txt.innerHTML = rawContent;
+        return txt.value;
+      } catch {
+        return rawContent;
+      }
+    }
+    return rawContent;
+  })();
   const displayImage = productDetail?.image_url || product.image;
 
   // Chuẩn hóa giá size: API có thể trả price_base thay vì price
@@ -655,210 +669,226 @@ export default function MenuProductModal({
     setIsAdding(false);
     hideGlobalLoading();
   }
-
   const modal = (
     /* Backdrop */
     <div
       className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
-      {/* Modal */}
+      {/* Modal — wider 2-col layout on desktop */}
       <div
-        className="relative w-full sm:max-w-lg bg-white text-black sm:rounded-2xl shadow-2xl overflow-hidden h-[92dvh] sm:h-[88dvh] flex flex-col"
+        className="relative w-full sm:max-w-3xl bg-white text-black sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col sm:flex-row h-[94dvh] sm:h-[90dvh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header + image */}
-        <div className="relative shrink-0">
-          <div className="h-44 sm:h-52 overflow-hidden bg-gray-100">
+        {/* ─── LEFT: image panel (desktop only) ─────────────────────────── */}
+        <div className="relative sm:w-[42%] shrink-0 bg-gray-100 overflow-hidden">
+          {/* mobile: fixed height, desktop: full panel */}
+          <div className="h-44 sm:h-full w-full">
             <img
               src={displayImage}
               alt={product.name}
               className="w-full h-full object-cover"
             />
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           </div>
 
-          {/* Close */}
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+          {/* Close — always top-right of image panel */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
+            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors shadow-lg"
             aria-label="Đóng"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
 
           {/* Tags */}
           <div className="absolute top-3 left-3 flex gap-1.5">
             {product.tags?.includes("bestseller") && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">🔥 Bestseller</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white shadow">🔥 Bestseller</span>
             )}
             {product.tags?.includes("new") && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">✨ Mới</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow">✨ Mới</span>
             )}
           </div>
 
-          {/* Product info overlay */}
-          <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
+          {/* Product info overlay — bottom of image */}
+          <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-8 bg-gradient-to-t from-black/80 to-transparent">
             {categoryName && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
+              <span className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-white/20 text-white/90 backdrop-blur-sm border border-white/20 mb-2">
                 {categoryName}
               </span>
             )}
-            <h2 className="text-lg font-bold text-white mt-1 tracking-tight leading-tight">
+            <h2 className="text-xl font-extrabold text-white leading-tight tracking-tight drop-shadow-sm">
               {product.name}
             </h2>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-1.5">
               <div className="flex items-center gap-0.5">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <svg key={i} className={cn("w-3 h-3", i < Math.floor(product.rating) ? "text-amber-400 fill-current" : "text-white/40 fill-current")} viewBox="0 0 20 20">
+                  <svg key={i} className={cn("w-3 h-3", i < Math.floor(product.rating) ? "text-amber-400 fill-current" : "text-white/30 fill-current")} viewBox="0 0 20 20">
                     <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
                   </svg>
                 ))}
               </div>
-              <span className="text-xs text-white/80">{product.rating.toFixed(1)} ({product.reviewCount})</span>
+              <span className="text-xs text-white/70">{product.rating.toFixed(1)} ({product.reviewCount})</span>
+            </div>
+            {/* Base price chip — desktop */}
+            <div className="hidden sm:inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-full bg-amber-500/90 backdrop-blur-sm">
+              <span className="text-sm font-bold text-white">
+                {selectedSize ? fmt(sizePrice(selectedSize as ApiSize & { price_base?: number })) : fmt(product.price)}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Tab switcher */}
-        <div className="shrink-0 flex border-b border-gray-100 bg-white">
-          <button
-            onClick={() => setTab("order")}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-all duration-150 border-b-2",
-              tab === "order"
-                ? "border-amber-500 text-amber-600"
-                : "border-transparent text-gray-400 hover:text-gray-600",
-            )}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            Đặt hàng
-          </button>
-          <button
-            onClick={() => setTab("content")}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-semibold transition-all duration-150 border-b-2",
-              tab === "content"
-                ? "border-amber-500 text-amber-600"
-                : "border-transparent text-gray-400 hover:text-gray-600",
-            )}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Nội dung
-          </button>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
-          {tab === "order" ? (
-            <>
-              {/* Size – from real API (product_franchise_id) */}
-              <div>
-                <SectionLabel>Chọn size</SectionLabel>
-                {displaySizes.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">Đang tải kích cỡ...</p>
-                ) : (
-                  <div className="flex gap-2 flex-wrap">
-                    {displaySizes.map((s) => (
-                      <button
-                        key={s.product_franchise_id}
-                        onClick={() => s.is_available && setSelectedSize(s)}
-                        disabled={!s.is_available}
-                        className={cn(
-                          "flex-1 min-w-[72px] py-2.5 rounded-xl border text-sm font-semibold transition-all duration-150",
-                          !s.is_available
-                            ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
-                            : selectedSize?.product_franchise_id === s.product_franchise_id
-                            ? "border-amber-500 bg-amber-50 text-amber-700 ring-2 ring-amber-200"
-                            : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
-                        )}
-                      >
-                        <div>{s.size}</div>
-                        <div className="text-[10px] font-normal mt-0.5 opacity-70">
-                          {fmt(s.price)}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {!isToppingProduct && (
-                <>
-                  {/* Sugar */}
-                  <div>
-                    <SectionLabel>Lượng đường</SectionLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {SUGAR_LEVELS.map((level) => (
-                        <button
-                          key={level}
-                          onClick={() => setSugar(level)}
-                          className={cn(
-                            "px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150",
-                            sugar === level
-                              ? "border-amber-500 bg-amber-50 text-amber-700"
-                              : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
-                          )}
-                        >
-                          {level}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Ice */}
-                  <div>
-                    <SectionLabel>Lượng đá</SectionLabel>
-                    <div className="flex flex-wrap gap-2">
-                      {ICE_LEVELS.map((level) => (
-                        <button
-                          key={level}
-                          onClick={() => setIce(level)}
-                          className={cn(
-                            "px-3 py-1.5 rounded-xl border text-xs font-medium transition-all duration-150",
-                            ice === level
-                              ? "border-blue-500 bg-blue-50 text-blue-700"
-                              : "border-gray-200 text-gray-600 hover:border-gray-300 bg-white",
-                          )}
-                        >
-                          {level}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
+        {/* ─── RIGHT: order panel ────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col min-h-0 bg-white sm:rounded-r-3xl">
+          {/* Tab switcher */}
+          <div className="shrink-0 flex border-b border-gray-100 bg-white sm:rounded-tr-3xl">
+            <button
+              onClick={() => setTab("order")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-all duration-150 border-b-2",
+                tab === "order"
+                  ? "border-amber-500 text-amber-600"
+                  : "border-transparent text-gray-400 hover:text-gray-600",
               )}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Đặt hàng
+            </button>
+            <button
+              onClick={() => setTab("content")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-3.5 text-sm font-semibold transition-all duration-150 border-b-2",
+                tab === "content"
+                  ? "border-amber-500 text-amber-600"
+                  : "border-transparent text-gray-400 hover:text-gray-600",
+              )}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Nội dung
+            </button>
+          </div>
 
-              {/* Note */}
-              <div>
-                <SectionLabel>Ghi chú</SectionLabel>
-                <textarea
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="VD: ít đường hơn, không hành, dị ứng..."
-                  rows={2}
-                  maxLength={200}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-white resize-none focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-transparent placeholder:text-gray-400 transition-all"
-                />
-              </div>
-
-              {!isToppingProduct && (
+          {/* Scrollable body */}
+          <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+            {tab === "order" ? (
+              <>
+                {/* Size */}
                 <div>
-                  <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
-                  {isFetchingToppings ? (
-                    <div className="text-xs text-gray-400 py-2">Đang tải topping...</div>
+                  <SectionLabel>Chọn size</SectionLabel>
+                  {displaySizes.length === 0 ? (
+                    <div className="flex gap-2">
+                      {[1,2,3].map(i => <div key={i} className="flex-1 h-14 rounded-xl bg-gray-100 animate-pulse" />)}
+                    </div>
                   ) : (
-                    displayToppings.length === 0 ? (
-                      <div className="text-xs text-gray-400 py-2">Không có topping để chọn</div>
+                    <div className="flex gap-2">
+                      {displaySizes.map((s) => (
+                        <button
+                          key={s.product_franchise_id}
+                          onClick={() => s.is_available && setSelectedSize(s)}
+                          disabled={!s.is_available}
+                          className={cn(
+                            "flex-1 py-3 rounded-xl border-2 text-sm font-bold transition-all duration-150 relative",
+                            !s.is_available
+                              ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed"
+                              : selectedSize?.product_franchise_id === s.product_franchise_id
+                              ? "border-amber-500 bg-amber-50 text-amber-700 shadow-sm shadow-amber-100"
+                              : "border-gray-200 text-gray-600 hover:border-amber-300 hover:bg-amber-50/40 bg-white",
+                          )}
+                        >
+                          {selectedSize?.product_franchise_id === s.product_franchise_id && s.is_available && (
+                            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-500" />
+                          )}
+                          <div className="text-base">{s.size}</div>
+                          <div className={cn("text-[11px] font-normal mt-0.5", selectedSize?.product_franchise_id === s.product_franchise_id ? "text-amber-500" : "text-gray-400")}>
+                            {fmt(s.price)}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {!isToppingProduct && (
+                  <>
+                    {/* Sugar */}
+                    <div>
+                      <SectionLabel>Lượng đường</SectionLabel>
+                      <div className="flex flex-wrap gap-2">
+                        {SUGAR_LEVELS.map((level) => (
+                          <button
+                            key={level}
+                            onClick={() => setSugar(level)}
+                            className={cn(
+                              "px-3.5 py-1.5 rounded-xl border-2 text-xs font-semibold transition-all duration-150",
+                              sugar === level
+                                ? "border-amber-500 bg-amber-500 text-white shadow-sm"
+                                : "border-gray-200 text-gray-500 hover:border-amber-300 hover:bg-amber-50/40 bg-white",
+                            )}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Ice */}
+                    <div>
+                      <SectionLabel>Lượng đá</SectionLabel>
+                      <div className="flex flex-wrap gap-2">
+                        {ICE_LEVELS.map((level) => (
+                          <button
+                            key={level}
+                            onClick={() => setIce(level)}
+                            className={cn(
+                              "px-3.5 py-1.5 rounded-xl border-2 text-xs font-semibold transition-all duration-150",
+                              ice === level
+                                ? "border-sky-500 bg-sky-500 text-white shadow-sm"
+                                : "border-gray-200 text-gray-500 hover:border-sky-300 hover:bg-sky-50/40 bg-white",
+                            )}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Note */}
+                <div>
+                  <SectionLabel>Ghi chú</SectionLabel>
+                  <textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="VD: ít đường hơn, không hành, dị ứng..."
+                    rows={2}
+                    maxLength={200}
+                    className="w-full px-3.5 py-2.5 text-sm border-2 border-gray-200 rounded-xl bg-gray-50 resize-none focus:outline-none focus:ring-0 focus:border-amber-400 focus:bg-white placeholder:text-gray-300 transition-all"
+                  />
+                </div>
+
+                {/* Toppings */}
+                {!isToppingProduct && (
+                  <div>
+                    <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
+                    {isFetchingToppings ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[1,2,3,4].map(i => <div key={i} className="h-14 rounded-xl bg-gray-100 animate-pulse" />)}
+                      </div>
+                    ) : displayToppings.length === 0 ? (
+                      <p className="text-xs text-gray-400 py-1">Không có topping</p>
                     ) : (
                       <div className="grid grid-cols-2 gap-2">
                         {displayToppings.map((topping) => {
@@ -867,10 +897,12 @@ export default function MenuProductModal({
                             <div
                               key={topping.id}
                               className={cn(
-                                "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
-                                qty > 0 ? "border-amber-500 bg-amber-50" : "border-gray-200 bg-white",
-                              )}                          >
-                              {/* Ảnh topping: dùng image_url từ API, fallback emoji */}
+                                "flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-xs transition-all duration-150",
+                                qty > 0
+                                  ? "border-amber-400 bg-amber-50 shadow-sm shadow-amber-100"
+                                  : "border-gray-200 bg-white hover:border-gray-300",
+                              )}
+                            >
                               {topping.image_url ? (
                                 <img
                                   src={topping.image_url}
@@ -878,126 +910,149 @@ export default function MenuProductModal({
                                   className="shrink-0 w-9 h-9 rounded-lg object-cover border border-gray-100"
                                 />
                               ) : (
-                                <span className="shrink-0 text-base">{topping.emoji}</span>
+                                <span className="shrink-0 text-lg">{topping.emoji}</span>
                               )}
                               <div className="flex-1 min-w-0">
-                                <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>
+                                <div className={cn("font-semibold truncate text-[11px]", qty > 0 ? "text-amber-800" : "text-gray-700")}>
                                   {topping.name}
                                 </div>
-                                <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5">+{fmt(topping.price)}</div>
                               </div>
                               <div className="flex items-center gap-1 shrink-0">
                                 <button
                                   onClick={() => changeToppingQty(topping, -1)}
                                   disabled={qty === 0}
-                                  className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                                  title="Giảm topping"
-                                >
-                                  <span className="text-sm font-semibold text-gray-700 leading-none">−</span>
-                                </button>
-                                <span
                                   className={cn(
-                                    "w-5 text-center font-semibold text-sm tabular-nums",
-                                    qty > 0 ? "text-amber-800" : "text-gray-600",
+                                    "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all text-sm font-bold leading-none",
+                                    qty > 0
+                                      ? "border-amber-400 text-amber-600 hover:bg-amber-100"
+                                      : "border-gray-200 text-gray-300 cursor-not-allowed"
                                   )}
-                                >
+                                >−</button>
+                                <span className={cn("w-5 text-center font-bold text-sm tabular-nums", qty > 0 ? "text-amber-700" : "text-gray-400")}>
                                   {qty}
                                 </span>
                                 <button
                                   onClick={() => changeToppingQty(topping, 1)}
                                   disabled={qty >= 3}
-                                  className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                                  title="Tăng topping"
-                                >
-                                  <span className="text-sm font-semibold text-gray-700 leading-none">+</span>
-                                </button>
+                                  className={cn(
+                                    "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all text-sm font-bold leading-none",
+                                    qty < 3
+                                      ? "border-amber-400 text-amber-600 hover:bg-amber-100"
+                                      : "border-gray-200 text-gray-300 cursor-not-allowed"
+                                  )}
+                                >+</button>
                               </div>
                             </div>
                           );
                         })}
                       </div>
-                    )
-                  )}
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (              /* Content tab */
+              displayContent ? (
+                <div
+                  className={[
+                    "product-content text-sm text-gray-800 leading-relaxed",
+                    // headings
+                    "[&_h1]:text-xl [&_h1]:font-extrabold [&_h1]:text-gray-900 [&_h1]:mt-5 [&_h1]:mb-2",
+                    "[&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-gray-900 [&_h2]:mt-4 [&_h2]:mb-1.5",
+                    "[&_h3]:text-base [&_h3]:font-bold [&_h3]:text-gray-900 [&_h3]:mt-4 [&_h3]:mb-1",
+                    "[&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-gray-800 [&_h4]:mt-3 [&_h4]:mb-1",
+                    // paragraphs
+                    "[&_p]:text-gray-700 [&_p]:leading-relaxed [&_p]:mb-2",
+                    // bold / italic
+                    "[&_b]:font-bold [&_b]:text-gray-900",
+                    "[&_strong]:font-bold [&_strong]:text-gray-900",
+                    "[&_i]:italic [&_em]:italic",
+                    // lists
+                    "[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-2 [&_ul]:space-y-1",
+                    "[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-2 [&_ol]:space-y-1",
+                    "[&_li]:text-gray-700",
+                    // links
+                    "[&_a]:text-amber-600 [&_a]:underline [&_a]:hover:text-amber-700",
+                    // tables
+                    "[&_table]:w-full [&_table]:border-collapse [&_table]:my-3",
+                    "[&_th]:text-left [&_th]:px-3 [&_th]:py-2 [&_th]:bg-gray-100 [&_th]:text-xs [&_th]:font-semibold [&_th]:text-gray-600 [&_th]:border [&_th]:border-gray-200",
+                    "[&_td]:px-3 [&_td]:py-2 [&_td]:text-sm [&_td]:text-gray-700 [&_td]:border [&_td]:border-gray-200",
+                    // spans (don't force color on all spans, let inherit)
+                    "[&_span]:leading-relaxed",
+                    // first element no top margin
+                    "[&>*:first-child]:mt-0",
+                  ].join(" ")}
+                  dangerouslySetInnerHTML={{ __html: displayContent }}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center text-gray-400">
+                  <svg className="w-10 h-10 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-sm">Chưa có mô tả chi tiết</p>
                 </div>
-              )}
-            </>
-          ) : (
-            /* Content tab */
-            displayContent ? (
-              <div
-                className="text-sm text-black leading-relaxed space-y-2 [&_*]:text-black [&>h3]:text-black [&>h3]:font-bold [&>h3]:mt-3 [&>ul]:list-disc [&>ul]:pl-5"
-                dangerouslySetInnerHTML={{ __html: displayContent }}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center text-gray-400">
-                <svg className="w-10 h-10 mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-sm">Chưa có mô tả chi tiết</p>
-              </div>
-            )
-          )}
-        </div>
+              )
+            )}
+          </div>
 
-        {/* Footer: qty + total + CTA */}
-        <div className="shrink-0 border-t border-gray-100 bg-white px-4 py-3">
-          <div className="flex items-center gap-3">
-            {/* Quantity */}
-            <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden shrink-0">
+          {/* Footer: qty + CTA */}
+          <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-4 sm:rounded-br-3xl">
+            <div className="flex items-center gap-3">
+              {/* Quantity stepper */}
+              <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 shrink-0">
+                <button
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  disabled={quantity <= 1}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20 12H4" />
+                  </svg>
+                </button>
+                <span className="w-7 text-center text-sm font-bold select-none tabular-nums">{quantity}</span>
+                <button
+                  onClick={() => setQuantity((q) => q + 1)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-600 hover:bg-white hover:shadow-sm transition-all"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Add to cart */}
               <button
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                disabled={quantity <= 1}
-                className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                onClick={handleAddToCart}
+                disabled={isAdding || !selectedSize}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all duration-150 text-sm tracking-wide",
+                  isAdding || !selectedSize
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-[0.98] text-white shadow-lg shadow-amber-200/60",
+                )}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                </svg>
-              </button>
-              <span className="w-8 text-center text-sm font-semibold select-none">{quantity}</span>
-              <button
-                onClick={() => setQuantity((q) => q + 1)}
-                className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+                {isAdding ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Đang thêm...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Thêm vào giỏ · {fmt(totalPrice)}
+                  </>
+                )}
               </button>
             </div>
-
-            {/* Add to cart */}
-            <button
-              onClick={handleAddToCart}
-              disabled={isAdding || !selectedSize}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold transition-all duration-150 text-sm",
-                isAdding || !selectedSize
-                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                  : "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200",
-              )}
-            >
-              {isAdding ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                  </svg>
-                  Đang thêm...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  Thêm vào giỏ · {fmt(totalPrice)}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+          </div>        </div>
       </div>
     </div>
   );
-
   if (typeof document === "undefined") return null;
   return createPortal(modal, document.body);
 }
