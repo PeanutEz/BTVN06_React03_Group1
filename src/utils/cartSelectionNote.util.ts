@@ -13,6 +13,9 @@ type CartOptionLike = {
   name?: string;
   product_name?: string;
   product_name_snapshot?: string;
+  product?: {
+    name?: string;
+  };
 };
 
 const ICE_LABEL = "Lượng đá";
@@ -210,6 +213,7 @@ function getCartOptionName(option: CartOptionLike): string {
   return String(
     option.product_name ??
       option.product_name_snapshot ??
+      option.product?.name ??
       option.name ??
       "",
   ).trim();
@@ -228,7 +232,7 @@ export function formatCartOptionsSummary(options?: CartOptionLike[]) {
   if (aggregated.size === 0) return "";
 
   return Array.from(aggregated.entries())
-    .map(([name, quantity]) => (quantity > 1 ? `${name} x${quantity}` : name))
+    .map(([name, quantity]) => `${name} x${quantity}`)
     .join(", ");
 }
 

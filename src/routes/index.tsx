@@ -108,7 +108,9 @@ function AppRoutes() {
           <Route element={<AuthGuard />}>
             <Route path={ROUTER_URL.MENU_CHECKOUT} element={<MenuCheckoutPageWithKey />} />
             <Route path={ROUTER_URL.MENU_ORDER_STATUS} element={<OrderStatusPage />} />
-            <Route path={ROUTER_URL.PAYMENT_PROCESS} element={<PaymentProcessPage />} />
+            <Route path={ROUTER_URL.PAYMENT_PROCESS_VNPAY} element={<PaymentProcessPage />} />
+            <Route path={ROUTER_URL.PAYMENT_PROCESS_COD} element={<PaymentProcessPage />} />
+            <Route path={ROUTER_URL.PAYMENT_PROCESS_LEGACY} element={<PaymentProcessPage />} />
             <Route path={ROUTER_URL.PAYMENT_SUCCESS} element={<PaymentSuccessPage />} />
             <Route path={ROUTER_URL.PAYMENT_FAILED} element={<PaymentFailedPage />} />
           </Route>

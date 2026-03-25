@@ -1,4 +1,4 @@
-// KAN-88: Order Detail — API: Get Order by Id, Get Payment by OrderId, Get Delivery by OrderId
+// KAN-88: Order Detail — API: Get Order by Id, Get Payment by OrderId
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
@@ -8,7 +8,6 @@ import { ArrowLeftOutlined, FilePdfOutlined } from "@ant-design/icons";
 
 import { orderClient } from "../../../services/order.client";
 import { paymentClient } from "../../../services/payment.client";
-import { deliveryClient } from "../../../services/delivery.client";
 import type { OrderItem } from "../../../models/order.model";
 import {
   ORDER_TYPE_LABELS,
@@ -32,12 +31,6 @@ export default function OrderDetailPage() {
   const { data: payment } = useQuery({
     queryKey: ["payment-by-order", orderId],
     queryFn: () => paymentClient.getPaymentByOrderId(orderId),
-    enabled: !!orderId,
-  });
-
-  const { data: delivery } = useQuery({
-    queryKey: ["delivery-by-order", orderId],
-    queryFn: () => deliveryClient.getDeliveryByOrderId(orderId),
     enabled: !!orderId,
   });
 
@@ -114,7 +107,43 @@ export default function OrderDetailPage() {
   };
 
   const paymentObj = payment && typeof payment === "object" ? payment as Record<string, unknown> : null;
-  const deliveryObj = delivery && typeof delivery === "object" ? delivery as Record<string, unknown> : null;
+  const deliveryObj = (() => {
+    const orderRecord = order as Record<string, unknown>;
+    const embeddedDelivery =
+      orderRecord.delivery && typeof orderRecord.delivery === "object"
+        ? (orderRecord.delivery as Record<string, unknown>)
+        : {};
+    const normalizedDelivery = {
+      ...embeddedDelivery,
+      address:
+        embeddedDelivery.address ??
+        embeddedDelivery.order_address ??
+        order.address ??
+        orderRecord.delivery_address,
+      receiver_name:
+        embeddedDelivery.receiver_name ??
+        orderRecord.receiver_name ??
+        order.customer?.name,
+      receiver_phone:
+        embeddedDelivery.receiver_phone ??
+        embeddedDelivery.order_phone ??
+        order.phone ??
+        order.customer?.phone,
+      status:
+        embeddedDelivery.status ??
+        orderRecord.delivery_status,
+      note:
+        embeddedDelivery.note ??
+        embeddedDelivery.order_message ??
+        orderRecord.message ??
+        orderRecord.note,
+    };
+    return Object.values(normalizedDelivery).some((value) =>
+      typeof value === "string" ? value.trim() : value != null
+    )
+      ? normalizedDelivery
+      : null;
+  })();
 
   return (
     <div className="p-4 sm:p-6 space-y-6">

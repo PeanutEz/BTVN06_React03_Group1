@@ -45,6 +45,8 @@ export interface UpdateCartBody {
   bank_name?: string;
 }
 
+export type CheckoutCartBody = UpdateCartBody;
+
 export interface UpdateCartItemBody {
   cart_item_id: string;
   quantity: number;
@@ -358,8 +360,11 @@ export function getCartPricingSummary(
   const voucherPercent =
     rawVoucherPercent != null && rawVoucherPercent > 0 ? rawVoucherPercent : undefined;
   const totalDiscount = promotionDiscount + voucherDiscount + loyaltyDiscount;
-  const finalAmount =
-    toFiniteNumber(cart?.final_amount) ?? Math.max(0, subtotalAmount - totalDiscount);
+  const rawFinalAmount = toFiniteNumber(cart?.final_amount);
+  const finalAmount = Math.max(
+    0,
+    rawFinalAmount != null ? rawFinalAmount : subtotalAmount - totalDiscount,
+  );
 
   return {
     subtotalAmount,
@@ -481,7 +486,7 @@ export const cartClient = {
 
   checkoutCart: async (
     cartId: string,
-    body?: { payment_method?: string; bank_name?: string }
+    body?: CheckoutCartBody
   ): Promise<unknown> => {
     const response = await apiClient.put<ApiResponse<unknown>>(
       `/carts/${cartId}/checkout`,
