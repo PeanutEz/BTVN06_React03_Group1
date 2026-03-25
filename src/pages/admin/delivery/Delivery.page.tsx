@@ -3,6 +3,7 @@ import { Button, useConfirm } from "../../../components";
 import { GlassSearchSelect } from "../../../components/ui";
 import Pagination from "../../../components/ui/Pagination";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
+import { useAuthStore } from "../../../store/auth.store";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import { deliveryClient, type DeliveryData } from "../../../services/delivery.client";
 import { fetchFranchiseSelect, type FranchiseSelectItem } from "../../../services/store.service";
@@ -36,6 +37,9 @@ function getStatusBadgeClass(statusRaw: unknown): string {
 export default function DeliveryPage() {
   const showConfirm = useConfirm();
   const managerFranchiseId = useManagerFranchiseId();
+  const user = useAuthStore((s) => s.user);
+  const activeContextFranchiseName = (user?.active_context as { franchise_name?: string } | null | undefined)?.franchise_name ?? null;
+  const isShipper = ((user?.active_context as { role?: string } | null)?.role ?? user?.role ?? "").toUpperCase() === "SHIPPER";
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
   const [selectedFranchiseId, setSelectedFranchiseId] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -201,6 +205,7 @@ export default function DeliveryPage() {
         <div className="flex flex-wrap items-end gap-3">
 
           {/* Chi nhánh */}
+          {!isShipper && (
           <div className="min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
               Chi nhánh
@@ -211,7 +216,7 @@ export default function DeliveryPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 <span className="truncate flex-1 text-red-300 font-medium">
-                  {franchises.find((f) => f.value === managerFranchiseId)?.name ?? managerFranchiseId}
+                  {franchises.find((f) => f.value === managerFranchiseId)?.name ?? activeContextFranchiseName ?? managerFranchiseId}
                 </span>
               </div>
             ) : (
@@ -227,7 +232,8 @@ export default function DeliveryPage() {
                 searchPlaceholder="Tìm theo tên hoặc mã..."
               />
             )}
-          </div>          {/* Trạng thái */}
+          </div>
+          )}          {/* Trạng thái */}
           <div className="min-w-[180px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</label>
             <GlassSearchSelect
@@ -244,6 +250,7 @@ export default function DeliveryPage() {
           </div>
 
           {/* Khách hàng */}
+          {!isShipper && (
           <div className="flex-1 min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Khách hàng</label>
             <GlassSearchSelect
@@ -257,6 +264,7 @@ export default function DeliveryPage() {
               onSearch={handleCustomerSearch}
             />
           </div>
+          )}
 
 
         </div>

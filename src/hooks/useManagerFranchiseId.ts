@@ -8,11 +8,13 @@ type ActiveContext = {
   franchise_name?: string | null;
 };
 
+const FRANCHISE_SCOPED_ROLES = ["MANAGER", "STAFF", "SHIPPER"];
+
 /**
- * Trả về franchise_id của context hiện tại nếu role là MANAGER.
+ * Trả về franchise_id của context hiện tại nếu role là MANAGER, STAFF hoặc SHIPPER.
  * Ưu tiên đọc từ active_context (sau khi switch context).
  * ADMIN / SYSTEM / GLOBAL scope → trả về null (không giới hạn franchise).
- * MANAGER + FRANCHISE scope → trả về franchise_id đang active.
+ * MANAGER / STAFF / SHIPPER + FRANCHISE scope → trả về franchise_id đang active.
  */
 export function useManagerFranchiseId(): string | null {
   const user = useAuthStore((s) => s.user);
@@ -27,7 +29,7 @@ export function useManagerFranchiseId(): string | null {
       const scope = ctx.scope?.toUpperCase() ?? "";
       // ADMIN hoặc GLOBAL scope → không giới hạn
       if (role === "ADMIN" || scope === "GLOBAL") return null;
-      if (role === "MANAGER" && ctx.franchise_id) return ctx.franchise_id;
+      if (FRANCHISE_SCOPED_ROLES.includes(role) && ctx.franchise_id) return ctx.franchise_id;
     }
 
     // Fallback: scan roles nếu chưa có active_context
@@ -36,9 +38,9 @@ export function useManagerFranchiseId(): string | null {
       (r) => r.role?.toUpperCase() === "ADMIN" || r.scope?.toUpperCase() === "GLOBAL"
     );
     if (isAdmin) return null;
-    const managerRole = user.roles.find(
-      (r) => r.role?.toUpperCase() === "MANAGER" && r.franchise_id
+    const franchiseRole = user.roles.find(
+      (r) => FRANCHISE_SCOPED_ROLES.includes(r.role?.toUpperCase() ?? "") && r.franchise_id
     );
-    return managerRole?.franchise_id ?? null;
+    return franchiseRole?.franchise_id ?? null;
   }, [user]);
 }
