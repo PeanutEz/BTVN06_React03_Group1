@@ -21,12 +21,17 @@ import type { Payment } from "../../../models/payment.model";
 
 import { searchCustomersPaged } from "../../../services/customer.service";
 import { fetchFranchiseSelect } from "../../../services/store.service";
+import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
+import { useAuthStore } from "../../../store";
 
 import { showSuccess, showError } from "../../../utils";
 
 const ITEMS_PER_PAGE = 10;
 
 const PaymentListPage = (): React.JSX.Element => {
+  const managerFranchiseId = useManagerFranchiseId();
+  const _authUser = useAuthStore((s) => s.user);
+  const isShipper = ((_authUser?.active_context as { role?: string } | null)?.role ?? _authUser?.role ?? "").toUpperCase() === "SHIPPER";
   const [rawPayments, setRawPayments] = useState<Payment[]>([]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
@@ -88,6 +93,14 @@ const PaymentListPage = (): React.JSX.Element => {
       })
       .catch(() => { });
   }, []);
+
+  // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
+  useEffect(() => {
+    if (!managerFranchiseId) return;
+    setSelectedFranchiseId(managerFranchiseId);
+    loadPaymentsByFranchise(managerFranchiseId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [managerFranchiseId]);
 
   useEffect(() => {
     if (!selectedPayment?.order_id) return;
@@ -161,11 +174,16 @@ const PaymentListPage = (): React.JSX.Element => {
 
   const handleReset = () => {
     setSelectedCustomerId("");
-    setSelectedFranchiseId("");
     setStatusFilter("");
     setMethodFilter("");
-    setRawPayments([]);
     setCurrentPage(1);
+    if (managerFranchiseId) {
+      // Staff/Manager: keep franchise, reload data
+      loadPaymentsByFranchise(managerFranchiseId);
+    } else {
+      setSelectedFranchiseId("");
+      setRawPayments([]);
+    }
   };
 
   const handleRefund = async (id: string) => {
@@ -247,21 +265,33 @@ const PaymentListPage = (): React.JSX.Element => {
         <div className="flex flex-wrap items-end gap-3">
 
           {/* Franchise */}
+          {!isShipper && (
           <div className="min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
               Chi nhánh
             </label>
-            <GlassSearchSelect
-              value={selectedFranchiseId}
-              onChange={handleFranchiseChange}
-              options={franchises}
-              placeholder="-- Tất cả --"
-              searchPlaceholder="Tìm chi nhánh..."
-              allLabel="-- Tất cả --"
-            />
+            {managerFranchiseId ? (
+              <div className="flex items-center gap-2 rounded-lg border border-primary-500/40 bg-primary-50 px-3 py-2 text-sm text-primary-700">
+                <svg className="size-4 shrink-0 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <span className="font-medium truncate">{franchiseMap[managerFranchiseId] || managerFranchiseId}</span>
+              </div>
+            ) : (
+              <GlassSearchSelect
+                value={selectedFranchiseId}
+                onChange={handleFranchiseChange}
+                options={franchises}
+                placeholder="-- Tất cả --"
+                searchPlaceholder="Tìm chi nhánh..."
+                allLabel="-- Tất cả --"
+              />
+            )}
           </div>
+          )}
 
           {/* Customer */}
+          {!isShipper && (
           <div className="min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
               Khách hàng
@@ -275,6 +305,7 @@ const PaymentListPage = (): React.JSX.Element => {
               allLabel="-- Tất cả --"
             />
           </div>
+          )}
 
           {/* Status */}
           <div className="min-w-[180px] space-y-1.5">
@@ -295,6 +326,7 @@ const PaymentListPage = (): React.JSX.Element => {
           </div>
 
           {/* Method */}
+          {!isShipper && (
           <div className="min-w-[180px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
               Phương thức
@@ -311,8 +343,10 @@ const PaymentListPage = (): React.JSX.Element => {
               allLabel="-- Tất cả --"
             />
           </div>
+          )}
 
           {/* Reset */}
+          {!isShipper && (
           <div className="space-y-1.5">
             <label className="invisible block text-xs">&nbsp;</label>
             <button
@@ -322,6 +356,7 @@ const PaymentListPage = (): React.JSX.Element => {
               Đặt lại
             </button>
           </div>
+          )}
         </div>
 
         {/* COUNT */}

@@ -356,7 +356,7 @@ export default function ProductFranchisePage() {
   }, [createProductOpen, closeCreateProduct]);
 
   const openCreate = () => {
-    setCreateForm({ ...DEFAULT_CREATE });
+    setCreateForm({ ...DEFAULT_CREATE, franchise_id: managerFranchiseId ?? "" });
     setCreateErrors({});
     setCreateOpen(true);
   };
@@ -877,8 +877,9 @@ export default function ProductFranchisePage() {
                   <div className="relative">
                     <button
                       ref={createFranchiseTriggerRef}
-                      type="button"                      onClick={() => createFranchiseOpen ? closeCreateFranchise() : openCreateFranchise()}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: `1px solid ${createErrors.franchise_id ? "#f87171" : "#475569"}`, borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none" }}
+                      type="button"                      onClick={() => managerFranchiseId ? undefined : (createFranchiseOpen ? closeCreateFranchise() : openCreateFranchise())}
+                      disabled={!!managerFranchiseId}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 12px", background: "#1e293b", border: `1px solid ${createErrors.franchise_id ? "#f87171" : "#475569"}`, borderRadius: 8, color: "#f1f5f9", fontSize: 14, cursor: managerFranchiseId ? "not-allowed" : "pointer", outline: "none", opacity: managerFranchiseId ? 0.7 : 1 }}
                     >
                       <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: createForm.franchise_id ? "#f1f5f9" : "#94a3b8" }}>
                         {createForm.franchise_id ? (franchiseNameMap[createForm.franchise_id] || createForm.franchise_id) : "-- Chọn franchise --"}
