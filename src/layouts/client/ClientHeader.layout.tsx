@@ -13,7 +13,6 @@ import logoHylux from "../../assets/logo-hylux.png";
 const NAV_LINKS: Array<{ label: string; path: string; highlight?: boolean }> = [
   { label: "Trang chủ", path: ROUTER_URL.HOME },
   { label: "Menu", path: ROUTER_URL.MENU },
-  { label: "Đơn hàng của tôi", path: ROUTER_URL.CUSTOMER_ORDER_HISTORY },
   { label: "Hệ thống cửa hàng", path: ROUTER_URL.STORE_LOCATOR },
   { label: "Liên hệ", path: ROUTER_URL.CONTACT },
 ];
@@ -162,6 +161,7 @@ const ClientHeader = () => {
                     <div className="py-1">
                       {[
                         { icon: "👤", label: "Thông tin cá nhân", path: ROUTER_URL.CUSTOMER_PROFILE },
+                        { icon: "🔒", label: "Đổi mật khẩu", path: ROUTER_URL.CUSTOMER_CHANGE_PASSWORD },
                         { icon: "⭐", label: "Khách hàng thành viên", path: ROUTER_URL.CUSTOMER_MEMBERSHIP },
                         { icon: "📦", label: "Đơn hàng", path: ROUTER_URL.CUSTOMER_ORDER_HISTORY },
                         { icon: "🛒", label: "Giỏ hàng", path: ROUTER_URL.CUSTOMER_CART },
@@ -308,3 +308,5 @@ const ClientHeader = () => {
 };
 
 export default ClientHeader;
+
+

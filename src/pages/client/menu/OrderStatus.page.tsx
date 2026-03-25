@@ -1,8 +1,5 @@
-import { useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { cn } from "@/lib/utils";
 import LoadingLayout from "@/layouts/Loading.layout";
 import { ROUTER_URL } from "@/routes/router.const";
@@ -257,8 +254,6 @@ function OrderStatusFromApi({
   payment: PaymentData | null;
   fmt: (n: unknown) => string;
 }) {
-  const invoiceRef = useRef<HTMLDivElement>(null);
-  const [exporting, setExporting] = useState(false);
   const mappedStatus = getDeliveryTimelineStatus(order, delivery);
   const orderMode = resolveOrderMode(order, delivery);
   const isPickupFlow = orderMode === "PICKUP";
@@ -383,39 +378,14 @@ function OrderStatusFromApi({
   const voucherTypeText = String((order as any).voucher_type ?? "").toUpperCase();
   const promotionPercentText = promotionTypeText.includes("PERCENT") && toNumber((order as any).promotion_value) > 0
     ? `${toNumber((order as any).promotion_value)}%`
-    : null;  const voucherPercentText = voucherTypeText.includes("PERCENT") && toNumber((order as any).voucher_value) > 0
+    : null;
+  const voucherPercentText = voucherTypeText.includes("PERCENT") && toNumber((order as any).voucher_value) > 0
     ? `${toNumber((order as any).voucher_value)}%`
     : null;
-  const handleExportPDF = async () => {
-    if (!invoiceRef.current) return;
-    setExporting(true);
-    try {
-      const el = invoiceRef.current;
-      await new Promise((r) => setTimeout(r, 80));
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const imgH = (canvas.height * pageW) / canvas.width;
-      let y = 0;
-      while (y < imgH) {
-        if (y > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, -y, pageW, imgH);
-        y += pageH;
-      }
-      const code = String((order as any).code ?? (order as any)._id ?? (order as any).id ?? "donhang");
-      pdf.save(`HoaDon_${code}.pdf`);
-    } catch (err) {
-      console.error("Export PDF failed:", err);
-    } finally {
-      setExporting(false);
-    }
-  };
-
   return (
     <div className="bg-[#faf8f4] min-h-screen text-[#3d2b1f]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5">        <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => window.history.back()}
@@ -429,24 +399,6 @@ function OrderStatusFromApi({
           >
             Xem đơn hàng
           </Link>
-          <button
-            type="button"
-            onClick={handleExportPDF}
-            disabled={exporting}
-            className="px-3 py-2 rounded-lg border border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-semibold flex items-center gap-1.5 disabled:opacity-60 transition-colors"
-          >
-            {exporting ? (
-              <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-              </svg>
-            ) : (
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-              </svg>
-            )}
-            {exporting ? "Đang xuất..." : "Xuất hóa đơn PDF"}
-          </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 items-start">
@@ -709,160 +661,12 @@ function OrderStatusFromApi({
                     Thanh toán
                   </Link>
                 ) : null}
-        <Link to="/menu" className="block text-center w-full py-3 bg-[#d4832a] hover:bg-[#a05e10] text-white rounded-xl font-semibold text-sm">
+                <Link to="/menu" className="block text-center w-full py-3 bg-[#d4832a] hover:bg-[#a05e10] text-white rounded-xl font-semibold text-sm">
                   Đặt thêm đơn mới
                 </Link>
               </div>
             </div>
           </div>
-        </div>
-      </div>      {/* ── Hidden invoice template for PDF export ── */}
-      <div
-        ref={invoiceRef}
-        style={{
-          position: "fixed", top: 0, left: "-9999px", width: "794px",
-          pointerEvents: "none", zIndex: -1,
-          fontFamily: "'Segoe UI', Arial, sans-serif",
-          background: "#ffffff", color: "#1a1a1a",
-          padding: "40px 48px 48px", boxSizing: "border-box",
-        }}
-      >
-        {/* ── Header ── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "20px", borderBottom: "1.5px solid #f59e0b", marginBottom: "28px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <img src="/logo-hylux.png" alt="Hylux" style={{ width: "56px", height: "56px", borderRadius: "12px", objectFit: "cover" }} />
-            <div>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#d97706", letterSpacing: "0.5px" }}>HYLUX COFFEE</div>
-              <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "3px" }}>Hệ thống quản lý cửa hàng cà phê</div>
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#111827" }}>HÓA ĐƠN</div>
-            <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>Ngày xuất: {new Date().toLocaleDateString("vi-VN")}</div>
-          </div>
-        </div>
-
-        {/* ── Order code badge ── */}
-        <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "8px", padding: "11px 18px", marginBottom: "24px", display: "flex", alignItems: "center" }}>
-          <span style={{ fontSize: "13px", color: "#78716c", marginRight: "8px" }}>Mã đơn hàng:</span>
-          <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 700, color: "#d97706" }}>{order.code}</span>
-          {franchiseName && <span style={{ marginLeft: "auto", fontSize: "13px", color: "#374151" }}>Cửa hàng: <strong>{franchiseName}</strong></span>}
-        </div>
-
-        {/* ── Info grid ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "28px" }}>
-          <div style={{ background: "#f9fafb", borderRadius: "8px", padding: "16px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px" }}>KHÁCH HÀNG</div>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "#111827", marginBottom: "4px" }}>{customerName}</div>
-            <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>SĐT: {phone}</div>
-            <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>Loại: {isPickupFlow ? "Tại quầy" : "Giao hàng Online"}</div>
-            {deliveryAddress && <div style={{ fontSize: "12px", color: "#6b7280" }}>Địa chỉ: {deliveryAddress}</div>}
-          </div>
-          <div style={{ background: "#f9fafb", borderRadius: "8px", padding: "16px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px" }}>THÔNG TIN ĐƠN</div>
-            {orderCreatedAt && <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>Đặt lúc: <strong style={{ color: "#111827" }}>{orderCreatedAt}</strong></div>}
-            {confirmedAt && <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>Xác nhận: <strong style={{ color: "#111827" }}>{confirmedAt}</strong></div>}
-            {completedAt && <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>Hoàn thành: <strong style={{ color: "#111827" }}>{completedAt}</strong></div>}
-            {cancelledAt && <div style={{ fontSize: "12px", color: "#dc2626", marginBottom: "3px" }}>Hủy lúc: <strong>{cancelledAt}</strong></div>}
-            {deliveryAssignedTo && <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>Người giao: <strong style={{ color: "#111827" }}>{deliveryAssignedTo}</strong></div>}
-            {deliveryShipperPhone && <div style={{ fontSize: "12px", color: "#6b7280" }}>SĐT shipper: <strong style={{ color: "#111827" }}>{deliveryShipperPhone}</strong></div>}
-          </div>
-        </div>
-
-        {/* ── Items table ── */}
-        <div style={{ marginBottom: "8px" }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px" }}>CHI TIẾT SẢN PHẨM</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-            <thead>
-              <tr style={{ background: "#f59e0b" }}>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, color: "#fff" }}>Sản phẩm</th>
-                <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "#fff", width: "54px" }}>SL</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: "#fff", width: "130px" }}>Đơn giá</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: "#fff", width: "130px" }}>Thành tiền</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(rawItems as any[]).map((item, idx) => {
-                const qty = toNumber(item.quantity ?? item.qty ?? 0);
-                const priceSnapshot = toNumber(item.price_snapshot ?? item.price ?? item.unit_price ?? 0);
-                const lineTotal = toNumber(item.line_total ?? item.lineTotal ?? item.total ?? 0) || priceSnapshot * qty;
-                const name = item.product_name_snapshot ?? item.product_name ?? item.name ?? "Sản phẩm";
-                const itemMeta = getOrderItemDisplayMeta(item as Record<string, unknown>);
-                return (
-                  <tr key={item._id ?? item.id ?? idx} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                    <td style={{ padding: "10px 14px", verticalAlign: "top" }}>
-                      <div style={{ fontWeight: 600, color: "#111827" }}>{name}</div>
-                      {itemMeta.inlineMeta && <div style={{ fontSize: "10px", color: "#9ca3af", marginTop: "2px" }}>{itemMeta.inlineMeta}</div>}
-                      {itemMeta.toppings.length > 0 && <div style={{ fontSize: "10px", color: "#92400e", marginTop: "2px" }}>Topping: {itemMeta.toppings.map(t => `${t.name} x${t.quantity}`).join(", ")}</div>}
-                      {itemMeta.noteText && <div style={{ fontSize: "10px", color: "#9ca3af", fontStyle: "italic", marginTop: "2px" }}>Ghi chú: {itemMeta.noteText}</div>}
-                    </td>
-                    <td style={{ padding: "10px 14px", textAlign: "center", color: "#374151" }}>{qty}</td>
-                    <td style={{ padding: "10px 14px", textAlign: "right", color: "#6b7280" }}>{fmt(priceSnapshot)}</td>
-                    <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: "#d97706" }}>{fmt(lineTotal)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ── Totals ── */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "24px", marginTop: "8px" }}>
-          <div style={{ width: "320px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px", color: "#374151" }}>
-              <span>Tạm tính</span><span style={{ fontWeight: 500 }}>{fmt(subtotalAmount)}</span>
-            </div>
-            {(promotionDiscount ?? 0) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px" }}>
-                <span style={{ color: "#16a34a" }}>Giảm khuyến mãi{promotionPercentText ? ` (${promotionPercentText})` : ""}</span>
-                <span style={{ color: "#16a34a", fontWeight: 600 }}>-{fmt(promotionDiscount)}</span>
-              </div>
-            )}
-            {(voucherDiscount ?? 0) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px" }}>
-                <span style={{ color: "#16a34a" }}>Giảm voucher{voucherPercentText ? ` (${voucherPercentText})` : ""}</span>
-                <span style={{ color: "#16a34a", fontWeight: 600 }}>-{fmt(voucherDiscount)}</span>
-              </div>
-            )}
-            {(loyaltyDiscount ?? 0) > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px" }}>
-                <span style={{ color: "#16a34a" }}>Điểm thưởng</span>
-                <span style={{ color: "#16a34a", fontWeight: 600 }}>-{fmt(loyaltyDiscount)}</span>
-              </div>
-            )}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 18px", background: "#f59e0b", borderRadius: "8px", marginTop: "10px" }}>
-              <span style={{ color: "#fff", fontWeight: 800, fontSize: "15px", letterSpacing: "0.5px" }}>TỔNG CỘNG</span>
-              <span style={{ color: "#fff", fontWeight: 800, fontSize: "18px" }}>{fmt(finalAmount)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Payment block ── */}
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: "8px", padding: "16px 18px", marginBottom: "28px" }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "12px" }}>THANH TOÁN</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: "8px", columnGap: "24px", fontSize: "13px" }}>
-            <div><span style={{ color: "#6b7280" }}>Phương thức: </span><strong style={{ color: "#111827" }}>{payment?.method ? fmtPaymentMethod(payment.method) : "—"}</strong></div>
-            <div>
-              {payment?.status && (
-                <><span style={{ color: "#6b7280" }}>Trạng thái: </span>
-                <strong style={{ color: isPaidPayment(payment.status) ? "#16a34a" : "#d97706" }}>
-                  {isPaidPayment(payment.status) ? "✓ Đã thanh toán" : "⏳ Chờ thanh toán"}
-                </strong></>
-              )}
-            </div>
-            <div><span style={{ color: "#6b7280" }}>Số tiền: </span><strong style={{ color: "#111827" }}>{fmt(payment?.amount ?? finalAmount)}</strong></div>
-            <div>
-              {paymentCreatedAt && (
-                <><span style={{ color: "#6b7280" }}>Thời gian: </span><strong style={{ color: "#111827" }}>{paymentCreatedAt}</strong></>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Footer ── */}
-        <div style={{ textAlign: "center", paddingTop: "20px", borderTop: "1px solid #e5e7eb" }}>
-          <div style={{ fontSize: "14px", fontWeight: 700, color: "#d97706", marginBottom: "4px" }}>Cảm ơn quý khách đã sử dụng dịch vụ của HYLUX COFFEE! ☕</div>
-          <div style={{ fontSize: "11px", color: "#9ca3af" }}>Hóa đơn được xuất tự động — {new Date().toLocaleString("vi-VN")}</div>
         </div>
       </div>
     </div>

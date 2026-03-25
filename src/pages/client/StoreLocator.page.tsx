@@ -1,256 +1,347 @@
-import { useState } from "react";
-import MapboxMap from "../../components/map/MapboxMap";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { clientService, type ClientFranchiseDetail } from "../../services/client.service";
 
-interface Store {
-  id: number;
+type StoreListItem = {
+  id: string;
+  code: string;
+  name: string;
+};
+
+type StoreDetailViewModel = {
+  id: string;
+  code: string;
   name: string;
   address: string;
-  district: string;
-  city: string;
-  lat: number;
-  lng: number;
   phone: string;
   hours: string;
   isOpen: boolean;
-  hasWifi: boolean;
-  hasCardPayment: boolean;
+  logoUrl: string;
+  mapEmbedUrl: string | null;
+  mapLink: string | null;
+};
+
+function parseMinutes(value?: string): number | null {
+  if (!value) return null;
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
 }
 
-const stores: Store[] = [
-  {
-    id: 1,
-    name: "HYLUX COFFEE 270 VÕ THỊ SÁU - QUẬN 3",
-    address: "270L Võ Thị Sáu, Phường 7",
-    district: "Quận 3",
-    city: "TP. Hồ Chí Minh",
-    lat: 10.776889,
-    lng: 106.700806,
-    phone: "028 7300 3426",
-    hours: "7:00 - 23:00",
-    isOpen: true,
-    hasWifi: true,
-    hasCardPayment: true,
-  },
-  {
-    id: 2,
-    name: "HYLUX COFFEE LƯƠNG KHẢI SIÊU - THỦ ĐỨC",
-    address: "6 Lương Khải Siêu, Phường Bình Thọ",
-    district: "Thủ Đức",
-    city: "TP. Hồ Chí Minh",
-    lat: 10.850813,
-    lng: 106.771553,
-    phone: "028 7300 3007",
-    hours: "7:00 - 23:00",
-    isOpen: true,
-    hasWifi: true,
-    hasCardPayment: true,
-  },
-  {
-    id: 3,
-    name: "HYLUX COFFEE NGUYỄN VĂN TRỖI - QUẬN 1",
-    address: "123 Nguyễn Văn Trỗi, Phường Bến Thành",
-    district: "Quận 1",
-    city: "TP. Hồ Chí Minh",
-    lat: 10.778526,
-    lng: 106.691639,
-    phone: "028 7300 4500",
-    hours: "6:30 - 23:30",
-    isOpen: true,
-    hasWifi: true,
-    hasCardPayment: true,
-  },
-];
+function getOpenStatus(opensAt?: string, closesAt?: string, isActive?: boolean): boolean {
+  if (isActive === false) return false;
+  const openMinutes = parseMinutes(opensAt);
+  const closeMinutes = parseMinutes(closesAt);
+  if (openMinutes == null || closeMinutes == null) return false;
 
-const cities = ["TP. Hồ Chí Minh", "Hà Nội", "Đà Nẵng"];
-const districts = ["Tất cả", "Quận 1", "Quận 3", "Quận 5", "Quận 7", "Thủ Đức", "Bình Thạnh"];
-const amenities = ["Tất cả", "Wifi Miễn Phí", "Thanh toán thẻ", "Bãi đậu xe"];
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-const StoreLocatorPage = () => {
-  const [selectedStore, setSelectedStore] = useState<Store | null>(stores[0]);
+  if (closeMinutes < openMinutes) {
+    return currentMinutes >= openMinutes || currentMinutes <= closeMinutes;
+  }
+
+  return currentMinutes >= openMinutes && currentMinutes <= closeMinutes;
+}
+
+function extractMapEmbedUrl(mapScript?: string): string | null {
+  if (!mapScript) return null;
+  const trimmed = mapScript.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const iframeSrc = trimmed.match(/src=["']([^"']+)["']/i)?.[1];
+  return iframeSrc ?? null;
+}
+
+function extractCoordsFromText(value?: string): { lat: number | null; lng: number | null } {
+  if (!value) return { lat: null, lng: null };
+
+  const pairMatch = value.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+  if (pairMatch) {
+    return {
+      lat: Number(pairMatch[1]),
+      lng: Number(pairMatch[2]),
+    };
+  }
+
+  const llMatch = value.match(/[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/i);
+  if (llMatch) {
+    return {
+      lat: Number(llMatch[1]),
+      lng: Number(llMatch[2]),
+    };
+  }
+
+  const qMatch = value.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/i);
+  if (qMatch) {
+    return {
+      lat: Number(qMatch[1]),
+      lng: Number(qMatch[2]),
+    };
+  }
+
+  return { lat: null, lng: null };
+}
+
+function toStoreDetailViewModel(detail: ClientFranchiseDetail | null | undefined): StoreDetailViewModel | null {
+  if (!detail?.id) return null;
+
+  const mapEmbedUrl = extractMapEmbedUrl(detail.map_script);
+  const coords = extractCoordsFromText(`${detail.map_script ?? ""} ${detail.address ?? ""}`);
+  const phone = detail.hotline || detail.phone || "Chưa cập nhật hotline";
+  const address = detail.address || "Chưa cập nhật địa chỉ";
+  const mapLink =
+    coords.lat != null && coords.lng != null
+      ? `https://www.google.com/maps?q=${coords.lat},${coords.lng}`
+      : detail.address
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(detail.address)}`
+        : null;
+
+  return {
+    id: detail.id,
+    code: detail.code || "Chưa cập nhật mã cửa hàng",
+    name: detail.name || "Cửa hàng",
+    address,
+    phone,
+    hours: `${detail.opened_at || "--:--"} - ${detail.closed_at || "--:--"}`,
+    isOpen: getOpenStatus(detail.opened_at, detail.closed_at, detail.is_active),
+    logoUrl: detail.logo_url || "",
+    mapEmbedUrl,
+    mapLink,
+  };
+}
+
+export default function StoreLocatorPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCity, setSelectedCity] = useState("TP. Hồ Chí Minh");
-  const [selectedDistrict, setSelectedDistrict] = useState("Chọn Quận/Huyện");
-  const [selectedAmenity, setSelectedAmenity] = useState("Tiện ích");
+  const [selectedStoreId, setSelectedStoreId] = useState("");
 
-  const filteredStores = stores.filter((store) => {
-    const matchesSearch =
-      store.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      store.address.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCity = selectedCity === "Tất cả" || store.city === selectedCity;
-    const matchesDistrict =
-      selectedDistrict === "Chọn Quận/Huyện" ||
-      selectedDistrict === "Tất cả" ||
-      store.district === selectedDistrict;
-    return matchesSearch && matchesCity && matchesDistrict;
+  const {
+    data: franchiseOptions = [],
+    isLoading: isLoadingStores,
+    isError: isStoreListError,
+    error: storeListError,
+  } = useQuery({
+    queryKey: ["client-store-locator", "list"],
+    queryFn: () => clientService.getAllFranchises(),
+    staleTime: 60_000,
   });
 
+  const filteredStores = useMemo<StoreListItem[]>(() => {
+    const keyword = searchQuery.trim().toLowerCase();
+    return franchiseOptions.filter((store) => {
+      if (!keyword) return true;
+      return (
+        store.name.toLowerCase().includes(keyword) ||
+        (store.code ?? "").toLowerCase().includes(keyword)
+      );
+    });
+  }, [franchiseOptions, searchQuery]);
+
+  useEffect(() => {
+    if (!filteredStores.length) {
+      setSelectedStoreId("");
+      return;
+    }
+
+    const exists = filteredStores.some((store) => store.id === selectedStoreId);
+    if (!exists) {
+      setSelectedStoreId(filteredStores[0].id);
+    }
+  }, [filteredStores, selectedStoreId]);
+
+  const {
+    data: selectedStoreDetail,
+    isLoading: isLoadingSelectedStore,
+    isError: isSelectedStoreError,
+    error: selectedStoreError,
+  } = useQuery({
+    queryKey: ["client-store-locator", "detail", selectedStoreId],
+    queryFn: () => clientService.getFranchiseDetail(selectedStoreId),
+    enabled: !!selectedStoreId,
+    staleTime: 60_000,
+  });
+
+  const selectedStore = useMemo(
+    () => toStoreDetailViewModel(selectedStoreDetail),
+    [selectedStoreDetail],
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Search Bar Section */}
-      <div className="bg-white border-b sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            {/* Country Selector */}
-            <select className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer min-w-[140px]">
-              <option>Việt Nam</option>
-            </select>
-
-            {/* City Selector */}
-            <select
-              value={selectedCity}
-              onChange={(e) => setSelectedCity(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer min-w-[180px]"
-            >
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-
-            {/* District Selector */}
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer min-w-[180px]"
-            >
-              <option value="Chọn Quận/Huyện">Chọn Quận/Huyện</option>
-              {districts.map((district) => (
-                <option key={district} value={district}>
-                  {district}
-                </option>
-              ))}
-            </select>
-
-            {/* Amenity Selector */}
-            <select
-              value={selectedAmenity}
-              onChange={(e) => setSelectedAmenity(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer min-w-[140px]"
-            >
-              <option value="Tiện ích">Tiện ích</option>
-              {amenities.map((amenity) => (
-                <option key={amenity} value={amenity}>
-                  {amenity}
-                </option>
-              ))}
-            </select>
-
-            {/* Search Input */}
-            <input
-              type="text"
-              placeholder="Nhập tên đường, hoặc quán..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 min-w-[200px] px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            />
-
-            {/* Search Button */}
-            <button className="px-6 py-2.5 bg-amber-900 hover:bg-amber-800 text-white font-semibold rounded-lg transition-colors flex items-center gap-2">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              Tìm kiếm
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex h-[calc(100vh-140px)]">
-        {/* Store List */}
-        <div className="w-[400px] bg-white border-r overflow-y-auto">
-          {/* Results Count */}
-          <div className="px-4 py-3 border-b bg-gray-50">
-            <p className="text-gray-700 font-medium">
-              Tìm được <span className="text-red-900 font-bold">{filteredStores.length}</span> quán
+    <div className="min-h-screen bg-stone-50">
+      <div className="border-b border-stone-200 bg-white">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 lg:px-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
+              Hệ thống cửa hàng
+            </p>
+            <h1 className="mt-2 text-3xl font-bold text-stone-900">
+              Chọn cửa hàng để xem thông tin chi tiết
+            </h1>
+            <p className="mt-2 max-w-3xl text-sm text-stone-600">
+              Chọn một cửa hàng trong danh sách để xem địa chỉ, hotline, giờ hoạt động và bản đồ của cửa hàng đó.
             </p>
           </div>
 
-          {/* Store Cards */}
-          <div className="divide-y">
-            {filteredStores.map((store) => (
-              <button
-                key={store.id}
-                onClick={() => setSelectedStore(store)}
-                className={`w-full text-left px-4 py-4 hover:bg-gray-50 transition-colors ${
-                  selectedStore?.id === store.id ? "bg-blue-50 border-l-4 border-red-900" : ""
-                }`}
-              >
-                <h3 className="font-bold text-gray-900 mb-1 uppercase text-sm">
-                  {store.name}
-                </h3>
-                <p className="text-sm text-gray-600 mb-2">{store.address}, {store.district}, {store.city}</p>
-                
-                <div className="flex items-center gap-2 mb-2">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                  </svg>
-                  <span className="text-sm text-gray-700">{store.phone}</span>
-                </div>
-
-                <div className="flex items-center gap-3 mb-3">
-                  <span className={`text-xs font-bold px-2 py-1 rounded ${store.isOpen ? 'bg-red-600 text-white' : 'bg-gray-400 text-white'}`}>
-                    {store.isOpen ? 'OPEN' : 'CLOSED'}
-                  </span>
-                  <span className="text-xs text-gray-600">
-                    {store.hours} • 7 ngày/ tuần
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {store.hasWifi && (
-                    <div className="flex items-center gap-1 text-xs text-gray-600">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                      </svg>
-                      <span>Wifi Miễn Phí</span>
-                    </div>
-                  )}
-                  {store.hasCardPayment && (
-                    <div className="flex items-center gap-1 text-xs text-gray-600">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                      </svg>
-                      <span>Thanh toán bằng thẻ</span>
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Map */}
-        <div className="flex-1 relative">
-          <MapboxMap
-            center={
-              selectedStore
-                ? { lat: selectedStore.lat, lng: selectedStore.lng }
-                : { lat: 10.776889, lng: 106.700806 }
-            }
-            zoom={13}
-            markers={filteredStores.map((store) => ({
-              lat: store.lat,
-              lng: store.lng,
-              name: store.name,
-              address: `${store.address}, ${store.district}`,
-            }))}
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Nhập tên hoặc mã cửa hàng..."
+            className="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
           />
         </div>
       </div>
+
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-6">
+        <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+          <div className="border-b border-stone-100 bg-stone-50 px-4 py-3">
+            <p className="text-sm font-medium text-stone-700">
+              {isLoadingStores ? "Đang tải danh sách cửa hàng..." : `Tìm thấy ${filteredStores.length} cửa hàng`}
+            </p>
+          </div>
+
+          <div className="max-h-[70vh] overflow-y-auto">
+            {isLoadingStores && (
+              <div className="space-y-3 p-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="animate-pulse rounded-2xl border border-stone-200 p-4">
+                    <div className="h-4 w-2/3 rounded bg-stone-200" />
+                    <div className="mt-3 h-3 w-1/2 rounded bg-stone-100" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!isLoadingStores && isStoreListError && (
+              <div className="p-4">
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  Không thể tải danh sách cửa hàng. {(storeListError as Error)?.message || "Vui lòng thử lại sau."}
+                </div>
+              </div>
+            )}
+
+            {!isLoadingStores && !isStoreListError && filteredStores.length === 0 && (
+              <div className="p-4">
+                <div className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-8 text-center text-sm text-stone-600">
+                  Không tìm thấy cửa hàng phù hợp.
+                </div>
+              </div>
+            )}
+
+            {!isLoadingStores &&
+              !isStoreListError &&
+              filteredStores.map((store) => (
+                <button
+                  key={store.id}
+                  type="button"
+                  onClick={() => setSelectedStoreId(store.id)}
+                  className={`w-full border-b border-stone-100 px-4 py-4 text-left transition hover:bg-amber-50/50 ${
+                    selectedStoreId === store.id ? "bg-amber-50" : "bg-white"
+                  }`}
+                >
+                    <p className="text-sm font-bold uppercase tracking-wide text-stone-900">{store.name}</p>
+                    <p className="mt-1 text-xs text-stone-500">{store.code || "Chưa cập nhật mã cửa hàng"}</p>
+                </button>
+              ))}
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
+            <div className="border-b border-stone-100 px-5 py-4">
+              <h2 className="text-xl font-bold text-stone-900">
+                {selectedStore?.name || "Thong tin cua hang"}
+              </h2>
+              <p className="mt-1 text-sm text-stone-500">
+                {selectedStore?.code ? `Mã cửa hàng: ${selectedStore.code}` : "Chọn cửa hàng để xem chi tiết"}
+              </p>
+            </div>
+
+            {!selectedStoreId && (
+              <div className="p-5 text-sm text-stone-600">Chọn một cửa hàng để xem thông tin chi tiết.</div>
+            )}
+
+            {selectedStoreId && isLoadingSelectedStore && (
+              <div className="space-y-4 p-5">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="animate-pulse rounded-2xl bg-stone-50 p-4">
+                      <div className="h-3 w-24 rounded bg-stone-200" />
+                      <div className="mt-3 h-4 w-2/3 rounded bg-stone-100" />
+                    </div>
+                  ))}
+                </div>
+                <div className="h-48 animate-pulse rounded-3xl bg-stone-100" />
+              </div>
+            )}
+
+            {selectedStoreId && !isLoadingSelectedStore && isSelectedStoreError && (
+              <div className="p-5">
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  Không thể tải thông tin cửa hàng này. {(selectedStoreError as Error)?.message || "Vui lòng thử lại sau."}
+                </div>
+              </div>
+            )}
+
+            {selectedStoreId && !isLoadingSelectedStore && !isSelectedStoreError && selectedStore && (
+              <div className="p-5">
+                <div className="space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Địa chỉ</p>
+                      <p className="mt-2 text-sm font-medium text-stone-900">{selectedStore.address}</p>
+                    </div>
+
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Hotline</p>
+                      <p className="mt-2 text-sm font-medium text-stone-900">{selectedStore.phone}</p>
+                    </div>
+
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Giờ hoạt động</p>
+                      <p className="mt-2 text-sm font-medium text-stone-900">{selectedStore.hours}</p>
+                    </div>
+
+                    <div className="rounded-2xl bg-stone-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">Trang thai</p>
+                      <p className="mt-2 text-sm font-medium text-stone-900">
+                        {selectedStore.isOpen ? "Đang phục vụ" : "Ngoài giờ hoặc đang tạm dừng"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedStore.mapLink && (
+                    <a
+                      href={selectedStore.mapLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-2xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-700"
+                    >
+                      Mở bản đồ của cửa hàng
+                    </a>
+                  )}
+
+                  {selectedStore.mapEmbedUrl ? (
+                    <div className="overflow-hidden rounded-3xl border border-stone-200">
+                      <iframe
+                        title={`Ban do ${selectedStore.name}`}
+                        src={selectedStore.mapEmbedUrl}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        className="h-[420px] w-full border-0"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
-};
-
-export default StoreLocatorPage;
+}

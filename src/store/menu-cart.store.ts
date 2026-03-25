@@ -31,6 +31,7 @@ type MenuCartState = {
   cartIds: string[];
   carts: CartEntry[];
   hydrate: () => void;
+  clearItemsOnly: () => void;
   addItem: (product: MenuProduct, options: MenuItemOptions, quantity: number) => void;
   replaceItemAt: (replaceCartKey: string, product: MenuProduct, options: MenuItemOptions, quantity: number) => void;
   updateQuantity: (cartKey: string, quantity: number) => void;
@@ -84,6 +85,11 @@ export const useMenuCartStore = create<MenuCartState>((set, get) => ({
     const savedCartId = getItem<string>(CART_ID_KEY) || null;
     const savedIds = getItem<string[]>(CART_IDS_KEY) || (savedCartId ? [savedCartId] : []);
     set({ items: saved, cartId: savedCartId, cartIds: savedIds, carts: savedIds.map((id) => ({ cartId: id })), isInitialized: true });
+  },
+
+  clearItemsOnly: () => {
+    setItem(STORAGE_KEY, []);
+    set({ items: [] });
   },
 
   addItem: (product, options, quantity) => {
