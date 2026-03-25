@@ -18,7 +18,6 @@ import { useAuthStore } from "../../../store";
 const ITEMS_PER_PAGE = 10;
 
 const STATUS_OPTIONS = [
-  { value: "DRAFT",            label: "Nháp" },
   { value: "CONFIRMED",        label: "Đã xác nhận" },
   { value: "PREPARING",        label: "Đang chuẩn bị" },
   { value: "READY_FOR_PICKUP", label: "Sẵn sàng lấy hàng" },
@@ -29,6 +28,7 @@ const STATUS_OPTIONS = [
 const OrderListPage = () => {
   const managerFranchiseId = useManagerFranchiseId();
   const { user } = useAuthStore();
+  const isShipper = ((user?.active_context as { role?: string } | null)?.role ?? user?.role ?? "").toUpperCase() === "SHIPPER";
 
   const [orders, setOrders] = useState<OrderDisplay[]>([]);
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
@@ -37,22 +37,17 @@ const OrderListPage = () => {
   const [statusFilter, setStatusFilter] = useState("");  const [currentPage, setCurrentPage] = useState(1);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   // inline status popover
-  const [statusPopoverId, setStatusPopoverId] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [staffList, setStaffList] = useState<UserFranchiseRole[]>([]);
   const [assignPopoverId, setAssignPopoverId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [assignSearch, setAssignSearch] = useState("");
-  const popoverRef = useRef<HTMLDivElement | null>(null);
   const assignPopoverRef = useRef<HTMLDivElement | null>(null);
   const loadedFranchiseRef = useRef<string | null>(null);
   const activeFranchiseId = managerFranchiseId ?? selectedFranchiseId;
   // close popover on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setStatusPopoverId(null);
-      }
       if (assignPopoverRef.current && !assignPopoverRef.current.contains(e.target as Node)) {
         setAssignPopoverId(null);
       }
@@ -64,7 +59,6 @@ const OrderListPage = () => {
   // ─── Quick status update ──────────────────────────────────────────────────────
   const handleQuickStatus = async (orderId: string, newStatus: OrderStatus) => {
     setUpdatingId(orderId);
-    setStatusPopoverId(null);
     try {
       const adminId = user?.user?.id || user?.id || "1";
       const updated = await updateOrderStatus(orderId, newStatus, adminId);
@@ -192,6 +186,7 @@ const OrderListPage = () => {
         <div className="flex flex-wrap items-end gap-3">
 
           {/* Chi nhánh */}
+          {!isShipper && (
           <div className="min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Chi nhánh</label>
             {managerFranchiseId ? (
@@ -211,7 +206,8 @@ const OrderListPage = () => {
                 allLabel="-- Tất cả franchise --"
               />
             )}
-          </div>          {/* Trạng thái */}
+          </div>
+          )}          {/* Trạng thái */}
           <div className="min-w-[180px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</label>
             <GlassSearchSelect
@@ -225,10 +221,12 @@ const OrderListPage = () => {
           </div>
 
           {/* Đặt lại */}
+          {!isShipper && (
           <div className="space-y-1.5">
             <label className="invisible block text-xs">&nbsp;</label>
             <Button onClick={handleResetFilter} variant="outline">Đặt lại</Button>
           </div>
+          )}
         </div>
 
         {activeFranchiseId && (
@@ -300,31 +298,11 @@ const OrderListPage = () => {
                           ) : <span className="text-slate-400">—</span>}
                         </td>
                         <td className="px-4 py-3 text-slate-600">{ORDER_TYPE_LABELS[order.type] ?? order.type ?? "—"}</td>                        <td className="px-4 py-3">
-                          <div className="relative inline-block" ref={statusPopoverId === String(order._id ?? order.id) ? popoverRef : null}>
-                            <button
-                              onClick={() => setStatusPopoverId(prev => prev === String(order._id ?? order.id) ? null : String(order._id ?? order.id))}
-                              disabled={updatingId === String(order._id ?? order.id)}
-                              className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-opacity hover:opacity-75 cursor-pointer disabled:opacity-50 ${statusColor}`}
-                              title="Nhấn để đổi trạng thái"
-                            >
-                              {updatingId === String(order._id ?? order.id)
-                                ? "Đang cập nhật..."
-                                : ORDER_STATUS_LABELS[order.status] ?? order.status}
-                            </button>
-                            {statusPopoverId === String(order._id ?? order.id) && (
-                              <div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-xl border border-slate-200 bg-white shadow-xl">
-                                {STATUS_OPTIONS.map(opt => (
-                                  <button
-                                    key={opt.value}
-                                    onClick={() => handleQuickStatus(String(order._id ?? order.id), opt.value as OrderStatus)}
-                                    className={`w-full px-3 py-2 text-left text-xs font-medium transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-primary-50 hover:text-primary-700 ${order.status === opt.value ? "bg-primary-50 text-primary-700 font-semibold" : "text-slate-700"}`}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
+                          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusColor}`}>
+                            {updatingId === String(order._id ?? order.id)
+                              ? "Đang cập nhật..."
+                              : ORDER_STATUS_LABELS[order.status] ?? ORDER_STATUS_LABELS[order.status.replace("CANCELED", "CANCELLED") as OrderStatus] ?? order.status}
+                          </span>
                         </td>                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
                           {order.created_at ? new Date(order.created_at).toLocaleString("vi-VN") : "—"}                        </td>
                         <td className="px-4 py-3">

@@ -1,4 +1,4 @@
-import type { IceLevel, SugarLevel, Topping } from "@/types/menu.types";
+﻿import type { IceLevel, SugarLevel, Topping } from "@/types/menu.types";
 import { ICE_LEVELS, SUGAR_LEVELS, TOPPINGS } from "@/types/menu.types";
 
 export type ParsedCartSelectionNote = {
@@ -8,6 +8,46 @@ export type ParsedCartSelectionNote = {
   userNote?: string;
 };
 
+type CartOptionLike = {
+  quantity?: number;
+  name?: string;
+  product_name?: string;
+  product_name_snapshot?: string;
+};
+
+const ICE_LABEL = "Lượng đá";
+const SUGAR_LABEL = "Lượng đường";
+const NOTE_LABEL = "Ghi chú";
+
+const ICE_PREFIXES = [ICE_LABEL, "Luong da", "ICE", "LÆ°á»£ng Ä‘á", "LÃ†Â°Ã¡Â»Â£ng Ã„â€˜ÃƒÂ¡"];
+const SUGAR_PREFIXES = [SUGAR_LABEL, "Luong duong", "SUGAR", "LÆ°á»£ng Ä‘Æ°á»ng", "LÃ†Â°Ã¡Â»Â£ng Ã„â€˜Ã†Â°Ã¡Â»Âng"];
+const NOTE_PREFIXES = [NOTE_LABEL, "Ghi chu", "NOTE", "Ghi chÃº", "Ghi chÃƒÂº"];
+const TOPPING_PREFIXES = ["Topping", "TOPPING"];
+
+function startsWithAnyPrefix(segment: string, prefixes: string[]) {
+  const trimmed = segment.trim();
+  const lowered = trimmed.toLowerCase();
+
+  return prefixes.some((prefix) => {
+    const normalizedPrefix = prefix.trim().toLowerCase();
+    return lowered.startsWith(`${normalizedPrefix}:`) || lowered.startsWith(`${normalizedPrefix} :`);
+  });
+}
+
+function stripAnyPrefix(segment: string, prefixes: string[]) {
+  const trimmed = segment.trim();
+  const lowered = trimmed.toLowerCase();
+
+  for (const prefix of prefixes) {
+    const normalizedPrefix = prefix.trim().toLowerCase();
+    if (lowered.startsWith(normalizedPrefix)) {
+      return trimmed.slice(prefix.length).replace(/^[:\s-]+/, "").trim();
+    }
+  }
+
+  const colonIndex = trimmed.indexOf(":");
+  return (colonIndex >= 0 ? trimmed.slice(colonIndex + 1) : trimmed).trim();
+}
 
 export function aggregateToppings(toppings: Topping[]) {
   const map = new Map<string, { topping: Topping; quantity: number }>();
@@ -25,20 +65,10 @@ export function buildCartSelectionNote(opts: {
   toppings?: Topping[];
   userNote?: string;
 }) {
-  const toppings = opts.toppings ?? [];
-  const toppingAgg = aggregateToppings(toppings);
-  const toppingStr =
-    toppingAgg.length > 0
-      ? toppingAgg
-          .map(({ topping, quantity }) => `${topping.name} x${quantity}`)
-          .join("; ")
-      : "";
-
   const parts: string[] = [];
-  parts.push(`Lượng đá: ${opts.ice}`);
-  parts.push(`Lượng đường: ${opts.sugar}`);
-  if (toppingStr) parts.push(`Topping: ${toppingStr}`);
-  if (opts.userNote?.trim()) parts.push(`Ghi chú: ${opts.userNote.trim()}`);
+  parts.push(`${ICE_LABEL}: ${opts.ice}`);
+  parts.push(`${SUGAR_LABEL}: ${opts.sugar}`);
+  if (opts.userNote?.trim()) parts.push(`${NOTE_LABEL}: ${opts.userNote.trim()}`);
   return parts.join(" | ");
 }
 
@@ -50,56 +80,53 @@ function parseFromPrefixedSegments(note: string): ParsedCartSelectionNote {
 
   const result: ParsedCartSelectionNote = {};
   for (const seg of segments) {
-    const lower = seg.toLowerCase();
-    if (lower.startsWith("lượng đường:".toLowerCase())) {
-      const v = seg.replace(/lượng đường:\s*/i, "").trim();
+    if (startsWithAnyPrefix(seg, SUGAR_PREFIXES)) {
+      const v = stripAnyPrefix(seg, SUGAR_PREFIXES);
       const match = SUGAR_LEVELS.find((s) => s === v);
       if (match) result.sugar = match;
       continue;
     }
-    if (lower.startsWith("lượng đá:".toLowerCase())) {
-      const v = seg.replace(/lượng đá:\s*/i, "").trim();
+
+    if (startsWithAnyPrefix(seg, ICE_PREFIXES)) {
+      const v = stripAnyPrefix(seg, ICE_PREFIXES);
       const match = ICE_LEVELS.find((s) => s === v);
       if (match) result.ice = match;
       continue;
-    }    if (lower.startsWith("topping:".toLowerCase())) {
-      const raw = seg.replace(/topping:\s*/i, "").trim();
-      // raw example: "Trân Châu Đen x2; Thạch Dừa x1"
-      // Strategy: extract all "SomeName xN" and "SomeName" tokens from raw,
-      // then map each token back to the closest TOPPINGS entry by substring match.
-      const found: Array<{ name: string; quantity: number }> = [];
+    }
 
-      // Split by ; or , to get individual topping tokens
+    if (startsWithAnyPrefix(seg, TOPPING_PREFIXES)) {
+      const raw = stripAnyPrefix(seg, TOPPING_PREFIXES);
+      const found: Array<{ name: string; quantity: number }> = [];
       const tokens = raw.split(/[;,]+/).map((s) => s.trim()).filter(Boolean);
       const normalize = (s: string) =>
         s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
       for (const token of tokens) {
-        // Try to extract "Name xN" or just "Name"
         const qtyMatch = token.match(/^(.*?)\s*x\s*(\d+)\s*$/i);
         const tokenName = qtyMatch ? qtyMatch[1].trim() : token.trim();
         const quantity = qtyMatch ? Number(qtyMatch[2]) : 1;
         if (!tokenName) continue;
 
         const normToken = normalize(tokenName);
-        // Find the best matching TOPPINGS entry: prefer exact, then longest prefix match
         const sortedToppings = [...TOPPINGS].sort((a, b) => b.name.length - a.name.length);
         const matched = sortedToppings.find((t) => {
           const normT = normalize(t.name);
           return normToken === normT || normToken.startsWith(normT) || normT.startsWith(normToken);
         });
         if (matched) {
-          // Merge with existing entry for same topping
           const existing = found.find((f) => f.name === matched.name);
           if (existing) existing.quantity += quantity;
           else found.push({ name: matched.name, quantity });
         }
       }
+
       if (found.length > 0) result.toppings = found;
       continue;
     }
-    if (lower.startsWith("ghi chú:".toLowerCase())) {
-      result.userNote = seg.replace(/ghi chú:\s*/i, "").trim();
+
+    if (startsWithAnyPrefix(seg, NOTE_PREFIXES)) {
+      const cleaned = stripAnyPrefix(seg, NOTE_PREFIXES);
+      if (cleaned) result.userNote = cleaned;
     }
   }
   return result;
@@ -110,13 +137,19 @@ export function parseCartSelectionNote(note?: string | null): ParsedCartSelectio
   const n = String(note).trim();
   if (!n) return {};
 
-  // If note contains our newer formatted prefixes, parse strictly first.
-  const hasAnyPrefix = /lượng đá\s*:|lượng đường\s*:|topping\s*:|ghi chú\s*:/i.test(n);
+  const hasAnyPrefix =
+    startsWithAnyPrefix(n, ICE_PREFIXES) ||
+    startsWithAnyPrefix(n, SUGAR_PREFIXES) ||
+    startsWithAnyPrefix(n, TOPPING_PREFIXES) ||
+    startsWithAnyPrefix(n, NOTE_PREFIXES) ||
+    /luong da\s*:|luong duong\s*:|topping\s*:|ghi chu\s*:/i.test(
+      n.normalize("NFD").replace(/[\u0300-\u036f]/g, ""),
+    );
+
   if (hasAnyPrefix) {
     return parseFromPrefixedSegments(n);
   }
 
-  // Fallback: try to detect sugar/ice by inclusion, then toppings by known names.
   const result: ParsedCartSelectionNote = {};
   for (const ice of ICE_LEVELS) {
     if (n.toLowerCase().includes(ice.toLowerCase())) {
@@ -129,9 +162,9 @@ export function parseCartSelectionNote(note?: string | null): ParsedCartSelectio
       result.sugar = sugar;
       break;
     }
-  }  const toppingMatches: Array<{ name: string; quantity: number }> = [];
-  // Token-based approach: split remaining by ; or , then map each token to TOPPINGS by substring match.
-  // This correctly handles API names like "Trân Châu Đen x2" when TOPPINGS only has "Trân châu".
+  }
+
+  const toppingMatches: Array<{ name: string; quantity: number }> = [];
   const normalize = (s: string) =>
     s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const sortedToppings = [...TOPPINGS].sort((a, b) => b.name.length - a.name.length);
@@ -154,7 +187,6 @@ export function parseCartSelectionNote(note?: string | null): ParsedCartSelectio
   }
   if (toppingMatches.length > 0) result.toppings = toppingMatches;
 
-  // If we can't reliably split user note, keep it as userNote.
   result.userNote = n;
   return result;
 }
@@ -166,3 +198,67 @@ export function formatToppingsSummary(toppings?: Array<{ name: string; quantity:
     .join(", ");
 }
 
+function normalizeCompare(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function getCartOptionName(option: CartOptionLike): string {
+  return String(
+    option.product_name ??
+      option.product_name_snapshot ??
+      option.name ??
+      "",
+  ).trim();
+}
+
+export function formatCartOptionsSummary(options?: CartOptionLike[]) {
+  if (!options || options.length === 0) return "";
+  const aggregated = new Map<string, number>();
+
+  for (const option of options) {
+    const name = getCartOptionName(option);
+    if (!name) continue;
+    aggregated.set(name, (aggregated.get(name) ?? 0) + Math.max(1, option.quantity ?? 1));
+  }
+
+  if (aggregated.size === 0) return "";
+
+  return Array.from(aggregated.entries())
+    .map(([name, quantity]) => (quantity > 1 ? `${name} x${quantity}` : name))
+    .join(", ");
+}
+
+export function stripGeneratedCartNote(note?: string | null) {
+  if (!note) return undefined;
+  const segments = String(note)
+    .split("|")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  if (segments.length === 0) return undefined;
+
+  const kept = segments.flatMap((segment) => {
+    const normalized = normalizeCompare(segment);
+
+    if (startsWithAnyPrefix(segment, ICE_PREFIXES) || normalized.includes("luong da")) return [];
+    if (startsWithAnyPrefix(segment, SUGAR_PREFIXES) || normalized.includes("luong duong")) return [];
+    if (startsWithAnyPrefix(segment, TOPPING_PREFIXES) || normalized.startsWith("topping")) return [];
+    if (startsWithAnyPrefix(segment, NOTE_PREFIXES) || normalized.startsWith("ghi chu")) {
+      const cleaned = stripAnyPrefix(segment, NOTE_PREFIXES);
+      return cleaned ? [cleaned] : [];
+    }
+
+    return [segment];
+  });
+
+  const joined = kept
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .join(" | ")
+    .trim();
+  return joined || undefined;
+}

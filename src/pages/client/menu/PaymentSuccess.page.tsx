@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { cn } from "@/lib/utils";
 import LoadingLayout from "@/layouts/Loading.layout";
 import { ROUTER_URL } from "@/routes/router.const";
@@ -94,11 +92,10 @@ export default function PaymentSuccessPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const invoiceRef = useRef<HTMLDivElement>(null);
   const [isNavigatingToTracking, setIsNavigatingToTracking] = useState(false);
-  const [exporting, setExporting] = useState(false);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
   const handleTrackOrderClick = async () => {
     if (!orderId || isNavigatingToTracking) return;
 
@@ -112,32 +109,6 @@ export default function PaymentSuccessPage() {
       navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId));
     } catch {
       setIsNavigatingToTracking(false);
-    }
-  };
-
-  const handleExportPDF = async () => {
-    if (!invoiceRef.current || !order) return;
-    setExporting(true);
-    try {
-      const el = invoiceRef.current;
-      await new Promise((r) => setTimeout(r, 80));
-      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const imgH = (canvas.height * pageW) / canvas.width;
-      let y = 0;
-      while (y < imgH) {
-        if (y > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, -y, pageW, imgH);
-        y += pageH;
-      }
-      pdf.save(`HoaDon_${(order as any).code ?? orderId}.pdf`);
-    } catch (err) {
-      console.error("Export PDF failed:", err);
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -498,7 +469,9 @@ export default function PaymentSuccessPage() {
               </div>
             )}
           </div>
-        </div>        {/* ── CTA ── */}
+        </div>
+
+        {/* ── CTA ── */}
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             type="button"
@@ -509,21 +482,6 @@ export default function PaymentSuccessPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             Theo dõi đơn hàng
-          </button>
-          <button
-            type="button"
-            onClick={handleExportPDF}
-            disabled={exporting}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border-2 border-emerald-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 text-emerald-700 font-bold text-sm transition-all active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {exporting ? (
-              <div className="w-4 h-4 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              </svg>
-            )}
-            {exporting ? "Đang xuất..." : "Xuất hóa đơn PDF"}
           </button>
           <Link
             to={ROUTER_URL.MENU}
@@ -537,196 +495,6 @@ export default function PaymentSuccessPage() {
         </div>
 
         <p className="text-center text-xs text-gray-400 pb-2">Cảm ơn bạn đã tin tưởng <span className="font-semibold text-amber-600">Hylux Coffee</span> ☕</p>
-      </div>      {/* ── Hidden invoice template for PDF export ── */}
-      <div
-        ref={invoiceRef}
-        style={{
-          position: "fixed",
-          top: 0,
-          left: "-9999px",
-          width: "794px",
-          pointerEvents: "none",
-          zIndex: -1,
-          fontFamily: "'Segoe UI', Arial, sans-serif",
-          background: "#ffffff",
-          color: "#1a1a1a",
-          padding: "40px 48px 48px",
-          boxSizing: "border-box",
-        }}
-      >
-        {/* ── Header: logo + title ── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: "20px", borderBottom: "1.5px solid #f59e0b", marginBottom: "28px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-            <img
-              src="/logo-hylux.png"
-              alt="Hylux"
-              style={{ width: "56px", height: "56px", borderRadius: "12px", objectFit: "cover" }}
-            />
-            <div>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#d97706", letterSpacing: "0.5px" }}>HYLUX COFFEE</div>
-              <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "3px" }}>Hệ thống quản lý cửa hàng cà phê</div>
-            </div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "24px", fontWeight: 700, color: "#111827" }}>HÓA ĐƠN</div>
-            <div style={{ fontSize: "12px", color: "#9ca3af", marginTop: "4px" }}>Ngày xuất: {new Date().toLocaleDateString("vi-VN")}</div>
-          </div>
-        </div>
-
-        {/* ── Order code badge ── */}
-        <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "8px", padding: "11px 18px", marginBottom: "24px", display: "flex", alignItems: "center" }}>
-          <span style={{ fontSize: "13px", color: "#78716c", marginRight: "8px" }}>Mã đơn hàng:</span>
-          <span style={{ fontFamily: "monospace", fontSize: "14px", fontWeight: 700, color: "#d97706" }}>{(order as any)?.code}</span>
-          {(order as any)?.franchise?.name && (
-            <span style={{ marginLeft: "auto", fontSize: "13px", color: "#374151" }}>
-              Cửa hàng: <strong>{String((order as any).franchise.name)}</strong>
-            </span>
-          )}
-        </div>
-
-        {/* ── Info grid: KHÁCH HÀNG | THÔNG TIN ĐƠN ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "28px" }}>
-          {/* Khách hàng */}
-          <div style={{ background: "#f9fafb", borderRadius: "8px", padding: "16px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px" }}>KHÁCH HÀNG</div>
-            {customerName && <div style={{ fontSize: "14px", fontWeight: 700, color: "#111827", marginBottom: "4px" }}>{customerName}</div>}
-            {customerPhone && <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>SĐT: {customerPhone}</div>}
-            <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>
-              Loại: {(order as any)?.type === "POS" ? "Tại quầy" : "Giao hàng Online"}
-            </div>
-            {(order as any)?.delivery_address && (
-              <div style={{ fontSize: "12px", color: "#6b7280" }}>Địa chỉ: {String((order as any).delivery_address)}</div>
-            )}
-          </div>
-          {/* Thông tin đơn */}
-          <div style={{ background: "#f9fafb", borderRadius: "8px", padding: "16px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px" }}>THÔNG TIN ĐƠN</div>
-            {createdAt && <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>Đặt lúc: <strong style={{ color: "#111827" }}>{createdAt}</strong></div>}
-            {(order as any)?.status && (
-              <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "3px" }}>
-                Trạng thái: <strong style={{ color: "#d97706" }}>{String((order as any).status)}</strong>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Items table ── */}
-        {orderItems.length > 0 && (
-          <div style={{ marginBottom: "8px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "10px" }}>CHI TIẾT SẢN PHẨM</div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-              <thead>
-                <tr style={{ background: "#f59e0b" }}>
-                  <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, color: "#fff" }}>Sản phẩm</th>
-                  <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, color: "#fff", width: "54px" }}>SL</th>
-                  <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: "#fff", width: "130px" }}>Đơn giá</th>
-                  <th style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: "#fff", width: "130px" }}>Thành tiền</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orderItems.map((item: any, idx: number) => {
-                  const name = item.product_name_snapshot ?? item.product_name ?? item.name ?? "Sản phẩm";
-                  const qty = item.quantity ?? 1;
-                  const unitPrice = item.price_snapshot ?? item.price ?? 0;
-                  const lineTotal = item.line_total ?? item.subtotal ?? (unitPrice * qty);
-                  const itemMeta = getOrderItemDisplayMeta(item as Record<string, unknown>);
-                  return (
-                    <tr key={item._id ?? item.id ?? idx} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                      <td style={{ padding: "10px 14px", verticalAlign: "top" }}>
-                        <div style={{ fontWeight: 600, color: "#111827" }}>{name}</div>
-                        {itemMeta.inlineMeta && <div style={{ fontSize: "10px", color: "#9ca3af", marginTop: "2px" }}>{itemMeta.inlineMeta}</div>}
-                        {itemMeta.toppingsText && <div style={{ fontSize: "10px", color: "#92400e", marginTop: "2px" }}>Topping: {itemMeta.toppingsText}</div>}
-                      </td>
-                      <td style={{ padding: "10px 14px", textAlign: "center", color: "#374151" }}>{qty}</td>
-                      <td style={{ padding: "10px 14px", textAlign: "right", color: "#6b7280" }}>{fmt(unitPrice)}</td>
-                      <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: "#d97706" }}>{fmt(lineTotal)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* ── Totals (right-aligned) ── */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "24px", marginTop: "8px" }}>
-          <div style={{ width: "320px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px", color: "#374151" }}>
-              <span>Tạm tính</span>
-              <span style={{ fontWeight: 500 }}>{fmt(subtotalAmount)}</span>
-            </div>
-            {promotionDiscount > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px" }}>
-                <span style={{ color: "#16a34a" }}>Giảm khuyến mãi{promotionDiscount / subtotalAmount > 0 ? ` (${Math.round(promotionDiscount / subtotalAmount * 100)}%)` : ""}</span>
-                <span style={{ color: "#16a34a", fontWeight: 600 }}>-{fmt(promotionDiscount)}</span>
-              </div>
-            )}
-            {voucherDiscount > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px" }}>
-                <span style={{ color: "#16a34a" }}>Giảm voucher</span>
-                <span style={{ color: "#16a34a", fontWeight: 600 }}>-{fmt(voucherDiscount)}</span>
-              </div>
-            )}
-            {loyaltyDiscount > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px" }}>
-                <span style={{ color: "#16a34a" }}>Giảm điểm tích lũy</span>
-                <span style={{ color: "#16a34a", fontWeight: 600 }}>-{fmt(loyaltyDiscount)}</span>
-              </div>
-            )}
-            {loyaltyPointsEarned > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", fontSize: "13px" }}>
-                <span style={{ color: "#0284c7" }}>{loyaltyPointsSourceLabel}</span>
-                <span style={{ color: "#0284c7", fontWeight: 600 }}>+{loyaltyPointsEarned} điểm</span>
-              </div>
-            )}
-            {/* TỔNG CỘNG banner */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 18px", background: "#f59e0b", borderRadius: "8px", marginTop: "10px" }}>
-              <span style={{ color: "#fff", fontWeight: 800, fontSize: "15px", letterSpacing: "0.5px" }}>TỔNG CỘNG</span>
-              <span style={{ color: "#fff", fontWeight: 800, fontSize: "18px" }}>{fmt(displayAmount)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Payment block ── */}
-        <div style={{ border: "1px solid #e5e7eb", borderRadius: "8px", padding: "16px 18px", marginBottom: "28px" }}>
-          <div style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "12px" }}>THANH TOÁN</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: "8px", columnGap: "24px", fontSize: "13px" }}>
-            <div>
-              <span style={{ color: "#6b7280" }}>Phương thức: </span>
-              <strong style={{ color: "#111827" }}>{paymentMethodText}</strong>
-            </div>
-            <div>
-              {payment?.status && (
-                <>
-                  <span style={{ color: "#6b7280" }}>Trạng thái: </span>
-                  <strong style={{ color: "#16a34a" }}>✓ {["PAID","CONFIRMED","COMPLETED"].includes(String(payment.status).toUpperCase()) ? "Đã thanh toán" : String(payment.status)}</strong>
-                </>
-              )}
-            </div>
-            <div>
-              <span style={{ color: "#6b7280" }}>Số tiền: </span>
-              <strong style={{ color: "#111827" }}>{fmt(Number(payment?.amount ?? displayAmount))}</strong>
-            </div>
-            <div>
-              {paymentCreatedAt && (
-                <>
-                  <span style={{ color: "#6b7280" }}>Thời gian: </span>
-                  <strong style={{ color: "#111827" }}>{paymentCreatedAt}</strong>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Footer ── */}
-        <div style={{ textAlign: "center", paddingTop: "20px", borderTop: "1px solid #e5e7eb" }}>
-          <div style={{ fontSize: "14px", fontWeight: 700, color: "#d97706", marginBottom: "4px" }}>
-            Cảm ơn quý khách đã sử dụng dịch vụ của HYLUX COFFEE! ☕
-          </div>
-          <div style={{ fontSize: "11px", color: "#9ca3af" }}>
-            Hóa đơn được xuất tự động — {new Date().toLocaleString("vi-VN")}
-          </div>
-        </div>
       </div>
     </div>
   );

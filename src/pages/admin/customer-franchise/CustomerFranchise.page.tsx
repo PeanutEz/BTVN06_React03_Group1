@@ -4,6 +4,8 @@ import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
 import { customerFranchiseService } from "../../../services/customer-franchise.service";
 import type { CustomerFranchise } from "../../../services/client.service";
+import { searchCustomersPaged } from "../../../services/customer.service";
+import type { CustomerDisplay } from "../../../models/customer.model";
 import { showError } from "../../../utils";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
@@ -80,6 +82,16 @@ export default function CustomerFranchisePage() {
   const [franchiseOpen, setFranchiseOpen] = useState(false);
   const [franchiseKeyword, setFranchiseKeyword] = useState("");
   const franchiseComboRef = useRef<HTMLDivElement>(null);
+
+  /* ── customer combobox ─────────────────────────────── */
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [customerKeyword, setCustomerKeyword] = useState("");
+  const [customers, setCustomers] = useState<CustomerDisplay[]>([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const customerComboRef = useRef<HTMLDivElement>(null);
+  const customerSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const selectedCustomer = customers.find((c) => c.id === filters.customer_id);
 
   /* ── detail modal ──────────────────────────────────── */
   const [detailItem, setDetailItem] = useState<CustomerFranchise | null>(null);
@@ -180,6 +192,35 @@ export default function CustomerFranchisePage() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [franchiseOpen]);
+
+  /* ── customer search (debounce) ─────────────────────── */
+  useEffect(() => {
+    if (!customerOpen) return;
+    if (customerSearchTimer.current) clearTimeout(customerSearchTimer.current);
+    customerSearchTimer.current = setTimeout(async () => {
+      setCustomerLoading(true);
+      try {
+        const res = await searchCustomersPaged({
+          searchCondition: { keyword: customerKeyword, is_active: "", is_deleted: false },
+          pageInfo: { pageNum: 1, pageSize: 30 },
+        });
+        setCustomers(res.pageData);
+      } catch { /* non-fatal */ }
+      finally { setCustomerLoading(false); }
+    }, 300);
+    return () => { if (customerSearchTimer.current) clearTimeout(customerSearchTimer.current); };
+  }, [customerKeyword, customerOpen]);
+
+  /* ── click-outside customer combobox ───────────────── */
+  useEffect(() => {
+    if (!customerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (!customerComboRef.current?.contains(e.target as Node))
+        setCustomerOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [customerOpen]);
 
   /* ── detail ────────────────────────────────────────── */
   const openDetail = async (item: CustomerFranchise) => {
@@ -303,17 +344,84 @@ export default function CustomerFranchisePage() {
             </div>
           </div>
 
-          {/* Customer ID */}
-          <div className="min-w-[200px] flex-1 space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Khách hàng (tên / email / ID)
-            </label>
-            <input
-              value={filters.customer_id}
-              onChange={(e) => setFilters((f) => ({ ...f, customer_id: e.target.value }))}
-              placeholder="Nhập ID hoặc tên..."
-              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 placeholder-white/40 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            />
+          {/* Customer combobox */}
+          <div className="min-w-[200px] flex-1 space-y-1.5" ref={customerComboRef}>
+            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Khách hàng</label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setCustomerOpen((o) => !o)}
+                className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              >
+                <span className="truncate">
+                  {selectedCustomer
+                    ? `${selectedCustomer.name}${selectedCustomer.email ? ` — ${selectedCustomer.email}` : ""}`
+                    : "-- Tất cả khách hàng --"}
+                </span>
+                <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {customerOpen && (
+                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
+                  <div className="border-b border-white/[0.12] px-3 py-2">
+                    <input
+                      autoFocus
+                      value={customerKeyword}
+                      onChange={(e) => setCustomerKeyword(e.target.value)}
+                      placeholder="Tìm theo tên, email..."
+                      className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-y-auto py-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFilters((f) => ({ ...f, customer_id: "" }));
+                        setCustomerOpen(false);
+                        setCustomerKeyword("");
+                      }}
+                      className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${
+                        !filters.customer_id ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"
+                      }`}
+                    >
+                      -- Tất cả khách hàng --
+                    </button>
+                    {customerLoading && (
+                      <div className="flex items-center justify-center py-4">
+                        <svg className="size-5 animate-spin text-primary-400" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      </div>
+                    )}
+                    {!customerLoading && customers.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          setFilters((f) => ({ ...f, customer_id: c.id }));
+                          setCustomerOpen(false);
+                          setCustomerKeyword("");
+                        }}
+                        className={`flex w-full flex-col px-3 py-2 text-left text-xs ${
+                          filters.customer_id === c.id
+                            ? "bg-white/[0.12] text-white"
+                            : "text-white/80 hover:bg-white/[0.08]"
+                        }`}
+                      >
+                        <span className="font-medium truncate">{c.name}</span>
+                        {c.email && <span className="text-white/40 truncate">{c.email}</span>}
+                      </button>
+                    ))}
+                    {!customerLoading && customers.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-white/40">Nhập từ khóa để tìm khách hàng</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Loyalty points */}
@@ -366,13 +474,16 @@ export default function CustomerFranchisePage() {
             <label className="block text-xs font-semibold uppercase tracking-wide text-transparent">_</label>
             <button
               type="button"
-              onClick={() => setFilters({
-                franchise_id: managerFranchiseId ?? "",
-                customer_id: "",
-                is_active: "",
-                is_deleted: false,
-                loyalty_points: "",
-              })}
+              onClick={() => {
+                setFilters({
+                  franchise_id: managerFranchiseId ?? "",
+                  customer_id: "",
+                  is_active: "",
+                  is_deleted: false,
+                  loyalty_points: "",
+                });
+                setCustomerKeyword("");
+              }}
               className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
             >
               Đặt lại

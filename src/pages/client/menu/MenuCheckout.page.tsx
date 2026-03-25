@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,31 +9,62 @@ import { useAuthStore } from "@/store/auth.store";
 import { ROUTER_URL } from "@/routes/router.const";
 import { PAYMENT_METHODS } from "@/const/payment-method.const";
 import type { AppliedPromo } from "@/types/delivery.types";
-import { cartClient, type CartApiData, type ApiCartItem, type CartItemOption } from "@/services/cart.client";
+import {
+  cartClient,
+  type CartApiData,
+  type ApiCartItem,
+  type CartItemOption,
+} from "@/services/cart.client";
 import { orderClient } from "@/services/order.client";
-import { formatToppingsSummary, parseCartSelectionNote } from "@/utils/cartSelectionNote.util";
+import {
+  formatToppingsSummary,
+  parseCartSelectionNote,
+} from "@/utils/cartSelectionNote.util";
 import type { IceLevel, SugarLevel } from "@/types/menu.types";
-import { clientService } from "@/services/client.service";
-import { getCurrentCustomerProfile, updateCurrentCustomerProfile } from "@/services/customer.service";
+import {
+  getCurrentCustomerProfile,
+  updateCurrentCustomerProfile,
+} from "@/services/customer.service";
 import { promotionService } from "@/services/promotion.service";
 import type { Promotion } from "@/models/promotion.model";
 
 type CheckoutPaymentMethod = "COD" | "CARD";
 
-const CHECKOUT_PAYMENT_OPTIONS: Array<{ value: CheckoutPaymentMethod; label: string; icon: string; description: string }> = [
-  { value: PAYMENT_METHODS.COD, label: "Tiền mặt", icon: "💵", description: "Thanh toán khi nhận hàng" },
-  { value: PAYMENT_METHODS.CARD, label: "VNPAY", icon: "🏦", description: "Thẻ/Internet Banking qua VNPAY" },
+const CHECKOUT_PAYMENT_OPTIONS: Array<{
+  value: CheckoutPaymentMethod;
+  label: string;
+  icon: string;
+  description: string;
+}> = [
+  {
+    value: PAYMENT_METHODS.COD,
+    label: "Tiền mặt",
+    icon: "💵",
+    description: "Thanh toán khi nhận hàng",
+  },
+  {
+    value: PAYMENT_METHODS.CARD,
+    label: "VNPAY",
+    icon: "🏦",
+    description: "Thẻ/Internet Banking qua VNPAY",
+  },
 ];
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+    n,
+  );
 const fmtPercent = (n: number) => {
   const normalized = Number.isInteger(n) ? n : Number(n.toFixed(2));
   return `${normalized}%`;
 };
 
 const fmtDate = (d: string) =>
-  new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  new Date(d).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
 const CHECKOUT_MIN_LOADING_MS = 900;
 
@@ -58,9 +89,13 @@ function parseNumberish(value: unknown): number | null {
   return null;
 }
 
-function getPercentValueFromDiscount(type: unknown, value: unknown): number | undefined {
+function getPercentValueFromDiscount(
+  type: unknown,
+  value: unknown,
+): number | undefined {
   const typeText = String(type ?? "").toUpperCase();
-  if (!typeText.includes("PERCENT") && !typeText.includes("%")) return undefined;
+  if (!typeText.includes("PERCENT") && !typeText.includes("%"))
+    return undefined;
   const parsedValue = parseNumberish(value);
   if (parsedValue == null || parsedValue <= 0) return undefined;
   return parsedValue;
@@ -80,7 +115,9 @@ function PromotionsBanner({
   const active: Promotion[] = promotions ?? [];
   const [expanded, setExpanded] = useState(false);
   const appliedPromo = active.find(
-    (promo) => !!selectedPromotionId && getPromotionIdentity(promo) === selectedPromotionId,
+    (promo) =>
+      !!selectedPromotionId &&
+      getPromotionIdentity(promo) === selectedPromotionId,
   );
   const appliedDiscountText = (() => {
     if (!appliedPromo) return null;
@@ -93,11 +130,12 @@ function PromotionsBanner({
     return `Giảm ${fmt(promoValue)}`;
   })();
 
-  if (isLoading) return (
-    <div className="px-4 pt-3">
-      <div className="h-14 rounded-xl bg-amber-50 animate-pulse" />
-    </div>
-  );
+  if (isLoading)
+    return (
+      <div className="px-4 pt-3">
+        <div className="h-14 rounded-xl bg-amber-50 animate-pulse" />
+      </div>
+    );
   if (active.length === 0) return null;
 
   return (
@@ -120,19 +158,28 @@ function PromotionsBanner({
             {active.length} ưu đãi
           </span>
           <svg
-            className={cn("w-4 h-4 text-amber-700 transition-transform", expanded && "rotate-180")}
+            className={cn(
+              "w-4 h-4 text-amber-700 transition-transform",
+              expanded && "rotate-180",
+            )}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
           </svg>
         </div>
       </button>
 
       {!expanded && appliedPromo && (
         <div className="mt-2 px-3 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-xs text-emerald-700">
-          Đang áp dụng: <span className="font-semibold">{appliedPromo.name}</span>
+          Đang áp dụng:{" "}
+          <span className="font-semibold">{appliedPromo.name}</span>
           {appliedDiscountText ? <span> · {appliedDiscountText}</span> : null}
         </div>
       )}
@@ -145,7 +192,8 @@ function PromotionsBanner({
               promo.type === "PERCENT"
                 ? `Giảm ${promo.value}%`
                 : `Giảm ${fmt(promo.value)}`;
-            const isApplied = !!selectedPromotionId && promoIdentity === selectedPromotionId;
+            const isApplied =
+              !!selectedPromotionId && promoIdentity === selectedPromotionId;
             return (
               <div
                 key={promoIdentity}
@@ -156,17 +204,38 @@ function PromotionsBanner({
                     : "bg-gray-50 border-gray-200 opacity-85",
                 )}
               >
-                <div className={cn(
-                  "shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white text-base font-bold shadow-sm",
-                  isApplied ? "bg-gradient-to-br from-amber-400 to-orange-500" : "bg-gray-300",
-                )}>
+                <div
+                  className={cn(
+                    "shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-white text-base font-bold shadow-sm",
+                    isApplied
+                      ? "bg-gradient-to-br from-amber-400 to-orange-500"
+                      : "bg-gray-300",
+                  )}
+                >
                   {promo.type === "PERCENT" ? "%" : "₫"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-semibold truncate", isApplied ? "text-gray-900" : "text-gray-700")}>{promo.name}</p>
-                  <p className={cn("text-xs font-medium", isApplied ? "text-amber-700" : "text-gray-500")}>{discountText}</p>
+                  <p
+                    className={cn(
+                      "text-sm font-semibold truncate",
+                      isApplied ? "text-gray-900" : "text-gray-700",
+                    )}
+                  >
+                    {promo.name}
+                  </p>
+                  <p
+                    className={cn(
+                      "text-xs font-medium",
+                      isApplied ? "text-amber-700" : "text-gray-500",
+                    )}
+                  >
+                    {discountText}
+                  </p>
                   <p className="text-[11px] text-gray-400 mt-0.5">
-                    {fmtDate(promo.start_date)} – {promo.end_date ? fmtDate(promo.end_date) : "Không giới hạn"}
+                    {fmtDate(promo.start_date)} –{" "}
+                    {promo.end_date
+                      ? fmtDate(promo.end_date)
+                      : "Không giới hạn"}
                   </p>
                 </div>
                 {isApplied ? (
@@ -199,8 +268,9 @@ interface DisplayItem {
   image: string;
   size?: string;
   sugar?: SugarLevel;
-  ice?: IceLevel;  toppingsText?: string;
-  toppingsParsed?: Array<{ name: string; quantity: number; image?: string; price?: number }>;
+  ice?: IceLevel;
+  toppingsText?: string;
+  toppingsParsed?: Array<{ name: string; quantity: number }>;
   note?: string;
   quantity: number;
   unitPrice: number;
@@ -231,7 +301,11 @@ function getActivePromotions(promotions: Promotion[]): Promotion[] {
   );
 }
 
-function pickBestPromotion(subtotal: number, items: DisplayItem[], promotions: Promotion[]): {
+function pickBestPromotion(
+  subtotal: number,
+  items: DisplayItem[],
+  promotions: Promotion[],
+): {
   selectedPromotionId?: string;
   discountAmount: number;
 } {
@@ -244,25 +318,39 @@ function pickBestPromotion(subtotal: number, items: DisplayItem[], promotions: P
   let bestDiscount = 0;
 
   for (const promo of eligiblePromotions) {
-    const scopedProductFranchiseId = String((promo as any).product_franchise_id ?? "").trim();
-    const hasValidProductScope = !!scopedProductFranchiseId && scopedProductFranchiseId !== "null" && scopedProductFranchiseId !== "undefined";
+    const scopedProductFranchiseId = String(
+      (promo as any).product_franchise_id ?? "",
+    ).trim();
+    const hasValidProductScope =
+      !!scopedProductFranchiseId &&
+      scopedProductFranchiseId !== "null" &&
+      scopedProductFranchiseId !== "undefined";
 
     const matchedScopedAmount = hasValidProductScope
       ? items
-          .filter((item) => item.apiProductFranchiseId === scopedProductFranchiseId)
+          .filter(
+            (item) => item.apiProductFranchiseId === scopedProductFranchiseId,
+          )
           .reduce((sum, item) => sum + item.lineTotal, 0)
       : 0;
 
     const eligibleAmount = hasValidProductScope
-      ? (matchedScopedAmount > 0 ? matchedScopedAmount : subtotal)
+      ? matchedScopedAmount > 0
+        ? matchedScopedAmount
+        : subtotal
       : subtotal;
 
     if (eligibleAmount <= 0) continue;
 
-    const promoRawValue = (promo as any).value ?? (promo as any).discount_value ?? (promo as any).discountValue ?? 0;
-    const promoValue = typeof promoRawValue === "string"
-      ? Number.parseFloat(promoRawValue.replace(/,/g, "."))
-      : Number(promoRawValue);
+    const promoRawValue =
+      (promo as any).value ??
+      (promo as any).discount_value ??
+      (promo as any).discountValue ??
+      0;
+    const promoValue =
+      typeof promoRawValue === "string"
+        ? Number.parseFloat(promoRawValue.replace(/,/g, "."))
+        : Number(promoRawValue);
     if (!Number.isFinite(promoValue) || promoValue <= 0) continue;
 
     const promoType = String((promo as any).type ?? "").toUpperCase();
@@ -272,7 +360,9 @@ function pickBestPromotion(subtotal: number, items: DisplayItem[], promotions: P
       ? (eligibleAmount * promoValue) / 100
       : promoValue;
 
-    const discount = Math.round(Math.max(0, Math.min(eligibleAmount, rawDiscount)));
+    const discount = Math.round(
+      Math.max(0, Math.min(eligibleAmount, rawDiscount)),
+    );
     if (discount > bestDiscount) {
       bestDiscount = discount;
       bestPromotionId = getPromotionIdentity(promo);
@@ -286,7 +376,9 @@ function pickBestPromotion(subtotal: number, items: DisplayItem[], promotions: P
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function getNestedRecord(
@@ -300,11 +392,7 @@ function getUserId(value: unknown): string {
   const root = asRecord(value);
   const nestedUser = getNestedRecord(root, "user");
   return String(
-    nestedUser?.id ??
-    nestedUser?._id ??
-    root?.id ??
-    root?._id ??
-    "",
+    nestedUser?.id ?? nestedUser?._id ?? root?.id ?? root?._id ?? "",
   );
 }
 
@@ -332,56 +420,76 @@ function getErrorMessage(error: unknown): string | null {
 
 function getProductName(item: ApiCartItem): string {
   const raw = item as Record<string, unknown>;
-  const productObj = raw.product && typeof raw.product === "object" ? (raw.product as Record<string, unknown>) : null;
+  const productObj =
+    raw.product && typeof raw.product === "object"
+      ? (raw.product as Record<string, unknown>)
+      : null;
   const name =
     raw.product_name_snapshot ??
     raw.product_name ??
     raw.name ??
     raw.productName ??
-    (productObj?.name) ??
-    (productObj?.product_name) ??
+    productObj?.name ??
+    productObj?.product_name ??
     "";
   return String(name).trim() || "Sản phẩm";
 }
 
 function getItemImage(item: ApiCartItem): string {
   const raw = item as Record<string, unknown>;
-  const productObj = raw.product && typeof raw.product === "object" ? (raw.product as Record<string, unknown>) : null;
+  const productObj =
+    raw.product && typeof raw.product === "object"
+      ? (raw.product as Record<string, unknown>)
+      : null;
   return String(
     raw.image_url ??
-    raw.image ??
-    productObj?.image_url ??
-    productObj?.image ??
-    ""
+      raw.image ??
+      productObj?.image_url ??
+      productObj?.image ??
+      "",
   ).trim();
 }
 
 function getItemPrice(item: ApiCartItem): number {
   const raw = item as Record<string, unknown>;
-  const v = raw.price_snapshot ?? raw.price ?? (raw as ApiCartItem).price_snapshot ?? (raw as ApiCartItem).price;
+  const v =
+    raw.price_snapshot ??
+    raw.price ??
+    (raw as ApiCartItem).price_snapshot ??
+    (raw as ApiCartItem).price;
   return Number(v) >= 0 ? Number(v) : 0;
 }
 
-// Map of product_franchise_id → { name, image_url, price } for topping lookup
-type ToppingInfoMap = Record<string, { name: string; image_url: string; price: number }>;
-
-function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null, toppingInfoMap?: ToppingInfoMap): DisplayItem[] {
+function apiCartToDisplayItems(
+  cartId: string,
+  apiCart: CartApiData | null,
+): DisplayItem[] {
   if (!apiCart) return [];
   const apiCartRaw = apiCart as Record<string, unknown>;
   const cartItems = apiCartRaw.cart_items;
-  const rawItems = apiCart.items ?? (Array.isArray(cartItems) ? (cartItems as ApiCartItem[]) : []);
+  const rawItems =
+    apiCart.items ??
+    (Array.isArray(cartItems) ? (cartItems as ApiCartItem[]) : []);
   if (!Array.isArray(rawItems) || rawItems.length === 0) return [];
   const franchise = getNestedRecord(apiCartRaw, "franchise");
   const franchiseName =
-    apiCart.franchise_name ?? (typeof franchise?.name === "string" ? franchise.name : undefined) ?? "Chi nhánh";
-  const franchiseId = apiCart.franchise_id ? String(apiCart.franchise_id) : undefined;
+    apiCart.franchise_name ??
+    (typeof franchise?.name === "string" ? franchise.name : undefined) ??
+    "Chi nhánh";
+  const franchiseId = apiCart.franchise_id
+    ? String(apiCart.franchise_id)
+    : undefined;
   const seen = new Set<string>();
   const result: DisplayItem[] = [];
   for (let idx = 0; idx < (rawItems as ApiCartItem[]).length; idx++) {
     const item = (rawItems as ApiCartItem[])[idx];
     const raw = item as Record<string, unknown>;
-    const productObj = raw.product && typeof raw.product === "object" ? (raw.product as Record<string, unknown>) : null;
-    const itemId = raw._id ?? raw.id ?? raw.cart_item_id ?? raw.cartItemId ?? `idx-${idx}`;
+    const productObj =
+      raw.product && typeof raw.product === "object"
+        ? (raw.product as Record<string, unknown>)
+        : null;
+    const itemId =
+      raw._id ?? raw.id ?? raw.cart_item_id ?? raw.cartItemId ?? `idx-${idx}`;
     const uniq = `${cartId}-${itemId}`;
     if (seen.has(uniq)) continue;
     seen.add(uniq);
@@ -389,8 +497,15 @@ function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null, topp
     const price = getItemPrice(item);
     const parsed = parseCartSelectionNote(String(item.note ?? ""));
     const apiItemId = raw._id ?? raw.id ?? raw.cart_item_id ?? raw.cartItemId;
-    const apiProductId = raw.product_id != null ? String(raw.product_id) : (productObj?.id != null ? String(productObj.id) : undefined);
-    const apiProductFranchiseId = raw.product_franchise_id ? String(raw.product_franchise_id) : undefined;
+    const apiProductId =
+      raw.product_id != null
+        ? String(raw.product_id)
+        : productObj?.id != null
+          ? String(productObj.id)
+          : undefined;
+    const apiProductFranchiseId = raw.product_franchise_id
+      ? String(raw.product_franchise_id)
+      : undefined;
     result.push({
       key: uniq,
       cartId,
@@ -400,45 +515,25 @@ function apiCartToDisplayItems(cartId: string, apiCart: CartApiData | null, topp
       apiFranchiseId: franchiseId,
       name: getProductName(item),
       franchiseName:
-        (typeof raw.franchise_name === "string" ? raw.franchise_name : undefined) ??
-        (typeof raw.franchiseName === "string" ? raw.franchiseName : undefined) ??
+        (typeof raw.franchise_name === "string"
+          ? raw.franchise_name
+          : undefined) ??
+        (typeof raw.franchiseName === "string"
+          ? raw.franchiseName
+          : undefined) ??
         franchiseName,
       image: getItemImage(item),
       size: item.size,
       sugar: parsed.sugar,
-      ice: parsed.ice,      toppingsText: formatToppingsSummary(parsed.toppings),      toppingsParsed: parsed.toppings?.map((t) => {
-        // Try to find image by matching option's product_franchise_id in the toppingInfoMap,
-        // then fall back to name-matching within item.options (which may have image_url from API)
-        const matchedOpt = (item.options as CartItemOption[] | undefined)?.find((opt) => {
-          // First try: match via toppingInfoMap by product_franchise_id
-          if (toppingInfoMap && opt.product_franchise_id) {
-            const info = toppingInfoMap[opt.product_franchise_id];
-            if (info) {
-              const infoName = info.name.trim().toLowerCase();
-              const tName = t.name.trim().toLowerCase();
-              return infoName.includes(tName) || tName.includes(infoName);
-            }
-          }
-          // Fallback: match by name stored directly on the option
-          const optName = String(opt.product_name_snapshot ?? opt.name ?? "").trim().toLowerCase();
-          return optName && (t.name.toLowerCase().includes(optName) || optName.includes(t.name.toLowerCase()));
-        });        // Resolve image: prefer toppingInfoMap (API-sourced), then option's image_url
-        let image: string | undefined;
-        let price: number | undefined;
-        if (toppingInfoMap && matchedOpt?.product_franchise_id) {
-          const info = toppingInfoMap[matchedOpt.product_franchise_id];
-          image = info?.image_url ? String(info.image_url).trim() || undefined : undefined;
-          price = info?.price != null && info.price > 0 ? info.price : undefined;
-        }
-        if (!image) {
-          image = String(matchedOpt?.image_url ?? "").trim() || undefined;
-        }
-        return { ...t, image, price };
-      }),
+      ice: parsed.ice,
+      toppingsText: formatToppingsSummary(parsed.toppings),
+      toppingsParsed: parsed.toppings,
       note: parsed.userNote ?? (item.note ? String(item.note) : undefined),
       quantity: qty,
       unitPrice: price,
-      lineTotal: (typeof raw.line_total === "number" ? raw.line_total : undefined) ?? price * qty,
+      lineTotal:
+        (typeof raw.line_total === "number" ? raw.line_total : undefined) ??
+        price * qty,
       apiOptions: item.options as CartItemOption[] | undefined,
     });
   }
@@ -459,7 +554,8 @@ export default function MenuCheckoutPage() {
   // QueryKey đơn giản để sync với MenuOrderPanel
   const { data: cartsData, isLoading: cartsLoading } = useQuery({
     queryKey: ["carts-by-customer", customerId],
-    queryFn: () => cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" }),
+    queryFn: () =>
+      cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" }),
     enabled: !!customerId && isLoggedIn,
     staleTime: 0,
   });
@@ -477,17 +573,21 @@ export default function MenuCheckoutPage() {
         : Array.isArray(cartsList)
           ? cartsList
           : [];
-    const withIds = (list as CartApiData[]).map((c) => ({
-      cartId: String(c._id ?? c.id ?? ""),
-      franchise_id: c.franchise_id,
-      franchise_name:
-        c.franchise_name ??
-        (() => {
-          const cRaw = c as Record<string, unknown>;
-          const franchise = getNestedRecord(cRaw, "franchise");
-          return typeof franchise?.name === "string" ? franchise.name : undefined;
-        })(),
-    })).filter((e) => e.cartId);
+    const withIds = (list as CartApiData[])
+      .map((c) => ({
+        cartId: String(c._id ?? c.id ?? ""),
+        franchise_id: c.franchise_id,
+        franchise_name:
+          c.franchise_name ??
+          (() => {
+            const cRaw = c as Record<string, unknown>;
+            const franchise = getNestedRecord(cRaw, "franchise");
+            return typeof franchise?.name === "string"
+              ? franchise.name
+              : undefined;
+          })(),
+      }))
+      .filter((e) => e.cartId);
     const seen = new Set<string>();
     return withIds.filter((e) => {
       if (seen.has(e.cartId)) return false;
@@ -504,6 +604,7 @@ export default function MenuCheckoutPage() {
     if (cartEntries.length > 0) setCarts(cartEntries);
     else clearCart();
   }, [cartEntries, setCarts, clearCart, cartsLoading]);
+
   // Fetch detail for each cart với query key đơn giản để sync với MenuOrderPanel
   const cartDetails = useQueries({
     queries: cartEntries.map((entry) => ({
@@ -514,140 +615,127 @@ export default function MenuCheckoutPage() {
     })),
   });
 
-  // Derive unique franchise IDs so we fetch toppings once per franchise
-  const uniqueFranchiseIds = useMemo(() => {
-    const ids = cartEntries.map((e) => e.franchise_id ? String(e.franchise_id) : "").filter(Boolean);
-    return [...new Set(ids)];
-  }, [cartEntries]);
-
-  // Fetch topping products per franchise to resolve images
-  const toppingQueries = useQueries({
-    queries: uniqueFranchiseIds.map((franchiseId) => ({
-      queryKey: ["checkout-toppings", franchiseId],
-      queryFn: () => clientService.getToppingsByFranchise(franchiseId),
-      enabled: !!franchiseId && isLoggedIn,
-      staleTime: 5 * 60_000,
-    })),
-  });
-
-  // Build a map: franchiseId → ToppingInfoMap (product_franchise_id → { name, image_url })
-  const toppingInfoByFranchise = useMemo(() => {
-    const result: Record<string, ToppingInfoMap> = {};
-    uniqueFranchiseIds.forEach((franchiseId, idx) => {
-      const products = toppingQueries[idx]?.data ?? [];
-      const map: ToppingInfoMap = {};      for (const p of products) {
-        for (const size of (p.sizes ?? [])) {
-          map[size.product_franchise_id] = {
-            name: p.name,
-            image_url: p.image_url ?? "",
-            price: size.price ?? 0,
-          };
-        }
-      }
-      result[franchiseId] = map;
-    });
-    return result;
-  }, [uniqueFranchiseIds, toppingQueries]);
-
   // Build blocks CHỈ từ API getCartDetail (mỗi cart) — không dùng dữ liệu từ list để đảm bảo đúng sản phẩm trong giỏ
-  const blocks: CheckoutBlock[] = cartEntries.map((entry, idx) => {
-    const detailFromQuery = cartDetails[idx]?.data as CartApiData | undefined;
-    const cartsRaw = asRecord(cartsData);
-    const dataList = cartsRaw?.data;
-    const listSource = Array.isArray(cartsData)
-      ? cartsData
-      : Array.isArray(dataList)
-        ? dataList
-        : [];
-    const detailFromList = listSource[idx] as CartApiData | undefined;    const detail = detailFromQuery ?? detailFromList;
-    // Resolve franchise id for topping map lookup
-    const detailRawForFranchise = detailFromQuery ? (detailFromQuery as Record<string, unknown>) : null;
-    const detailFranchiseForId = getNestedRecord(detailRawForFranchise, "franchise");
-    const resolvedFranchiseId =
-      (entry.franchise_id ? String(entry.franchise_id) : undefined) ??
-      (detailFromQuery?.franchise_id ? String(detailFromQuery.franchise_id) : undefined) ??
-      (detailFranchiseForId?._id ? String(detailFranchiseForId._id) : undefined) ??
-      (detailFranchiseForId?.id ? String(detailFranchiseForId.id) : undefined);
-    const toppingInfoMap = resolvedFranchiseId ? (toppingInfoByFranchise[resolvedFranchiseId] ?? {}) : {};
-    const items = apiCartToDisplayItems(entry.cartId, detailFromQuery ?? null, toppingInfoMap);
-    // ✅ Ensure numbers: use API fields with fallback to calculations
-    const subtotal: number = typeof detail?.subtotal_amount === "number"
-      ? detail.subtotal_amount
-      : items.reduce((s, i) => s + i.lineTotal, 0);
-    const discountAmount: number = typeof detail?.voucher_discount === "number"
-      ? detail.voucher_discount
-      : 0;
-    const totalAmount: number = typeof detail?.final_amount === "number"
-      ? detail.final_amount
-      : Math.max(0, subtotal - discountAmount);    const detailRaw = detail ? (detail as Record<string, unknown>) : null;
-    const detailFranchise = getNestedRecord(detailRaw, "franchise");
-    const detailVoucher = getNestedRecord(detailRaw, "voucher");
-    const voucherType = detailVoucher?.type ?? detailRaw?.voucher_type;
-    const voucherValue = detailVoucher?.value ?? detailRaw?.voucher_value;
-    const voucherPercentFromType = getPercentValueFromDiscount(voucherType, voucherValue);
-    const voucherPercent =
-      voucherPercentFromType ??
-      parseNumberish(detailRaw?.voucher_percent) ??
-      parseNumberish(detailRaw?.voucher_discount_percent) ??
-      undefined;
-    const voucherCode = detailRaw?.voucher_code;
-    const hasVoucher = !!(detail?.voucher ?? (typeof voucherCode === "string" ? voucherCode : undefined));
-    const franchiseName =
-      entry.franchise_name ??
-      detail?.franchise_name ??
-      (typeof detailFranchise?.name === "string" ? detailFranchise.name : undefined) ??
-      `Chi nhánh ${idx + 1}`;
-    // Resolve franchiseId: try entry first, then detail, then nested franchise object
-    const franchiseId =
-      (entry.franchise_id ? String(entry.franchise_id) : undefined) ??
-      (detail?.franchise_id ? String(detail.franchise_id) : undefined) ??
-      (detailFranchise?._id ? String(detailFranchise._id) : undefined) ??
-      (detailFranchise?.id ? String(detailFranchise.id) : undefined);
-    return {
-      cartId: entry.cartId,
-      franchiseId,
-      franchiseName,
-      items,
-      subtotal,
-      totalAmount,
-      discountAmount,
-      hasVoucher,
-      voucherPercent,
-    };
-  }).filter((b) => b.items.length > 0);
+  const blocks: CheckoutBlock[] = cartEntries
+    .map((entry, idx) => {
+      const detailFromQuery = cartDetails[idx]?.data as CartApiData | undefined;
+      const cartsRaw = asRecord(cartsData);
+      const dataList = cartsRaw?.data;
+      const listSource = Array.isArray(cartsData)
+        ? cartsData
+        : Array.isArray(dataList)
+          ? dataList
+          : [];
+      const detailFromList = listSource[idx] as CartApiData | undefined;
+      const detail = detailFromQuery ?? detailFromList;
+      const items = apiCartToDisplayItems(
+        entry.cartId,
+        detailFromQuery ?? null,
+      );
+      // ✅ Ensure numbers: use API fields with fallback to calculations
+      const subtotal: number =
+        typeof detail?.subtotal_amount === "number"
+          ? detail.subtotal_amount
+          : items.reduce((s, i) => s + i.lineTotal, 0);
+      const discountAmount: number =
+        typeof detail?.voucher_discount === "number"
+          ? detail.voucher_discount
+          : 0;
+      const totalAmount: number =
+        typeof detail?.final_amount === "number"
+          ? detail.final_amount
+          : Math.max(0, subtotal - discountAmount);
+      const detailRaw = detail ? (detail as Record<string, unknown>) : null;
+      const detailFranchise = getNestedRecord(detailRaw, "franchise");
+      const detailVoucher = getNestedRecord(detailRaw, "voucher");
+      const voucherType = detailVoucher?.type ?? detailRaw?.voucher_type;
+      const voucherValue = detailVoucher?.value ?? detailRaw?.voucher_value;
+      const voucherPercentFromType = getPercentValueFromDiscount(
+        voucherType,
+        voucherValue,
+      );
+      const voucherPercent =
+        voucherPercentFromType ??
+        parseNumberish(detailRaw?.voucher_percent) ??
+        parseNumberish(detailRaw?.voucher_discount_percent) ??
+        undefined;
+      const voucherCode = detailRaw?.voucher_code;
+      const hasVoucher = !!(
+        detail?.voucher ??
+        (typeof voucherCode === "string" ? voucherCode : undefined)
+      );
+      const franchiseName =
+        entry.franchise_name ??
+        detail?.franchise_name ??
+        (typeof detailFranchise?.name === "string"
+          ? detailFranchise.name
+          : undefined) ??
+        `Chi nhánh ${idx + 1}`;
+      // Resolve franchiseId: try entry first, then detail, then nested franchise object
+      const franchiseId =
+        (entry.franchise_id ? String(entry.franchise_id) : undefined) ??
+        (detail?.franchise_id ? String(detail.franchise_id) : undefined) ??
+        (detailFranchise?._id ? String(detailFranchise._id) : undefined) ??
+        (detailFranchise?.id ? String(detailFranchise.id) : undefined);
+      return {
+        cartId: entry.cartId,
+        franchiseId,
+        franchiseName,
+        items,
+        subtotal,
+        totalAmount,
+        discountAmount,
+        hasVoucher,
+        voucherPercent,
+      };
+    })
+    .filter((b) => b.items.length > 0);
 
   const promotionQueries = useQueries({
     queries: blocks.map((block) => ({
       queryKey: ["checkout-promotions", block.franchiseId],
-      queryFn: () => promotionService.getPromotionsByFranchise(block.franchiseId!),
+      queryFn: () =>
+        promotionService.getPromotionsByFranchise(block.franchiseId!),
       enabled: !!block.franchiseId,
       staleTime: 60_000,
     })),
   });
 
   const pricingByCartId = useMemo(() => {
-    const map: Record<string, {
-      promotionAmount: number;
-      voucherAmount: number;
-      voucherPercent?: number;
-      promotionPercent?: number;
-      totalDiscount: number;
-      finalTotal: number;
-      promotions: Promotion[];
-      promotionsLoading: boolean;
-      selectedPromotionId?: string;
-    }> = {};
+    const map: Record<
+      string,
+      {
+        promotionAmount: number;
+        voucherAmount: number;
+        voucherPercent?: number;
+        promotionPercent?: number;
+        totalDiscount: number;
+        finalTotal: number;
+        promotions: Promotion[];
+        promotionsLoading: boolean;
+        selectedPromotionId?: string;
+      }
+    > = {};
 
     blocks.forEach((block, idx) => {
       const rawPromotions = (promotionQueries[idx]?.data ?? []) as Promotion[];
       const activePromotions = getActivePromotions(rawPromotions);
-      const bestPromotion = pickBestPromotion(block.subtotal, block.items, activePromotions);
+      const bestPromotion = pickBestPromotion(
+        block.subtotal,
+        block.items,
+        activePromotions,
+      );
       const promoDiscount = bestPromotion.discountAmount;
       const selectedPromotion = activePromotions.find(
-        (promo) => !!bestPromotion.selectedPromotionId && getPromotionIdentity(promo) === bestPromotion.selectedPromotionId,
+        (promo) =>
+          !!bestPromotion.selectedPromotionId &&
+          getPromotionIdentity(promo) === bestPromotion.selectedPromotionId,
       );
       const promotionPercent = selectedPromotion
-        ? getPercentValueFromDiscount((selectedPromotion as any).type, (selectedPromotion as any).value)
+        ? getPercentValueFromDiscount(
+            (selectedPromotion as any).type,
+            (selectedPromotion as any).value,
+          )
         : undefined;
 
       const effectivePromoDiscount = promoDiscount;
@@ -670,14 +758,41 @@ export default function MenuCheckoutPage() {
     return map;
   }, [blocks, promotionQueries]);
 
-
   // Per-block voucher state: cartId -> { input, applied, error, loading }
-  const [promoByCartId, setPromoByCartId] = useState<Record<string, { input: string; applied: AppliedPromo | null; error: string; loading: boolean }>>({});
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<CheckoutPaymentMethod>(PAYMENT_METHODS.COD);
+  const [promoByCartId, setPromoByCartId] = useState<
+    Record<
+      string,
+      {
+        input: string;
+        applied: AppliedPromo | null;
+        error: string;
+        loading: boolean;
+      }
+    >
+  >({});
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<CheckoutPaymentMethod>(PAYMENT_METHODS.COD);
 
-  const getPromoState = (cartId: string) => promoByCartId[cartId] ?? { input: "", applied: null, error: "", loading: false };
-  const setPromoState = (cartId: string, patch: Partial<{ input: string; applied: AppliedPromo | null; error: string; loading: boolean }>) => {
-    setPromoByCartId((prev) => ({ ...prev, [cartId]: { ...getPromoState(cartId), ...patch } }));
+  const getPromoState = (cartId: string) =>
+    promoByCartId[cartId] ?? {
+      input: "",
+      applied: null,
+      error: "",
+      loading: false,
+    };
+  const setPromoState = (
+    cartId: string,
+    patch: Partial<{
+      input: string;
+      applied: AppliedPromo | null;
+      error: string;
+      loading: boolean;
+    }>,
+  ) => {
+    setPromoByCartId((prev) => ({
+      ...prev,
+      [cartId]: { ...getPromoState(cartId), ...patch },
+    }));
   };
   const [form, setFormState] = useState({
     name: "",
@@ -706,25 +821,35 @@ export default function MenuCheckoutPage() {
   }, [customerProfile]);
 
   // Điều khoản theo từng chi nhánh: cartId -> đã đồng ý
-  const [termsByCartId, setTermsByCartId] = useState<Record<string, boolean>>({});
+  const [termsByCartId, setTermsByCartId] = useState<Record<string, boolean>>(
+    {},
+  );
   const setTermsForCart = (cartId: string, accepted: boolean) => {
     setTermsByCartId((prev) => ({ ...prev, [cartId]: accepted }));
   };
   const isTermsAccepted = (cartId: string) => !!termsByCartId[cartId];
-  const [errors, setErrors] = useState<Record<string, string>>({});  const [orderingCartId, setOrderingCartId] = useState<string | null>(null);
-  // Guard chống StrictMode double-invoke (ref sync, không cần re-render)
-  const orderingCartIdRef = useRef<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [orderingCartId, setOrderingCartId] = useState<string | null>(null);
 
-  function setField<K extends keyof typeof form>(key: K, value: typeof form[K]) {
+  function setField<K extends keyof typeof form>(
+    key: K,
+    value: (typeof form)[K],
+  ) {
     setFormState((f) => ({ ...f, [key]: value }));
-    if (errors[key]) setErrors((e) => { const n = { ...e }; delete n[key as string]; return n; });
+    if (errors[key])
+      setErrors((e) => {
+        const n = { ...e };
+        delete n[key as string];
+        return n;
+      });
   }
 
   function validate(): boolean {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = "Vui lòng nhập họ tên";
     if (!form.phone.trim()) e.phone = "Vui lòng nhập số điện thoại";
-    else if (!/^(0[3-9])\d{8}$/.test(form.phone.trim())) e.phone = "Số điện thoại không hợp lệ (VD: 0901234567)";
+    else if (!/^(0[3-9])\d{8}$/.test(form.phone.trim()))
+      e.phone = "Số điện thoại không hợp lệ (VD: 0901234567)";
     if (!form.address.trim()) e.address = "Vui lòng nhập địa chỉ giao hàng";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -747,7 +872,10 @@ export default function MenuCheckoutPage() {
       queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
       toast.success("Áp dụng mã thành công!");
     } catch {
-      setPromoState(cartId, { error: "Mã giảm giá không hợp lệ hoặc đã hết hạn", loading: false });
+      setPromoState(cartId, {
+        error: "Mã giảm giá không hợp lệ hoặc đã hết hạn",
+        loading: false,
+      });
     }
   }
 
@@ -756,7 +884,9 @@ export default function MenuCheckoutPage() {
     try {
       await cartClient.removeVoucher(cartId);
       queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   async function handleRemoveItem(item: DisplayItem) {
@@ -768,18 +898,19 @@ export default function MenuCheckoutPage() {
     try {
       await cartClient.deleteCartItem(item.apiItemId);
       queryClient.invalidateQueries({ queryKey: ["cart-detail", item.cartId] });
-      queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
+      queryClient.invalidateQueries({
+        queryKey: ["carts-by-customer", customerId],
+      });
       toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
     } catch (error) {
       console.error("Remove item failed:", error);
       toast.error("Không thể xóa sản phẩm");
     }
   }
+
   async function handleOrderOneBlock(block: CheckoutBlock) {
     const { cartId, franchiseName } = block;
-    // Guard đồng bộ bằng ref — tránh StrictMode double-invoke gọi 2 lần
-    if (!validate() || orderingCartIdRef.current || orderingCartId || !isTermsAccepted(cartId)) return;
-    orderingCartIdRef.current = cartId;
+    if (!validate() || orderingCartId || !isTermsAccepted(cartId)) return;
 
     const loadingStartedAt = Date.now();
     setOrderingCartId(cartId);
@@ -806,16 +937,21 @@ export default function MenuCheckoutPage() {
         ) {
           // continue checkout flow
         } else {
-          toast.error(profileMsg ?? "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.");
+          toast.error(
+            profileMsg ??
+              "Không thể cập nhật thông tin khách hàng. Vui lòng thử lại.",
+          );
           return;
         }
       }
 
       const paymentMethod = selectedPaymentMethod;
-      const bankName = paymentMethod === PAYMENT_METHODS.CARD ? "VNPAY" : undefined;
+      const bankName =
+        paymentMethod === PAYMENT_METHODS.CARD ? "VNPAY" : undefined;
       // Checkout endpoint in current backend still expects BANK for card gateway flows.
       // If we send CARD directly, backend may silently fallback to COD.
-      const checkoutPaymentMethod = paymentMethod === PAYMENT_METHODS.CARD ? "BANK" : paymentMethod;
+      const checkoutPaymentMethod =
+        paymentMethod === PAYMENT_METHODS.CARD ? "BANK" : paymentMethod;
 
       const updateCartBody: Parameters<typeof cartClient.updateCart>[1] = {
         phone: form.phone.trim(),
@@ -827,9 +963,12 @@ export default function MenuCheckoutPage() {
       const checkoutBody: Parameters<typeof cartClient.checkoutCart>[1] = {
         payment_method: checkoutPaymentMethod,
         bank_name: bankName,
-      };      let orderId = "";      await cartClient.updateCart(cartId, updateCartBody);
-      await cartClient.checkoutCart(cartId, checkoutBody);
+      };
 
+      let orderId = "";
+
+      await cartClient.updateCart(cartId, updateCartBody);
+      await cartClient.checkoutCart(cartId, checkoutBody);
       const order = await orderClient.getOrderByCartId(cartId);
       orderId = String(order?._id ?? order?.id ?? "");
 
@@ -843,46 +982,61 @@ export default function MenuCheckoutPage() {
           clearCart();
         }
 
-        queryClient.removeQueries({ queryKey: ["cart-detail", cartId], exact: true });
-        queryClient.setQueryData(["carts-by-customer", customerId], (prev: unknown) => {
-          if (Array.isArray(prev)) {
-            return prev.filter((cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId);
-          }
-          if (prev && typeof prev === "object") {
-            const cloned = { ...(prev as Record<string, unknown>) };
-            if (Array.isArray((cloned as any).data)) {
-              (cloned as any).data = (cloned as any).data.filter(
-                (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
-              );
-            }
-            if (Array.isArray((cloned as any).carts)) {
-              (cloned as any).carts = (cloned as any).carts.filter(
-                (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
-              );
-            }
-            return cloned;
-          }
-          return prev;
+        queryClient.removeQueries({
+          queryKey: ["cart-detail", cartId],
+          exact: true,
         });
+        queryClient.setQueryData(
+          ["carts-by-customer", customerId],
+          (prev: unknown) => {
+            if (Array.isArray(prev)) {
+              return prev.filter(
+                (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
+              );
+            }
+            if (prev && typeof prev === "object") {
+              const cloned = { ...(prev as Record<string, unknown>) };
+              if (Array.isArray((cloned as any).data)) {
+                (cloned as any).data = (cloned as any).data.filter(
+                  (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
+                );
+              }
+              if (Array.isArray((cloned as any).carts)) {
+                (cloned as any).carts = (cloned as any).carts.filter(
+                  (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
+                );
+              }
+              return cloned;
+            }
+            return prev;
+          },
+        );
 
         // Keep a short minimum loading window so users can perceive processing state.
         const elapsedMs = Date.now() - loadingStartedAt;
         if (elapsedMs < CHECKOUT_MIN_LOADING_MS) {
-          await new Promise((resolve) => setTimeout(resolve, CHECKOUT_MIN_LOADING_MS - elapsedMs));
+          await new Promise((resolve) =>
+            setTimeout(resolve, CHECKOUT_MIN_LOADING_MS - elapsedMs),
+          );
         }
 
         // Luôn vào trang xử lý payment trước; success chỉ hiển thị sau bước xác nhận payment.
-        navigate(ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(orderId)));
-        queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
+        navigate(
+          ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(orderId)),
+        );
+        queryClient.invalidateQueries({
+          queryKey: ["carts-by-customer", customerId],
+        });
         queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
         return;
       }
 
-      toast.error("Không lấy được thông tin đơn hàng sau khi checkout.");    } catch (error: unknown) {
-      const msg = getErrorMessage(error) ?? "Không thể đặt hàng. Vui lòng thử lại.";
+      toast.error("Không lấy được thông tin đơn hàng sau khi checkout.");
+    } catch (error: unknown) {
+      const msg =
+        getErrorMessage(error) ?? "Không thể đặt hàng. Vui lòng thử lại.";
       toast.error(msg);
     } finally {
-      orderingCartIdRef.current = null;
       setOrderingCartId(null);
     }
   }
@@ -896,8 +1050,13 @@ export default function MenuCheckoutPage() {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-sm">
           <div className="text-6xl mb-4">🔒</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Vui lòng đăng nhập</h2>
-          <Link to={ROUTER_URL.LOGIN} className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Vui lòng đăng nhập
+          </h2>
+          <Link
+            to={ROUTER_URL.LOGIN}
+            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all"
+          >
             Đăng nhập
           </Link>
         </div>
@@ -905,8 +1064,13 @@ export default function MenuCheckoutPage() {
     );
   }
 
-  const detailsLoading = cartEntries.length > 0 && cartDetails.some((q) => q.isLoading);
-  if ((cartsLoading || detailsLoading || profileLoading) && blocks.length === 0 && !customerProfile) {
+  const detailsLoading =
+    cartEntries.length > 0 && cartDetails.some((q) => q.isLoading);
+  if (
+    (cartsLoading || detailsLoading || profileLoading) &&
+    blocks.length === 0 &&
+    !customerProfile
+  ) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -922,9 +1086,16 @@ export default function MenuCheckoutPage() {
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center max-w-sm">
           <div className="text-6xl mb-4">🛒</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Không có đơn nào để thanh toán</h2>
-          <p className="text-gray-500 text-sm mb-4">Thêm món từ menu hoặc kiểm tra giỏ hàng của bạn.</p>
-          <Link to={ROUTER_URL.MENU} className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Không có đơn nào để thanh toán
+          </h2>
+          <p className="text-gray-500 text-sm mb-4">
+            Thêm món từ menu hoặc kiểm tra giỏ hàng của bạn.
+          </p>
+          <Link
+            to={ROUTER_URL.MENU}
+            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl font-semibold transition-all"
+          >
             Quay lại Menu
           </Link>
         </div>
@@ -936,38 +1107,55 @@ export default function MenuCheckoutPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8">
         <nav className="flex items-center gap-2 text-sm text-gray-400 mb-6">
-          <Link to={ROUTER_URL.HOME} className="hover:text-gray-600">Trang chủ</Link>
+          <Link to={ROUTER_URL.HOME} className="hover:text-gray-600">
+            Trang chủ
+          </Link>
           <span>/</span>
-          <Link to={ROUTER_URL.MENU} className="hover:text-gray-600">Menu</Link>
+          <Link to={ROUTER_URL.MENU} className="hover:text-gray-600">
+            Menu
+          </Link>
           <span>/</span>
           <span className="text-gray-900 font-medium">Thanh toán</span>
-        </nav>        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Xác nhận đơn hàng</h1>
+        </nav>{" "}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+            Xác nhận đơn hàng
+          </h1>
         </div>
-
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
-
-        {/* Customer Information Form */}
-        <section className="bg-white rounded-2xl border border-gray-100 p-5 sm:p-6 space-y-5 mb-6 shadow-sm xl:mb-0 xl:order-2 xl:self-start xl:sticky xl:top-[10.5rem] xl:max-h-[calc(100vh-11.5rem)] xl:overflow-y-auto xl:pr-1">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div className="flex items-start gap-2.5 min-w-0">
-              <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
-                <svg className="w-4.5 h-4.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">Thông tin khách hàng</h2>
-                {customerProfile && (
-                  <span className="inline-flex mt-1 text-[11px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                    ✓ Đã tải từ profile
-                  </span>
-                )}
+          {/* Customer Information Form */}
+          <section className="bg-white rounded-2xl border border-gray-100 p-5 sm:p-6 space-y-5 mb-6 shadow-sm xl:mb-0 xl:order-2 xl:self-start xl:sticky xl:top-[10.5rem] xl:max-h-[calc(100vh-11.5rem)] xl:overflow-y-auto xl:pr-1">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="flex items-start gap-2.5 min-w-0">
+                <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl flex items-center justify-center">
+                  <svg
+                    className="w-4.5 h-4.5 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">
+                    Thông tin khách hàng
+                  </h2>
+                  {customerProfile && (
+                    <span className="inline-flex mt-1 text-[11px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      ✓ Đã tải từ profile
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
+            <div className="space-y-4">
               {profileLoading ? (
                 // Loading skeletons
                 <>
@@ -997,38 +1185,54 @@ export default function MenuCheckoutPage() {
                       type="text"
                       placeholder="Nguyễn Văn A"
                       value={form.name}
-                      onChange={(e) => setField("name", (e.target as HTMLInputElement).value)}
+                      onChange={(e) =>
+                        setField("name", (e.target as HTMLInputElement).value)
+                      }
                       className={cn(
                         "w-full px-4 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2",
-                        errors.name ? "border-red-300 focus:ring-red-200 bg-red-50" : "border-gray-200 focus:ring-amber-300 focus:border-amber-400 bg-white",
+                        errors.name
+                          ? "border-red-300 focus:ring-red-200 bg-red-50"
+                          : "border-gray-200 focus:ring-amber-300 focus:border-amber-400 bg-white",
                       )}
                     />
-                    {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
+                    {errors.name && (
+                      <p className="mt-1 text-xs text-red-500">{errors.name}</p>
+                    )}
                   </div>
 
                   <div>
                     <div className="mb-1.5">
                       <label className="block text-sm font-medium text-gray-700 leading-tight">
-                        Số điện thoại <span className="text-red-500 ml-0.5">*</span>
+                        Số điện thoại{" "}
+                        <span className="text-red-500 ml-0.5">*</span>
                       </label>
                     </div>
                     <input
                       type="tel"
                       placeholder="0901234567"
                       value={form.phone}
-                      onChange={(e) => setField("phone", (e.target as HTMLInputElement).value)}
+                      onChange={(e) =>
+                        setField("phone", (e.target as HTMLInputElement).value)
+                      }
                       className={cn(
                         "w-full px-4 py-2.5 rounded-xl border text-sm transition-all outline-none focus:ring-2",
-                        errors.phone ? "border-red-300 focus:ring-red-200 bg-red-50" : "border-gray-200 focus:ring-amber-300 focus:border-amber-400 bg-white",
+                        errors.phone
+                          ? "border-red-300 focus:ring-red-200 bg-red-50"
+                          : "border-gray-200 focus:ring-amber-300 focus:border-amber-400 bg-white",
                       )}
                     />
-                    {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
+                    {errors.phone && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.phone}
+                      </p>
+                    )}
                   </div>
 
                   <div>
                     <div className="mb-1.5">
                       <label className="block text-sm font-medium text-gray-700 leading-tight">
-                        Địa chỉ giao hàng <span className="text-red-500 ml-0.5">*</span>
+                        Địa chỉ giao hàng{" "}
+                        <span className="text-red-500 ml-0.5">*</span>
                       </label>
                     </div>
                     <input
@@ -1038,18 +1242,28 @@ export default function MenuCheckoutPage() {
                       onChange={(e) => setField("address", e.target.value)}
                       className={cn(
                         "w-full px-4 py-2.5 rounded-xl border text-sm outline-none transition-all bg-white focus:ring-2",
-                        errors.address ? "border-red-300 focus:ring-red-200 bg-red-50" : "border-gray-200 focus:ring-amber-300 focus:border-amber-400",
+                        errors.address
+                          ? "border-red-300 focus:ring-red-200 bg-red-50"
+                          : "border-gray-200 focus:ring-amber-300 focus:border-amber-400",
                       )}
                     />
-                    {errors.address && <p className="mt-1 text-xs text-red-500">{errors.address}</p>}
+                    {errors.address && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.address}
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-1">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-base">💳</span>
-                      <h3 className="text-sm font-semibold text-gray-900">Phương thức thanh toán</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        Phương thức thanh toán
+                      </h3>
                     </div>
-                    <p className="text-[11px] text-gray-500 mb-2">Phương thức này sẽ áp dụng cho tất cả đơn hàng bên trái</p>
+                    <p className="text-[11px] text-gray-500 mb-2">
+                      Phương thức này sẽ áp dụng cho tất cả đơn hàng bên trái
+                    </p>
                     <div className="grid grid-cols-1 gap-2">
                       {CHECKOUT_PAYMENT_OPTIONS.map((opt) => {
                         const active = selectedPaymentMethod === opt.value;
@@ -1069,319 +1283,374 @@ export default function MenuCheckoutPage() {
                               <span>{opt.icon}</span>
                               <span>{opt.label}</span>
                             </div>
-                            <p className="mt-0.5 text-[11px] text-gray-500">{opt.description}</p>
+                            <p className="mt-0.5 text-[11px] text-gray-500">
+                              {opt.description}
+                            </p>
                           </button>
                         );
                       })}
                     </div>
                   </div>
-
                 </>
               )}
-          </div>
-        </section>
+            </div>
+          </section>
 
-        {/* One block per franchise */}
-        <div className="space-y-8 xl:order-1">
-          {blocks.map((block) => {
-            const promo = getPromoState(block.cartId);
-            const missingCustomerFields: string[] = [];
-            if (!form.name.trim()) missingCustomerFields.push("họ tên");
-            if (!/^(0[3-9])\d{8}$/.test(form.phone.trim())) missingCustomerFields.push("số điện thoại hợp lệ");
-            if (!form.address.trim()) missingCustomerFields.push("địa chỉ giao hàng");
-            const hasCompleteCustomerInfo =
-              !!form.name.trim() &&
-              /^(0[3-9])\d{8}$/.test(form.phone.trim()) &&
-              !!form.address.trim();
-            const canPlace = block.items.length > 0 && isTermsAccepted(block.cartId) && hasCompleteCustomerInfo;
-            const isOrdering = orderingCartId === block.cartId;
-            const pricing = pricingByCartId[block.cartId] ?? {
-              promotionAmount: 0,
-              voucherAmount: block.discountAmount,
-              voucherPercent: block.voucherPercent,
-              promotionPercent: undefined,
-              totalDiscount: block.discountAmount,
-              finalTotal: block.totalAmount,
-              promotions: [] as Promotion[],
-              promotionsLoading: false,
-              selectedPromotionId: undefined,
-            };
+          {/* One block per franchise */}
+          <div className="space-y-8 xl:order-1">
+            {blocks.map((block) => {
+              const promo = getPromoState(block.cartId);
+              const missingCustomerFields: string[] = [];
+              if (!form.name.trim()) missingCustomerFields.push("họ tên");
+              if (!/^(0[3-9])\d{8}$/.test(form.phone.trim()))
+                missingCustomerFields.push("số điện thoại hợp lệ");
+              if (!form.address.trim())
+                missingCustomerFields.push("địa chỉ giao hàng");
+              const hasCompleteCustomerInfo =
+                !!form.name.trim() &&
+                /^(0[3-9])\d{8}$/.test(form.phone.trim()) &&
+                !!form.address.trim();
+              const canPlace =
+                block.items.length > 0 &&
+                isTermsAccepted(block.cartId) &&
+                hasCompleteCustomerInfo;
+              const isOrdering = orderingCartId === block.cartId;
+              const pricing = pricingByCartId[block.cartId] ?? {
+                promotionAmount: 0,
+                voucherAmount: block.discountAmount,
+                voucherPercent: block.voucherPercent,
+                promotionPercent: undefined,
+                totalDiscount: block.discountAmount,
+                finalTotal: block.totalAmount,
+                promotions: [] as Promotion[],
+                promotionsLoading: false,
+                selectedPromotionId: undefined,
+              };
 
-            return (
-              <div key={block.cartId} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/50">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">🏪</span>
-                    <h2 className="font-semibold text-gray-900">{block.franchiseName}</h2>
+              return (
+                <div
+                  key={block.cartId}
+                  className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm"
+                >
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/50">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">ðŸª</span>
+                      <h2 className="font-semibold text-gray-900">
+                        {block.franchiseName}
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => navigate(ROUTER_URL.MENU)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-all"
+                      title="Thêm sản phẩm từ menu"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      Thêm món
+                    </button>
                   </div>
-                  <button
-                    onClick={() => navigate(ROUTER_URL.MENU)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-all"
-                    title="Thêm sản phẩm từ menu"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Thêm món
-                  </button>
-                </div>                <div className="divide-y divide-gray-100">
-                  {block.items.map((item) => (
-                    <div key={item.key}>
-                      <div className="px-4 py-4 flex gap-4 items-start">
-                      {/* Product Image */}
-                      {item.image ? (
-                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
-                          <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center text-2xl shrink-0 border border-amber-200">
-                          🍵
-                        </div>
-                      )}
 
-                      {/* Product Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <h3 className="font-semibold text-gray-900 text-base truncate">{item.name}</h3>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              onClick={() => handleRemoveItem(item)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                              title="Xóa sản phẩm"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                  <div className="divide-y divide-gray-100">
+                    {block.items.map((item) => (
+                      <div
+                        key={item.key}
+                        className="px-4 py-4 flex gap-4 items-start"
+                      >
+                        {/* Product Image */}
+                        {item.image ? (
+                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
                           </div>
-                        </div>
+                        ) : (
+                          <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 flex items-center justify-center text-2xl shrink-0 border border-amber-200">
+                            🍵
+                          </div>
+                        )}
 
-                        {/* Product Options */}
-                        {(item.size || item.sugar || item.ice || item.toppingsText || item.note) && (
-                          <div className="mb-3">
-                            <div className="flex flex-wrap gap-1.5 mb-2">
-                              {item.size && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
-                                  📏 Size {item.size}
-                                </span>
-                              )}
-                              {item.sugar && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
-                                  🍯 Đường {item.sugar}
-                                </span>
-                              )}
-                              {item.ice && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-xs font-medium">
-                                  🧊 {item.ice}
-                                </span>
-                              )}
-                              {item.toppingsText && (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium">
-                                  🧋 {item.toppingsText}
-                                </span>
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <h3 className="font-semibold text-gray-900 text-base truncate">
+                              {item.name}
+                            </h3>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => handleRemoveItem(item)}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                title="Xóa sản phẩm"
+                              >
+                                <svg
+                                  className="w-4 h-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Product Options */}
+                          {(item.size ||
+                            item.sugar ||
+                            item.ice ||
+                            item.toppingsText ||
+                            item.note) && (
+                            <div className="mb-3">
+                              <div className="flex flex-wrap gap-1.5 mb-2">
+                                {item.size && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
+                                    📏 Size {item.size}
+                                  </span>
+                                )}
+                                {item.sugar && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
+                                    🍯 Đường {item.sugar}
+                                  </span>
+                                )}
+                                {item.ice && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-xs font-medium">
+                                    🧊 {item.ice}
+                                  </span>
+                                )}
+                                {item.toppingsText && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium">
+                                    🧋 {item.toppingsText}
+                                  </span>
+                                )}
+                              </div>
+                              {item.note && (
+                                <p className="text-xs text-gray-500 italic bg-gray-50 px-2.5 py-1.5 rounded-lg">
+                                  💭 Ghi chú: {item.note}
+                                </p>
                               )}
                             </div>
-                            {item.note && (
-                              <p className="text-xs text-gray-500 italic bg-gray-50 px-2.5 py-1.5 rounded-lg">
-                                💭 Ghi chú: {item.note}
-                              </p>
-                            )}
-                          </div>
-                        )}                        {/* Quantity and Price */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Số lượng:</span>
-                            <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-bold">
-                              {item.quantity}
-                            </span>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-amber-700">{fmt(item.lineTotal)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>                    {/* Topping rows — hiện từng topping như 1 dòng sản phẩm phụ */}
-                    {item.toppingsParsed && item.toppingsParsed.length > 0 && item.toppingsParsed.map((topping, ti) => (
-                      <div key={`${item.key}-topping-${ti}`} className="px-4 py-2.5 flex gap-4 items-center bg-amber-50/60 border-t border-amber-100/60">
-                        <div className="w-16 shrink-0 flex justify-center">
-                          {topping.image ? (
-                            <img src={topping.image} alt={topping.name} className="w-10 h-10 rounded-lg object-cover border border-amber-100" />
-                          ) : (
-                            <span className="text-2xl">🧋</span>
                           )}
-                        </div>                        <div className="flex-1 min-w-0 flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm text-gray-700 font-medium">{topping.name}</p>
-                            <p className="text-xs text-amber-600">Topping của <span className="font-medium">{item.name}</span></p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-xs text-gray-500 block">×{topping.quantity * item.quantity}</span>
-                            {topping.price != null && (
-                              <span className="text-xs font-semibold text-amber-700">{fmt(topping.price * topping.quantity * item.quantity)}</span>
-                            )}
+
+                          {/* Quantity and Price */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-gray-600">
+                                Số lượng:
+                              </span>
+                              <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-bold">
+                                {item.quantity}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-amber-700">
+                                {fmt(item.lineTotal)}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
                     ))}
-                    </div>
-                  ))}</div>
-
-                {/* Promotions Banner */}
-                {block.franchiseId && (
-                  <PromotionsBanner
-                    franchiseName={block.franchiseName}
-                    promotions={pricing.promotions}
-                    isLoading={pricing.promotionsLoading}
-                    selectedPromotionId={pricing.selectedPromotionId}
-                  />
-                )}
-
-                {/* Voucher Section */}
-                <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-lg">🎫</span>
-                    <h3 className="font-medium text-gray-900 text-sm">Mã giảm giá</h3>
                   </div>
 
-                  {promo.applied ? (
-                    <div className="flex items-center justify-between p-3 bg-emerald-100 border border-emerald-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <span className="text-emerald-600 text-lg">✓</span>
-                        <span className="font-semibold text-emerald-800 text-sm">{promo.applied.code}</span>
-                      </div>
-                      <button
-                        onClick={() => removePromoForCart(block.cartId)}
-                        className="text-xs text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Hủy
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        value={promo.input}
-                        onChange={(e) => {
-                          setPromoState(block.cartId, { input: e.target.value.toUpperCase(), error: "" });
-                        }}
-                        onKeyDown={(e) => e.key === "Enter" && void applyPromoForCart(block.cartId)}
-                        placeholder="Nhập mã..."
-                        className={cn(
-                          "flex-1 px-3 py-2 rounded-lg border text-xs outline-none transition-all uppercase font-mono",
-                          promo.error
-                            ? "border-red-300 bg-red-50"
-                            : "border-gray-200 focus:ring-1 focus:ring-emerald-300 bg-white"
-                        )}
-                      />
-                      <button
-                        onClick={() => void applyPromoForCart(block.cartId)}
-                        disabled={promo.loading || !promo.input.trim()}
-                        className={cn(
-                          "px-4 py-2 rounded-lg text-xs font-medium transition-all",
-                          promo.loading || !promo.input.trim()
-                            ? "bg-gray-200 text-gray-400"
-                            : "bg-emerald-500 hover:bg-emerald-600 text-white"
-                        )}
-                      >
-                        {promo.loading ? "..." : "Áp dụng"}
-                      </button>
-                    </div>
-                  )}
-
-                  {promo.error && (
-                    <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
-                      <span>⚠️</span>
-                      {promo.error}
-                    </p>
-                  )}
-                </div>
-
-                <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
-                  <label className="flex items-start gap-2.5 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={isTermsAccepted(block.cartId)}
-                      onChange={(e) => setTermsForCart(block.cartId, e.target.checked)}
-                      className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-amber-500 shrink-0"
+                  {/* Promotions Banner */}
+                  {block.franchiseId && (
+                    <PromotionsBanner
+                      franchiseName={block.franchiseName}
+                      promotions={pricing.promotions}
+                      isLoading={pricing.promotionsLoading}
+                      selectedPromotionId={pricing.selectedPromotionId}
                     />
-                    <span className="text-xs text-gray-500 leading-relaxed">
-                      Tôi đã đọc, hiểu và đồng ý với các điều khoản, điều kiện và chính sách liên quan
-                    </span>
-                  </label>
-                  {!isTermsAccepted(block.cartId) && (
-                    <p className="mt-2 text-xs text-amber-700">⚠️ Vui lòng đồng ý điều khoản để tiếp tục</p>
                   )}
-                </div>
 
-                {/* Pricing Breakdown: Subtotal → Discount → Final Total */}
-                <div className="px-5 py-4 bg-gray-50 border-t border-gray-100">
-                  <div className="space-y-2.5 text-sm mb-4">
-                    {/* Subtotal */}
-                    <div className="flex justify-between text-gray-600">
-                      <span>Tạm tính ({block.items.reduce((s, i) => s + i.quantity, 0)} món)</span>
-                      <span>{fmt(block.subtotal)}</span>
+                  {/* Voucher Section */}
+                  <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">🎫</span>
+                      <h3 className="font-medium text-gray-900 text-sm">
+                        Mã giảm giá
+                      </h3>
                     </div>
 
-                    {/* Discount (if applied) */}
-                    {pricing.voucherAmount > 0 && (
-                      <div className="flex justify-between text-red-600 font-semibold">
-                        <span>
-                          Giảm voucher
-                          {typeof pricing.voucherPercent === "number" && pricing.voucherPercent > 0
-                            ? ` (${fmtPercent(pricing.voucherPercent)})`
-                            : ""}
-                        </span>
-                        <span>-{fmt(pricing.voucherAmount)}</span>
+                    {promo.applied ? (
+                      <div className="flex items-center justify-between p-3 bg-emerald-100 border border-emerald-200 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-600 text-lg">✓</span>
+                          <span className="font-semibold text-emerald-800 text-sm">
+                            {promo.applied.code}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => removePromoForCart(block.cartId)}
+                          className="text-xs text-red-600 hover:text-red-700 font-medium"
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          value={promo.input}
+                          onChange={(e) => {
+                            setPromoState(block.cartId, {
+                              input: e.target.value.toUpperCase(),
+                              error: "",
+                            });
+                          }}
+                          onKeyDown={(e) =>
+                            e.key === "Enter" &&
+                            void applyPromoForCart(block.cartId)
+                          }
+                          placeholder="Nhập mã..."
+                          className={cn(
+                            "flex-1 px-3 py-2 rounded-lg border text-xs outline-none transition-all uppercase font-mono",
+                            promo.error
+                              ? "border-red-300 bg-red-50"
+                              : "border-gray-200 focus:ring-1 focus:ring-emerald-300 bg-white",
+                          )}
+                        />
+                        <button
+                          onClick={() => void applyPromoForCart(block.cartId)}
+                          disabled={promo.loading || !promo.input.trim()}
+                          className={cn(
+                            "px-4 py-2 rounded-lg text-xs font-medium transition-all",
+                            promo.loading || !promo.input.trim()
+                              ? "bg-gray-200 text-gray-400"
+                              : "bg-emerald-500 hover:bg-emerald-600 text-white",
+                          )}
+                        >
+                          {promo.loading ? "..." : "Áp dụng"}
+                        </button>
                       </div>
                     )}
 
-                    {pricing.promotionAmount > 0 && (
-                      <div className="flex justify-between text-emerald-700 font-semibold">
-                        <span>
-                          Giảm khuyến mãi
-                          {typeof pricing.promotionPercent === "number" && pricing.promotionPercent > 0
-                            ? ` (${fmtPercent(pricing.promotionPercent)})`
-                            : ""}
-                        </span>
-                        <span>-{fmt(pricing.promotionAmount)}</span>
-                      </div>
+                    {promo.error && (
+                      <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
+                        <span>⚠️</span>
+                        {promo.error}
+                      </p>
                     )}
-
-                    {/* Separator */}
-                    <div className="h-px bg-gray-200" />
-
-                    {/* Final Total (from API: already includes discount deduction) */}
-                    <div className="flex justify-between font-bold text-base text-gray-900">
-                      <span>Tổng cộng</span>
-                      <span className="text-amber-600">{fmt(pricing.finalTotal)}</span>
-                    </div>
                   </div>
 
-                  {!hasCompleteCustomerInfo && (
-                    <p className="mb-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                      ⚠️ Vui lòng điền đầy đủ thông tin khách hàng ({missingCustomerFields.join(", ")}) để xác nhận đơn.
-                    </p>
-                  )}
-
-                  {/* Confirm Order Button */}
-                  <button
-                    onClick={() => handleOrderOneBlock(block)}
-                    disabled={isOrdering || !canPlace}
-                    className={cn(
-                      "w-full px-6 py-3 rounded-xl font-semibold text-sm transition-all",
-                      isOrdering || !canPlace
-                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                        : "bg-amber-500 hover:bg-amber-600 text-white",
+                  <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50">
+                    <label className="flex items-start gap-2.5 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={isTermsAccepted(block.cartId)}
+                        onChange={(e) =>
+                          setTermsForCart(block.cartId, e.target.checked)
+                        }
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 accent-amber-500 shrink-0"
+                      />
+                      <span className="text-xs text-gray-500 leading-relaxed">
+                        Tôi đã đọc, hiểu và đồng ý với các điều khoản, điều kiện
+                        và chính sách liên quan
+                      </span>
+                    </label>
+                    {!isTermsAccepted(block.cartId) && (
+                      <p className="mt-2 text-xs text-amber-700">
+                        ⚠️ Vui lòng đồng ý điều khoản để tiếp tục
+                      </p>
                     )}
-                  >
-                    {isOrdering ? "Đang xử lý..." : `Xác nhận đơn – ${block.franchiseName}`}
-                  </button>
+                  </div>
+
+                  {/* Pricing Breakdown: Subtotal → Discount → Final Total */}
+                  <div className="px-5 py-4 bg-gray-50 border-t border-gray-100">
+                    <div className="space-y-2.5 text-sm mb-4">
+                      {/* Subtotal */}
+                      <div className="flex justify-between text-gray-600">
+                        <span>
+                          Tạm tính (
+                          {block.items.reduce((s, i) => s + i.quantity, 0)} món)
+                        </span>
+                        <span>{fmt(block.subtotal)}</span>
+                      </div>
+
+                      {/* Discount (if applied) */}
+                      {pricing.voucherAmount > 0 && (
+                        <div className="flex justify-between text-red-600 font-semibold">
+                          <span>
+                            Giảm voucher
+                            {typeof pricing.voucherPercent === "number" &&
+                            pricing.voucherPercent > 0
+                              ? ` (${fmtPercent(pricing.voucherPercent)})`
+                              : ""}
+                          </span>
+                          <span>-{fmt(pricing.voucherAmount)}</span>
+                        </div>
+                      )}
+
+                      {pricing.promotionAmount > 0 && (
+                        <div className="flex justify-between text-emerald-700 font-semibold">
+                          <span>
+                            Giảm khuyến mãi
+                            {typeof pricing.promotionPercent === "number" &&
+                            pricing.promotionPercent > 0
+                              ? ` (${fmtPercent(pricing.promotionPercent)})`
+                              : ""}
+                          </span>
+                          <span>-{fmt(pricing.promotionAmount)}</span>
+                        </div>
+                      )}
+
+                      {/* Separator */}
+                      <div className="h-px bg-gray-200" />
+
+                      {/* Final Total (from API: already includes discount deduction) */}
+                      <div className="flex justify-between font-bold text-base text-gray-900">
+                        <span>Tổng cộng</span>
+                        <span className="text-amber-600">
+                          {fmt(pricing.finalTotal)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {!hasCompleteCustomerInfo && (
+                      <p className="mb-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                        ⚠️ Vui lòng điền đầy đủ thông tin khách hàng (
+                        {missingCustomerFields.join(", ")}) để xác nhận đơn.
+                      </p>
+                    )}
+
+                    {/* Confirm Order Button */}
+                    <button
+                      onClick={() => handleOrderOneBlock(block)}
+                      disabled={isOrdering || !canPlace}
+                      className={cn(
+                        "w-full px-6 py-3 rounded-xl font-semibold text-sm transition-all",
+                        isOrdering || !canPlace
+                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          : "bg-amber-500 hover:bg-amber-600 text-white",
+                      )}
+                    >
+                      {isOrdering
+                        ? "Đang xử lý..."
+                        : `Xác nhận đơn – ${block.franchiseName}`}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
