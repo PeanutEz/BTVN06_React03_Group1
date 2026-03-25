@@ -347,15 +347,15 @@ export default function MenuOrderPanel({
 
   async function handleRemoveItem(item: DisplayCartItem) {
     if (!item.apiItemId) {
-      toast.error("Khong the xoa san pham. San pham chua dong bo voi server.");
+      toast.error("Không thể xóa sản phẩm. Sản phẩm chưa đồng bộ với server.");
       return;
     }
     try {
       await cartClient.deleteCartItem(item.apiItemId);
       invalidateCart(item.cartId);
-      toast.success("Da xoa san pham khoi gio hang");
+      toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
     } catch (error) {
-      toast.error("Khong the xoa san pham: " + ((error as any)?.response?.data?.message || (error as any)?.message || "Loi khong xac dinh"));
+      toast.error("Không thể xóa sản phẩm: " + ((error as any)?.response?.data?.message || (error as any)?.message || "Lỗi không xác định"));
     }
   }
 
@@ -398,7 +398,7 @@ export default function MenuOrderPanel({
 
   function handleOpenEditDialog(item: DisplayCartItem) {
     if (!item.apiItemId) {
-      toast.error("San pham nay chua co cart item id de chinh sua.");
+      toast.error("Sản phẩm này chưa có cart item id để chỉnh sửa.");
       return;
     }
     const fromIndex = apiItems.findIndex((i) => i.key === item.key);

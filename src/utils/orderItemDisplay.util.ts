@@ -50,12 +50,17 @@ function collectToppings(input: unknown): ToppingEntry[] {
           return parsed.length > 0 ? parsed[0] : null;
         }
         if (typeof value === "object") {
+          const nestedProduct =
+            (value as any)?.product && typeof (value as any).product === "object"
+              ? ((value as any).product as Record<string, unknown>)
+              : null;
           const name = firstText(
             (value as any)?.name,
             (value as any)?.label,
             (value as any)?.topping_name,
             (value as any)?.product_name,
             (value as any)?.product_name_snapshot,
+            nestedProduct?.name,
             (value as any)?.option_name,
           );
           const quantityRaw = Number(
@@ -159,7 +164,16 @@ function getOptionLabels(options: unknown): string[] {
       if (!opt) return "";
       if (typeof opt === "string") return opt.trim();
       if (typeof opt === "object") {
-        return firstText((opt as any)?.name, (opt as any)?.option_name, (opt as any)?.label);
+        const nestedProduct =
+          (opt as any)?.product && typeof (opt as any).product === "object"
+            ? ((opt as any).product as Record<string, unknown>)
+            : null;
+        return firstText(
+          (opt as any)?.name,
+          (opt as any)?.option_name,
+          (opt as any)?.label,
+          nestedProduct?.name,
+        );
       }
       return "";
     })

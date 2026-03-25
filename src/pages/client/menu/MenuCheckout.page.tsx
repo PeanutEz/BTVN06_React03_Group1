@@ -6,20 +6,24 @@ import { cn } from "@/lib/utils";
 import LoadingLayout from "@/layouts/Loading.layout";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
-import { ROUTER_URL } from "@/routes/router.const";
+import { buildPaymentProcessUrl, ROUTER_URL } from "@/routes/router.const";
 import { PAYMENT_METHODS } from "@/const/payment-method.const";
 import type { AppliedPromo } from "@/types/delivery.types";
 import {
   cartClient,
   type CartApiData,
   type ApiCartItem,
+  type CartPricingSummary,
   type CartItemOption,
+  formatDiscountTypeText,
+  getCartPricingSummary,
 } from "@/services/cart.client";
 import { orderClient } from "@/services/order.client";
 import {
-  formatToppingsSummary,
+  formatCartOptionsSummary,
   parseCartSelectionNote,
 } from "@/utils/cartSelectionNote.util";
+import { saveOrderPaymentIntent } from "@/utils/orderPaymentIntent.util";
 import type { IceLevel, SugarLevel } from "@/types/menu.types";
 import {
   getCurrentCustomerProfile,
@@ -54,11 +58,6 @@ const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
     n,
   );
-const fmtPercent = (n: number) => {
-  const normalized = Number.isInteger(n) ? n : Number(n.toFixed(2));
-  return `${normalized}%`;
-};
-
 const fmtDate = (d: string) =>
   new Date(d).toLocaleDateString("vi-VN", {
     day: "2-digit",
@@ -69,7 +68,7 @@ const fmtDate = (d: string) =>
 const CHECKOUT_MIN_LOADING_MS = 900;
 
 function getPromotionIdentity(promo: Promotion): string {
-  const raw = promo as any;
+  const raw = promo as unknown as Record<string, unknown>;
   const id = raw?.id ?? raw?._id;
   if (id != null && String(id).trim()) return String(id);
   return [
@@ -79,26 +78,6 @@ function getPromotionIdentity(promo: Promotion): string {
     String(raw?.type ?? ""),
     String(raw?.value ?? ""),
   ].join("|");
-}
-function parseNumberish(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number.parseFloat(value.replace(/,/g, "."));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function getPercentValueFromDiscount(
-  type: unknown,
-  value: unknown,
-): number | undefined {
-  const typeText = String(type ?? "").toUpperCase();
-  if (!typeText.includes("PERCENT") && !typeText.includes("%"))
-    return undefined;
-  const parsedValue = parseNumberish(value);
-  if (parsedValue == null || parsedValue <= 0) return undefined;
-  return parsedValue;
 }
 
 function PromotionsBanner({
@@ -121,9 +100,10 @@ function PromotionsBanner({
   );
   const appliedDiscountText = (() => {
     if (!appliedPromo) return null;
-    const rawValue = Number((appliedPromo as any).value ?? 0);
+    const promoRecord = appliedPromo as unknown as Record<string, unknown>;
+    const rawValue = Number(promoRecord.value ?? 0);
     const promoValue = Number.isFinite(rawValue) ? rawValue : 0;
-    const promoType = String((appliedPromo as any).type ?? "").toUpperCase();
+    const promoType = String(promoRecord.type ?? "").toUpperCase();
     if (promoType.includes("PERCENT") || promoType.includes("%")) {
       return `Giảm ${promoValue}%`;
     }
@@ -283,11 +263,9 @@ interface CheckoutBlock {
   franchiseId?: string;
   franchiseName: string;
   items: DisplayItem[];
-  subtotal: number;
-  totalAmount: number;
-  discountAmount: number;
-  hasVoucher: boolean;
-  voucherPercent?: number;
+  pricing: CartPricingSummary;
+  appliedPromotionId?: string;
+  appliedVoucherCode?: string;
 }
 
 function getActivePromotions(promotions: Promotion[]): Promotion[] {
@@ -299,80 +277,6 @@ function getActivePromotions(promotions: Promotion[]): Promotion[] {
       new Date(p.start_date) <= now &&
       (!p.end_date || new Date(p.end_date) >= now),
   );
-}
-
-function pickBestPromotion(
-  subtotal: number,
-  items: DisplayItem[],
-  promotions: Promotion[],
-): {
-  selectedPromotionId?: string;
-  discountAmount: number;
-} {
-  const eligiblePromotions = getActivePromotions(promotions);
-  if (eligiblePromotions.length === 0) {
-    return { selectedPromotionId: undefined, discountAmount: 0 };
-  }
-
-  let bestPromotionId: string | undefined;
-  let bestDiscount = 0;
-
-  for (const promo of eligiblePromotions) {
-    const scopedProductFranchiseId = String(
-      (promo as any).product_franchise_id ?? "",
-    ).trim();
-    const hasValidProductScope =
-      !!scopedProductFranchiseId &&
-      scopedProductFranchiseId !== "null" &&
-      scopedProductFranchiseId !== "undefined";
-
-    const matchedScopedAmount = hasValidProductScope
-      ? items
-          .filter(
-            (item) => item.apiProductFranchiseId === scopedProductFranchiseId,
-          )
-          .reduce((sum, item) => sum + item.lineTotal, 0)
-      : 0;
-
-    const eligibleAmount = hasValidProductScope
-      ? matchedScopedAmount > 0
-        ? matchedScopedAmount
-        : subtotal
-      : subtotal;
-
-    if (eligibleAmount <= 0) continue;
-
-    const promoRawValue =
-      (promo as any).value ??
-      (promo as any).discount_value ??
-      (promo as any).discountValue ??
-      0;
-    const promoValue =
-      typeof promoRawValue === "string"
-        ? Number.parseFloat(promoRawValue.replace(/,/g, "."))
-        : Number(promoRawValue);
-    if (!Number.isFinite(promoValue) || promoValue <= 0) continue;
-
-    const promoType = String((promo as any).type ?? "").toUpperCase();
-    const isPercent = promoType.includes("PERCENT") || promoType.includes("%");
-
-    const rawDiscount = isPercent
-      ? (eligibleAmount * promoValue) / 100
-      : promoValue;
-
-    const discount = Math.round(
-      Math.max(0, Math.min(eligibleAmount, rawDiscount)),
-    );
-    if (discount > bestDiscount) {
-      bestDiscount = discount;
-      bestPromotionId = getPromotionIdentity(promo);
-    }
-  }
-
-  return {
-    selectedPromotionId: bestPromotionId,
-    discountAmount: bestDiscount,
-  };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -460,6 +364,24 @@ function getItemPrice(item: ApiCartItem): number {
   return Number(v) >= 0 ? Number(v) : 0;
 }
 
+function getCartOptionDisplayName(
+  option: CartItemOption,
+): string {
+  const product =
+    option.product && typeof option.product === "object"
+      ? (option.product as Record<string, unknown>)
+      : null;
+  return (
+    String(
+      option.product_name ??
+        option.product_name_snapshot ??
+        product?.name ??
+        option.name ??
+        "",
+    ).trim() || "Topping"
+  );
+}
+
 function apiCartToDisplayItems(
   cartId: string,
   apiCart: CartApiData | null,
@@ -526,7 +448,9 @@ function apiCartToDisplayItems(
       size: item.size,
       sugar: parsed.sugar,
       ice: parsed.ice,
-      toppingsText: formatToppingsSummary(parsed.toppings),
+      toppingsText: formatCartOptionsSummary(
+        item.options as CartItemOption[] | undefined,
+      ),
       toppingsParsed: parsed.toppings,
       note: parsed.userNote ?? (item.note ? String(item.note) : undefined),
       quantity: qty,
@@ -628,42 +552,30 @@ export default function MenuCheckoutPage() {
           : [];
       const detailFromList = listSource[idx] as CartApiData | undefined;
       const detail = detailFromQuery ?? detailFromList;
-      const items = apiCartToDisplayItems(
-        entry.cartId,
-        detailFromQuery ?? null,
-      );
-      // ✅ Ensure numbers: use API fields with fallback to calculations
-      const subtotal: number =
-        typeof detail?.subtotal_amount === "number"
-          ? detail.subtotal_amount
-          : items.reduce((s, i) => s + i.lineTotal, 0);
-      const discountAmount: number =
-        typeof detail?.voucher_discount === "number"
-          ? detail.voucher_discount
-          : 0;
-      const totalAmount: number =
-        typeof detail?.final_amount === "number"
-          ? detail.final_amount
-          : Math.max(0, subtotal - discountAmount);
+      const items = apiCartToDisplayItems(entry.cartId, detail ?? null);
       const detailRaw = detail ? (detail as Record<string, unknown>) : null;
       const detailFranchise = getNestedRecord(detailRaw, "franchise");
-      const detailVoucher = getNestedRecord(detailRaw, "voucher");
-      const voucherType = detailVoucher?.type ?? detailRaw?.voucher_type;
-      const voucherValue = detailVoucher?.value ?? detailRaw?.voucher_value;
-      const voucherPercentFromType = getPercentValueFromDiscount(
-        voucherType,
-        voucherValue,
-      );
-      const voucherPercent =
-        voucherPercentFromType ??
-        parseNumberish(detailRaw?.voucher_percent) ??
-        parseNumberish(detailRaw?.voucher_discount_percent) ??
-        undefined;
-      const voucherCode = detailRaw?.voucher_code;
-      const hasVoucher = !!(
-        detail?.voucher ??
-        (typeof voucherCode === "string" ? voucherCode : undefined)
-      );
+      const fallbackSubtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
+      const pricing = getCartPricingSummary(detail ?? null, fallbackSubtotal);
+      const appliedPromotionId = (() => {
+        const rawId =
+          detailRaw?.promotion_id ??
+          getNestedRecord(detailRaw, "promotion")?.id ??
+          getNestedRecord(detailRaw, "promotion")?._id;
+        return rawId == null ? undefined : String(rawId).trim() || undefined;
+      })();
+      const appliedVoucherCode = (() => {
+        const rawVoucher = detailRaw?.voucher;
+        if (typeof rawVoucher === "string" && rawVoucher.trim()) {
+          return rawVoucher.trim();
+        }
+        const voucherRecord = getNestedRecord(detailRaw, "voucher");
+        const rawCode =
+          voucherRecord?.code ??
+          voucherRecord?.voucher_code ??
+          detailRaw?.voucher_code;
+        return rawCode == null ? undefined : String(rawCode).trim() || undefined;
+      })();
       const franchiseName =
         entry.franchise_name ??
         detail?.franchise_name ??
@@ -682,11 +594,9 @@ export default function MenuCheckoutPage() {
         franchiseId,
         franchiseName,
         items,
-        subtotal,
-        totalAmount,
-        discountAmount,
-        hasVoucher,
-        voucherPercent,
+        pricing,
+        appliedPromotionId,
+        appliedVoucherCode,
       };
     })
     .filter((b) => b.items.length > 0);
@@ -705,53 +615,32 @@ export default function MenuCheckoutPage() {
     const map: Record<
       string,
       {
-        promotionAmount: number;
-        voucherAmount: number;
-        voucherPercent?: number;
-        promotionPercent?: number;
-        totalDiscount: number;
-        finalTotal: number;
+        pricing: CartPricingSummary;
         promotions: Promotion[];
         promotionsLoading: boolean;
         selectedPromotionId?: string;
+        appliedVoucherCode?: string;
       }
     > = {};
 
     blocks.forEach((block, idx) => {
       const rawPromotions = (promotionQueries[idx]?.data ?? []) as Promotion[];
       const activePromotions = getActivePromotions(rawPromotions);
-      const bestPromotion = pickBestPromotion(
-        block.subtotal,
-        block.items,
-        activePromotions,
-      );
-      const promoDiscount = bestPromotion.discountAmount;
       const selectedPromotion = activePromotions.find(
         (promo) =>
-          !!bestPromotion.selectedPromotionId &&
-          getPromotionIdentity(promo) === bestPromotion.selectedPromotionId,
+          !!block.appliedPromotionId &&
+          (promo.id === block.appliedPromotionId ||
+            getPromotionIdentity(promo) === block.appliedPromotionId),
       );
-      const promotionPercent = selectedPromotion
-        ? getPercentValueFromDiscount(
-            (selectedPromotion as any).type,
-            (selectedPromotion as any).value,
-          )
-        : undefined;
-
-      const effectivePromoDiscount = promoDiscount;
-      const totalDiscount = block.discountAmount + effectivePromoDiscount;
-      const finalTotal = Math.max(0, block.subtotal - totalDiscount);
 
       map[block.cartId] = {
-        promotionAmount: effectivePromoDiscount,
-        voucherAmount: block.discountAmount,
-        voucherPercent: block.voucherPercent,
-        promotionPercent,
-        totalDiscount,
-        finalTotal,
+        pricing: block.pricing,
         promotions: activePromotions,
         promotionsLoading: !!promotionQueries[idx]?.isLoading,
-        selectedPromotionId: bestPromotion.selectedPromotionId,
+        selectedPromotionId: selectedPromotion
+          ? getPromotionIdentity(selectedPromotion)
+          : undefined,
+        appliedVoucherCode: block.appliedVoucherCode,
       };
     });
 
@@ -870,6 +759,9 @@ export default function MenuCheckoutPage() {
       });
       // ✅ Invalidate cart-detail to refetch pricing with discount applied
       queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
+      queryClient.invalidateQueries({
+        queryKey: ["carts-by-customer", customerId],
+      });
       toast.success("Áp dụng mã thành công!");
     } catch {
       setPromoState(cartId, {
@@ -884,8 +776,40 @@ export default function MenuCheckoutPage() {
     try {
       await cartClient.removeVoucher(cartId);
       queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
+      queryClient.invalidateQueries({
+        queryKey: ["carts-by-customer", customerId],
+      });
     } catch {
       /* ignore */
+    }
+  }
+
+  function invalidateCartQueries(cartId: string) {
+    queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
+    queryClient.invalidateQueries({
+      queryKey: ["carts-by-customer", customerId],
+    });
+  }
+
+  async function handleUpdateItemQuantity(item: DisplayItem, newQty: number) {
+    if (newQty < 1) {
+      await handleRemoveItem(item);
+      return;
+    }
+    if (!item.apiItemId) {
+      toast.error("Không thể cập nhật số lượng. Sản phẩm chưa đồng bộ với server.");
+      return;
+    }
+
+    try {
+      await cartClient.updateCartItemQuantity({
+        cart_item_id: item.apiItemId,
+        quantity: newQty,
+      });
+      invalidateCartQueries(item.cartId);
+    } catch (error) {
+      console.error("Update item quantity failed:", error);
+      toast.error("Không thể cập nhật số lượng sản phẩm");
     }
   }
 
@@ -897,15 +821,24 @@ export default function MenuCheckoutPage() {
     }
     try {
       await cartClient.deleteCartItem(item.apiItemId);
-      queryClient.invalidateQueries({ queryKey: ["cart-detail", item.cartId] });
-      queryClient.invalidateQueries({
-        queryKey: ["carts-by-customer", customerId],
-      });
+      invalidateCartQueries(item.cartId);
       toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
     } catch (error) {
       console.error("Remove item failed:", error);
       toast.error("Không thể xóa sản phẩm");
     }
+  }
+
+  async function getOrderByCartIdWithRetry(cartId: string) {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const order = await orderClient.getOrderByCartId(cartId);
+      const orderId = String(order?._id ?? order?.id ?? "").trim();
+      if (orderId) return order;
+      if (attempt < 4) {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
+    }
+    return null;
   }
 
   async function handleOrderOneBlock(block: CheckoutBlock) {
@@ -956,11 +889,15 @@ export default function MenuCheckoutPage() {
       const updateCartBody: Parameters<typeof cartClient.updateCart>[1] = {
         phone: form.phone.trim(),
         address: form.address.trim() || undefined,
+        message: "",
         payment_method: checkoutPaymentMethod,
         bank_name: bankName,
       };
 
       const checkoutBody: Parameters<typeof cartClient.checkoutCart>[1] = {
+        phone: form.phone.trim(),
+        address: form.address.trim() || undefined,
+        message: "",
         payment_method: checkoutPaymentMethod,
         bank_name: bankName,
       };
@@ -969,7 +906,7 @@ export default function MenuCheckoutPage() {
 
       await cartClient.updateCart(cartId, updateCartBody);
       await cartClient.checkoutCart(cartId, checkoutBody);
-      const order = await orderClient.getOrderByCartId(cartId);
+      const order = await getOrderByCartIdWithRetry(cartId);
       orderId = String(order?._id ?? order?.id ?? "");
 
       toast.success(`Đã đặt đơn tại ${franchiseName}`);
@@ -991,19 +928,36 @@ export default function MenuCheckoutPage() {
           (prev: unknown) => {
             if (Array.isArray(prev)) {
               return prev.filter(
-                (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
+                (cart) =>
+                  String(
+                    (cart as Record<string, unknown>)?._id ??
+                      (cart as Record<string, unknown>)?.id ??
+                      "",
+                  ) !== cartId,
               );
             }
             if (prev && typeof prev === "object") {
               const cloned = { ...(prev as Record<string, unknown>) };
-              if (Array.isArray((cloned as any).data)) {
-                (cloned as any).data = (cloned as any).data.filter(
-                  (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
+              const data = Array.isArray(cloned.data) ? cloned.data : null;
+              const carts = Array.isArray(cloned.carts) ? cloned.carts : null;
+              if (data) {
+                cloned.data = data.filter(
+                  (cart) =>
+                    String(
+                      (cart as Record<string, unknown>)?._id ??
+                        (cart as Record<string, unknown>)?.id ??
+                        "",
+                    ) !== cartId,
                 );
               }
-              if (Array.isArray((cloned as any).carts)) {
-                (cloned as any).carts = (cloned as any).carts.filter(
-                  (cart: any) => String(cart?._id ?? cart?.id ?? "") !== cartId,
+              if (carts) {
+                cloned.carts = carts.filter(
+                  (cart) =>
+                    String(
+                      (cart as Record<string, unknown>)?._id ??
+                        (cart as Record<string, unknown>)?.id ??
+                        "",
+                    ) !== cartId,
                 );
               }
               return cloned;
@@ -1021,8 +975,15 @@ export default function MenuCheckoutPage() {
         }
 
         // Luôn vào trang xử lý payment trước; success chỉ hiển thị sau bước xác nhận payment.
+        saveOrderPaymentIntent(String(orderId), paymentMethod, bankName);
         navigate(
-          ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(orderId)),
+          buildPaymentProcessUrl(String(orderId), paymentMethod),
+          {
+            state: {
+              checkoutPaymentMethod: paymentMethod,
+              checkoutBankName: bankName,
+            },
+          },
         );
         queryClient.invalidateQueries({
           queryKey: ["carts-by-customer", customerId],
@@ -1316,16 +1277,21 @@ export default function MenuCheckoutPage() {
                 hasCompleteCustomerInfo;
               const isOrdering = orderingCartId === block.cartId;
               const pricing = pricingByCartId[block.cartId] ?? {
-                promotionAmount: 0,
-                voucherAmount: block.discountAmount,
-                voucherPercent: block.voucherPercent,
-                promotionPercent: undefined,
-                totalDiscount: block.discountAmount,
-                finalTotal: block.totalAmount,
+                pricing: block.pricing,
                 promotions: [] as Promotion[],
                 promotionsLoading: false,
                 selectedPromotionId: undefined,
+                appliedVoucherCode: block.appliedVoucherCode,
               };
+              const pricingSummary = pricing.pricing;
+              const appliedVoucher =
+                promo.applied ??
+                (pricing.appliedVoucherCode
+                  ? {
+                      code: pricing.appliedVoucherCode,
+                      label: pricing.appliedVoucherCode,
+                    }
+                  : null);
 
               return (
                 <div
@@ -1334,7 +1300,7 @@ export default function MenuCheckoutPage() {
                 >
                   <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/50">
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">ðŸª</span>
+                      <span className="text-xl">🏪</span>
                       <h2 className="font-semibold text-gray-900">
                         {block.franchiseName}
                       </h2>
@@ -1413,8 +1379,7 @@ export default function MenuCheckoutPage() {
 
                           {/* Product Options */}
                           {(item.size ||
-                            item.sugar ||
-                            item.ice ||
+                            (item.apiOptions && item.apiOptions.length > 0) ||
                             item.toppingsText ||
                             item.note) && (
                             <div className="mb-3">
@@ -1424,22 +1389,43 @@ export default function MenuCheckoutPage() {
                                     📏 Size {item.size}
                                   </span>
                                 )}
-                                {item.sugar && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
-                                    🍯 Đường {item.sugar}
-                                  </span>
-                                )}
-                                {item.ice && (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-xs font-medium">
-                                    🧊 {item.ice}
-                                  </span>
-                                )}
-                                {item.toppingsText && (
+                                {item.toppingsText &&
+                                  (!item.apiOptions ||
+                                    item.apiOptions.length === 0) && (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium">
                                     🧋 {item.toppingsText}
                                   </span>
-                                )}
+                                  )}
                               </div>
+                              {item.apiOptions && item.apiOptions.length > 0 && (
+                                <div className="mt-1 flex items-start gap-2">
+                                  <span className="text-[11px] text-amber-700 font-medium shrink-0">
+                                    Topping:
+                                  </span>
+                                  <div className="min-w-0 space-y-0.5 pt-px">
+                                    {item.apiOptions.map((opt, idx) => {
+                                      const optId = String(
+                                        opt.product_franchise_id ?? "",
+                                      ).trim();
+                                      const qty = Math.max(
+                                        1,
+                                        Number(opt.quantity ?? 1),
+                                      );
+                                      const optName =
+                                        getCartOptionDisplayName(opt);
+
+                                      return (
+                                        <div
+                                          key={optId || `${item.key}-option-${idx}`}
+                                          className="text-[10px] font-medium leading-tight text-amber-800"
+                                        >
+                                          {`${optName} x${qty}`}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                               {item.note && (
                                 <p className="text-xs text-gray-500 italic bg-gray-50 px-2.5 py-1.5 rounded-lg">
                                   💭 Ghi chú: {item.note}
@@ -1450,13 +1436,41 @@ export default function MenuCheckoutPage() {
 
                           {/* Quantity and Price */}
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                               <span className="text-sm text-gray-600">
                                 Số lượng:
                               </span>
-                              <span className="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-bold">
-                                {item.quantity}
-                              </span>
+                              <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleUpdateItemQuantity(
+                                      item,
+                                      item.quantity - 1,
+                                    )
+                                  }
+                                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+                                  aria-label={`Giảm số lượng ${item.name}`}
+                                >
+                                  -
+                                </button>
+                                <span className="min-w-10 px-2 text-center text-sm font-bold text-emerald-800">
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleUpdateItemQuantity(
+                                      item,
+                                      item.quantity + 1,
+                                    )
+                                  }
+                                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
+                                  aria-label={`Tăng số lượng ${item.name}`}
+                                >
+                                  +
+                                </button>
+                              </div>
                             </div>
                             <div className="text-right">
                               <p className="text-lg font-bold text-amber-700">
@@ -1488,12 +1502,12 @@ export default function MenuCheckoutPage() {
                       </h3>
                     </div>
 
-                    {promo.applied ? (
+                    {appliedVoucher ? (
                       <div className="flex items-center justify-between p-3 bg-emerald-100 border border-emerald-200 rounded-lg">
                         <div className="flex items-center gap-2">
                           <span className="text-emerald-600 text-lg">✓</span>
                           <span className="font-semibold text-emerald-800 text-sm">
-                            {promo.applied.code}
+                            {appliedVoucher.code}
                           </span>
                         </div>
                         <button
@@ -1579,33 +1593,45 @@ export default function MenuCheckoutPage() {
                           Tạm tính (
                           {block.items.reduce((s, i) => s + i.quantity, 0)} món)
                         </span>
-                        <span>{fmt(block.subtotal)}</span>
+                        <span>{fmt(pricingSummary.subtotalAmount)}</span>
                       </div>
 
                       {/* Discount (if applied) */}
-                      {pricing.voucherAmount > 0 && (
-                        <div className="flex justify-between text-red-600 font-semibold">
-                          <span>
-                            Giảm voucher
-                            {typeof pricing.voucherPercent === "number" &&
-                            pricing.voucherPercent > 0
-                              ? ` (${fmtPercent(pricing.voucherPercent)})`
-                              : ""}
-                          </span>
-                          <span>-{fmt(pricing.voucherAmount)}</span>
-                        </div>
-                      )}
-
-                      {pricing.promotionAmount > 0 && (
+                      {pricingSummary.promotionDiscount > 0 && (
                         <div className="flex justify-between text-emerald-700 font-semibold">
                           <span>
                             Giảm khuyến mãi
-                            {typeof pricing.promotionPercent === "number" &&
-                            pricing.promotionPercent > 0
-                              ? ` (${fmtPercent(pricing.promotionPercent)})`
+                            {formatDiscountTypeText(
+                              pricingSummary.promotionType,
+                              pricingSummary.promotionValue,
+                            )}
+                          </span>
+                          <span>-{fmt(pricingSummary.promotionDiscount)}</span>
+                        </div>
+                      )}
+
+                      {pricingSummary.voucherDiscount > 0 && (
+                        <div className="flex justify-between text-red-600 font-semibold">
+                          <span>
+                            Giảm voucher
+                            {formatDiscountTypeText(
+                              pricingSummary.voucherType,
+                              pricingSummary.voucherValue,
+                            )}
+                          </span>
+                          <span>-{fmt(pricingSummary.voucherDiscount)}</span>
+                        </div>
+                      )}
+
+                      {pricingSummary.loyaltyDiscount > 0 && (
+                        <div className="flex justify-between text-amber-700 font-semibold">
+                          <span>
+                            Giảm điểm thưởng
+                            {pricingSummary.loyaltyPointsUsed > 0
+                              ? ` (${pricingSummary.loyaltyPointsUsed} điểm)`
                               : ""}
                           </span>
-                          <span>-{fmt(pricing.promotionAmount)}</span>
+                          <span>-{fmt(pricingSummary.loyaltyDiscount)}</span>
                         </div>
                       )}
 
@@ -1616,7 +1642,7 @@ export default function MenuCheckoutPage() {
                       <div className="flex justify-between font-bold text-base text-gray-900">
                         <span>Tổng cộng</span>
                         <span className="text-amber-600">
-                          {fmt(pricing.finalTotal)}
+                          {fmt(pricingSummary.finalAmount)}
                         </span>
                       </div>
                     </div>
@@ -1653,4 +1679,3 @@ export default function MenuCheckoutPage() {
     </div>
   );
 }
-
