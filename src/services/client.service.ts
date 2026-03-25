@@ -33,15 +33,116 @@ export interface CustomerLoyalty {
 
 export interface CustomerFranchise {
   id: string;
-  customer_id: string;
-  franchise_id: string;
-  loyalty_points: number;
-  tier: string;
-  total_spent: number;
-  total_orders: number;
   is_active: boolean;
+  is_deleted: boolean;
   created_at: string;
   updated_at: string;
+  franchise_id: string;
+  franchise_code: string;
+  franchise_name: string;
+  customer_id: string;
+  customer_name: string;
+  customer_email: string;
+  loyalty_points: number;
+  total_earned_points: number;
+  first_order_date: string;
+  last_order_date: string;
+}
+
+export interface ClientFranchiseDetail extends ClientFranchiseItem {
+  address?: string;
+  hotline?: string;
+  phone?: string;
+  logo_url?: string;
+  opened_at?: string;
+  closed_at?: string;
+  map_script?: string;
+  is_active?: boolean;
+  is_deleted?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+function pickString(source: Record<string, unknown> | null, keys: string[]): string | undefined {
+  if (!source) return undefined;
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+function pickBoolean(source: Record<string, unknown> | null, keys: string[]): boolean | undefined {
+  if (!source) return undefined;
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === "boolean") return value;
+  }
+  return undefined;
+}
+
+function normalizeClientFranchiseDetail(payload: unknown): ClientFranchiseDetail {
+  const root = asRecord(payload);
+  const nested =
+    asRecord(root?.franchise) ??
+    asRecord(root?.item) ??
+    asRecord(root?.data) ??
+    root;
+
+  return {
+    id: String(
+      nested?.id ??
+      nested?._id ??
+      root?.id ??
+      root?._id ??
+      "",
+    ),
+    code:
+      pickString(nested, ["code", "franchise_code"]) ??
+      pickString(root, ["code", "franchise_code"]) ??
+      "",
+    name:
+      pickString(nested, ["name", "franchise_name", "title"]) ??
+      pickString(root, ["name", "franchise_name", "title"]) ??
+      "",
+    address:
+      pickString(nested, ["address", "full_address", "location"]) ??
+      pickString(root, ["address", "full_address", "location"]),
+    hotline:
+      pickString(nested, ["hotline", "phone", "contact_phone"]) ??
+      pickString(root, ["hotline", "phone", "contact_phone"]),
+    phone:
+      pickString(nested, ["phone", "hotline", "contact_phone"]) ??
+      pickString(root, ["phone", "hotline", "contact_phone"]),
+    logo_url:
+      pickString(nested, ["logo_url", "logo", "image_url", "image"]) ??
+      pickString(root, ["logo_url", "logo", "image_url", "image"]),
+    opened_at:
+      pickString(nested, ["opened_at", "open_at", "opening_time", "open_time"]) ??
+      pickString(root, ["opened_at", "open_at", "opening_time", "open_time"]),
+    closed_at:
+      pickString(nested, ["closed_at", "close_at", "closing_time", "close_time"]) ??
+      pickString(root, ["closed_at", "close_at", "closing_time", "close_time"]),
+    map_script:
+      pickString(nested, ["map_script", "map_embed", "map_url"]) ??
+      pickString(root, ["map_script", "map_embed", "map_url"]),
+    is_active:
+      pickBoolean(nested, ["is_active", "active"]) ??
+      pickBoolean(root, ["is_active", "active"]),
+    is_deleted:
+      pickBoolean(nested, ["is_deleted", "deleted"]) ??
+      pickBoolean(root, ["is_deleted", "deleted"]),
+    created_at:
+      pickString(nested, ["created_at", "createdAt"]) ??
+      pickString(root, ["created_at", "createdAt"]),
+    updated_at:
+      pickString(nested, ["updated_at", "updatedAt"]) ??
+      pickString(root, ["updated_at", "updatedAt"]),
+  };
 }
 
 export interface SearchCustomerFranchisesPayload {
@@ -85,6 +186,16 @@ export const clientService = {
       data: ClientCategoryByFranchiseItem[];
     }>(`/clients/franchises/${franchiseId}/categories`);
     return response.data.data;
+  },
+
+  // CLIENT-03 - Get Franchise Detail
+  // GET /api/clients/franchises/:franchiseId  |  Role: CUSTOMER PUBLIC  |  Token: NO
+  getFranchiseDetail: async (franchiseId: string): Promise<ClientFranchiseDetail> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      data: unknown;
+    }>(`/clients/franchises/${franchiseId}`);
+    return normalizeClientFranchiseDetail(response.data.data);
   },
 
   // CLIENT-04 — Get Products by Franchise and Category

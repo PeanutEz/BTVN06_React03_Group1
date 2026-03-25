@@ -144,22 +144,31 @@ apiClient.interceptors.response.use(
                     isRefreshing = false;
                 }
             }
-        }
-
-        if (error.response) {
+        }        if (error.response) {
             const { status } = error.response;
+            const data = error.response.data as any;
+            // Extract server message from response body
+            // errors có thể là array of string hoặc array of {field, message}
+            let serverMessage: string | undefined;
+            if (Array.isArray(data?.errors) && data.errors.length > 0) {
+                const joined = data.errors
+                    .map((e: any) => (typeof e === "string" ? e : e?.message))
+                    .filter(Boolean)
+                    .join("\n");
+                serverMessage = joined || undefined;
+            }
+            if (!serverMessage) {
+                serverMessage = data?.message || undefined;
+            }
 
             switch (status) {
                 case 401:
-                    // Chỉ log warning, KHÔNG redirect hoặc xoá localStorage tự động.
-                    // Để từng page/component tự xử lý lỗi 401 (hiển thị trống hoặc thông báo).
-                    // Route guards (AdminGuard, AuthGuard) sẽ lo việc redirect khi cần.
                     console.warn("Unauthorized: Token hết hạn hoặc không hợp lệ");
                     break;
                 case 403:
                     console.warn("Forbidden: Bạn không có quyền truy cập.");
                     console.log("[403 DETAIL] url:", error.config?.url);
-                    console.log("[403 DETAIL] response.data:", error.response.data);
+                    console.log("[403 DETAIL] response.data:", data);
                     break;
                 case 429:
                     console.warn("Too many requests: Vui lòng thử lại sau.");
@@ -168,10 +177,16 @@ apiClient.interceptors.response.use(
                     console.error("Server Error: Lỗi máy chủ, vui lòng thử lại sau.");
                     break;
                 default:
-                    console.error(`API Error: ${status}`, error.response.data);
+                    console.error(`API Error: ${status}`, data);
+            }            // Always throw with server message if available, but preserve responseData for field-level error handling
+            if (serverMessage) {
+                const err = new Error(serverMessage) as Error & { responseData?: unknown };
+                err.responseData = data;
+                return Promise.reject(err);
             }
         } else if (error.request) {
             console.error("Network Error: Không nhận được phản hồi từ máy chủ.");
+            return Promise.reject(new Error("Không nhận được phản hồi từ máy chủ"));
         } else {
             console.error("Request Error:", error.message);
         }

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useLoadingStore } from "@/store/loading.store";
-import { cartClient } from "@/services/cart.client";
+import { cartClient, toCustomerCartEntry } from "@/services/cart.client";
 import { buildCartSelectionNote } from "@/utils/cartSelectionNote.util";
 import {
   SUGAR_LEVELS,
@@ -50,8 +50,6 @@ interface MenuProductModalProps {
     note?: string;
   };
   initialQuantity?: number;
-  // If provided, remove the old local cart entry before adding the updated one.
-  replaceLocalCartKey?: string;
   // If provided, remove the old API cart item before adding the updated one.
   replaceApiItemId?: string;
   // Khi sửa item API: truyền cartId để refetch cart sau khi xóa, tránh duplicate (xóa xong mới thêm).
@@ -79,18 +77,49 @@ interface ApiSize {
   is_available: boolean;
 }
 
+function getCustomerIdFromUser(user: unknown): string {
+  const raw = user as Record<string, unknown> | null;
+  const nestedUser =
+    raw?.user && typeof raw.user === "object"
+      ? (raw.user as Record<string, unknown>)
+      : null;
+
+  return String(
+    nestedUser?.id ??
+    nestedUser?._id ??
+    raw?.id ??
+    raw?._id ??
+    "",
+  );
+}
+
+function resolveCartIdFromAddResponse(raw: unknown): string | null {
+  const rawObj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  const nestedCart =
+    rawObj?.cart && typeof rawObj.cart === "object"
+      ? (rawObj.cart as Record<string, unknown>)
+      : null;
+
+  const resolved =
+    rawObj?._id ??
+    rawObj?.id ??
+    rawObj?.cart_id ??
+    rawObj?.cartId ??
+    nestedCart?._id ??
+    nestedCart?.id;
+
+  return resolved == null ? null : String(resolved);
+}
+
 export default function MenuProductModal({
   product,
   onClose,
   initialSelection,
   initialQuantity,
-  replaceLocalCartKey,
   replaceApiItemId,
   replaceCartId,
   onSaved,
 }: MenuProductModalProps) {  const queryClient = useQueryClient();
-  const addItem = useMenuCartStore((s) => s.addItem);
-  const replaceItemAt = useMenuCartStore((s) => s.replaceItemAt);
   const setCartId = useMenuCartStore((s) => s.setCartId);
   const setCarts = useMenuCartStore((s) => s.setCarts);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
@@ -384,7 +413,6 @@ export default function MenuProductModal({
     }
 
     const franchiseId = (product as any)._apiFranchiseId as string | undefined;
-    const franchiseName = (product as any)._apiFranchiseName as string | undefined;
     const productFranchiseId = selectedSize?.product_franchise_id;
 
     if (!franchiseId || !productFranchiseId) {
@@ -534,7 +562,6 @@ export default function MenuProductModal({
       }
     }
 
-    // Save to local store immediately for instant UI feedback
     const toppingsFlat: Topping[] = displayToppings.flatMap((t) =>
       Array(toppingQtys[t.id] ?? 0).fill(t)
     );
@@ -568,24 +595,6 @@ export default function MenuProductModal({
       }
     }
 
-    const storeProduct = { ...product, price: basePrice };
-    const storeOptions = {
-      size: (selectedSize?.size ?? "M") as any,
-      sugar,
-      ice,
-      toppings: toppingsFlat,
-      note: userNote,
-      franchiseId,
-      franchiseName,
-      productFranchiseId,
-    };
-
-    if (replaceLocalCartKey) {
-      replaceItemAt(replaceLocalCartKey, storeProduct, storeOptions, quantity);
-    } else if (!replaceApiItemId) {
-      addItem(storeProduct, storeOptions, quantity);
-    }
-
     // Build options array for API (topping products)
     const apiOptions = displayToppings
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0 && t.product_franchise_id)
@@ -604,25 +613,21 @@ export default function MenuProductModal({
         options: apiOptions.length > 0 ? apiOptions : undefined,
       });
 
-      const customerId = String(
-        (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? "",
-      );
-      const resolvedId = (apiCart as any)?._id ?? (apiCart as any)?.id;
+      const customerId = getCustomerIdFromUser(user);
+      const resolvedId = resolveCartIdFromAddResponse(apiCart);
       if (resolvedId) {
-        setCartId(String(resolvedId));
+        setCartId(resolvedId);
       }
       if (customerId) {
         try {
           const carts = await cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" });
-          const entries = (carts as any[]).map((c: any) => ({
-            cartId: String(c._id ?? c.id ?? ""),
-            franchise_id: c.franchise_id,
-            franchise_name: c.franchise_name ?? c?.franchise?.name,
-          })).filter((e: any) => e.cartId);
+          const entries = carts
+            .map(toCustomerCartEntry)
+            .filter((entry): entry is NonNullable<typeof entry> => !!entry);
           if (entries.length) setCarts(entries);
-          else if (resolvedId) setCartId(String(resolvedId));
+          else if (resolvedId) setCartId(resolvedId);
         } catch {
-          if (resolvedId) setCartId(String(resolvedId));
+          if (resolvedId) setCartId(resolvedId);
         }
       }
 
@@ -631,7 +636,9 @@ export default function MenuProductModal({
       } else {
         queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
       }
-      queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
+      queryClient.invalidateQueries({ queryKey: ["carts-by-customer"] });
+      queryClient.refetchQueries({ queryKey: ["carts-by-customer"], type: "active" });
+      queryClient.refetchQueries({ queryKey: ["cart-detail"], type: "active" });
 
       if (replaceApiItemId) {
         onSaved?.({
@@ -640,7 +647,11 @@ export default function MenuProductModal({
         });
       }
     } catch (err) {
-      console.error("Add to cart API failed (saved locally):", err);
+      console.error("Add to cart API failed:", err);
+      toast.error("Không thể cập nhật giỏ hàng. Vui lòng thử lại.");
+      setIsAdding(false);
+      hideGlobalLoading();
+      return;
     }
     const toppingDesc = displayToppings
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)

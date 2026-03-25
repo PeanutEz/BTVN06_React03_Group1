@@ -6,6 +6,7 @@ import Pagination from "../../../components/ui/Pagination";
 import { promotionService } from "../../../services/promotion.service";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import { adminProductFranchiseService } from "../../../services/product-franchise.service";
+import { DateInput } from "../../../components/ui/DateInput";
 import type { FranchiseSelectItem } from "../../../services/store.service";
 import type {
     Promotion,
@@ -258,13 +259,11 @@ export default function PromotionPage() {
                 start_date: new Date(createForm.start_date).toISOString(),
                 end_date: new Date(createForm.end_date).toISOString(),
             };
-            await promotionService.createPromotion(payload);
-
-            showSuccess("Tạo promotion thành công");
+            await promotionService.createPromotion(payload);            showSuccess("Tạo promotion thành công");
 
             setCreateForm({
                 name: "",
-                franchise_id: "",
+                franchise_id: managerFranchiseId ?? searchFranchise,
                 product_franchise_id: "",
                 type: "PERCENT",
                 value: 0,
@@ -276,7 +275,7 @@ export default function PromotionPage() {
 
             setCreateOpen(false);
 
-            load("", 1, "", "", false);
+            load(searchFranchise, 1, statusFilter, typeFilter, isDeletedFilter);
         } catch {
             showError("Tạo promotion thất bại");
         }
@@ -308,15 +307,11 @@ export default function PromotionPage() {
         } catch {
             showError("Cập nhật promotion thất bại")
         }
-    }
-
-    // helpers: split datetime string
+    }    // helpers: split datetime string
     const getDatePart = (dt: string) => dt ? dt.substring(0, 10) : "";
     const getTimePart = (dt: string) => dt ? dt.substring(11, 16) : "";
     const mergeDatetime = (date: string, time: string) =>
-        date ? `${date}T${time || "00:00"}` : "";
-
-    const handleCreateDatetime = (field: "start_date" | "end_date", part: "date" | "time", val: string) => {
+        date ? `${date}T${time || "00:00"}` : "";    const handleCreateDatetime= (field: "start_date" | "end_date", part: "date" | "time", val: string) => {
         setCreateForm((prev) => {
             const date = part === "date" ? val : getDatePart(prev[field]);
             const time = part === "time" ? val : (getTimePart(prev[field]) || "00:00");
@@ -807,15 +802,13 @@ export default function PromotionPage() {
                                 {/* START DATE */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Ngày bắt đầu <span className="text-red-400">*</span></label>
-                                    <input
-                                        type="date"
+                                    <DateInput
                                         value={getDatePart(createForm.start_date)}
-                                        onChange={(e) => handleCreateDatetime("start_date", "date", e.target.value)}
-                                        max={getDatePart(createForm.end_date) || undefined}
-                                        className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
-                                        style={{ colorScheme: "dark" }}
+                                        onChange={(iso) => handleCreateDatetime("start_date", "date", iso)}
+                                        darkMode
                                         required
-                                    />                                    <TimeSelect
+                                    />
+                                    <TimeSelect
                                         value={getTimePart(createForm.start_date)}
                                         onChange={(v) => handleCreateDatetime("start_date", "time", v)}
                                         darkMode
@@ -830,15 +823,13 @@ export default function PromotionPage() {
                                 {/* END DATE */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Ngày kết thúc <span className="text-red-400">*</span></label>
-                                    <input
-                                        type="date"
+                                    <DateInput
                                         value={getDatePart(createForm.end_date)}
-                                        onChange={(e) => handleCreateDatetime("end_date", "date", e.target.value)}
-                                        min={getDatePart(createForm.start_date) || undefined}
-                                        className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
-                                        style={{ colorScheme: "dark" }}
+                                        onChange={(iso) => handleCreateDatetime("end_date", "date", iso)}
+                                        darkMode
                                         required
-                                    />                                    <TimeSelect
+                                    />
+                                    <TimeSelect
                                         value={getTimePart(createForm.end_date)}
                                         onChange={(v) => handleCreateDatetime("end_date", "time", v)}
                                         darkMode
@@ -1079,15 +1070,13 @@ export default function PromotionPage() {
                                 {/* START DATE */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Ngày bắt đầu <span className="text-red-400">*</span></label>
-                                    <input
-                                        type="date"
+                                    <DateInput
                                         value={getDatePart(editForm.start_date)}
-                                        onChange={(e) => handleEditDatetime("start_date", "date", e.target.value)}
-                                        max={getDatePart(editForm.end_date) || undefined}
-                                        className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
-                                        style={{ colorScheme: "dark" }}
+                                        onChange={(iso) => handleEditDatetime("start_date", "date", iso)}
+                                        darkMode
                                         required
-                                    />                                    <TimeSelect
+                                    />
+                                    <TimeSelect
                                         value={getTimePart(editForm.start_date)}
                                         onChange={(v) => handleEditDatetime("start_date", "time", v)}
                                         darkMode
@@ -1102,15 +1091,13 @@ export default function PromotionPage() {
                                 {/* END DATE */}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wide text-white/50">Ngày kết thúc <span className="text-red-400">*</span></label>
-                                    <input
-                                        type="date"
+                                    <DateInput
                                         value={getDatePart(editForm.end_date)}
-                                        onChange={(e) => handleEditDatetime("end_date", "date", e.target.value)}
-                                        min={getDatePart(editForm.start_date) || undefined}
-                                        className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
-                                        style={{ colorScheme: "dark" }}
+                                        onChange={(iso) => handleEditDatetime("end_date", "date", iso)}
+                                        darkMode
                                         required
-                                    />                                    <TimeSelect
+                                    />
+                                    <TimeSelect
                                         value={getTimePart(editForm.end_date)}
                                         onChange={(v) => handleEditDatetime("end_date", "time", v)}
                                         darkMode

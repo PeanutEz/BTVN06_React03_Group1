@@ -1,0 +1,4606 @@
+{
+  "info": {
+    "_postman_id": "fbe1c47e-d404-4751-b64e-347fde749843",
+    "name": "Ecommerce Franchise Training",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "6151291",
+    "_collection_link": "https://go.postman.co/collection/6151291-fbe1c47e-d404-4751-b64e-347fde749843?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Audit Logs",
+      "item": [
+        {
+          "name": "Get Log Detail",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"keyword\": \"\",\n        \"opened_at\": \"\",\n        \"closed_at\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/audit-logs/6982c949f629ab020174a1b3",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "audit-logs",
+                "6982c949f629ab020174a1b3"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Logs",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"keyword\": \"\",\n        \"action\": \"\", // CREATE, UPDATE, SOFT_DELETE, RESTORE, CHANGE_STATUS, OTHER\n        \"changed_by\": \"\", // user_id\n        \"from_date\": \"\", // ISO\n        \"to_date\": \"\" // ISO\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/audit-logs/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "audit-logs",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Logs By Entity",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"entity_id\": \"6982c90ff629ab020174a1a7\",\n    \"limit\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/audit-logs/search-by-entity",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "audit-logs",
+                "search-by-entity"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"loi.nguyenlamthanh@gmail.com\",\n  \"password\": \"12345678\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/auth",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Switch-Context",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"franchise_id\": null\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/auth/switch-context",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "switch-context"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/auth",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{host_main}}/api/auth/refresh-token",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh-token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/auth/forgot-password",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "forgot-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"12345678\",\n  \"new_password\": \"12345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/auth/change-password",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "change-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/auth/logout",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"7b66a61cd7e38477de332eedf795e900\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/auth/verify-token",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "verify-token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"hcm.toan2004@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/auth/resend-token",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "resend-token"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/dashboards?franchiseId=",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "dashboards"
+              ],
+              "query": [
+                {
+                  "key": "franchiseId",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "Get Select Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/roles/select",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "roles",
+                "select"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"loi.nguyenlamthanh@gmail.com\",\n  \"password\": \"12345678\",\n  \"name\": \"Super Amin\",\n  \"phone\": \"0938947221\",\n  \"avatar_url\": \"https://picsum.photos/id/237/200/300\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/users",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "users"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"keyword\": \"bao duong\",\n        \"is_active\": true,\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/users/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/users/69c148175caeb2cd701a1b9d",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "69c148175caeb2cd701a1b9d"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@gmail.com\",\n  \"name\": \"User\",\n  \"phone\": \"0123456789\",\n  \"avatar_url\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/users/699c66346e034f547482bb99",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "699c66346e034f547482bb99"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/users/69a547e3fcc3e0bafd23846a",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "69a547e3fcc3e0bafd23846a"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/users/69a547e3fcc3e0bafd23846a/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "69a547e3fcc3e0bafd23846a",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/users/699ea2e9b832de14f86765ee/status",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "699ea2e9b832de14f86765ee",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search User by keyword (name, email)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/users/find?keyword=",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "find"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Franchise",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"HL008\",\n  \"name\": \"High Land 008\",\n  \"opened_at\": \"10:00\",\n  \"closed_at\": \"09:30\",\n  \"hotline\": \"0123456789\",\n  \"logo_url\": \"\",\n  \"address\": \"\",\n  \"map_script\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/franchises",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "franchises"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"keyword\": \"high land \",\n        \"opened_at\": \"\",\n        \"closed_at\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 100\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/franchises/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "franchises",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/franchises/698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "franchises",
+                "698eab0826ca2b18eb35337e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"HL008\",\n    \"name\": \"High Land 008\",\n    \"hotline\": \"0123456789\",\n    \"logo_url\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTWfJUWKecfedJtsuTOPzmzy51L7szK8FDYfw&s\",\n    \"address\": \"\",\n    \"opened_at\": \"10:00\",\n    \"closed_at\": \"23:30\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/franchises/69898b6c766572221355a4c5",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "franchises",
+                "69898b6c766572221355a4c5"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/franchises/69898b6c766572221355a4c5",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "franchises",
+                "69898b6c766572221355a4c5"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": true\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/franchises/69898b6c766572221355a4c5/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "franchises",
+                "69898b6c766572221355a4c5",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/franchises/69898b6c766572221355a4c5/status",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "franchises",
+                "69898b6c766572221355a4c5",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Select Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/franchises/select",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "franchises",
+                "select"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "User Franchise Role",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\": \"69c148175caeb2cd701a1b9d\",\n    \"role_id\": \"698eab0726ca2b18eb353372\",\n    \"franchise_id\": \"698eab0826ca2b18eb353384\",\n    \"note\": \"Staff\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/user-franchise-roles",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "user-franchise-roles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"user_id\": \"69c148175caeb2cd701a1b9d\",\n        \"franchise_id\": \"\",\n        \"role_id\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/user-franchise-roles/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "user-franchise-roles",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/user-franchise-roles/699ea57ec2ff962daf34070d",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "user-franchise-roles",
+                "699ea57ec2ff962daf34070d"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role_id\": \"698eab0726ca2b18eb35336f\",\n    \"note\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/user-franchise-roles/699ea57ec2ff962daf34070d",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "user-franchise-roles",
+                "699ea57ec2ff962daf34070d"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role_id\": \"698311b8fa4ad0f46632e22a\",\n    \"note\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/user-franchise-roles/69856f4abc2bf109a2dfadc1",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "user-franchise-roles",
+                "69856f4abc2bf109a2dfadc1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"role_id\": \"698311b8fa4ad0f46632e22a\",\n    \"note\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/user-franchise-roles/69856f4abc2bf109a2dfadc1/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "user-franchise-roles",
+                "69856f4abc2bf109a2dfadc1",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Roles By UserId",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"franchise_id\": \"697dc8294a449704df41fb2d\"\n}\n"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/user-franchise-roles/user/69c148175caeb2cd701a1b9d",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "user-franchise-roles",
+                "user",
+                "69c148175caeb2cd701a1b9d"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Users by FranchiseId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/user-franchise-roles/franchise/698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "user-franchise-roles",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Category",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"FNB_TOPPING\",\n    \"name\": \"Topping\",\n    \"description\": \"\",\n    \"parent_id\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/categories",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"keyword\": \"\",\n        \"parent_id\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/categories/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/categories/69abaf417ed59b59b303daa4",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "69abaf417ed59b59b303daa4"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"FNB_COFFEE\",\n    \"name\": \"Coffee\",\n    \"description\": \"\",\n    \"parent_id\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/categories/6989d8a0ff3a19debe3eddfc",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "6989d8a0ff3a19debe3eddfc"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\": \"69856c47544dda0adb75d0e7\",\n    \"role_id\": \"698311b8fa4ad0f46632e227\",\n    \"franchise_id\": \"697dc84a4a449704df41fb37\",\n    \"note\": \"\"\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/categories/69abaf417ed59b59b303daa4",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "69abaf417ed59b59b303daa4"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/categories/69abaf417ed59b59b303daa4/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "69abaf417ed59b59b303daa4",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Select Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/categories/select",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "select"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Category Franchise",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n    \"category_id\": \"69abaf417ed59b59b303daa4\",\n    \"display_order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/category-franchises",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "category-franchises"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"franchise_id\": \"\",\n        \"category_id\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 20\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/category-franchises/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "category-franchises",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"franchise_id\": \"697dc8294a449704df41fb2d\",\n    \"product_id\": \"6989ecc3484628cc67c5d3c9\",\n    \"size\": \"XL\",\n    \"price_base\": 50000\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/category-franchises/69abb1c5262d94688c634196",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "category-franchises",
+                "69abb1c5262d94688c634196"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/category-franchises/69abb1c5262d94688c634196",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "category-franchises",
+                "69abb1c5262d94688c634196"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/category-franchises/69abb1c5262d94688c634196/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "category-franchises",
+                "69abb1c5262d94688c634196",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/category-franchises/69abaf417ed59b59b303daa4/status",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "category-franchises",
+                "69abaf417ed59b59b303daa4",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Display Order Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"display_order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/category-franchises/698eab1026ca2b18eb353418/display-order",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "category-franchises",
+                "698eab1026ca2b18eb353418",
+                "display-order"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories by Franchise",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/category-franchises/franchise/698eab0826ca2b18eb35337e?onlyActive=true",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "category-franchises",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ],
+              "query": [
+                {
+                  "key": "onlyActive",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "/api/category-franchises/franchise/:franchiseId?onlyActive=true\n\nonlyActive: boolean"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Product",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"SKU\": \"COFFEE_5\",\n    \"name\": \"Coffee 5\",\n    \"description\": \"Cà phê rang xay đậm vị truyền thống buổi sáng\",\n    \"content\": \"<h3><span><strong><b>I. Giới thiệu sản phẩm</b></strong></span></h3><p><span>Cà phê được chọn lọc từ những hạt cà phê chất lượng cao, rang xay theo quy trình tiêu chuẩn nhằm giữ trọn hương vị tự nhiên.</span></p><p><strong><b><span>1.1 Nguồn gốc</span></b></strong></p><p><span>Hạt cà phê được thu hoạch từ các vùng cao nguyên nổi tiếng, nơi có điều kiện khí hậu và thổ nhưỡng lý tưởng cho cây cà phê phát triển.</span></p><p><strong><b><span>1.2 Hương vị đặc trưng</span></b></strong></p><ul><li><span>Hương thơm đậm đà, dễ chịu</span></li><li><span>Vị cân bằng giữa đắng nhẹ và hậu ngọt</span></li><li><span>Phù hợp với nhiều cách pha chế</span></li></ul><h3><span><strong><b>II. Cách thưởng thức</b></strong></span></h3><p><span>Sản phẩm phù hợp để pha phin truyền thống, pha máy espresso hoặc kết hợp cùng sữa tươi, sữa đặc.</span></p><p><strong><b><span>Gợi ý:</span></b></strong></p><p><span>Nên dùng nóng vào buổi sáng để cảm nhận trọn vẹn hương vị và giúp tinh thần tỉnh táo.</span></p><h3><span><strong><b>III. Bảo quản</b></strong></span></h3><p><span>Bảo quản sản phẩm ở nơi khô ráo, thoáng mát, tránh ánh nắng trực tiếp và đậy kín sau khi mở bao bì.</span></p><p><em><i><span>Sản phẩm phù hợp sử dụng hằng ngày cho gia đình, văn phòng và quán cà phê.</span></i></em></p>\"\n,\n    \"image_url\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTaSd_r5Mg-jKKT1I-IBbOWxnbA9JGRP3URQQ&s\",\n    \"images_url\": [\"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTaSd_r5Mg-jKKT1I-IBbOWxnbA9JGRP3URQQ&s\", \"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Roasted_coffee_beans.jpg/960px-Roasted_coffee_beans.jpg\"],\n    \"min_price\": 30000,\n    \"max_price\": 50000,\n    \"is_topping\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/products",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"keyword\": \"\",\n        \"min_price\": \"\",\n        \"max_price\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/products/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/products/65f0b1e8f9a3c1e987654321",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "65f0b1e8f9a3c1e987654321"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n     \"SKU\": \"ESP001\",\n        \"name\": \"Espresso\",\n        \"description\": \"Sản phẩm cà phê rang xay chất lượng cao, mang đến hương vị đậm đà và thơm ngon, phù hợp cho mọi cách pha chế.\",\n        \"image_url\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTaSd_r5Mg-jKKT1I-IBbOWxnbA9JGRP3URQQ&s\",\n        \"images_url\": [\n            \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTaSd_r5Mg-jKKT1I-IBbOWxnbA9JGRP3URQQ&s\",\n            \"https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Roasted_coffee_beans.jpg/960px-Roasted_coffee_beans.jpg\"\n        ],\n        \"content\": \"<h3><span><strong><b>I. Giới thiệu sản phẩm</b></strong></span></h3><p><span>Cà phê được chọn lọc từ những hạt cà phê chất lượng cao, rang xay theo quy trình tiêu chuẩn nhằm giữ trọn hương vị tự nhiên.</span></p><p><strong><b><span>1.1 Nguồn gốc</span></b></strong></p><p><span>Hạt cà phê được thu hoạch từ các vùng cao nguyên nổi tiếng, nơi có điều kiện khí hậu và thổ nhưỡng lý tưởng cho cây cà phê phát triển.</span></p><p><strong><b><span>1.2 Hương vị đặc trưng</span></b></strong></p><ul><li><span>Hương thơm đậm đà, dễ chịu</span></li><li><span>Vị cân bằng giữa đắng nhẹ và hậu ngọt</span></li><li><span>Phù hợp với nhiều cách pha chế</span></li></ul><h3><span><strong><b>II. Cách thưởng thức</b></strong></span></h3><p><span>Sản phẩm phù hợp để pha phin truyền thống, pha máy espresso hoặc kết hợp cùng sữa tươi, sữa đặc.</span></p><p><strong><b><span>Gợi ý:</span></b></strong></p><p><span>Nên dùng nóng vào buổi sáng để cảm nhận trọn vẹn hương vị và giúp tinh thần tỉnh táo.</span></p><h3><span><strong><b>III. Bảo quản</b></strong></span></h3><p><span>Bảo quản sản phẩm ở nơi khô ráo, thoáng mát, tránh ánh nắng trực tiếp và đậy kín sau khi mở bao bì.</span></p><p><em><i><span>Sản phẩm phù hợp sử dụng hằng ngày cho gia đình, văn phòng và quán cà phê.</span></i></em></p>\",\n        \"min_price\": 30000,\n        \"max_price\": 45000,\n        \"is_have_topping\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/products/698eab0d26ca2b18eb3533e7",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "698eab0d26ca2b18eb3533e7"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/products/6989ecc3484628cc67c5d3c9",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "6989ecc3484628cc67c5d3c9"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/products/6989ecc3484628cc67c5d3c9/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "6989ecc3484628cc67c5d3c9",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Select Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/products/select",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "select"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Product Franchise",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"franchise_id\": \"697dc8294a449704df41fb2d\",\n    \"product_id\": \"6989ecc3484628cc67c5d3c9\",\n    \"size\": \"XL\",\n    \"price_base\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-franchises",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-franchises"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"product_id\": \"\",\n        \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n        \"size\": \"\",\n        \"price_from\": \"\",\n        \"price_to\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 50\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-franchises/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-franchises",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"franchise_id\": \"697dc8294a449704df41fb2d\",\n    \"product_id\": \"6989ecc3484628cc67c5d3c9\",\n    \"size\": \"XL\",\n    \"price_base\": 50000\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-franchises/698eab1526ca2b18eb35347a",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-franchises",
+                "698eab1526ca2b18eb35347a"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"size\": \"XL\",\n    \"price_base\": 49000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-franchises/698b06953c1e44e02738920e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-franchises",
+                "698b06953c1e44e02738920e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/product-franchises/698b06953c1e44e02738920e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-franchises",
+                "698b06953c1e44e02738920e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/product-franchises/698b06953c1e44e02738920e/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-franchises",
+                "698b06953c1e44e02738920e",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-franchises/698b06953c1e44e02738920e/status",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-franchises",
+                "698b06953c1e44e02738920e",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Products by Franchise",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/product-franchises/franchise/698eab0826ca2b18eb35337e?onlyActive=true&productId=",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-franchises",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ],
+              "query": [
+                {
+                  "key": "onlyActive",
+                  "value": "true"
+                },
+                {
+                  "key": "productId",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Product Category Franchise",
+      "item": [
+        {
+          "name": "Add Product to Category Franchise",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"category_franchise_id\": \"698e9cbde07c0daa631fa820\",\n    \"product_franchise_id\": \"698e9cc3e07c0daa631fa88c\",\n    \"display_order\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-category-franchises",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-category-franchises"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"franchise_id\": \"\",\n        \"category_id\": \"\",\n        \"product_id\": \"69a9c096bb19c0da06415eda\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 30\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-category-franchises/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-category-franchises",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/product-category-franchises/69abb1c5262d94688c634196",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-category-franchises",
+                "69abb1c5262d94688c634196"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/product-category-franchises/698e9f7651d0ede1fec695ae",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-category-franchises",
+                "698e9f7651d0ede1fec695ae"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/product-category-franchises/698e9f7651d0ede1fec695ae/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-category-franchises",
+                "698e9f7651d0ede1fec695ae",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-category-franchises/698e9f7651d0ede1fec695ae/status",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-category-franchises",
+                "698e9f7651d0ede1fec695ae",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Display Order Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"category_franchise_id\": \"698e9cbde07c0daa631fa820\",\n    \"item_id\": \"698ea5b2d79b4eecff3784fa\",\n    \"new_position\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/product-category-franchises/reorder",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-category-franchises",
+                "reorder"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Products by FranchiseId with Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/product-category-franchises/franchise/698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "product-category-franchises",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"product_franchise_id\": \"698eab1626ca2b18eb353484\",\n    \"quantity\": 100,\n    \"alert_threshold\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/inventories",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "inventories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"product_franchise_id\": \"698eab1b26ca2b18eb3534e3\",\n        \"franchise_id\": \"\",\n        \"product_id\": \"\",\n        \"quantity\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 30\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/inventories/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "inventories",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/inventories/698eed9255813567903ffe04",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "inventories",
+                "698eed9255813567903ffe04"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/inventories/698eed9255813567903ffe04/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "inventories",
+                "698eed9255813567903ffe04",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Edit Quantity",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"product_franchise_id\": \"698eab1526ca2b18eb35347a\",\n    \"change\": -99,\n    \"alert_threshold\": 10,\n    \"reason\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/inventories/adjust",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "inventories",
+                "adjust"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Edit Quantity Array",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"product_franchise_id\": \"69aa68ca7729bc6014ee5979\",\n      \"change\": -30,\n      \"alert_threshold\": 10,\n      \"reason\": \"\"\n    },\n    {\n      \"product_franchise_id\": \"69aa68f17729bc6014ee598f\",\n      \"change\": -50,\n      \"alert_threshold\": 10,\n      \"reason\": \"\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/inventories/adjust/bulk",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "inventories",
+                "adjust",
+                "bulk"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Low Stock by Franchise",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/inventories/low-stock/franchise/698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "inventories",
+                "low-stock",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Inventory Logs by inventoryId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/inventories/logs/698eed6955813567903ffdf6",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "inventories",
+                "logs",
+                "698eed6955813567903ffdf6"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Promotion",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Giảm giá tháng 3\",\n    \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n    \"type\": \"PERCENT\",\n    \"value\": 10,\n    \"start_date\": \"2026-03-01T00:00:00Z\",\n    \"end_date\": \"2026-03-31T23:59:59Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/promotions",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "promotions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"franchise_id\": \"\",\n        \"product_franchise_id\": \"\",\n        \"type\": \"\",\n        \"value\": \"\",\n        \"start_date\": \"\",\n        \"end_date\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/promotions/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "promotions",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/promotions/69b0e5e4e35a97ab85dd5256",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "promotions",
+                "69b0e5e4e35a97ab85dd5256"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Giảm giá tháng 4\",\n    \"type\": \"PERCENT\",\n    \"value\": 11,\n    \"start_date\": \"2026-04-01T00:00:00Z\",\n    \"end_date\": \"2026-04-30T23:59:59Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/promotions/69b0e574787fcfc22c57da77",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "promotions",
+                "69b0e574787fcfc22c57da77"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/promotions/69b028761cdc37d7fcecab53",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "promotions",
+                "69b028761cdc37d7fcecab53"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/promotions/69b028761cdc37d7fcecab53/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "promotions",
+                "69b028761cdc37d7fcecab53",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Promotions by FranchiseId",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{host_main}}/api/promotions/franchise/698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "promotions",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Voucher",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Voucher KM - Tháng 3\",\n    \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n    \"type\": \"FIXED\",\n    \"value\": 10000,\n    \"quota_total\": 2,\n    \"start_date\": \"2026-03-01T00:00:00Z\",\n    \"end_date\": \"2026-03-31T23:59:59Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/vouchers",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "vouchers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"code\": \"VOUCHER_UMAHSYEDBC\",\n        \"franchise_id\": \"\",\n        \"product_franchise_id\": \"\",\n        \"type\": \"\",\n        \"value\": \"\",\n        \"start_date\": \"\",\n        \"end_date\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/vouchers/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "vouchers",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/vouchers/69b0f16903cb2c9a163364e7",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "vouchers",
+                "69b0f16903cb2c9a163364e7"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Voucher KM CCho Coofee 5 - Tháng 4\",\n    \"type\": \"FIXED\",\n    \"value\": 10000,\n    \"quota_total\": 20,\n    \"start_date\": \"2026-04-01T00:00:00Z\",\n    \"end_date\": \"2026-04-30T23:59:59Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/vouchers/69b0f16903cb2c9a163364e7",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "vouchers",
+                "69b0f16903cb2c9a163364e7"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/vouchers/69b0f16903cb2c9a163364e7",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "vouchers",
+                "69b0f16903cb2c9a163364e7"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/vouchers/69b0f16903cb2c9a163364e7/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "vouchers",
+                "69b0f16903cb2c9a163364e7",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Vouchers by FranchiseId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/vouchers/franchise/698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "vouchers",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shift",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n    \"name\": \"Ca Tối\",\n    \"start_time\": \"17:00\",\n    \"end_time\": \"22:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/shifts",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shifts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"name\": \"\",\n        \"franchise_id\": \"\",\n        \"start_time\": \"\",\n        \"end_time\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/shifts/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/shifts/69b00d243a8dad395ff8c633",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "69b00d243a8dad395ff8c633"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Ca Tối\",\n    \"start_time\": \"17:00\",\n    \"end_time\": \"23:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/shifts/69b00d243a8dad395ff8c633",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "69b00d243a8dad395ff8c633"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/shifts/69b7b93afd38a83fffaa5124",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "69b7b93afd38a83fffaa5124"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/shifts/69b7b93afd38a83fffaa5124/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "69b7b93afd38a83fffaa5124",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/shifts/69b7b93afd38a83fffaa5124/status",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "69b7b93afd38a83fffaa5124",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Select Items By Franchise",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/shifts/select?franchise_id=698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "select"
+              ],
+              "query": [
+                {
+                  "key": "franchise_id",
+                  "value": "698eab0826ca2b18eb35337e"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Shift Assignment",
+      "item": [
+        {
+          "name": "Assign Shift for User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"user_id\": \"69b0e2398760dd42954bc41e\",\n    \"shift_id\": \"69b00d163a8dad395ff8c62c\",\n    \"work_date\": \"2026-04-01\",\n    \"note\": \"nhớ đi sớm\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/shift-assignments",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shift-assignments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Shifts for User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"items\": [\n        {\n            \"shift_id\": \"69b00ce43a8dad395ff8c622\",\n            \"user_id\": \"698eab0626ca2b18eb353357\",\n            \"work_date\": \"2026-04-03\"\n        },\n        {\n            \"shift_id\": \"69b00ce43a8dad395ff8c622\",\n            \"user_id\": \"698eab0626ca2b18eb353357\",\n            \"work_date\": \"2026-04-04\"\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/shift-assignments/bulk",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shift-assignments",
+                "bulk"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"shift_id\": \"\",\n        \"user_id\": \"\",\n        \"work_date\": \"\",\n        \"assigned_by\": \"\",\n        \"status\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/shift-assignments/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shift-assignments",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/shift-assignments/69b01955072d535fc3ca1db6",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shift-assignments",
+                "69b01955072d535fc3ca1db6"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"COMPLETED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/shift-assignments/69b01955072d535fc3ca1db6/status",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shift-assignments",
+                "69b01955072d535fc3ca1db6",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Shifts Assign by User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/shift-assignments/user/698eab0626ca2b18eb353357?date=2026-04-01",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shift-assignments",
+                "user",
+                "698eab0626ca2b18eb353357"
+              ],
+              "query": [
+                {
+                  "key": "date",
+                  "value": "2026-04-01"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Shifts Assign by Franchise",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/shift-assignments/franchise/698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shift-assignments",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Shifts Assign by ShiftId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/shift-assignments/shift/69aba7e75999896bc34d4de4",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "shift-assignments",
+                "shift",
+                "69aba7e75999896bc34d4de4"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customer Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"loinguyenlamthanh@gmail.com\",\n  \"password\": \"12345678\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customer-auth",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-auth"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/customer-auth",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-auth"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/customer-auth/refresh-token",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-auth",
+                "refresh-token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"loinguyenlamthanh@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customer-auth/forgot-password",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-auth",
+                "forgot-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"old_password\": \"N57J3ZEEoe\",\n  \"new_password\": \"12345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customer-auth/change-password",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-auth",
+                "change-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/customer-auth/logout",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"a9c881d5904783a12e79cb160f15b16f\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customer-auth/verify-token",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-auth",
+                "verify-token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resend Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"loinguyenlamthanh@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customer-auth/resend-token",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-auth",
+                "resend-token"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customer",
+      "item": [
+        {
+          "name": "Register Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"loinguyenlamthanh@gmail.com\",\n  \"password\": \"12345678\",\n  \"name\": \"Customer Vip\",\n  \"phone\": \"0938947223\",\n  \"address\": \"FTOWN-1, FPT Software, Ho Chi Minh\",\n  \"avatar_url\": \"https://picsum.photos/id/237/200/300\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customers/register",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"loinguyenlamthanh@gmail.com\",\n  \"password\": \"12345678\",\n  \"name\": \"Customer Vip\",\n  \"phone\": \"0938947221\",\n  \"address\": \"FTOWN-1, FPT Software, Ho Chi Minh\",\n  \"avatar_url\": \"https://picsum.photos/id/237/200/300\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customers",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"keyword\": \"loinguyen\",\n        \"is_active\": \"\",\n        \"is_deleted\": \"\"\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customers/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/customers/699e5b64558e4453d3fce2e3",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "699e5b64558e4453d3fce2e3"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"loinguyenlamthanh@gmail.com\",\n  \"name\": \"Customer Vip 1\",\n  \"phone\": \"0938947221\",\n  \"address\": \"FTOWN-1, FPT Software, Ho Chi Minh\",\n  \"avatar_url\": \"https://picsum.photos/id/237/200/300\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customers/699e5b64558e4453d3fce2e3",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "699e5b64558e4453d3fce2e3"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/customers/69a063bb696223c53550e67b",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "69a063bb696223c53550e67b"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Restore Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/customers/69a063bb696223c53550e67b/restore",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "69a063bb696223c53550e67b",
+                "restore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"is_active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customers/69a063bb696223c53550e67b/status",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "69a063bb696223c53550e67b",
+                "status"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Customer by keyword (name, email, phone)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/customers/find?keyword=loinguyen",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "find"
+              ],
+              "query": [
+                {
+                  "key": "keyword",
+                  "value": "loinguyen"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customer Franchise",
+      "item": [
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n        \"customer_id\": \"\",\n        \"loyalty_points\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 30\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/customer-franchises/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-franchises",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/customer-franchises/69b571b566ed2821547abe72",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "customer-franchises",
+                "69b571b566ed2821547abe72"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Loyalty Rule",
+      "item": [
+        {
+          "name": "Create Item",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"franchise_id\": \"698eab0826ca2b18eb353384\",\n  \"earn_amount_per_point\": 10000,\n  \"redeem_value_per_point\": 1000,\n  \"min_redeem_points\": 5,\n  \"max_redeem_points\": 1000,\n  \"tier_rules\": [\n    {\n      \"tier\": \"BRONZE\",\n      \"min_points\": 0,\n      \"max_points\": 299,\n      \"benefit\": {\n        \"order_discount_percent\": 0,\n        \"earn_multiplier\": 1,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"SILVER\",\n      \"min_points\": 300,\n      \"max_points\": 999,\n      \"benefit\": {\n        \"order_discount_percent\": 3,\n        \"earn_multiplier\": 1,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"GOLD\",\n      \"min_points\": 1000,\n      \"max_points\": 1999,\n      \"benefit\": {\n        \"order_discount_percent\": 5,\n        \"earn_multiplier\": 1.25,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"PLATINUM\",\n      \"min_points\": 2000,\n      \"benefit\": {\n        \"order_discount_percent\": 10,\n        \"earn_multiplier\": 1.5,\n        \"free_shipping\": true\n      }\n    }\n  ],\n\n  \"description\": \"Default loyalty rule based on customer points\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/loyalty-rules",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "loyalty-rules"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Items by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"franchise_id\": \"\",\n        \"earn_amount_per_point\": \"\",\n        \"redeem_value_per_point\": \"\",\n        \"tier\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": \"\"\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/loyalty-rules/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "loyalty-rules",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Item",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n  \"earn_amount_per_point\": 10000,\n  \"redeem_value_per_point\": 1000,\n  \"min_redeem_points\": 10,\n  \"max_redeem_points\": 500,\n  \"tier_rules\": [\n    {\n      \"tier\": \"BRONZE\",\n      \"min_points\": 0,\n      \"max_points\": 299,\n      \"benefit\": {\n        \"order_discount_percent\": 0,\n        \"earn_multiplier\": 1,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"SILVER\",\n      \"min_points\": 300,\n      \"max_points\": 999,\n      \"benefit\": {\n        \"order_discount_percent\": 3,\n        \"earn_multiplier\": 1,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"GOLD\",\n      \"min_points\": 1000,\n      \"max_points\": 1999,\n      \"benefit\": {\n        \"order_discount_percent\": 5,\n        \"earn_multiplier\": 1.25,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"PLATINUM\",\n      \"min_points\": 2000,\n      \"benefit\": {\n        \"order_discount_percent\": 10,\n        \"earn_multiplier\": 1.5,\n        \"free_shipping\": true\n      }\n    }\n  ],\n\n  \"description\": \"Default loyalty rule based on customer points\"\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/loyalty-rules/69b3da1cfec665b41680ee95",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "loyalty-rules",
+                "69b3da1cfec665b41680ee95"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"earn_amount_per_point\": 10000,\n  \"redeem_value_per_point\": 1000,\n  \"min_redeem_points\": 100,\n  \"max_redeem_points\": 500,\n  \"tier_rules\": [\n    {\n      \"tier\": \"BRONZE\",\n      \"min_points\": 0,\n      \"max_points\": 299,\n      \"benefit\": {\n        \"order_discount_percent\": 0,\n        \"earn_multiplier\": 1,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"SILVER\",\n      \"min_points\": 300,\n      \"max_points\": 999,\n      \"benefit\": {\n        \"order_discount_percent\": 3,\n        \"earn_multiplier\": 1,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"GOLD\",\n      \"min_points\": 1000,\n      \"max_points\": 1999,\n      \"benefit\": {\n        \"order_discount_percent\": 5,\n        \"earn_multiplier\": 1.25,\n        \"free_shipping\": false\n      }\n    },\n    {\n      \"tier\": \"PLATINUM\",\n      \"min_points\": 2000,\n      \"benefit\": {\n        \"order_discount_percent\": 10,\n        \"earn_multiplier\": 1.5,\n        \"free_shipping\": true\n      }\n    }\n  ],\n\n  \"description\": \"Default loyalty rule based on customer points\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/loyalty-rules/69b3da1cfec665b41680ee95",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "loyalty-rules",
+                "69b3da1cfec665b41680ee95"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Client",
+      "item": [
+        {
+          "name": "Client With Token",
+          "item": [
+            {
+              "name": "Get Customer Royalty Detail",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{host_main}}/api/clients/franchises/698eab0826ca2b18eb35337e/customer-loyalty",
+                  "host": [
+                    "{{host_main}}"
+                  ],
+                  "path": [
+                    "api",
+                    "clients",
+                    "franchises",
+                    "698eab0826ca2b18eb35337e",
+                    "customer-loyalty"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Get All Franchises",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/clients/franchises",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "clients",
+                "franchises"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Categories By Franchise",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/clients/franchises/698eab0826ca2b18eb35337e/categories",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "clients",
+                "franchises",
+                "698eab0826ca2b18eb35337e",
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Menu by Franchise filter by Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/clients/menu?franchiseId=698eab0826ca2b18eb35337e&categoryId=",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "clients",
+                "menu"
+              ],
+              "query": [
+                {
+                  "key": "franchiseId",
+                  "value": "698eab0826ca2b18eb35337e"
+                },
+                {
+                  "key": "categoryId",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Products by Franchise and Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/clients/products?franchiseId=698eab0826ca2b18eb35337e&categoryId=",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "clients",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "franchiseId",
+                  "value": "698eab0826ca2b18eb35337e"
+                },
+                {
+                  "key": "categoryId",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Product Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/clients/franchises/698eab0826ca2b18eb35337e/products/698eab0f26ca2b18eb35340b",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "clients",
+                "franchises",
+                "698eab0826ca2b18eb35337e",
+                "products",
+                "698eab0f26ca2b18eb35340b"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Franchise Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/clients/franchises/698eab0826ca2b18eb35337e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "clients",
+                "franchises",
+                "698eab0826ca2b18eb35337e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Royalty Rule by Franchise",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{host_main}}/api/clients/franchises/698eab0826ca2b18eb35337e/loyalty-rule",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "clients",
+                "franchises",
+                "698eab0826ca2b18eb35337e",
+                "loyalty-rule"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer Royalty Info by Franchise",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/clients/franchises/698eab0826ca2b18eb35337e/customer-loyalty",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "clients",
+                "franchises",
+                "698eab0826ca2b18eb35337e",
+                "customer-loyalty"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Add Product to Cart - Admin Page",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customer_id\": \"699e5b64558e4453d3fce2e3\",\n    \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n    \"product_franchise_id\": \"69abb33e54f63d42311eeecd\",\n    \"quantity\": 1,\n    \"note\": \"không đá, 30% đường\",\n    \"options\": [\n        {\n            \"product_franchise_id\": \"698eab1a26ca2b18eb3534de\",\n            \"quantity\": 1\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/items/staff",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items",
+                "staff"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Products to Cart - Admin Page",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"customer_id\": \"699e5b64558e4453d3fce2e3\",\n    \"franchise_id\": \"698eab0826ca2b18eb35337e\",\n    \"items\": [\n        {\n            \"product_franchise_id\": \"69abb33e54f63d42311eeecd\",\n            \"quantity\": 1,\n            \"note\": \"không đá, 30% đường\",\n            \"options\": [\n                {\n                    \"product_franchise_id\": \"698eab1a26ca2b18eb3534de\",\n                    \"quantity\": 1\n                }\n            ]\n        },\n        {\n            \"product_franchise_id\": \"69abb33e54f63d42311eeecd\",\n            \"quantity\": 1,\n            \"note\": \"không đá, 30% đường\",\n            \"options\": [\n                {\n                    \"product_franchise_id\": \"698eab1a26ca2b18eb3534de\",\n                    \"quantity\": 1\n                },\n                {\n                    \"product_franchise_id\": \"698eab1a26ca2b18eb3534d4\",\n                    \"quantity\": 1\n                }\n            ]\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/items/staff-bulk",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items",
+                "staff-bulk"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add Product to Cart - Customer Page",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"franchise_id\": \"698eab0826ca2b18eb353384\",\n    \"product_franchise_id\": \"698eab1b26ca2b18eb3534e3\",\n    \"quantity\": 1,\n    \"note:\": \"không đá, 50% đường\",\n    \"options\": [\n        {\n            \"product_franchise_id\": \"698eab1d26ca2b18eb353515\",\n            \"quantity\": 1\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/items",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Carts by CustomerId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/carts/customer/699e5b64558e4453d3fce2e3?status=ACTIVE",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "customer",
+                "699e5b64558e4453d3fce2e3"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cart Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/carts/69bd2ddb9ab3832a5288839d",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "69bd2ddb9ab3832a5288839d"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Count Cart by CustomerId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/carts/customer/699e5b64558e4453d3fce2e3/count-cart?status=ACTIVE",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "customer",
+                "699e5b64558e4453d3fce2e3",
+                "count-cart"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Count Cart Item by CartId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/carts/69b7ac5abbd14c0b1fa077ed/count-cart-item",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "69b7ac5abbd14c0b1fa077ed",
+                "count-cart-item"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Cart",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"address\": \"123\",\n    \"phone\": \"0938947221\",\n    \"message\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/69aa4f45d83e2eea46a990f4",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "69aa4f45d83e2eea46a990f4"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update quantity for Cart Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"cart_item_id\": \"69ba5170c3656dfee3d74608\",\n    \"quantity\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/items/update-cart-item",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items",
+                "update-cart-item"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Cart Item in Cart",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/carts/items/69aaae2d45c806d4c5ff3c84",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items",
+                "69aaae2d45c806d4c5ff3c84"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Options for CartItem",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"cart_item_id\": \"69bcc04ff86d6ed3e81641b1\",\n    \"options\": [\n        {\n            \"product_franchise_id\": \"698eab1a26ca2b18eb3534de\",\n            \"quantity\": 1\n        },\n        {\n            \"product_franchise_id\": \"698eab1a26ca2b18eb3534d4\",\n            \"quantity\": 1\n        }\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/items/update-options-cart-item",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items",
+                "update-options-cart-item"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update quantity for Option Item in Cart Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"cart_item_id\": \"69b2591edfeefd41c8494b26\",\n    \"option_product_franchise_id\": \"698eab1d26ca2b18eb353515\",\n    \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/items/update-option",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items",
+                "update-option"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Option Item",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"cart_item_id\": \"69b2591edfeefd41c8494b26\",\n    \"option_product_franchise_id\": \"698eab1d26ca2b18eb353515\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/items/remove-option",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "items",
+                "remove-option"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Apply Voucher In Cart",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"voucher_code\": \"VOUCHER_UMAHSYEDBC\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/69bd2ddb9ab3832a5288839d/apply-voucher",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "69bd2ddb9ab3832a5288839d",
+                "apply-voucher"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Voucher in Car",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/carts/69bd2ddb9ab3832a5288839d/remove-voucher",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "69bd2ddb9ab3832a5288839d",
+                "remove-voucher"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Checkout Cart",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"address\": \"123\",\n    \"phone\": \"0938947221\",\n    \"message\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/carts/69ba516fc3656dfee3d74605/checkout",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "69ba516fc3656dfee3d74605",
+                "checkout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Cart",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/carts/69bbc9070184995845c35307/cancel",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "carts",
+                "69bbc9070184995845c35307",
+                "cancel"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Order",
+      "item": [
+        {
+          "name": "Get Order by CartId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/orders/cart/69ba516fc3656dfee3d74605",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "cart",
+                "69ba516fc3656dfee3d74605"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Orders by CustomerId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/orders/customer/699e5b64558e4453d3fce2e3?status=",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "customer",
+                "699e5b64558e4453d3fce2e3"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order by Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/orders/code?code=ORDER_NZIWIYRJCQ",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "code"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "ORDER_NZIWIYRJCQ"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Order by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/orders/69ba0e8e9a9f23857ae2f69e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "69ba0e8e9a9f23857ae2f69e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Orders for Staff by FranchiseID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/orders/franchise/698eab0826ca2b18eb353384?status=CANCELED",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "franchise",
+                "698eab0826ca2b18eb353384"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CANCELED"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status - Preparing",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/orders/69ba51c4c3656dfee3d7463a/preparing",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "69ba51c4c3656dfee3d7463a",
+                "preparing"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status - Ready for Pickup",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"staff_id\": \"698eab0526ca2b18eb353351\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/orders/69ba51c4c3656dfee3d7463a/ready-for-pickup",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "69ba51c4c3656dfee3d7463a",
+                "ready-for-pickup"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Get Payment by OrderId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/payments/order/69ba51c4c3656dfee3d7463a",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "order",
+                "69ba51c4c3656dfee3d7463a"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payments by CustomerId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/payments/customer/699e5b64558e4453d3fce2e3?status=",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "customer",
+                "699e5b64558e4453d3fce2e3"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payments by FranchiseId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/payments/franchise/698eab0826ca2b18eb35337e?status=",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "franchise",
+                "698eab0826ca2b18eb35337e"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/payments/code?code=PAYMENT_JPTX8TYTI",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "code"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "PAYMENT_JPTX8TYTI"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Payment by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/payments/69b621fb0dd8d016f778c16e",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "69b621fb0dd8d016f778c16e"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Confirm Payment",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"method\": \"CARD\",\n    \"providerTxnId\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/payments/69ba51c5c3656dfee3d74643/confirm",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "69ba51c5c3656dfee3d74643",
+                "confirm"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refund Payment",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refund_reason\": \"khong mua nua\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/payments/69b6b5c9459579cc3cfb5f43/refund",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "payments",
+                "69b6b5c9459579cc3cfb5f43",
+                "refund"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Delivery",
+      "item": [
+        {
+          "name": "Get Delivery by OrderId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/deliveries/order/69ba51c4c3656dfee3d7463a",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "deliveries",
+                "order",
+                "69ba51c4c3656dfee3d7463a"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Deliveries by Conditions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"franchise_id\": \"\",\n    \"staff_id\": \"\",\n    \"customer_id\": \"699e5b64558e4453d3fce2e3\",\n    \"status\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{host_main}}/api/deliveries/search",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "deliveries",
+                "search"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Delivery by Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{host_main}}/api/deliveries/69b91fe099038a73f3b26d0f",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "deliveries",
+                "69b91fe099038a73f3b26d0f"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status - Pickup",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"name\": \"\",\n        \"franchise_id\": \"\",\n        \"start_time\": \"\",\n        \"end_time\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/deliveries/69ba5268c3656dfee3d74677/pickup",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "deliveries",
+                "69ba5268c3656dfee3d74677",
+                "pickup"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Change Status - Delivery Complete",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"searchCondition\": {\n        \"name\": \"\",\n        \"franchise_id\": \"\",\n        \"start_time\": \"\",\n        \"end_time\": \"\",\n        \"is_active\": \"\",\n        \"is_deleted\": false\n    },\n    \"pageInfo\": {\n        \"pageNum\": 1,\n        \"pageSize\": 10\n    }\n}"
+            },
+            "url": {
+              "raw": "{{host_main}}/api/deliveries/69ba5268c3656dfee3d74677/complete",
+              "host": [
+                "{{host_main}}"
+              ],
+              "path": [
+                "api",
+                "deliveries",
+                "69ba5268c3656dfee3d74677",
+                "complete"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

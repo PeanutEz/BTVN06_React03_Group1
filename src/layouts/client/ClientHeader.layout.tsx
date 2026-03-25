@@ -5,7 +5,7 @@ import { ROUTER_URL } from "../../routes/router.const";
 import { useAuthStore } from "../../store/auth.store";
 import { useDeliveryStore } from "../../store/delivery.store";
 import { isBranchOpen } from "../../services/branch.service";
-import { logoutUser } from "../../services/auth.service";
+import { logoutCustomer } from "../../services/auth.service";
 import { showSuccess } from "../../utils";
 import BranchPickerModal from "../../components/menu/BranchPickerModal";
 import logoHylux from "../../assets/logo-hylux.png";
@@ -42,8 +42,8 @@ const ClientHeader = () => {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []); const handleLogout = async () => {
-    await logoutUser().catch(() => { });
+  }, []);  const handleLogout = async () => {
+    await logoutCustomer().catch(() => { });
     logout();
     setAccountOpen(false);
     showSuccess("Đăng xuất thành công");
@@ -161,6 +161,7 @@ const ClientHeader = () => {
                     <div className="py-1">
                       {[
                         { icon: "👤", label: "Thông tin cá nhân", path: ROUTER_URL.CUSTOMER_PROFILE },
+                        { icon: "🔒", label: "Đổi mật khẩu", path: ROUTER_URL.CUSTOMER_CHANGE_PASSWORD },
                         { icon: "⭐", label: "Khách hàng thành viên", path: ROUTER_URL.CUSTOMER_MEMBERSHIP },
                         { icon: "📦", label: "Đơn hàng", path: ROUTER_URL.CUSTOMER_ORDER_HISTORY },
                         { icon: "🛒", label: "Giỏ hàng", path: ROUTER_URL.CUSTOMER_CART },
@@ -307,3 +308,5 @@ const ClientHeader = () => {
 };
 
 export default ClientHeader;
+
+

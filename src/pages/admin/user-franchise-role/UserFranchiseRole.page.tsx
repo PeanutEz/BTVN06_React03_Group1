@@ -387,9 +387,12 @@ export default function UserFranchiseRolePage() {
   };
 
   const submitCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!createForm.user_id || !createForm.role_id) {
-      showError("Vui lòng chọn user và role");
+    e.preventDefault();    if (!createForm.user_id) {
+      showError("Vui lòng chọn user");
+      return;
+    }
+    if (!createForm.role_id) {
+      showError("Vui lòng chọn role");
       return;
     }
     setCreating(true);
@@ -661,7 +664,7 @@ export default function UserFranchiseRolePage() {
                 <th className="px-4 py-3">Franchise</th>
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Note</th>
-                <th className="px-4 py-3">Deleted</th>
+                <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Thao tác</th>
               </tr>
             </thead>
@@ -693,9 +696,7 @@ export default function UserFranchiseRolePage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {(() => { const b = getRoleBadge(it.role_code); return (
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${b.cls}`}>
-                      <span className={`size-1.5 rounded-full shrink-0 ${b.dot}`} />
+                    {(() => { const b = getRoleBadge(it.role_code); return (                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${b.cls}`}>
                       {it.role_name}
                     </span>
                     ); })()}
@@ -703,15 +704,12 @@ export default function UserFranchiseRolePage() {
                   <td className="px-4 py-3 text-white/70">
                     {it.note || "—"}
                   </td>
-                  <td className="px-4 py-3">
-                    {it.is_deleted ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300 border border-red-500/40">
-                        <span className="size-1.5 rounded-full shrink-0 bg-red-400" />
+                  <td className="px-4 py-3">                    {it.is_deleted ? (
+                      <span className="inline-flex items-center rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300 border border-red-500/40">
                         Deleted
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/40">
-                        <span className="size-1.5 rounded-full shrink-0 bg-emerald-400" />
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/40">
                         Active
                       </span>
                     )}
