@@ -8,6 +8,7 @@ import { fetchFranchiseSelect } from "@/services/store.service";
 import type { FranchiseSelectItem } from "@/services/store.service";
 import { adminProductFranchiseService } from "@/services/product-franchise.service";
 import type { ProductFranchiseApiResponse } from "@/models/product.model";
+import { useManagerFranchiseId } from "@/hooks/useManagerFranchiseId";
 
 interface VoucherModalProps {
   voucher: Voucher | null;
@@ -16,6 +17,7 @@ interface VoucherModalProps {
 }
 
 export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
+  const managerFranchiseId = useManagerFranchiseId();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -126,10 +128,16 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
         quota_total: 10,
         start_date: "",
         end_date: "",
-        franchise_id: "",
+        franchise_id: managerFranchiseId ?? "",
         product_franchise_id: ""
       });
-    }  }, [voucher]);
+    }  }, [voucher, managerFranchiseId]);
+
+  // Sync franchise_id when managerFranchiseId hydrates late (store)
+  useEffect(() => {
+    if (!managerFranchiseId || voucher) return;
+    setFormData((prev) => ({ ...prev, franchise_id: managerFranchiseId }));
+  }, [managerFranchiseId, voucher]);
 
   // Split datetime-local into date + time parts for display
   const startDatePart = formData.start_date ? formData.start_date.substring(0, 10) : "";
@@ -225,6 +233,178 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
         {/* Content */}
         <div className="p-6">
           <form id="voucher-form" onSubmit={handleSubmit} className="space-y-4">
+            {!voucher && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">🏪 Phạm vi áp dụng</p>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Chi nhánh áp dụng */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      Chi nhánh áp dụng <span className="text-red-500">*</span>
+                    </label>
+                    {managerFranchiseId ? (
+                      <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-50 px-3 py-2 text-sm cursor-not-allowed select-none">
+                        <span className="truncate font-medium text-primary-700">
+                          {selectedFranchise
+                            ? `${selectedFranchise.name} (${selectedFranchise.code})`
+                            : managerFranchiseId}
+                        </span>
+                        <svg className="ml-2 size-4 flex-shrink-0 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        {/* Trigger button */}
+                        <button
+                          ref={franchiseTriggerRef}
+                          type="button"
+                          disabled={loadingFranchises}
+                          onClick={() => {
+                            if (franchiseOpen) {
+                              closeFranchiseDropdown();
+                            } else {
+                              openFranchiseDropdown();
+                            }
+                          }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            width: "100%", padding: "8px 12px",
+                            background: "#1e293b", border: "1px solid #475569", borderRadius: 8,
+                            color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none",
+                            opacity: loadingFranchises ? 0.5 : 1,
+                          }}
+                        >
+                          <span style={{
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                            color: selectedFranchise ? "#f1f5f9" : "#94a3b8",
+                          }}>
+                            {loadingFranchises
+                              ? "Đang tải..."
+                              : selectedFranchise
+                                ? `${selectedFranchise.name} (${selectedFranchise.code})`
+                                : "-- Chọn chi nhánh --"}
+                          </span>
+                          <svg style={{ width: 16, height: 16, flexShrink: 0, marginLeft: 8, color: "#94a3b8",
+                            transform: franchiseOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+
+                        {/* Dropdown — render qua portal ra document.body */}
+                        {franchiseOpen && dropdownRect && ReactDOM.createPortal(
+                          <div
+                            ref={franchiseComboRef}
+                            style={{
+                              position: "fixed",
+                              top: dropdownRect.bottom + 4,
+                              left: dropdownRect.left,
+                              width: dropdownRect.width,
+                              zIndex: 99999,
+                              background: "#1e293b",
+                              border: "1px solid #475569",
+                              borderRadius: 8,
+                              boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {/* Search */}
+                            <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
+                              <input
+                                autoFocus
+                                value={franchiseKeyword}
+                                onChange={(e) => setFranchiseKeyword(e.target.value)}
+                                placeholder="Tìm theo tên hoặc mã..."
+                                style={{
+                                  width: "100%", boxSizing: "border-box",
+                                  background: "#0f172a", border: "1px solid #475569",
+                                  borderRadius: 6, padding: "5px 10px",
+                                  fontSize: 12, color: "#f1f5f9", outline: "none",
+                                }}
+                              />
+                            </div>
+                            {/* List */}
+                            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                              {/* Reset option */}
+                              <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => {
+                                  setFormData((prev) => ({ ...prev, franchise_id: "", product_franchise_id: "" }));
+                                  closeFranchiseDropdown();
+                                }}
+                                style={{
+                                  display: "flex", width: "100%", padding: "8px 12px",
+                                  background: !formData.franchise_id ? "#334155" : "transparent",
+                                  color: !formData.franchise_id ? "#f1f5f9" : "#94a3b8",
+                                  fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer",
+                                  textAlign: "left", boxSizing: "border-box",
+                                }}
+                              >
+                                -- Chọn chi nhánh --
+                              </button>
+                              {franchiseOptions.map((f) => (
+                                <button
+                                  key={f.value}
+                                  type="button"
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  onClick={() => {
+                                    setFormData((prev) => ({ ...prev, franchise_id: f.value, product_franchise_id: "" }));
+                                    closeFranchiseDropdown();
+                                  }}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: 8,
+                                    width: "100%", padding: "8px 12px", boxSizing: "border-box",
+                                    background: formData.franchise_id === f.value ? "#334155" : "transparent",
+                                    color: formData.franchise_id === f.value ? "#f1f5f9" : "#cbd5e1",
+                                    fontSize: 13, border: "none", cursor: "pointer", textAlign: "left",
+                                  }}
+                                >
+                                  <span style={{ fontFamily: "monospace", color: "#64748b", fontSize: 10, flexShrink: 0 }}>{f.code}</span>
+                                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                                </button>
+                              ))}
+                              {franchiseOptions.length === 0 && !loadingFranchises && (
+                                <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>
+                                  Không tìm thấy chi nhánh
+                                </div>
+                              )}
+                              {loadingFranchises && (
+                                <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>
+                                  Đang tải...
+                                </div>
+                              )}
+                            </div>
+                          </div>,
+                          document.body
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sản phẩm áp dụng */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-500 mb-1">Sản phẩm áp dụng (Tùy chọn)</label>
+                    <select
+                      name="product_franchise_id"
+                      value={formData.product_franchise_id}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                      disabled={!formData.franchise_id || loadingProducts}
+                    >
+                      <option value="">-- Chọn sản phẩm (Áp dụng tất cả) --</option>
+                      {productFranchises.map((pf) => (
+                        <option key={pf.id} value={pf.id}>
+                          Size {pf.size} - {pf.price_base.toLocaleString("vi-VN")}đ
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1">Tên Voucher <span className="text-red-500">*</span></label>
               <input
@@ -368,161 +548,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                   ⚠ Ngày kết thúc phải sau ngày bắt đầu
                 </div>
               )}
-            </div>            {!voucher && (
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-                {/* Franchise combobox với search — dùng portal để tránh bị overflow-hidden clip */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    Chi nhánh áp dụng <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    {/* Trigger button */}
-                    <button
-                      ref={franchiseTriggerRef}
-                      type="button"
-                      disabled={loadingFranchises}
-                      onClick={() => {
-                        if (franchiseOpen) {
-                          closeFranchiseDropdown();
-                        } else {
-                          openFranchiseDropdown();
-                        }
-                      }}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
-                        width: "100%", padding: "8px 12px",
-                        background: "#1e293b", border: "1px solid #475569", borderRadius: 8,
-                        color: "#f1f5f9", fontSize: 14, cursor: "pointer", outline: "none",
-                        opacity: loadingFranchises ? 0.5 : 1,
-                      }}
-                    >
-                      <span style={{
-                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        color: selectedFranchise ? "#f1f5f9" : "#94a3b8",
-                      }}>
-                        {loadingFranchises
-                          ? "Đang tải..."
-                          : selectedFranchise
-                            ? `${selectedFranchise.name} (${selectedFranchise.code})`
-                            : "-- Chọn chi nhánh --"}
-                      </span>
-                      <svg style={{ width: 16, height: 16, flexShrink: 0, marginLeft: 8, color: "#94a3b8",
-                        transform: franchiseOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-
-                    {/* Dropdown — render qua portal ra document.body */}
-                    {franchiseOpen && dropdownRect && ReactDOM.createPortal(
-                      <div
-                        ref={franchiseComboRef}
-                        style={{
-                          position: "fixed",
-                          top: dropdownRect.bottom + 4,
-                          left: dropdownRect.left,
-                          width: dropdownRect.width,
-                          zIndex: 99999,
-                          background: "#1e293b",
-                          border: "1px solid #475569",
-                          borderRadius: 8,
-                          boxShadow: "0 10px 40px rgba(0,0,0,0.7)",
-                          overflow: "hidden",
-                        }}
-                      >
-                        {/* Search */}
-                        <div style={{ padding: "8px 10px", borderBottom: "1px solid #334155" }}>
-                          <input
-                            autoFocus
-                            value={franchiseKeyword}
-                            onChange={(e) => setFranchiseKeyword(e.target.value)}
-                            placeholder="Tìm theo tên hoặc mã..."
-                            style={{
-                              width: "100%", boxSizing: "border-box",
-                              background: "#0f172a", border: "1px solid #475569",
-                              borderRadius: 6, padding: "5px 10px",
-                              fontSize: 12, color: "#f1f5f9", outline: "none",
-                            }}
-                          />
-                        </div>
-                        {/* List */}
-                        <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                          {/* Reset option */}
-                          <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setFormData((prev) => ({ ...prev, franchise_id: "", product_franchise_id: "" }));
-                              closeFranchiseDropdown();
-                            }}
-                            style={{
-                              display: "flex", width: "100%", padding: "8px 12px",
-                              background: !formData.franchise_id ? "#334155" : "transparent",
-                              color: !formData.franchise_id ? "#f1f5f9" : "#94a3b8",
-                              fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer",
-                              textAlign: "left", boxSizing: "border-box",
-                            }}
-                          >
-                            -- Chọn chi nhánh --
-                          </button>
-                          {franchiseOptions.map((f) => (
-                            <button
-                              key={f.value}
-                              type="button"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                setFormData((prev) => ({ ...prev, franchise_id: f.value, product_franchise_id: "" }));
-                                closeFranchiseDropdown();
-                              }}
-                              style={{
-                                display: "flex", alignItems: "center", gap: 8,
-                                width: "100%", padding: "8px 12px", boxSizing: "border-box",
-                                background: formData.franchise_id === f.value ? "#334155" : "transparent",
-                                color: formData.franchise_id === f.value ? "#f1f5f9" : "#cbd5e1",
-                                fontSize: 13, border: "none", cursor: "pointer", textAlign: "left",
-                              }}
-                            >
-                              <span style={{ fontFamily: "monospace", color: "#64748b", fontSize: 10, flexShrink: 0 }}>{f.code}</span>
-                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                            </button>
-                          ))}
-                          {franchiseOptions.length === 0 && !loadingFranchises && (
-                            <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>
-                              Không tìm thấy chi nhánh
-                            </div>
-                          )}
-                          {loadingFranchises && (
-                            <div style={{ padding: "10px 12px", fontSize: 12, color: "#64748b", textAlign: "center" }}>
-                              Đang tải...
-                            </div>
-                          )}
-                        </div>
-                      </div>,
-                      document.body
-                    )}
-                  </div>
-                </div>
-
-                {/* Product franchise select (giữ nguyên native select) */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 mb-1">Sản phẩm áp dụng (Tùy chọn)</label>
-                  <select
-                    name="product_franchise_id"
-                    value={formData.product_franchise_id}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
-                    disabled={!formData.franchise_id || loadingProducts}
-                  >
-                    <option value="">-- Chọn sản phẩm (Áp dụng tất cả) --</option>
-                    {productFranchises.map((pf) => (
-                      <option key={pf.id} value={pf.id}>
-                        Size {pf.size} - {pf.price_base.toLocaleString("vi-VN")}đ
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            )}
+            </div>
           </form>
         </div>
 
