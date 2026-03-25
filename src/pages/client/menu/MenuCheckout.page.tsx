@@ -268,8 +268,9 @@ interface DisplayItem {
   image: string;
   size?: string;
   sugar?: SugarLevel;
-  ice?: IceLevel;  toppingsText?: string;
-  toppingsParsed?: Array<{ name: string; quantity: number; image?: string; price?: number }>;
+  ice?: IceLevel;
+  toppingsText?: string;
+  toppingsParsed?: Array<{ name: string; quantity: number }>;
   note?: string;
   quantity: number;
   unitPrice: number;
@@ -524,35 +525,9 @@ function apiCartToDisplayItems(
       image: getItemImage(item),
       size: item.size,
       sugar: parsed.sugar,
-      ice: parsed.ice,      toppingsText: formatToppingsSummary(parsed.toppings),      toppingsParsed: parsed.toppings?.map((t) => {
-        // Try to find image by matching option's product_franchise_id in the toppingInfoMap,
-        // then fall back to name-matching within item.options (which may have image_url from API)
-        const matchedOpt = (item.options as CartItemOption[] | undefined)?.find((opt) => {
-          // First try: match via toppingInfoMap by product_franchise_id
-          if (toppingInfoMap && opt.product_franchise_id) {
-            const info = toppingInfoMap[opt.product_franchise_id];
-            if (info) {
-              const infoName = info.name.trim().toLowerCase();
-              const tName = t.name.trim().toLowerCase();
-              return infoName.includes(tName) || tName.includes(infoName);
-            }
-          }
-          // Fallback: match by name stored directly on the option
-          const optName = String(opt.product_name_snapshot ?? opt.name ?? "").trim().toLowerCase();
-          return optName && (t.name.toLowerCase().includes(optName) || optName.includes(t.name.toLowerCase()));
-        });        // Resolve image: prefer toppingInfoMap (API-sourced), then option's image_url
-        let image: string | undefined;
-        let price: number | undefined;
-        if (toppingInfoMap && matchedOpt?.product_franchise_id) {
-          const info = toppingInfoMap[matchedOpt.product_franchise_id];
-          image = info?.image_url ? String(info.image_url).trim() || undefined : undefined;
-          price = info?.price != null && info.price > 0 ? info.price : undefined;
-        }
-        if (!image) {
-          image = String(matchedOpt?.image_url ?? "").trim() || undefined;
-        }
-        return { ...t, image, price };
-      }),
+      ice: parsed.ice,
+      toppingsText: formatToppingsSummary(parsed.toppings),
+      toppingsParsed: parsed.toppings,
       note: parsed.userNote ?? (item.note ? String(item.note) : undefined),
       quantity: qty,
       unitPrice: price,
@@ -629,6 +604,7 @@ export default function MenuCheckoutPage() {
     if (cartEntries.length > 0) setCarts(cartEntries);
     else clearCart();
   }, [cartEntries, setCarts, clearCart, cartsLoading]);
+
   // Fetch detail for each cart với query key đơn giản để sync với MenuOrderPanel
   const cartDetails = useQueries({
     queries: cartEntries.map((entry) => ({
@@ -638,41 +614,6 @@ export default function MenuCheckoutPage() {
       staleTime: 0,
     })),
   });
-
-  // Derive unique franchise IDs so we fetch toppings once per franchise
-  const uniqueFranchiseIds = useMemo(() => {
-    const ids = cartEntries.map((e) => e.franchise_id ? String(e.franchise_id) : "").filter(Boolean);
-    return [...new Set(ids)];
-  }, [cartEntries]);
-
-  // Fetch topping products per franchise to resolve images
-  const toppingQueries = useQueries({
-    queries: uniqueFranchiseIds.map((franchiseId) => ({
-      queryKey: ["checkout-toppings", franchiseId],
-      queryFn: () => clientService.getToppingsByFranchise(franchiseId),
-      enabled: !!franchiseId && isLoggedIn,
-      staleTime: 5 * 60_000,
-    })),
-  });
-
-  // Build a map: franchiseId → ToppingInfoMap (product_franchise_id → { name, image_url })
-  const toppingInfoByFranchise = useMemo(() => {
-    const result: Record<string, ToppingInfoMap> = {};
-    uniqueFranchiseIds.forEach((franchiseId, idx) => {
-      const products = toppingQueries[idx]?.data ?? [];
-      const map: ToppingInfoMap = {};      for (const p of products) {
-        for (const size of (p.sizes ?? [])) {
-          map[size.product_franchise_id] = {
-            name: p.name,
-            image_url: p.image_url ?? "",
-            price: size.price ?? 0,
-          };
-        }
-      }
-      result[franchiseId] = map;
-    });
-    return result;
-  }, [uniqueFranchiseIds, toppingQueries]);
 
   // Build blocks CHỈ từ API getCartDetail (mỗi cart) — không dùng dữ liệu từ list để đảm bảo đúng sản phẩm trong giỏ
   const blocks: CheckoutBlock[] = cartEntries
@@ -966,11 +907,10 @@ export default function MenuCheckoutPage() {
       toast.error("Không thể xóa sản phẩm");
     }
   }
+
   async function handleOrderOneBlock(block: CheckoutBlock) {
     const { cartId, franchiseName } = block;
-    // Guard đồng bộ bằng ref — tránh StrictMode double-invoke gọi 2 lần
-    if (!validate() || orderingCartIdRef.current || orderingCartId || !isTermsAccepted(cartId)) return;
-    orderingCartIdRef.current = cartId;
+    if (!validate() || orderingCartId || !isTermsAccepted(cartId)) return;
 
     const loadingStartedAt = Date.now();
     setOrderingCartId(cartId);
@@ -1023,9 +963,12 @@ export default function MenuCheckoutPage() {
       const checkoutBody: Parameters<typeof cartClient.checkoutCart>[1] = {
         payment_method: checkoutPaymentMethod,
         bank_name: bankName,
-      };      let orderId = "";      await cartClient.updateCart(cartId, updateCartBody);
-      await cartClient.checkoutCart(cartId, checkoutBody);
+      };
 
+      let orderId = "";
+
+      await cartClient.updateCart(cartId, updateCartBody);
+      await cartClient.checkoutCart(cartId, checkoutBody);
       const order = await orderClient.getOrderByCartId(cartId);
       orderId = String(order?._id ?? order?.id ?? "");
 
@@ -1094,7 +1037,6 @@ export default function MenuCheckoutPage() {
         getErrorMessage(error) ?? "Không thể đặt hàng. Vui lòng thử lại.";
       toast.error(msg);
     } finally {
-      orderingCartIdRef.current = null;
       setOrderingCartId(null);
     }
   }

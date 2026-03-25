@@ -13,7 +13,6 @@ import logoHylux from "../../assets/logo-hylux.png";
 const NAV_LINKS: Array<{ label: string; path: string; highlight?: boolean }> = [
   { label: "Trang chủ", path: ROUTER_URL.HOME },
   { label: "Menu", path: ROUTER_URL.MENU },
-  { label: "Đơn hàng của tôi", path: ROUTER_URL.CUSTOMER_ORDER_HISTORY },
   { label: "Hệ thống cửa hàng", path: ROUTER_URL.STORE_LOCATOR },
   { label: "Liên hệ", path: ROUTER_URL.CONTACT },
 ];
