@@ -11,6 +11,7 @@ import {
 import { showSuccess, showError } from "../../../utils";
 import Pagination from "../../../components/ui/Pagination";
 import CustomerDetailModal from "./CustomerDetailModal";
+import { useAuthStore } from "../../../store";
 
 const CLOUDINARY_CLOUD_NAME = "dn2xh5rxe";
 const CLOUDINARY_UPLOAD_PRESET = "btvn06_upload";
@@ -61,6 +62,10 @@ function AvatarCell({ name, url }: { name: string; url?: string }) {
 
 const CustomerListPage = () => {
   const showConfirm = useConfirm();
+  const user = useAuthStore((s) => s.user);
+  const isStaff = user?.active_context
+    ? (user.active_context as any)?.role?.toUpperCase() === "STAFF"
+    : user?.roles?.some((r) => r.role?.toUpperCase() === "STAFF") ?? false;
   const [customers, setCustomers] = useState<CustomerDisplay[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -150,11 +155,7 @@ const CustomerListPage = () => {
 
   const handleToggleStatus = async (id: string, currentActive: boolean, email?: string, name?: string) => {
     try {
-      if (!currentActive) {
-        await restoreCustomer(id);
-      } else {
-        await changeCustomerStatus(id, false);
-      }
+      await changeCustomerStatus(id, !currentActive);
       const label = email || name || "";
       showSuccess(`Đã ${!currentActive ? "kích hoạt" : "vô hiệu hóa"} khách hàng${label ? ` ${label}` : ""} thành công`);
       loadPage(currentPage, searchRef.current.keyword, searchRef.current.activeFilter, searchRef.current.showDeleted);
@@ -365,6 +366,7 @@ const CustomerListPage = () => {
                           </button>
 
                           {/* Toggle status */}
+                          {!isStaff && (
                           <button
                             title={customer.is_active ? "Vô hiệu hóa" : "Kích hoạt"}
                             onClick={() => handleToggleStatus(customer.id, customer.is_active, customer.email, customer.name)}
@@ -384,8 +386,10 @@ const CustomerListPage = () => {
                               </svg>
                             )}
                           </button>
+                          )}
 
                           {/* Delete */}
+                          {!isStaff && (
                           <button
                             title="Xóa khách hàng"
                             onClick={() => handleDelete(customer.id, customer.name, customer.email)}
@@ -395,6 +399,7 @@ const CustomerListPage = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                           </button>
+                          )}
                         </>
                       )}
                     </div>

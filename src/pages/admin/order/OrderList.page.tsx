@@ -18,7 +18,6 @@ import { useAuthStore } from "../../../store";
 const ITEMS_PER_PAGE = 10;
 
 const STATUS_OPTIONS = [
-  { value: "DRAFT",            label: "Nháp" },
   { value: "CONFIRMED",        label: "Đã xác nhận" },
   { value: "PREPARING",        label: "Đang chuẩn bị" },
   { value: "READY_FOR_PICKUP", label: "Sẵn sàng lấy hàng" },
