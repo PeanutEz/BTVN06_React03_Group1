@@ -7,6 +7,7 @@ import type { FranchiseSelectItem } from "../../../services/store.service";
 import { searchCustomersPaged } from "../../../services/customer.service";
 import Pagination from "../../../components/ui/Pagination";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
+import { useAuthStore } from "../../../store";
 import { showSuccess, showError } from "../../../utils";
 
 const ITEMS_PER_PAGE = 10;
@@ -203,6 +204,8 @@ function CartDetailModal({ cart, onClose }: { cart: CartApiData; onClose: () => 
 // ─── Main page ────────────────────────────────────────────────────────────────
 const CartListPage = (): React.JSX.Element => {
   const managerFranchiseId = useManagerFranchiseId();
+  const _authUser = useAuthStore((s) => s.user);
+  const isShipper = ((_authUser?.active_context as { role?: string } | null)?.role ?? _authUser?.role ?? "").toUpperCase() === "SHIPPER";
 
   // Raw carts từ API (của customer đang chọn)
   const [rawCarts, setRawCarts] = useState<CartApiData[]>([]);
@@ -355,6 +358,7 @@ const CartListPage = (): React.JSX.Element => {
         <div className="flex flex-wrap items-end gap-3">
 
           {/* Chi nhánh */}
+          {!isShipper && (
           <div className="min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Chi nhánh</label>
             {managerFranchiseId ? (
@@ -375,6 +379,7 @@ const CartListPage = (): React.JSX.Element => {
               />
             )}
           </div>
+          )}
 
           {/* Trạng thái */}
           <div className="min-w-[180px] space-y-1.5">
@@ -388,6 +393,7 @@ const CartListPage = (): React.JSX.Element => {
               allLabel="-- Tất cả --"
             />
           </div>          {/* Khách hàng — dropdown có search, giống hình */}
+          {!isShipper && (
           <div className="min-w-[220px] space-y-1.5">
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">Khách hàng</label>
             <GlassSearchSelect
@@ -399,8 +405,10 @@ const CartListPage = (): React.JSX.Element => {
               allLabel="-- Tất cả khách hàng --"
             />
           </div>
+          )}
 
           {/* Reset */}
+          {!isShipper && (
           <div className="space-y-1.5">
             <label className="invisible block text-xs">&nbsp;</label>
             <button
@@ -410,6 +418,7 @@ const CartListPage = (): React.JSX.Element => {
               Đặt lại
             </button>
           </div>
+          )}
         </div>
 
         {selectedCustomerId && (

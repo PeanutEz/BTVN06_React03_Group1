@@ -93,7 +93,12 @@ export default function InventoryListPage() {
     change: string;
     reason: string;
   }>({ change: "", reason: "" });
-  const [adjusting, setAdjusting] = useState(false);  // ─── Batch inline edit (quantity + alert_threshold) ──────────────────────
+  const [adjusting, setAdjusting] = useState(false);
+
+  // Map product_franchise_id → { size, price_base } — fetched on demand
+  const [pfInfoMap, setPfInfoMap] = useState<Record<string, { size: string; price_base: number }>>({});
+
+  // ─── Batch inline edit (quantity + alert_threshold) ──────────────────────
   // pendingEdits: { [inventoryId]: { quantity?: string; alert_threshold?: string } }
   const [pendingEdits, setPendingEdits] = useState<
     Record<string, { quantity?: string; alert_threshold?: string }>
@@ -228,6 +233,29 @@ export default function InventoryListPage() {
     loadFranchises();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // Khi items thay đổi, fetch PF details cho các ID chưa có trong pfInfoMap
+  useEffect(() => {
+    const missingIds = items
+      .map((i) => i.product_franchise_id)
+      .filter((id) => id && !pfInfoMap[id]);
+    const uniqueIds = [...new Set(missingIds)];
+    if (uniqueIds.length === 0) return;
+    Promise.allSettled(
+      uniqueIds.map((id) => adminProductFranchiseService.getProductFranchiseById(id))
+    ).then((results) => {
+      const newEntries: Record<string, { size: string; price_base: number }> = {};
+      results.forEach((r) => {
+        if (r.status === "fulfilled") {
+          newEntries[r.value.id] = { size: r.value.size, price_base: r.value.price_base };
+        }
+      });
+      if (Object.keys(newEntries).length > 0) {
+        setPfInfoMap((prev) => ({ ...prev, ...newEntries }));
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
   // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
   useEffect(() => {
     if (!managerFranchiseId) return;
@@ -799,6 +827,11 @@ export default function InventoryListPage() {
     return name.includes(kw) || pf.size.toLowerCase().includes(kw);
   });
 
+  // Map product_franchise_id → { size, price_base } for table subtext
+  const pfDetailMap = pfInfoMap;
+  const formatVND = (n: number) =>
+    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
+
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
@@ -1145,6 +1178,14 @@ export default function InventoryListPage() {
                           <p className="font-semibold text-slate-900">
                             {item.product_name ?? "—"}
                           </p>
+                          {pfDetailMap[item.product_franchise_id] && (
+                            <p className="mt-0.5 text-xs text-slate-500">
+                              {pfDetailMap[item.product_franchise_id].size !== "DEFAULT" && (
+                                <span>Size: {pfDetailMap[item.product_franchise_id].size} &bull; </span>
+                              )}
+                              {formatVND(pfDetailMap[item.product_franchise_id].price_base)}
+                            </p>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3">

@@ -3,7 +3,7 @@ import LoadingLayout from "../../layouts/Loading.layout";
 import { useAuthStore } from "../../store";
 import { ROUTER_URL } from "../router.const";
 
-const ALLOWED_ADMIN_ROLES = ["admin", "system", "manager", "staff"];
+const ALLOWED_ADMIN_ROLES = ["admin", "system", "manager", "staff", "shipper"];
 
 const AdminGuard = () => {
   const location = useLocation();
