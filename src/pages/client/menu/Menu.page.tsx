@@ -27,6 +27,9 @@ const normalizeText = (value: unknown) =>
 const isToppingCategory = (categoryName: unknown) =>
   normalizeText(categoryName).includes("topping");
 
+const getProductSizes = (product: ClientProductListItem) =>
+  Array.isArray(product.sizes) ? product.sizes : [];
+
 type LoadingPhase = "franchises" | "categories" | "products" | "productDetail" | null;
 
 function EmptyState({
@@ -60,8 +63,9 @@ function EmptyState({
 
 // Convert API product to MenuProduct shape expected by MenuProductModal/cart store
 function toMenuProduct(p: ClientProductListItem, franchiseId: string, franchiseName?: string): MenuProduct {
-  const available = p.sizes.filter((s) => s.is_available);
-  const baseSize = available[0] ?? p.sizes[0];
+  const sizes = getProductSizes(p);
+  const available = sizes.filter((s) => s.is_available);
+  const baseSize = available[0] ?? sizes[0];
   // Hash string ID deterministically to a positive integer
   const hashStr = (str: string) =>
     (str.split("").reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) | 0, 0) >>> 0);
@@ -87,7 +91,7 @@ function toMenuProduct(p: ClientProductListItem, franchiseId: string, franchiseN
       _apiFranchiseName: franchiseName,
       _apiProductId: p.product_id,
       _apiCategoryName: p.category_name,
-      _apiSizes: p.sizes,
+      _apiSizes: sizes,
     },
   );
 }
@@ -120,9 +124,10 @@ function ProductGrid({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
       {items.map((p) => {
-        const available = p.sizes.filter((s) => s.is_available);
+        const sizes = getProductSizes(p);
+        const available = sizes.filter((s) => s.is_available);
         const isAvailable = available.length > 0;
-        const basePrice = available[0]?.price ?? p.sizes[0]?.price ?? 0;
+        const basePrice = available[0]?.price ?? sizes[0]?.price ?? 0;
         return (
           <div
             key={`${p.product_id}-${p.SKU}`}

@@ -239,7 +239,8 @@ interface AdminSidebarProps {
   isMobile?: boolean;
 }
 
-const AdminSidebar = ({ }: AdminSidebarProps) => {
+const AdminSidebar = (props: AdminSidebarProps) => {
+  void props;
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();

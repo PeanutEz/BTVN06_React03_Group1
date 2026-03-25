@@ -85,6 +85,189 @@ function pickBoolean(source: Record<string, unknown> | null, keys: string[]): bo
   return undefined;
 }
 
+type ClientProductSizeItem = ClientProductListItem["sizes"][number];
+
+function normalizeClientProductSizes(
+  ...sources: Array<Record<string, unknown> | null>
+): ClientProductSizeItem[] {
+  for (const source of sources) {
+    if (!source) continue;
+
+    const candidateKeys = [
+      "sizes",
+      "product_sizes",
+      "product_franchises",
+      "variants",
+      "items",
+    ];
+
+    for (const key of candidateKeys) {
+      const rawList = source[key];
+      if (!Array.isArray(rawList)) continue;
+
+      return rawList
+        .map((entry) => {
+          const item = asRecord(entry);
+          if (!item) return null;
+
+          const rawPrice = Number(item.price ?? item.price_base ?? 0);
+          const normalized: ClientProductSizeItem = {
+            product_franchise_id: String(
+              item.product_franchise_id ?? item.id ?? item._id ?? "",
+            ).trim(),
+            size: String(item.size ?? item.name ?? item.label ?? "").trim(),
+            price: Number.isFinite(rawPrice) ? rawPrice : 0,
+            is_available:
+              typeof item.is_available === "boolean"
+                ? item.is_available
+                : typeof item.isAvailable === "boolean"
+                  ? item.isAvailable
+                  : typeof item.available === "boolean"
+                    ? item.available
+                    : true,
+          };
+
+          return normalized;
+        })
+        .filter((entry): entry is ClientProductSizeItem => !!entry);
+    }
+  }
+
+  return [];
+}
+
+function normalizeClientProductListItem(payload: unknown): ClientProductListItem | null {
+  const root = asRecord(payload);
+  if (!root) return null;
+
+  const product = asRecord(root.product);
+  const category = asRecord(root.category);
+  const sizes = normalizeClientProductSizes(root, product);
+
+  return {
+    product_id: String(
+      root.product_id ?? product?.id ?? product?._id ?? root.id ?? root._id ?? "",
+    ).trim(),
+    category_id: String(
+      root.category_id ?? category?.id ?? category?._id ?? "",
+    ).trim(),
+    category_name: String(
+      root.category_name ?? category?.name ?? "",
+    ).trim(),
+    category_display_order: Number(root.category_display_order ?? 0) || 0,
+    product_display_order: Number(root.product_display_order ?? 0) || 0,
+    SKU: String(root.SKU ?? product?.SKU ?? product?.sku ?? "").trim(),
+    name: String(root.name ?? product?.name ?? "").trim(),
+    description: String(root.description ?? product?.description ?? "").trim(),
+    image_url: String(
+      root.image_url ?? product?.image_url ?? product?.image ?? "",
+    ).trim(),
+    is_have_topping:
+      typeof root.is_have_topping === "boolean"
+        ? root.is_have_topping
+        : typeof product?.is_have_topping === "boolean"
+          ? (product.is_have_topping as boolean | null)
+          : null,
+    sizes,
+  };
+}
+
+function normalizeClientProductDetail(
+  payload: unknown,
+): ClientProductDetailResponse {
+  const root = asRecord(payload);
+  const product = asRecord(root?.product);
+  const category = asRecord(root?.category);
+
+  return {
+    product_id: String(
+      root?.product_id ?? product?.id ?? product?._id ?? root?.id ?? root?._id ?? "",
+    ).trim(),
+    category_id: String(
+      root?.category_id ?? category?.id ?? category?._id ?? "",
+    ).trim(),
+    category_name: String(root?.category_name ?? category?.name ?? "").trim(),
+    SKU: String(root?.SKU ?? product?.SKU ?? product?.sku ?? "").trim(),
+    name: String(root?.name ?? product?.name ?? "").trim(),
+    description: String(root?.description ?? product?.description ?? "").trim(),
+    content: String(root?.content ?? product?.content ?? "").trim(),
+    image_url: String(
+      root?.image_url ?? product?.image_url ?? product?.image ?? "",
+    ).trim(),
+    images_url: Array.isArray(root?.images_url)
+      ? root.images_url.map((image) => String(image ?? "").trim()).filter(Boolean)
+      : Array.isArray(product?.images_url)
+        ? product.images_url
+            .map((image) => String(image ?? "").trim())
+            .filter(Boolean)
+        : [],
+    is_have_topping:
+      typeof root?.is_have_topping === "boolean"
+        ? root.is_have_topping
+        : typeof product?.is_have_topping === "boolean"
+          ? (product.is_have_topping as boolean | null)
+          : null,
+    sizes: normalizeClientProductSizes(root, product),
+  };
+}
+
+function extractClientList(payload: unknown): unknown[] {
+  const root = asRecord(payload);
+  const directCandidates = [
+    payload,
+    root?.data,
+    root?.items,
+    root?.results,
+    root?.rows,
+    root?.products,
+    root?.categories,
+    root?.franchises,
+    root?.menu,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+
+  return [];
+}
+
+function normalizeClientFranchiseItem(
+  payload: unknown,
+): ClientFranchiseItem | null {
+  const root = asRecord(payload);
+  if (!root) return null;
+
+  const id = String(root.id ?? root._id ?? "").trim();
+  if (!id) return null;
+
+  return {
+    id,
+    code: String(root.code ?? root.franchise_code ?? "").trim(),
+    name: String(root.name ?? root.franchise_name ?? "").trim(),
+  };
+}
+
+function normalizeClientCategoryItem(
+  payload: unknown,
+): ClientCategoryByFranchiseItem | null {
+  const root = asRecord(payload);
+  if (!root) return null;
+
+  const categoryId = String(root.category_id ?? root.id ?? root._id ?? "").trim();
+  if (!categoryId) return null;
+
+  return {
+    category_id: categoryId,
+    category_name: String(root.category_name ?? root.name ?? "").trim(),
+    category_code: String(root.category_code ?? root.code ?? "").trim(),
+    franchise_id: String(root.franchise_id ?? "").trim(),
+    franchise_name: String(root.franchise_name ?? "").trim(),
+    franchise_code: String(root.franchise_code ?? "").trim(),
+    display_order: Number(root.display_order ?? 0) || 0,
+  };
+}
+
 function normalizeClientFranchiseDetail(payload: unknown): ClientFranchiseDetail {
   const root = asRecord(payload);
   const nested =
@@ -173,9 +356,11 @@ export const clientService = {
   getAllFranchises: async (): Promise<ClientFranchiseItem[]> => {
     const response = await apiClient.get<{
       success: boolean;
-      data: ClientFranchiseItem[];
+      data: unknown;
     }>("/clients/franchises");
-    return response.data.data;
+    return extractClientList(response.data.data)
+      .map(normalizeClientFranchiseItem)
+      .filter((item): item is ClientFranchiseItem => !!item);
   },
 
   // CLIENT-02 — Get All Categories By Franchise
@@ -183,9 +368,11 @@ export const clientService = {
   getCategoriesByFranchise: async (franchiseId: string): Promise<ClientCategoryByFranchiseItem[]> => {
     const response = await apiClient.get<{
       success: boolean;
-      data: ClientCategoryByFranchiseItem[];
+      data: unknown;
     }>(`/clients/franchises/${franchiseId}/categories`);
-    return response.data.data;
+    return extractClientList(response.data.data)
+      .map(normalizeClientCategoryItem)
+      .filter((item): item is ClientCategoryByFranchiseItem => !!item);
   },
 
   // CLIENT-03 - Get Franchise Detail
@@ -198,27 +385,39 @@ export const clientService = {
     return normalizeClientFranchiseDetail(response.data.data);
   },
 
-  // CLIENT-04 — Get Products by Franchise and Category
-  // GET /api/clients/products?franchiseId=&categoryId=  |  Role: CUSTOMER PUBLIC  |  Token: NO
+  // CLIENT-04 — Get Menu by Franchise and Category
+  // GET /api/clients/menu?franchiseId=&categoryId=  |  Role: CUSTOMER PUBLIC  |  Token: NO
   // NOTE: franchiseId is required, categoryId is optional
   getProductsByFranchiseAndCategory: async (
     franchiseId: string,
     categoryId?: string,
   ): Promise<ClientProductListItem[]> => {
-    const response = await apiClient.get<{ success: boolean; data: ClientProductListItem[] }>(
+    const response = await apiClient.get<{ success: boolean; data: unknown }>(
       "/clients/products",
       { params: { franchiseId, ...(categoryId ? { categoryId } : {}) } },
     );
-    return response.data.data;
+
+    const data = response.data.data;
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(asRecord(data)?.items)
+        ? (asRecord(data)?.items as unknown[])
+        : Array.isArray(asRecord(data)?.data)
+          ? (asRecord(data)?.data as unknown[])
+          : [];
+
+    return list
+      .map(normalizeClientProductListItem)
+      .filter((item): item is ClientProductListItem => !!item);
   },
 
   // CLIENT-05 — Get Product Detail
   // GET /api/clients/franchises/:franchiseId/products/:productId  |  Role: CUSTOMER PUBLIC  |  Token: NO
-  getProductDetail: async (franchiseId: string, productId: string): Promise<ClientProductDetailResponse> => {
-    const response = await apiClient.get<{ success: boolean; data: ClientProductDetailResponse }>(
-      `/clients/franchises/${franchiseId}/products/${productId}`,
+  getProductDetail: async (franchiseId: string, productFranchiseId: string): Promise<ClientProductDetailResponse> => {
+    const response = await apiClient.get<{ success: boolean; data: unknown }>(
+      `/clients/franchises/${franchiseId}/products/${productFranchiseId}`,
     );
-    return response.data.data;
+    return normalizeClientProductDetail(response.data.data);
   },
 
   // Get Topping Products by Franchise

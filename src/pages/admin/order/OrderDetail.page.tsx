@@ -20,7 +20,7 @@ function getOrderItemImage(item: Record<string, unknown>, imageMap: Record<strin
   const pfId = String(item.product_franchise_id ?? "");
   if (pfId && imageMap[pfId]) return imageMap[pfId];
   // Fallback: field trực tiếp nếu API trả về
-  const value = item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
+  const value = item.product_image_url ?? item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
   if (typeof value === "string" && value.trim()) return value;
   return null;
 }

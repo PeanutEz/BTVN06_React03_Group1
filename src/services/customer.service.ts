@@ -129,6 +129,8 @@ export async function searchCustomers(query: string): Promise<CustomerDisplay[]>
   return result.pageData;
 }
 
+// ==================== CUSTOMER-01B: Find Customers By Keyword ====================
+// GET /api/customers/find?keyword=... — Token: YES — Role: STAFF/ADMIN
 // ==================== CUSTOMER-02: Get Item ====================
 // GET /api/customers/:id — Token: YES — Role: ADMIN
 export async function fetchCustomerById(id: string | number): Promise<CustomerDisplay | null> {

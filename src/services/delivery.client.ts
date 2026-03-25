@@ -91,15 +91,6 @@ function unwrapList<T>(payload: unknown): T[] {
 
 export const deliveryClient = {
   /**
-   * Get delivery record by order ID
-   * GET /api/deliveries/order/{orderId}
-   */
-  getDeliveryByOrderId: async (orderId: string): Promise<DeliveryData | null> => {
-    const response = await apiClient.get(`/deliveries/order/${orderId}`);
-    return unwrapSingle<DeliveryData>(response.data);
-  },
-
-  /**
    * Get delivery record by delivery ID
    * GET /api/deliveries/{deliveryId}
    */
