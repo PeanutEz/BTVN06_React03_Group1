@@ -19,6 +19,7 @@ export interface ApiFranchise {
 	address: string;
 	opened_at: string;
 	closed_at: string;
+	map_script?: string;
 }
 
 /** Payload tạo franchise — FRANCHISE-01: POST /api/franchises */
@@ -30,6 +31,7 @@ export interface CreateFranchisePayload {
 	hotline: string;     // required, default ""
 	logo_url?: string;   // optional, default ""
 	address?: string;    // optional, default ""
+	map_script?: string; // optional map embed iframe/html
 }
 
 // // Mock data - WBS_Coffee Franchise Stores
@@ -227,6 +229,7 @@ export async function createFranchise(data: CreateFranchisePayload): Promise<Api
 			hotline: data.hotline,
 			logo_url: data.logo_url ?? "",
 			address: data.address ?? "",
+			map_script: data.map_script ?? "",
 		});
 		const result = response.data;
 		if (!result.success) {
@@ -267,6 +270,7 @@ export async function updateFranchise(id: string, data: CreateFranchisePayload):
 			hotline: data.hotline,
 			logo_url: data.logo_url ?? "",
 			address: data.address ?? "",
+			map_script: data.map_script ?? "",
 		});
 		const result = response.data;
 		if (!result.success) {

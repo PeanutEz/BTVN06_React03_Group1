@@ -52,7 +52,7 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		path: ROUTER_URL.CUSTOMER_ORDERS,
 		component: React.lazy(() => import("../../pages/client/orders/CustomerOrdersList.page")),
 		isEnd: true,
-		showInNav: true,
+		showInNav: false,
 	},
 	{
 		label: "Chi tiết đơn hàng",
@@ -97,3 +97,4 @@ export const CLIENT_MENU: ClientMenuItem[] = [
 		showInNav: false,
 	},
 ];
+

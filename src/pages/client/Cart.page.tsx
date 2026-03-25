@@ -1,14 +1,38 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
-import { cartClient, type CartApiData, type ApiCartItem, type CartItemOption } from "@/services/cart.client";
+import {
+  cartClient,
+  formatDiscountTypeText,
+  getCartItems,
+  getCartItemId,
+  getCartItemImage,
+  getCartItemLineTotal,
+  getCartItemName,
+  getCartItemProductId,
+  getCartItemSize,
+  getCartPricingSummary,
+  getCartItemUnitPrice,
+  normalizeCustomerCarts,
+  toCustomerCartEntry,
+  type CartPricingSummary,
+  type CartApiData,
+  type ApiCartItem,
+  type CartItemOption,
+} from "@/services/cart.client";
 import { ROUTER_URL } from "@/routes/router.const";
-import { aggregateToppings, formatToppingsSummary, parseCartSelectionNote } from "@/utils/cartSelectionNote.util";
+import {
+  formatCartOptionsSummary,
+  formatToppingsSummary,
+  parseCartSelectionNote,
+  stripGeneratedCartNote,
+} from "@/utils/cartSelectionNote.util";
 import type { IceLevel, SugarLevel, MenuProduct } from "@/types/menu.types";
-import MenuProductModal from "@/components/menu/MenuProductModal";
+import CartItemEditDialog from "@/components/menu/CartItemEditDialog";
+import { clientService } from "@/services/client.service";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -44,6 +68,23 @@ interface DisplayItem {
 const customerIdFromUser = (user: any) =>
   String(user?.user?.id ?? user?.user?._id ?? user?.id ?? user?._id ?? "");
 
+function getCartFranchiseId(cart: CartApiData | null | undefined): string | undefined {
+  if (!cart) return undefined;
+  const raw = cart as Record<string, unknown>;
+  const franchise =
+    raw.franchise && typeof raw.franchise === "object"
+      ? (raw.franchise as Record<string, unknown>)
+      : null;
+
+  const resolved =
+    cart.franchise_id ??
+    raw.franchiseId ??
+    franchise?._id ??
+    franchise?.id;
+
+  return resolved == null ? undefined : String(resolved).trim() || undefined;
+}
+
 export default function CartPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -51,8 +92,8 @@ export default function CartPage() {
   const cartIds = useMenuCartStore((s) => s.cartIds);
   const setCarts = useMenuCartStore((s) => s.setCarts);
   const clearCart = useMenuCartStore((s) => s.clearCart);
+  const clearItemsOnly = useMenuCartStore((s) => s.clearItemsOnly);
   const removeCartId = useMenuCartStore((s) => s.removeCartId);
-  const localItems = useMenuCartStore((s) => s.items);
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const customerId = customerIdFromUser(user);
@@ -82,26 +123,16 @@ export default function CartPage() {
   useEffect(() => {
     if (cartsLoading) return;
 
-    const raw = cartsData as unknown;
-    const rawObj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
-    const dataList = rawObj?.data;
-    const cartsList = rawObj?.carts;
-    const list = Array.isArray(raw)
-      ? raw
-      : Array.isArray(dataList)
-        ? dataList
-        : Array.isArray(cartsList)
-          ? cartsList
-          : [];
-
-    const entries = (list as CartApiData[]).map((c) => ({
-      cartId: String(c._id ?? c.id ?? ""),
-      franchise_id: c.franchise_id,
-      franchise_name: c.franchise_name ?? (c as any)?.franchise?.name,
-    })).filter((e) => e.cartId);
-    if (entries.length > 0) setCarts(entries);
-    else clearCart();
-  }, [cartsData, cartsLoading, setCarts, clearCart]);
+    const entries = normalizeCustomerCarts(cartsData)
+      .map(toCustomerCartEntry)
+      .filter((entry): entry is NonNullable<typeof entry> => !!entry);
+    if (entries.length > 0) {
+      setCarts(entries);
+      clearItemsOnly();
+    } else {
+      clearCart();
+    }
+  }, [cartsData, cartsLoading, setCarts, clearCart, clearItemsOnly]);
 
   const cartDetails = useQueries({
     queries: cartIds.map((cartId) => ({
@@ -117,124 +148,82 @@ export default function CartPage() {
     franchiseName: string;
     detail: CartApiData | null;
     items: DisplayItem[];
-    totalAmount: number;
+    pricing: CartPricingSummary;
   }
 
+  const customerCarts = normalizeCustomerCarts(cartsData);
+
   const sections: CartSection[] = carts.map((entry, idx) => {
-    const detail = cartDetails[idx]?.data as CartApiData | undefined;
+    const listCart = customerCarts.find((cart) => String(cart._id ?? cart.id ?? "") === entry.cartId);
+    const detail = (cartDetails[idx]?.data as CartApiData | undefined) ?? listCart;
     const franchiseName = entry.franchise_name ?? detail?.franchise_name ?? (detail as any)?.franchise?.name ?? `Chi nhánh ${idx + 1}`;
-    const apiItems: DisplayItem[] = (detail?.items ?? []).map((item: ApiCartItem, i: number) => {
+    const apiItems: DisplayItem[] = getCartItems(detail ?? listCart).map((item: ApiCartItem, i: number) => {
       const qty = item.quantity ?? 1;
-      const price = item.price_snapshot ?? item.price ?? 0;
+      const price = getCartItemUnitPrice(item);
       const parsed = parseCartSelectionNote(String(item.note ?? ""));
       return {
-        key: `${entry.cartId}-${item._id ?? item.id ?? i}`,
+        key: `${entry.cartId}-${getCartItemId(item) ?? i}`,
         cartId: entry.cartId,
-        apiItemId: item._id ?? item.id,
-        apiProductId: (item as any)?.product_id ? String((item as any)?.product_id) : undefined,
+        apiItemId: getCartItemId(item),
+        apiProductId: getCartItemProductId(item),
         apiProductFranchiseId: (item as any)?.product_franchise_id ? String((item as any)?.product_franchise_id) : undefined,
-        apiFranchiseId: detail?.franchise_id ? String(detail.franchise_id) : undefined,
+        apiFranchiseId: getCartFranchiseId(detail) ?? getCartFranchiseId(listCart),
         toppingsParsed: parsed.toppings,
-        name: item.product_name_snapshot ?? item.name ?? "Sản phẩm",
+        name: getCartItemName(item),
         franchiseName: (item as any)?.franchise_name ?? (item as any)?.franchiseName ?? franchiseName,
-        image: item.image_url ?? "",
-        size: item.size,
+        image: getCartItemImage(item),
+        size: getCartItemSize(item),
         quantity: qty,
         unitPrice: price,
-        lineTotal: item.line_total ?? price * qty,
+        lineTotal: getCartItemLineTotal(item),
         sugar: parsed.sugar,
         ice: parsed.ice,
-        toppingsText: formatToppingsSummary(parsed.toppings),
+        toppingsText: formatCartOptionsSummary(item.options as CartItemOption[] | undefined) || formatToppingsSummary(parsed.toppings),
         apiOptions: item.options as CartItemOption[] | undefined,
-        note: parsed.userNote ?? (item.note ? String(item.note) : undefined),
+        note: stripGeneratedCartNote(item.note ? String(item.note) : undefined),
       };
     });
-    const totalAmount = detail?.final_amount ?? apiItems.reduce((s, i) => s + i.lineTotal, 0);
-    return { cartId: entry.cartId, franchiseName, detail: detail ?? null, items: apiItems, totalAmount };
+    const itemsSubtotal = apiItems.reduce((s, i) => s + i.lineTotal, 0);
+    const pricing = getCartPricingSummary(detail ?? listCart, itemsSubtotal);
+    return { cartId: entry.cartId, franchiseName, detail: detail ?? null, items: apiItems, pricing };
   });
 
   const sectionsWithItems = sections.filter((s) => s.items.length > 0);
   const apiItems: DisplayItem[] = sections.flatMap((s) => s.items);
-
-  const localDisplayItems: DisplayItem[] = localItems.map((li) => ({
-    key: li.cartKey,
-    name: li.name,
-    franchiseName: li.options.franchiseName,
-    image: li.image,
-    size: li.options.size,
-    sugar: li.options.sugar,
-    ice: li.options.ice,
-    toppingsParsed: aggregateToppings(li.options.toppings).map(({ topping, quantity }) => ({
-      name: topping.name,
-      quantity,
-    })),
-    toppingsText: formatToppingsSummary(
-      aggregateToppings(li.options.toppings).map(({ topping, quantity }) => ({
-        name: topping.name,
-        quantity,
-      })),
+  const toppingFranchiseIds = Array.from(
+    new Set(
+      sections
+        .map((section) => String(section.detail?.franchise_id ?? "").trim())
+        .filter(Boolean),
     ),
-    quantity: li.quantity,
-    unitPrice: li.unitPrice,
-    lineTotal: li.unitPrice * li.quantity,
-    note: li.note,
-    isLocal: true,
-    apiFranchiseId: li.apiFranchiseId,
-    apiProductId: li.apiProductId ? String(li.apiProductId) : undefined,
-    apiProductFranchiseId: li.options.productFranchiseId,
-    options: li.options,
-    productId: li.productId,
-    basePrice: li.basePrice,
-    apiCategoryName: li.apiCategoryName,
-    apiSizes: li.apiSizes,
-  }));
+  );
 
-  const hasApiItems = apiItems.length > 0;
+  const toppingCatalogQueries = useQueries({
+    queries: toppingFranchiseIds.map((franchiseId) => ({
+      queryKey: ["franchise-toppings", franchiseId],
+      queryFn: () => clientService.getToppingsByFranchise(franchiseId),
+      enabled: !!franchiseId,
+      staleTime: 60_000,
+    })),
+  });
+
+  const toppingNameByOptionId = useMemo(() => {
+    const map = new Map<string, string>();
+    toppingCatalogQueries.forEach((query) => {
+      (query.data ?? []).forEach((product: any) => {
+        const sizes = Array.isArray(product?.sizes) ? product.sizes : [];
+        sizes.forEach((size: any) => {
+          const optionId = String(size?.product_franchise_id ?? "").trim();
+          if (!optionId || map.has(optionId)) return;
+          const productName = String(product?.name ?? "").trim();
+          if (productName) map.set(optionId, productName);
+        });
+      });
+    });
+    return map;
+  }, [toppingCatalogQueries]);
 
   // Keep stable item positions when switching from local -> API by sorting API items
-  // according to the current local cart order.
-  const selectionKey = (item: DisplayItem) => {
-    const toppings = item.toppingsParsed ?? [];
-    const toppingParts = [...toppings]
-      .map((t) => ({
-        n: String(t.name ?? "")
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .trim()
-          .toLowerCase(),
-        q: t.quantity ?? 0,
-      }))
-      .sort((a, b) => a.n.localeCompare(b.n))
-      .map((t) => `${t.n}#${t.q}`)
-      .join("|");
-
-    return [
-      item.apiProductFranchiseId ?? "",
-      item.apiProductId ?? item.name ?? "",
-      item.size ? String(item.size).trim().toUpperCase() : "",
-      item.sugar ?? "",
-      item.ice ?? "",
-      toppingParts,
-    ].join("::");
-  };
-
-  const apiItemsStableByLocal = (() => {
-    if (!hasApiItems || localDisplayItems.length === 0) return apiItems;
-    const keyToFirstIndex = new Map<string, number>();
-    for (let i = 0; i < localDisplayItems.length; i++) {
-      const k = selectionKey(localDisplayItems[i]);
-      if (!keyToFirstIndex.has(k)) keyToFirstIndex.set(k, i);
-    }
-
-    return apiItems
-      .map((it, originalIndex) => {
-        const k = selectionKey(it);
-        const idx = keyToFirstIndex.get(k);
-        return { it, sortIndex: idx ?? Number.MAX_SAFE_INTEGER, originalIndex };
-      })
-      .sort((a, b) => a.sortIndex - b.sortIndex || a.originalIndex - b.originalIndex)
-      .map((x) => x.it);
-  })();
 
   const norm = (s?: string) =>
     String(s ?? "")
@@ -273,33 +262,47 @@ export default function CartPage() {
   };
 
   const orderedApiItems = (() => {
-    if (!hasApiItems || !pendingReorder?.fingerprint) return apiItemsStableByLocal;
-    const targetIndex = apiItemsStableByLocal.findIndex((it) => fingerprintMatches(it, pendingReorder.fingerprint));
-    if (targetIndex < 0) return apiItemsStableByLocal;
-    if (targetIndex === pendingReorder.fromIndex) return apiItemsStableByLocal;
-    const next = [...apiItemsStableByLocal];
+    if (!pendingReorder?.fingerprint) return apiItems;
+    const targetIndex = apiItems.findIndex((it) => fingerprintMatches(it, pendingReorder.fingerprint));
+    if (targetIndex < 0) return apiItems;
+    if (targetIndex === pendingReorder.fromIndex) return apiItems;
+    const next = [...apiItems];
     const [moved] = next.splice(targetIndex, 1);
     next.splice(Math.max(0, Math.min(pendingReorder.fromIndex, next.length)), 0, moved);
     return next;
   })();
 
-  // Keep same UX as MenuOrderPanel: fallback to local items while API items are unavailable.
-  const items = hasApiItems ? orderedApiItems : localDisplayItems;
-  const totalAmount = hasApiItems
-    ? sections.reduce((s, sec) => s + sec.totalAmount, 0)
-    : localDisplayItems.reduce((s, i) => s + i.lineTotal, 0);
+  const items = orderedApiItems;
+  const pricingSummary = sections.reduce(
+    (acc, section) => ({
+      subtotalAmount: acc.subtotalAmount + section.pricing.subtotalAmount,
+      promotionDiscount: acc.promotionDiscount + section.pricing.promotionDiscount,
+      voucherDiscount: acc.voucherDiscount + section.pricing.voucherDiscount,
+      loyaltyDiscount: acc.loyaltyDiscount + section.pricing.loyaltyDiscount,
+      loyaltyPointsUsed: acc.loyaltyPointsUsed + section.pricing.loyaltyPointsUsed,
+      finalAmount: acc.finalAmount + section.pricing.finalAmount,
+    }),
+    {
+      subtotalAmount: 0,
+      promotionDiscount: 0,
+      voucherDiscount: 0,
+      loyaltyDiscount: 0,
+      loyaltyPointsUsed: 0,
+      finalAmount: 0,
+    },
+  );
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
   const isLoading = cartIds.length > 0 && cartDetails.some((q) => q.isLoading);
 
   // After edit+save triggers delete+add, backend may return item in a different order.
   // Reorder it back to the original index once we can match the new item.
   useEffect(() => {
-    if (!pendingReorder?.fingerprint || !hasApiItems) return;
-    const idx = apiItemsStableByLocal.findIndex((it) => fingerprintMatches(it, pendingReorder.fingerprint));
+    if (!pendingReorder?.fingerprint) return;
+    const idx = apiItems.findIndex((it) => fingerprintMatches(it, pendingReorder.fingerprint));
     if (idx < 0) return;
     // Only clear when backend already returns item in the original position.
     if (idx === pendingReorder.fromIndex) setPendingReorder(null);
-  }, [hasApiItems, apiItemsStableByLocal, pendingReorder?.fingerprint]);
+  }, [apiItems, pendingReorder?.fingerprint]);
 
   function invalidateCart(cartId: string | undefined) {
     if (cartId) queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
@@ -311,57 +314,29 @@ export default function CartPage() {
       handleRemove(item);
       return;
     }
-    if (item.apiItemId) {
-      try {
-        await cartClient.updateCartItemQuantity({ cart_item_id: item.apiItemId, quantity: newQty });
-        invalidateCart(item.cartId);
-      } catch {
-        toast.error("Không thể cập nhật số lượng");
-      }
-    } else {
-      useMenuCartStore.getState().updateQuantity(item.key, newQty);
+    if (!item.apiItemId) {
+      toast.error("Khong the cap nhat so luong. San pham chua dong bo voi server.");
+      return;
+    }
+    try {
+      await cartClient.updateCartItemQuantity({ cart_item_id: item.apiItemId, quantity: newQty });
+      invalidateCart(item.cartId);
+    } catch {
+      toast.error("Không thể cập nhật số lượng");
     }
   }
 
   async function handleRemove(item: DisplayItem) {
-    if (item.apiItemId) {
-      try {
-        await cartClient.deleteCartItem(item.apiItemId);
-        invalidateCart(item.cartId);
-        toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
-      } catch {
-        toast.error("Không thể xóa sản phẩm");
-      }
-    } else {
-      useMenuCartStore.getState().removeItem(item.key);
-      toast.success("Đã xóa sản phẩm");
-    }
-  }
-
-  async function handleUpdateOption(item: DisplayItem, optionProductFranchiseId: string, newQty: number) {
     if (!item.apiItemId) {
-      toast.error("Không thể cập nhật topping. Sản phẩm chưa đồng bộ với server.");
-      console.warn("Item missing apiItemId:", item);
+      toast.error("Khong the xoa san pham. San pham chua dong bo voi server.");
       return;
     }
-    if (!optionProductFranchiseId) return;
     try {
-      if (newQty < 1) {
-        await cartClient.removeOption({
-          cart_item_id: item.apiItemId,
-          option_product_franchise_id: optionProductFranchiseId,
-        });
-      } else {
-        await cartClient.updateOption({
-          cart_item_id: item.apiItemId,
-          option_product_franchise_id: optionProductFranchiseId,
-          quantity: newQty,
-        });
-      }
+      await cartClient.deleteCartItem(item.apiItemId);
       invalidateCart(item.cartId);
-      toast.success("Đã cập nhật topping");
+      toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
     } catch {
-      toast.error("Không thể cập nhật topping trong giỏ hàng");
+      toast.error("Không thể xóa sản phẩm");
     }
   }
 
@@ -382,66 +357,52 @@ export default function CartPage() {
     }
   }
 
-  const editingLocalItem =
-    editingItem?.isLocal && editingItem.key
-      ? localItems.find((li) => li.cartKey === editingItem.key) ?? null
-      : null;
+  function handleOpenEditDialog(item: DisplayItem) {
+    if (!item.apiItemId) {
+      toast.error("San pham nay chua co cart item id de chinh sua.");
+      return;
+    }
+    const fromIndex = apiItems.findIndex((i) => i.key === item.key);
+    setPendingReorder(fromIndex >= 0 ? { fromIndex, fingerprint: null } : null);
+    setEditingItem(item);
+  }
 
   function hashStr(str: string) {
     return (str.split("").reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) | 0, 0) >>> 0) as any;
   }
 
   const editingInitialApiToppings =
-    editingItem?.toppingsParsed?.flatMap((t, idx) =>
+    (editingItem?.apiOptions && editingItem.apiOptions.length > 0
+      ? editingItem.apiOptions.flatMap((opt, idx) => {
+          const optName =
+            String(
+              (opt as any).product_name ??
+              opt.product_name_snapshot ??
+              opt.name ??
+              toppingNameByOptionId.get(String(opt.product_franchise_id ?? "").trim()) ??
+              "",
+            ).trim() || "Topping";
+          return Array.from({ length: opt.quantity ?? 0 }, (_, i) => ({
+            id: `${optName}-${idx}-${i}`,
+            name: optName,
+            price: 0,
+            emoji: "",
+          }));
+        })
+      : editingItem?.toppingsParsed?.flatMap((t, idx) =>
       Array.from({ length: t.quantity }, (_, i) => ({
         id: `${t.name}-${idx}-${i}`,
         name: t.name,
         price: 0,
         emoji: "",
       })),
-    ) ?? undefined;
+    )) ?? undefined;
 
-  const editingMenuProduct: MenuProduct | null = editingLocalItem
-    ? Object.assign(
-        {
-          id: editingLocalItem.productId,
-          sku: "",
-          name: editingLocalItem.name,
-          description: "",
-          content: "",
-          price: editingLocalItem.basePrice,
-          image: editingLocalItem.image,
-          images: [],
-          categoryId: 0,
-          rating: 0,
-          reviewCount: 0,
-          isAvailable: true,
-          isFeatured: false,
-        } as MenuProduct,
-        {
-          _apiFranchiseId: editingLocalItem.apiFranchiseId ?? editingLocalItem.options.franchiseId ?? undefined,
-          _apiProductId: editingLocalItem.apiProductId ?? undefined,
-          _apiCategoryName: editingLocalItem.apiCategoryName ?? undefined,
-          _apiSizes:
-            Array.isArray(editingLocalItem.apiSizes) && editingLocalItem.apiSizes.length > 0
-              ? editingLocalItem.apiSizes
-              : editingLocalItem.options.productFranchiseId && editingLocalItem.options.size
-              ? [
-                  {
-                    product_franchise_id: editingLocalItem.options.productFranchiseId,
-                    size: editingLocalItem.options.size,
-                    price: editingLocalItem.basePrice,
-                    is_available: true,
-                  },
-                ]
-              : [],
-          _apiFranchiseName: editingLocalItem.options.franchiseName ?? undefined,
-        },
-      )
-    : editingItem?.apiProductId && editingItem.apiProductFranchiseId && editingItem.apiFranchiseId && editingItem.apiItemId
+  const editingMenuProduct: MenuProduct | null =
+    editingItem?.apiItemId
       ? Object.assign(
           {
-            id: hashStr(String(editingItem.apiProductId)),
+            id: hashStr(String(editingItem.apiProductId ?? editingItem.apiProductFranchiseId ?? editingItem.key ?? editingItem.name)),
             sku: "",
             name: editingItem.name,
             description: "",
@@ -472,7 +433,6 @@ export default function CartPage() {
           },
         )
       : null;
-
   if (!isLoggedIn) {
     return (
       <div>
@@ -527,7 +487,7 @@ export default function CartPage() {
         </Link>
       </div>
 
-      {hasApiItems ? (
+      {
         sectionsWithItems.map((section) => (
           <div key={section.cartId} className="mb-6">
             <div className="flex items-center justify-between mb-2">
@@ -556,72 +516,86 @@ export default function CartPage() {
                   {item.franchiseName && (
                     <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">🏪 {item.franchiseName}</p>
                   )}
-                  {item.size && <p className="text-xs text-gray-400 mt-0.5">Size {item.size}</p>}
-                  {(item.sugar || item.ice) && (
-                    <p className="text-xs text-gray-400 mt-0.5 leading-snug">
-                      {item.sugar && `Đường ${item.sugar}`}
-                      {item.ice && (item.sugar ? " · " : "")}
-                      {item.ice && `Đá: ${item.ice}`}
-                    </p>
+                  {item.size && (
+                    <p className="mt-0.5 text-[11px] font-medium text-blue-700">Size : {item.size}</p>
                   )}
-                  {item.toppingsText && <p className="text-xs text-gray-400 mt-0.5 leading-snug">Topping: {item.toppingsText}</p>}
-                  {item.apiOptions && item.apiOptions.length > 0 && (
-                    <div className="mt-2">
-                      {item.apiOptions.map((opt) => {
-                        const optId = opt.product_franchise_id;
-                        if (!optId) return null;
-                        const qty = opt.quantity ?? 0;
-                        return (
-                          <div key={optId} className="flex items-center justify-between gap-3 mt-1">
-                            <p className="text-[10px] text-gray-500 truncate">Topping #{optId}</p>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleUpdateOption(item, optId, qty - 1)}
-                                className="w-5 h-5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                disabled={qty <= 0}
-                                title="Giảm topping"
-                              >
-                                <span className="text-[11px] leading-none">−</span>
-                              </button>
-                              <span className="text-[10px] font-semibold text-gray-700 tabular-nums">{qty}</span>
-                              <button
-                                onClick={() => handleUpdateOption(item, optId, qty + 1)}
-                                className="w-5 h-5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
-                                title="Tăng topping"
-                              >
-                                <span className="text-[11px] leading-none">+</span>
-                              </button>
+                  {(item.sugar || item.ice) && (
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {item.sugar && (
+                        <span className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700">
+                          Đường: {item.sugar}
+                        </span>
+                      )}
+                      {item.ice && (
+                        <span className="inline-flex items-center rounded-full bg-cyan-50 px-2 py-0.5 text-[11px] font-medium text-cyan-700">
+                          Đá: {item.ice}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {item.toppingsText && (!item.apiOptions || item.apiOptions.length === 0) && (
+                    <div className="mt-1 flex items-start gap-2">
+                      <span className="text-[11px] text-amber-700 font-medium shrink-0">Topping:</span>
+                      <div className="min-w-0 space-y-0.5 pt-px">
+                        {item.toppingsText.split(",").map((part, idx) => {
+                          const text = part.trim();
+                          if (!text) return null;
+                          return (
+                            <div
+                              key={`${item.key}-fallback-${idx}`}
+                              className="text-[10px] font-medium leading-tight text-amber-800"
+                            >
+                              {text}
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {item.apiOptions && item.apiOptions.length > 0 && (
+                    <div className="mt-1 flex items-start gap-2">
+                      <span className="text-[11px] text-amber-700 font-medium shrink-0">Topping:</span>
+                      <div className="min-w-0 space-y-0.5 pt-px">
+                        {item.apiOptions.map((opt) => {
+                          const optId = opt.product_franchise_id;
+                          if (!optId) return null;
+                          const qty = opt.quantity ?? 0;
+                          const optName =
+                            String(
+                              (opt as any).product_name ??
+                              opt.product_name_snapshot ??
+                              opt.name ??
+                              toppingNameByOptionId.get(String(optId).trim()) ??
+                              "",
+                            ).trim() || "Topping";
+                          return (
+                            <div
+                              key={optId}
+                              className="text-[10px] font-medium leading-tight text-amber-800"
+                            >
+                              {optName} x{qty}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                   {item.note && <p className="text-xs text-gray-400 mt-0.5 italic">Ghi chú: {item.note}</p>}
                   <p className="text-xs text-green-700 font-medium mt-0.5">{fmt(item.unitPrice)}</p>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {(item.apiProductId && item.apiProductFranchiseId && item.apiFranchiseId && (item.isLocal || item.apiItemId)) && (
-                    <button
-                      onClick={() => {
-                        const fromIndex = apiItemsStableByLocal.findIndex((i) => i.key === item.key);
-                        setPendingReorder(
-                          hasApiItems && item.apiItemId
-                            ? { fromIndex: Math.max(0, fromIndex), fingerprint: null }
-                            : null,
-                        );
-                        setEditingItem(item);
-                      }}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all"
-                      aria-label="Chỉnh sửa"
-                      title="Chỉnh sửa size/sugar/ice/topping/ghi chú"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4 12.5-11.5z" />
-                      </svg>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleOpenEditDialog(item)}
+                    className="h-7 px-2 flex items-center justify-center gap-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all text-xs font-medium"
+                    aria-label="Chỉnh sửa"
+                    title="Chỉnh sửa size/sugar/ice/topping/ghi chú"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4 12.5-11.5z" />
+                    </svg>
+                    <span>Sửa</span>
+                  </button>
                   <button
                     onClick={() => handleRemove(item)}
                     className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
@@ -639,7 +613,7 @@ export default function CartPage() {
                     onClick={() => item.quantity > 1 ? handleUpdateQty(item, item.quantity - 1) : handleRemove(item)}
                     className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm"
                   >
-                    {item.quantity === 1 ? "×" : "−"}
+                    {item.quantity === 1 ? "🗑" : "−"}
                   </button>
                   <span className="w-7 text-center text-xs font-semibold select-none">{item.quantity}</span>
                   <button
@@ -657,133 +631,52 @@ export default function CartPage() {
             </div>
           </div>
         ))
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
-          {localDisplayItems.map((item) => (
-          <div key={item.key} className="flex gap-4 p-4">
-            {item.image && (
-              <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 shrink-0">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm truncate">{item.name}</p>
-                  {item.franchiseName && (
-                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">🏪 {item.franchiseName}</p>
-                  )}
-                  {item.size && <p className="text-xs text-gray-400 mt-0.5">Size {item.size}</p>}
-                  {(item.sugar || item.ice) && (
-                    <p className="text-xs text-gray-400 mt-0.5 leading-snug">
-                      {item.sugar && `Đường ${item.sugar}`}
-                      {item.ice && (item.sugar ? " · " : "")}
-                      {item.ice && `Đá: ${item.ice}`}
-                    </p>
-                  )}
-                  {item.toppingsText && <p className="text-xs text-gray-400 mt-0.5 leading-snug">Topping: {item.toppingsText}</p>}
-                  {item.apiOptions && item.apiOptions.length > 0 && (
-                    <div className="mt-2">
-                      {item.apiOptions.map((opt) => {
-                        const optId = opt.product_franchise_id;
-                        if (!optId) return null;
-                        const qty = opt.quantity ?? 0;
-                        return (
-                          <div key={optId} className="flex items-center justify-between gap-3 mt-1">
-                            <p className="text-[10px] text-gray-500 truncate">Topping #{optId}</p>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleUpdateOption(item, optId, qty - 1)}
-                                className="w-5 h-5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                disabled={qty <= 0}
-                                title="Giảm topping"
-                              >
-                                <span className="text-[11px] leading-none">−</span>
-                              </button>
-                              <span className="text-[10px] font-semibold text-gray-700 tabular-nums">{qty}</span>
-                              <button
-                                onClick={() => handleUpdateOption(item, optId, qty + 1)}
-                                className="w-5 h-5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
-                                title="Tăng topping"
-                              >
-                                <span className="text-[11px] leading-none">+</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {item.note && <p className="text-xs text-gray-400 mt-0.5 italic">Ghi chú: {item.note}</p>}
-                  <p className="text-xs text-green-700 font-medium mt-0.5">{fmt(item.unitPrice)}</p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {(item.apiProductId && item.apiProductFranchiseId && item.apiFranchiseId && (item.isLocal || item.apiItemId)) && (
-                    <button
-                      onClick={() => {
-                        const fromIndex = apiItemsStableByLocal.findIndex((i) => i.key === item.key);
-                        setPendingReorder(
-                          hasApiItems && item.apiItemId
-                            ? { fromIndex: Math.max(0, fromIndex), fingerprint: null }
-                            : null,
-                        );
-                        setEditingItem(item);
-                      }}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all"
-                      aria-label="Chỉnh sửa"
-                      title="Chỉnh sửa size/sugar/ice/topping/ghi chú"
-                    >
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12 20h9" />
-                        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 18l-4 1 1-4 12.5-11.5z" />
-                      </svg>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleRemove(item)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                    title="Xóa"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center justify-between mt-2.5">
-                <div className="flex items-center gap-0.5 border border-gray-200 rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => item.quantity > 1 ? handleUpdateQty(item, item.quantity - 1) : handleRemove(item)}
-                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm"
-                  >
-                    {item.quantity === 1 ? "×" : "−"}
-                  </button>
-                  <span className="w-7 text-center text-xs font-semibold select-none">{item.quantity}</span>
-                  <button
-                    onClick={() => handleUpdateQty(item, item.quantity + 1)}
-                    className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors text-sm"
-                  >
-                    +
-                  </button>
-                </div>
-                <span className="text-sm font-bold text-gray-900">{fmt(item.lineTotal)}</span>
-              </div>
-            </div>
-          </div>
-          ))}
-        </div>
-      )}
+
+      }
 
       <div className="mt-6 bg-white rounded-xl border border-gray-200 p-5">
         <div className="space-y-2.5 text-sm">
           <div className="flex justify-between text-gray-600">
             <span>Tạm tính ({itemCount} sản phẩm)</span>
-            <span>{fmt(totalAmount)}</span>
+            <span>{fmt(pricingSummary.subtotalAmount)}</span>
           </div>
+          {pricingSummary.promotionDiscount > 0 && (
+            <div className="flex justify-between text-emerald-700">
+              <span>
+                Giảm khuyến mãi
+                {formatDiscountTypeText(
+                  sections.find((section) => section.pricing.promotionDiscount > 0)?.pricing.promotionType,
+                  sections.find((section) => section.pricing.promotionDiscount > 0)?.pricing.promotionValue,
+                )}
+              </span>
+              <span>-{fmt(pricingSummary.promotionDiscount)}</span>
+            </div>
+          )}
+          {pricingSummary.voucherDiscount > 0 && (
+            <div className="flex justify-between text-red-600">
+              <span>
+                Giảm voucher
+                {formatDiscountTypeText(
+                  sections.find((section) => section.pricing.voucherDiscount > 0)?.pricing.voucherType,
+                  sections.find((section) => section.pricing.voucherDiscount > 0)?.pricing.voucherValue,
+                )}
+              </span>
+              <span>-{fmt(pricingSummary.voucherDiscount)}</span>
+            </div>
+          )}
+          {pricingSummary.loyaltyDiscount > 0 && (
+            <div className="flex justify-between text-amber-700">
+              <span>
+                Giảm điểm thưởng
+                {pricingSummary.loyaltyPointsUsed > 0 ? ` (${pricingSummary.loyaltyPointsUsed} điểm)` : ""}
+              </span>
+              <span>-{fmt(pricingSummary.loyaltyDiscount)}</span>
+            </div>
+          )}
           <div className="h-px bg-gray-100" />
           <div className="flex justify-between font-bold text-base text-gray-900">
             <span>Tổng cộng</span>
-            <span className="text-green-700">{fmt(totalAmount)}</span>
+            <span className="text-green-700">{fmt(pricingSummary.finalAmount)}</span>
           </div>
         </div>
         <Link
@@ -793,28 +686,28 @@ export default function CartPage() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          Tiến hành thanh toán · {fmt(totalAmount)}
+          Tiến hành thanh toán · {fmt(pricingSummary.finalAmount)}
         </Link>
       </div>
 
       {editingMenuProduct && editingItem && (
-        <MenuProductModal
+        <CartItemEditDialog
           product={editingMenuProduct}
           onClose={() => {
             setEditingItem(null);
             setPendingReorder((p) => (p?.fingerprint ? p : null));
           }}
-          replaceLocalCartKey={editingLocalItem?.cartKey}
-          replaceApiItemId={editingItem.isLocal ? undefined : editingItem.apiItemId}
-          replaceCartId={editingItem.isLocal ? undefined : editingItem.cartId}
+          initialApiOptions={editingItem.apiOptions}
+          replaceApiItemId={editingItem.apiItemId}
+          replaceCartId={editingItem.cartId}
           initialQuantity={editingItem.quantity}
           initialSelection={{
-            size: editingLocalItem ? editingLocalItem.options.size : editingItem.size,
-            productFranchiseId: editingLocalItem ? editingLocalItem.options.productFranchiseId : editingItem.apiProductFranchiseId,
-            sugar: editingLocalItem ? editingLocalItem.options.sugar : editingItem.sugar,
-            ice: editingLocalItem ? editingLocalItem.options.ice : editingItem.ice,
-            toppings: editingLocalItem ? editingLocalItem.options.toppings : editingInitialApiToppings,
-            note: editingLocalItem ? editingLocalItem.note : editingItem.note,
+            size: editingItem.size,
+            productFranchiseId: editingItem.apiProductFranchiseId,
+            sugar: editingItem.sugar,
+            ice: editingItem.ice,
+            toppings: editingInitialApiToppings,
+            note: editingItem.note,
           }}
           onSaved={(payload) => {
             setPendingReorder((p) => (p ? { ...p, fingerprint: payload.fingerprint } : p));
@@ -824,3 +717,6 @@ export default function CartPage() {
     </div>
   );
 }
+
+
+
