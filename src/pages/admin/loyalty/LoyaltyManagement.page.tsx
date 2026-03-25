@@ -136,7 +136,7 @@ export default function LoyaltyManagementPage() {
 
   // Modal Actions
   const handleOpenCreate = () => {
-    setEditingRule({ ...DEFAULT_LOYALTY_RULE });
+    setEditingRule({ ...DEFAULT_LOYALTY_RULE, franchise_id: managerFranchiseId ?? DEFAULT_LOYALTY_RULE.franchise_id });
     setShowRuleModal(true);
   };
 
@@ -540,16 +540,27 @@ export default function LoyaltyManagementPage() {
                 <div className="space-y-6">
                   <div className="space-y-2 border-b pb-4">
                     <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wide">Chi nhánh áp dụng</h3>
-                    <select
-                      value={editingRule.franchise_id || ""}
-                      onChange={(e) => setEditingRule({ ...editingRule, franchise_id: e.target.value })}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
-                    >
-                      <option value="" disabled>-- Chọn Franchise --</option>
-                      {franchises.map(f => (
-                        <option key={f.value} value={f.value}>{f.name} ({f.code})</option>
-                      ))}
-                    </select>
+                    {managerFranchiseId ? (
+                      <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-50 px-3 py-2 text-sm cursor-not-allowed select-none">
+                        <span className="truncate font-medium text-primary-700">
+                          {franchiseNameMap[editingRule.franchise_id || ""] || editingRule.franchise_id || managerFranchiseId}
+                        </span>
+                        <svg className="ml-2 size-4 flex-shrink-0 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <select
+                        value={editingRule.franchise_id || ""}
+                        onChange={(e) => setEditingRule({ ...editingRule, franchise_id: e.target.value })}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                      >
+                        <option value="" disabled>-- Chọn Franchise --</option>
+                        {franchises.map(f => (
+                          <option key={f.value} value={f.value}>{f.name} ({f.code})</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div className="space-y-4">

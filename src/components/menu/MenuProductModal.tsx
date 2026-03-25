@@ -210,28 +210,38 @@ export default function MenuProductModal({
 
   // Fetch full product detail from API (CLIENT-05) to get real sizes
   const [productDetail, setProductDetail] = useState<any>(null);
+  const [isFetchingProductDetail, setIsFetchingProductDetail] = useState(false);
   useEffect(() => {
     if (!product) {
       setProductDetail(null);
+      setIsFetchingProductDetail(false);
       return;
     }
     const apiFranchiseId = (product as any)?._apiFranchiseId;
+    const apiProductId = String((product as any)?._apiProductId ?? "").trim();
     const listSizes: ApiSize[] = Array.isArray((product as any)?._apiSizes)
       ? ((product as any)._apiSizes as ApiSize[])
       : [];
-    const apiProductFranchiseId =
+    const fallbackProductFranchiseId =
       initialSelection?.productFranchiseId ??
       listSizes.find((size) => size.is_available)?.product_franchise_id ??
       listSizes[0]?.product_franchise_id;
-    if (!apiFranchiseId || !apiProductFranchiseId) return;
+    const detailLookupId = apiProductId || fallbackProductFranchiseId;
+    if (!apiFranchiseId || !detailLookupId) {
+      setProductDetail(null);
+      setIsFetchingProductDetail(false);
+      return;
+    }
 
     let cancelled = false;
+    setIsFetchingProductDetail(true);
+    setProductDetail(null);
     (async () => {
       try {
         const { clientService } = await import("@/services/client.service");
         const detail = await clientService.getProductDetail(
           apiFranchiseId,
-          apiProductFranchiseId,
+          detailLookupId,
         );
         if (!cancelled) {
           setProductDetail(detail);
@@ -249,10 +259,17 @@ export default function MenuProductModal({
         }
       } catch (err) {
         console.error("Failed to fetch product detail:", err);
+        if (!cancelled) {
+          setProductDetail(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsFetchingProductDetail(false);
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, [product?.id, initialSelection?.productFranchiseId]);
+  }, [product?.id, (product as any)?._apiProductId, initialSelection?.productFranchiseId]);
 
   // When editing cart items, ensure the selected size matches the cart selection,
   // even if product detail was already fetched for the same product.
@@ -835,7 +852,9 @@ export default function MenuProductModal({
               <div>
                 <SectionLabel>Chọn size</SectionLabel>
                 {displaySizes.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">Đang tải kích cỡ...</p>
+                  <p className="text-xs text-gray-400 py-2">
+                    {isFetchingProductDetail ? "Đang tải kích cỡ..." : "Không có kích cỡ khả dụng"}
+                  </p>
                 ) : (
                   <div className="flex gap-2 flex-wrap">
                     {displaySizes.map((s) => (

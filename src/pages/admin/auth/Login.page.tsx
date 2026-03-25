@@ -62,7 +62,7 @@ const AdminLoginPage = () => {
   const { register, handleSubmit, formState: { isSubmitting } } = useForm<AuthCredentials>();
 
   useEffect(() => {
-    const allowedRoles = ["admin", "system", "manager", "staff"];
+    const allowedRoles = ["admin", "system", "manager", "staff", "shipper"];
     const hasAdminRole = user?.roles?.some(r => allowedRoles.includes((r.role ?? "").toString().toLowerCase()));
     if (user && hasAdminRole) {
       navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
@@ -95,7 +95,7 @@ const AdminLoginPage = () => {
     setApiErrors({});
     try {
       const profile = await loginAndGetProfile(values);
-      const allowedRoles = ["admin", "system", "manager", "staff"];
+      const allowedRoles = ["admin", "system", "manager", "staff", "shipper"];
       const hasAdminAccess = profile.roles?.some(r => allowedRoles.includes((r.role ?? "").toString().toLowerCase()));
       if (!hasAdminAccess) {
         setApiErrors({ general: `Bạn không có quyền truy cập admin. Role: ${profile.roles?.map(r => r.role).join(", ") || "không có"}` });

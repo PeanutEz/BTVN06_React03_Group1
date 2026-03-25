@@ -5,8 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, Tag, Button, Descriptions, Table, Divider } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { ArrowLeftOutlined, FilePdfOutlined } from "@ant-design/icons";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+
 import { orderClient } from "../../../services/order.client";
 import { paymentClient } from "../../../services/payment.client";
 import type { OrderItem } from "../../../models/order.model";
@@ -42,40 +41,13 @@ export default function OrderDetailPage() {
     new Date(dateString).toLocaleString("vi-VN");
 
   // ─── Export PDF ──────────────────────────────────────────────────────────────
-  const handleExportPDF = async () => {
-    if (!invoiceRef.current || !order) return;
+  const handleExportPDF = () => {
+    if (!order) return;
     setExporting(true);
-    try {
-      const el = invoiceRef.current;
-      await new Promise((r) => setTimeout(r, 80)); // let DOM settle
-
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const imgW = pageW;
-      const imgH = (canvas.height * pageW) / canvas.width;
-
-      let y = 0;
-      while (y < imgH) {
-        if (y > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, -y, imgW, imgH);
-        y += pageH;
-      }
-
-      pdf.save(`HoaDon_${order.code}.pdf`);
-    } catch (err) {
-      console.error("Export PDF failed:", err);
-    } finally {
+    setTimeout(() => {
+      window.print();
       setExporting(false);
-    }
+    }, 80);
   };
 
   const itemColumns: ColumnsType<OrderItem> = [

@@ -172,7 +172,7 @@ const ShiftPage = () => {
     );
   }, [franchises, modalFranchiseKeyword]);
 
-  const handleOpenCreate = () => {    setFormData({ ...DEFAULT_FORM });
+  const handleOpenCreate = () => {    setFormData({ ...DEFAULT_FORM, franchise_id: managerFranchiseId ?? "" });
     setEditingShift(null);
     setFormErrors({});
     setShowModal(true);
@@ -564,7 +564,7 @@ const ShiftPage = () => {
                 <label className="mb-1 block text-sm font-medium text-slate-700">
                   Franchise <span className="text-red-500">*</span>
                 </label>
-                {editingShift ? (
+                {(editingShift || !!managerFranchiseId) ? (
                   <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 cursor-not-allowed">
                     {selectedModalFranchise ? `${selectedModalFranchise.name} (${selectedModalFranchise.code})` : formData.franchise_id}
                   </div>
