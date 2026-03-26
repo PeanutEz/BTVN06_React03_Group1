@@ -396,10 +396,10 @@ export default function ProductListPage() {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleToggleStatus(product.id)}
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
                             product.isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
+                              ? "bg-green-100 text-green-700 hover:bg-green-200"
+                              : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
                           }`}
                         >
                           {product.isActive ? "Active" : "Inactive"}
