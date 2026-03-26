@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import LoadingLayout from "@/layouts/Loading.layout";
 import { ROUTER_URL } from "@/routes/router.const";
@@ -58,8 +59,14 @@ function paymentMethodLabel(method?: string): string {
   }
 }
 
+function isPaidPaymentStatus(status?: string): boolean {
+  return ["PAID", "CONFIRMED", "COMPLETED"].includes(
+    String(status ?? "").toUpperCase(),
+  );
+}
+
 function getOrderItemImage(item: Record<string, unknown>): string | null {
-  const value = item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
+  const value = item.product_image_url ?? item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
   if (typeof value === "string" && value.trim()) return value;
   return null;
 }
@@ -93,6 +100,7 @@ export default function PaymentSuccessPage() {
   const queryClient = useQueryClient();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isNavigatingToTracking, setIsNavigatingToTracking] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
@@ -104,12 +112,83 @@ export default function PaymentSuccessPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["order-status", orderId] }),
         queryClient.invalidateQueries({ queryKey: ["payment-by-order-status", orderId] }),
-        queryClient.invalidateQueries({ queryKey: ["delivery-by-order", orderId] }),
       ]);
       navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId));
     } catch {
       setIsNavigatingToTracking(false);
     }
+  };
+
+  const handleRefundPayment = async () => {
+    const paymentId = payment?._id ?? payment?.id ?? "";
+    if ((!paymentId && !orderId) || submitting) return;
+
+    const confirmed = window.confirm("Bạn có chắc chắn muốn hủy thanh toán này không?");
+    if (!confirmed) return;
+
+    setSubmitting(true);
+    if (canRefundPayment) {
+      try {
+        await paymentClient.refundPayment(paymentId, {
+          refund_reason: "Khach hang yeu cau huy",
+        });
+        queryClient.invalidateQueries({ queryKey: ["payment-success-order", orderId] });
+        queryClient.invalidateQueries({ queryKey: ["payment-success-payment", orderId] });
+        queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
+        queryClient.invalidateQueries({ queryKey: ["order-status", orderId] });
+        toast.success("Da huy va hoan tien thanh cong");
+        if (orderId) {
+          navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId), {
+            state: {
+              reason: "refunded",
+              paymentMethod: paymentMethodRaw,
+              bankName: bankNameRaw,
+            },
+          });
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error && error.message.includes("404")
+          ? "Thanh toan khong ton tai"
+          : "Khong the hoan tien thanh toan";
+        toast.error(errorMessage);
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (!orderId) {
+      toast.error("Khong the huy don");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await orderClient.setCancelled(orderId, {
+        cancel_reason: "Khach hang yeu cau huy",
+        cancelled_by: "CUSTOMER",
+      });
+      queryClient.invalidateQueries({ queryKey: ["payment-success-order", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["payment-success-payment", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
+      queryClient.invalidateQueries({ queryKey: ["order-status", orderId] });
+      toast.success("Da huy don thanh cong");
+      navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId), {
+        state: {
+          reason: "cancelled",
+          paymentMethod: paymentMethodRaw,
+          bankName: bankNameRaw,
+        },
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error && error.message.includes("404")
+        ? "Thanh toan khong ton tai"
+        : "Khong the huy don";
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+    return;
   };
 
   const { data: order, isLoading: orderLoading } = useQuery({
@@ -211,6 +290,14 @@ export default function PaymentSuccessPage() {
   const customerName = (order as any)?.customer_name ?? (order as any)?.customer?.name;
   const customerPhone = (order as any)?.phone ?? (order as any)?.customer?.phone;
   const paymentMethodText = paymentMethodLabel(payment?.method);
+  const paymentMethodRaw = String(
+    payment?.method ??
+    (order as any)?.payment_method ??
+    (order as any)?.method ??
+    ""
+  ).trim();
+  const bankNameRaw = String((order as any)?.bank_name ?? "").trim();
+  const canRefundPayment = isPaidPaymentStatus(payment?.status);
   const providerTxnId = String(payment?.provider_txn_id ?? payment?.providerTxnId ?? "");
 
   if (isNavigatingToTracking) {
@@ -494,8 +581,24 @@ export default function PaymentSuccessPage() {
           </Link>
         </div>
 
+        {/* ── Refund button ── */}
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={handleRefundPayment}
+            disabled={submitting}
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border-2 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 font-semibold text-sm transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            {submitting ? "Dang xu ly..." : canRefundPayment ? "Huy / Hoan tien" : "Huy don"}
+          </button>
+        </div>
+
         <p className="text-center text-xs text-gray-400 pb-2">Cảm ơn bạn đã tin tưởng <span className="font-semibold text-amber-600">Hylux Coffee</span> ☕</p>
       </div>
     </div>
   );
 }
+

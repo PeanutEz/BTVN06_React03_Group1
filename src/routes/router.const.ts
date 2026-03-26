@@ -30,7 +30,9 @@ export const ROUTER_URL = {
   MENU_DETAIL: "/menu/:id",
   MENU_CHECKOUT: "/menu/checkout",
   MENU_ORDER_STATUS: "/menu/orders/:orderId",
-  PAYMENT_PROCESS: "/payment/process/:orderId",
+  PAYMENT_PROCESS_VNPAY: "/payment/vnpay/process/:orderId",
+  PAYMENT_PROCESS_COD: "/payment/cod/process/:orderId",
+  PAYMENT_PROCESS_LEGACY: "/payment/process/:orderId",
   PAYMENT_SUCCESS: "/payment/success/:orderId",
   PAYMENT_FAILED: "/payment/failed/:orderId",
   CHECKOUT: "/checkout",
@@ -87,3 +89,16 @@ export const ROUTER_URL = {
     SHIFT_ASSIGNMENTS: "shift-assignments",
   },
 } as const;
+
+export function buildPaymentProcessUrl(
+  orderId: string,
+  method?: string | null,
+): string {
+  const normalizedMethod = String(method ?? "").trim().toUpperCase();
+  const template =
+    normalizedMethod === "COD" || normalizedMethod === "CASH"
+      ? ROUTER_URL.PAYMENT_PROCESS_COD
+      : ROUTER_URL.PAYMENT_PROCESS_VNPAY;
+
+  return template.replace(":orderId", orderId);
+}

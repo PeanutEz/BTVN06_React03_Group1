@@ -1,12 +1,13 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import LoadingLayout from "@/layouts/Loading.layout";
-import { ROUTER_URL } from "@/routes/router.const";
+import { buildPaymentProcessUrl, ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
-import { deliveryClient, type DeliveryData } from "@/services/delivery.client";
+import type { DeliveryData } from "@/services/delivery.client";
 import { paymentClient, type PaymentData } from "@/services/payment.client";
 import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
+import { getOrderPaymentIntent } from "@/utils/orderPaymentIntent.util";
 import type { OrderDisplay } from "@/models/order.model";
 import type { OrderStatus as ApiOrderStatus } from "@/models/order.model";
 import {
@@ -69,14 +70,36 @@ function fmtPaymentMethod(method?: string): string {
   }
 }
 
+function fmtPaymentStatus(status?: string): string {
+  switch (String(status ?? "").toUpperCase()) {
+    case "PENDING":
+      return "Chờ thanh toán";
+    case "UNPAID":
+      return "Chưa thanh toán";
+    case "PAID":
+    case "CONFIRMED":
+    case "COMPLETED":
+      return "Đã thanh toán";
+    case "FAILED":
+      return "Thanh toán thất bại";
+    case "REFUNDED":
+      return "Đã hoàn tiền";
+    case "CANCELLED":
+      return "Đã hủy";
+    default:
+      return "Chờ thanh toán";
+  }
+}
+
 function resolveOrderMode(order: OrderDisplay, delivery: ApiDelivery | null): "PICKUP" | "DELIVERY" {
+  const resolvedDelivery = delivery ?? getEmbeddedDelivery(order);
   const explicitType = String((order as any)?.type ?? "").trim().toUpperCase();
   if (explicitType === "POS" || explicitType === "PICKUP") return "PICKUP";
   if (explicitType === "ONLINE" || explicitType === "DELIVERY") return "DELIVERY";
 
-  const hasDeliveryObject = !!delivery;
+  const hasDeliveryObject = !!resolvedDelivery;
   const hasDeliveryAddress = !!String(
-    (delivery as any)?.order_address ??
+    (resolvedDelivery as any)?.order_address ??
     (order as any)?.address ??
     (order as any)?.delivery_address ??
     "",
@@ -120,6 +143,11 @@ function apiOrderStatusToDeliveryStatus(apiStatus: ApiOrderStatus): DeliveryOrde
 
 type ApiDelivery = DeliveryData;
 
+function getEmbeddedDelivery(order: OrderDisplay): ApiDelivery | null {
+  const delivery = (order as any)?.delivery;
+  return delivery && typeof delivery === "object" ? (delivery as ApiDelivery) : null;
+}
+
 function deliveryApiStatusToTimelineStatus(delivery: ApiDelivery | null): DeliveryOrderStatus | null {
   return toDeliveryOrderStatus(delivery?.status);
 }
@@ -129,7 +157,7 @@ function getDeliveryTimelineStatus(order: OrderDisplay, delivery: ApiDelivery | 
   if (fromOrder === "CANCELLED") return "CANCELLED";
   if (fromOrder === "COMPLETED") return "COMPLETED";
 
-  const fromDelivery = deliveryApiStatusToTimelineStatus(delivery);
+  const fromDelivery = deliveryApiStatusToTimelineStatus(delivery ?? getEmbeddedDelivery(order));
   if (fromDelivery) return fromDelivery;
   return apiOrderStatusToDeliveryStatus(order.status);
 }
@@ -254,6 +282,7 @@ function OrderStatusFromApi({
   payment: PaymentData | null;
   fmt: (n: unknown) => string;
 }) {
+  const navigate = useNavigate();
   const mappedStatus = getDeliveryTimelineStatus(order, delivery);
   const orderMode = resolveOrderMode(order, delivery);
   const isPickupFlow = orderMode === "PICKUP";
@@ -360,19 +389,66 @@ function OrderStatusFromApi({
   const hasAnyDeliveryInfo = Boolean(
     delivery || deliveryAssignedTo || deliveryShipperPhone || deliveryStatusRaw || deliveryAddress,
   );
+  const orderResolvedId = String(order._id ?? order.id ?? "").trim();
+  const storedPaymentIntent = getOrderPaymentIntent(orderResolvedId);
   const paymentCreatedAt = fmtDateTime((payment as any)?.created_at);
   const paymentUpdatedAt = fmtDateTime((payment as any)?.updated_at);
-  const paymentMethodRaw = String(
-    payment?.method ??
-    (order as any)?.payment_method ??
-    (order as any)?.method ??
+  const paymentStatusRaw = String(payment?.status ?? "").toUpperCase();
+  const paymentMethodFromSnapshot = String(
+    storedPaymentIntent?.paymentMethod ??
+    storedPaymentIntent?.bankName ??
     "",
   ).toUpperCase();
+  const paymentMethodFromPayment = String(payment?.method ?? "").toUpperCase();
+  const paymentBankName = String(
+    (order as any)?.bank_name ??
+    storedPaymentIntent?.bankName ??
+    "",
+  ).toUpperCase();
+  const paymentMethodFromOrder = String(
+    (order as any)?.payment_method ??
+    (order as any)?.method ??
+    (order as any)?.bank_name ??
+    storedPaymentIntent?.paymentMethod ??
+    storedPaymentIntent?.bankName ??
+    "",
+  ).toUpperCase();
+  const shouldPreferSnapshotPaymentMethod =
+    !!paymentMethodFromSnapshot &&
+    (paymentStatusRaw === "PENDING" || paymentStatusRaw === "UNPAID" || !paymentStatusRaw) &&
+    (!paymentMethodFromPayment ||
+      ((paymentMethodFromPayment === "COD" || paymentMethodFromPayment === "CASH") &&
+        paymentMethodFromSnapshot !== "COD" &&
+        paymentMethodFromSnapshot !== "CASH"));
+  const shouldPreferOrderPaymentMethod =
+    !!paymentMethodFromOrder &&
+    (paymentStatusRaw === "PENDING" || paymentStatusRaw === "UNPAID" || !paymentStatusRaw) &&
+    (!paymentMethodFromPayment ||
+      ((paymentMethodFromPayment === "COD" || paymentMethodFromPayment === "CASH") &&
+        paymentMethodFromOrder !== "COD" &&
+        paymentMethodFromOrder !== "CASH"));
+  const paymentMethodRaw = shouldPreferSnapshotPaymentMethod
+    ? paymentMethodFromSnapshot
+    : shouldPreferOrderPaymentMethod
+      ? paymentMethodFromOrder
+      : (paymentMethodFromPayment || paymentMethodFromOrder || paymentMethodFromSnapshot);
+  const paymentMethodForNavigation = paymentMethodRaw || paymentBankName;
+  const paymentMethodText = fmtPaymentMethod(paymentMethodRaw || paymentBankName);
+  const paymentStatusText = fmtPaymentStatus(payment?.status);
+  const paymentTxnId = pickFirstText(
+    payment?.provider_txn_id,
+    (payment as any)?.providerTxnId,
+  );
+  const paymentAmount = toNumber(payment?.amount ?? finalAmount);
+  const hasPaymentInfo = Boolean(payment || paymentMethodRaw || paymentBankName);
   const isCashMethod = paymentMethodRaw === "CASH" || paymentMethodRaw === "COD";
   const timelineCurrentStatus: TrackingStatus =
     mappedStatus === "CANCELLED" || isCashMethod || isPaidPayment(payment?.status)
       ? mappedStatus
       : "PAYMENT_PENDING";
+  const showDeliveringContact =
+    timelineCurrentStatus === "DELIVERING" &&
+    Boolean(deliveryAssignedTo || deliveryShipperPhone);
   const itemCount = (rawItems as any[]).reduce((sum, item) => sum + toNumber(item.quantity ?? item.qty ?? 0), 0);
   const promotionTypeText = String((order as any).promotion_type ?? "").toUpperCase();
   const voucherTypeText = String((order as any).voucher_type ?? "").toUpperCase();
@@ -382,6 +458,17 @@ function OrderStatusFromApi({
   const voucherPercentText = voucherTypeText.includes("PERCENT") && toNumber((order as any).voucher_value) > 0
     ? `${toNumber((order as any).voucher_value)}%`
     : null;
+  const handleContinuePayment = () => {
+    const currentOrderId = String(order?._id ?? order?.id ?? "");
+    if (!currentOrderId) return;
+
+    navigate(buildPaymentProcessUrl(currentOrderId, paymentMethodForNavigation), {
+      state: {
+        checkoutPaymentMethod: paymentMethodForNavigation,
+        checkoutBankName: paymentBankName,
+      },
+    });
+  };
   return (
     <div className="bg-[#faf8f4] min-h-screen text-[#3d2b1f]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
@@ -407,6 +494,30 @@ function OrderStatusFromApi({
               <div className="px-5 py-4">
                 <h2 className="font-semibold text-sm mb-4">Trạng thái đơn hàng</h2>
                 <StatusTimeline steps={steps} currentStatus={timelineCurrentStatus} />
+                {showDeliveringContact && (
+                  <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <div className="flex items-center gap-2 text-emerald-800 text-sm font-semibold">
+                      <span>🚚</span>
+                      <span>Đang giao</span>
+                    </div>
+                    {deliveryAssignedTo && (
+                      <p className="mt-2 text-sm text-[#3d2b1f]">
+                        Người giao: <span className="font-semibold">{deliveryAssignedTo}</span>
+                      </p>
+                    )}
+                    {deliveryShipperPhone && (
+                      <p className="mt-1 text-sm text-[#3d2b1f]">
+                        SĐT:{" "}
+                        <a
+                          href={`tel:${deliveryShipperPhone}`}
+                          className="font-semibold text-emerald-700 hover:text-emerald-800"
+                        >
+                          {deliveryShipperPhone}
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -544,6 +655,12 @@ function OrderStatusFromApi({
                   <span className="text-gray-400 w-24 shrink-0">Loại:</span>
                   <span className="text-gray-900">{isPickupFlow ? "Tại quầy" : "Online"}</span>
                 </div>
+                {deliveryAddress && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400 w-24 shrink-0">Địa chỉ:</span>
+                    <span className="text-gray-900">{deliveryAddress}</span>
+                  </div>
+                )}
                 {orderCreatedAt && (
                   <div className="flex items-center gap-2">
                     <span className="text-gray-400 w-24 shrink-0">Tạo lúc:</span>
@@ -599,38 +716,50 @@ function OrderStatusFromApi({
                       <span className="font-semibold text-gray-900 text-right">{deliveryShipperPhone}</span>
                     </div>
                   )}
-                  {deliveryAddress && (
-                    <div className="flex justify-between gap-3">
-                      <span className="text-gray-500">Địa chỉ</span>
-                      <span className="font-semibold text-gray-900 text-right">{deliveryAddress}</span>
-                    </div>
-                  )}
                 </div>
               ) : (
                 <p className="text-gray-500 text-sm mb-4">Chưa có thông tin giao hàng.</p>
               )}
 
-              <h2 className="font-semibold text-gray-900 text-sm mb-3">Thanh toán</h2>
-              {payment ? (
+              <h2 className="font-semibold text-gray-900 text-sm mb-3">Thông tin payment</h2>
+              {hasPaymentInfo ? (
                 <div className="space-y-2 text-sm text-gray-700">
-                  {payment.provider_txn_id && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-gray-500">Mã đơn</span>
+                    <span className="font-semibold text-gray-900">#{order.code}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-gray-500">Cửa hàng</span>
+                    <span className="font-semibold text-gray-900 text-right">{franchiseName}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-gray-500">Khách hàng</span>
+                    <span className="font-semibold text-gray-900 text-right">{customerName}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-gray-500">Số điện thoại</span>
+                    <span className="font-semibold text-gray-900 text-right">{phone}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-gray-500">Phương thức</span>
+                    <span className="font-semibold text-gray-900">{paymentMethodText}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-gray-500">Trạng thái</span>
+                    <span className="font-semibold text-gray-900">{paymentStatusText}</span>
+                  </div>
+                  {paymentTxnId && (
                     <div className="flex justify-between gap-3">
                       <span className="text-gray-500">Mã giao dịch</span>
                       <span className="font-mono font-semibold text-gray-900 truncate">
-                        {payment.provider_txn_id}
+                        {paymentTxnId}
                       </span>
                     </div>
                   )}
                   <div className="flex justify-between gap-3">
                     <span className="text-gray-500">Số tiền</span>
-                    <span className="font-semibold text-gray-900">{fmt(payment.amount ?? finalAmount)}</span>
+                    <span className="font-semibold text-gray-900">{fmt(paymentAmount)}</span>
                   </div>
-                  {payment.method && (
-                    <div className="flex justify-between gap-3">
-                      <span className="text-gray-500">Phương thức</span>
-                      <span className="font-semibold text-gray-900">{fmtPaymentMethod(payment.method)}</span>
-                    </div>
-                  )}
                   {paymentCreatedAt && (
                     <div className="flex justify-between gap-3">
                       <span className="text-gray-500">Tạo lúc</span>
@@ -646,7 +775,7 @@ function OrderStatusFromApi({
                 </div>
               ) : (
                 <div className="space-y-2 text-sm text-gray-700">
-                  <p className="text-gray-500 text-xs">Chưa có bản ghi payment chi tiết từ API.</p>
+                  <p className="text-gray-500 text-xs">Chưa có thông tin payment chi tiết từ API.</p>
                 </div>
               )}
 
@@ -654,12 +783,13 @@ function OrderStatusFromApi({
                 {payment &&
               isPendingPayment(payment.status) &&
               !isCashMethod ? (
-                  <Link
-                    to={ROUTER_URL.PAYMENT_PROCESS.replace(":orderId", String(order._id ?? order.id))}
+                  <button
+                    type="button"
+                    onClick={handleContinuePayment}
                     className="block text-center w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm"
                   >
                     Thanh toán
-                  </Link>
+                  </button>
                 ) : null}
                 <Link to="/menu" className="block text-center w-full py-3 bg-[#d4832a] hover:bg-[#a05e10] text-white rounded-xl font-semibold text-sm">
                   Đặt thêm đơn mới
@@ -704,23 +834,6 @@ export default function OrderStatusPage() {
   });
   const apiPayment = paymentQuery.data;
 
-  const deliveryQuery = useQuery({
-    queryKey: ["delivery-by-order", orderId],
-    queryFn: async () => {
-      try {
-        return await deliveryClient.getDeliveryByOrderId(orderId!);
-      } catch {
-        return null;
-      }
-    },
-    enabled: !!orderId && !!orderQuery.data,
-    retry: false,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: false,
-  });
-  const apiDelivery = deliveryQuery.data;
-
   const apiOrder = orderQuery.data;
   if (orderQuery.isLoading || orderQuery.isFetching) return <LoadingLayout />;
 
@@ -752,7 +865,7 @@ export default function OrderStatusPage() {
     return (
       <OrderStatusFromApi
         order={apiOrder}
-        delivery={apiDelivery as ApiDelivery | null}
+        delivery={null}
         payment={apiPayment ?? null}
         fmt={fmt}
       />

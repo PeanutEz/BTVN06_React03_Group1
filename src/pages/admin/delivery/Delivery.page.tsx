@@ -4,6 +4,7 @@ import { GlassSearchSelect } from "../../../components/ui";
 import Pagination from "../../../components/ui/Pagination";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 import { useAuthStore } from "../../../store/auth.store";
+import { useLoadingStore } from "../../../store/loading.store";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import { deliveryClient, type DeliveryData } from "../../../services/delivery.client";
 import { fetchFranchiseSelect, type FranchiseSelectItem } from "../../../services/store.service";
@@ -28,16 +29,18 @@ function safeStr(v: unknown): string {
 }
 function getStatusBadgeClass(statusRaw: unknown): string {
   const s = String(statusRaw ?? "").toUpperCase();
-  if (s === "DELIVERED")  return "bg-emerald-50 text-emerald-800 border-emerald-200";
-  if (s === "PICKING_UP") return "bg-yellow-50 text-yellow-800 border-yellow-200";
-  if (s === "ASSIGNED")   return "bg-blue-50 text-blue-800 border-blue-200";
-  return "bg-slate-50 text-slate-700 border-slate-200";
+  if (s === "DELIVERED")  return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+  if (s === "PICKING_UP") return "bg-amber-500/15 text-amber-400 border-amber-500/30";
+  if (s === "ASSIGNED")   return "bg-blue-500/15 text-blue-400 border-blue-500/30";
+  return "bg-slate-500/15 text-slate-400 border-slate-500/30";
 }
 
 export default function DeliveryPage() {
   const showConfirm = useConfirm();
   const managerFranchiseId = useManagerFranchiseId();
   const user = useAuthStore((s) => s.user);
+  const showLoading = useLoadingStore((s) => s.show);
+  const hideLoading = useLoadingStore((s) => s.hide);
   const activeContextFranchiseName = (user?.active_context as { franchise_name?: string } | null | undefined)?.franchise_name ?? null;
   const isShipper = ((user?.active_context as { role?: string } | null)?.role ?? user?.role ?? "").toUpperCase() === "SHIPPER";
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
@@ -110,16 +113,6 @@ export default function DeliveryPage() {
   };
 
   // ─── Đổi trạng thái ───────────────────────────────────────────────────────
-  const upsertDelivery = (next: DeliveryData) => {
-    const id = deliveryIdOf(next);
-    if (!id) return;
-    setDeliveries((prev) => {
-      const exists = prev.find((d) => deliveryIdOf(d) === id);
-      if (!exists) return [next, ...prev];
-      return prev.map((d) => (deliveryIdOf(d) === id ? next : d));
-    });
-  };
-
   const handlePickup = async (item: DeliveryData) => {
     const id = deliveryIdOf(item);
     if (!id) return;
@@ -133,16 +126,17 @@ export default function DeliveryPage() {
       variant: "info",
     });
     if (!ok) return;    setMutating({ deliveryId: id, action: "pickup" });
+    showLoading("Đang chuyển sang Pickup...");
     try {
       const staffId = item.assigned_to ? String(item.assigned_to) : undefined;
-      const result = await deliveryClient.changeStatusPickup(id, staffId);
-      upsertDelivery(result ?? { ...item, status: "PICKING_UP" } as any);
+      await deliveryClient.changeStatusPickup(id, staffId);
       showSuccess("Đã chuyển sang Pickup");
+      await loadDeliveries(activeFranchiseId, statusFilter);
     } catch (e: any) {
       console.error(e);
       showError(e?.response?.data?.message || e?.message || "API Pickup thất bại");
     }
-    finally { setMutating(null); }
+    finally { setMutating(null); hideLoading(); }
   };
 
   const handleComplete = async (item: DeliveryData) => {
@@ -158,16 +152,17 @@ export default function DeliveryPage() {
       variant: "info",
     });
     if (!ok) return;    setMutating({ deliveryId: id, action: "complete" });
+    showLoading("Đang hoàn thành giao hàng...");
     try {
       const staffId = item.assigned_to ? String(item.assigned_to) : undefined;
-      const result = await deliveryClient.changeStatusComplete(id, staffId);
-      upsertDelivery(result ?? { ...item, status: "DELIVERED" } as any);
+      await deliveryClient.changeStatusComplete(id, staffId);
       showSuccess("Đã hoàn thành giao hàng");
+      await loadDeliveries(activeFranchiseId, statusFilter);
     } catch (e: any) {
       console.error(e);
       showError(e?.response?.data?.message || e?.message || "API Complete thất bại");
     }
-    finally { setMutating(null); }
+    finally { setMutating(null); hideLoading(); }
   };
   // ─── Filter client-side ───────────────────────────────────────────────────
   const customerSelectOptions = customerOptions.map(c => ({

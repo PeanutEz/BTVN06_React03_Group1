@@ -380,17 +380,12 @@ const FranchiseListPage = () => {
                   <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden">{f.hotline || "-"}</td>
                   <td className="px-4 py-3 text-slate-700 whitespace-nowrap overflow-hidden">{f.opened_at} - {f.closed_at}</td>
                   <td className="px-4 py-3 overflow-hidden">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${f.is_active
-                      ? "bg-green-500 text-white shadow-sm shadow-green-300"
-                      : "border border-slate-200 bg-slate-50 text-slate-500"
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      f.is_active
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
                       }`}>
-                      {f.is_active && (
-                        <span className="relative flex size-1.5">
-                          <span className="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75" />
-                          <span className="relative inline-flex size-1.5 rounded-full bg-white" />
-                        </span>
-                      )}
-                      {f.is_active ? "Hoạt động" : "Ngừng"}
+                      {f.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>                <td className="px-4 py-3 overflow-hidden">
                     <div className="flex flex-nowrap gap-2">
@@ -498,17 +493,12 @@ const FranchiseListPage = () => {
                 <span className="rounded-full bg-white/[0.06] px-3 py-1 text-xs font-mono text-white/50">
                   {viewingFranchise.code}
                 </span>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${viewingFranchise.is_active
-                  ? "bg-green-500 text-white shadow-sm shadow-green-400/40"
-                  : "border border-white/[0.12] bg-white/[0.06] text-white/70"
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  viewingFranchise.is_active
+                    ? "bg-green-100 text-green-700"
+                    : "bg-yellow-100 text-yellow-700"
                   }`}>
-                  {viewingFranchise.is_active && (
-                    <span className="relative flex size-1.5">
-                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75" />
-                      <span className="relative inline-flex size-1.5 rounded-full bg-white" />
-                    </span>
-                  )}
-                  {viewingFranchise.is_active ? "Hoạt động" : "Ngừng"}
+                  {viewingFranchise.is_active ? "Active" : "Inactive"}
                 </span>
                 <span className="text-sm font-semibold text-white/80">Chỉnh sửa Franchise</span>
                 {loadingDetail && (

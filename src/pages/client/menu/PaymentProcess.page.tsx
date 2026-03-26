@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
 import { paymentClient } from "@/services/payment.client";
+import { saveOrderPaymentIntent } from "@/utils/orderPaymentIntent.util";
 import { buildStaticPaymentQr } from "@/utils/payment-qr.util";
 import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
 
@@ -28,12 +29,17 @@ const fmtDateTime = (d?: string) => {
 };
 
 function getOrderItemImage(item: Record<string, unknown>): string | null {
-  const direct = item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
+  const direct = item.product_image_url ?? item.image_url ?? item.image ?? item.product_image ?? item.product_image_snapshot;
   if (typeof direct === "string" && direct.trim()) return direct;
   return null;
 }
 
 type ApiPaymentMethod = "COD" | "MOMO" | "CARD";
+
+type PaymentProcessLocationState = {
+  checkoutPaymentMethod?: string;
+  checkoutBankName?: string;
+};
 
 function normalizePaymentMethod(method?: string): ApiPaymentMethod | null {
   const raw = String(method ?? "").trim().toUpperCase();
@@ -41,6 +47,14 @@ function normalizePaymentMethod(method?: string): ApiPaymentMethod | null {
   if (raw === "MOMO") return "MOMO";
   if (raw === "CARD" || raw === "VNPAY" || raw === "BANK" || raw === "BANK_TRANSFER") return "CARD";
   if (raw === "COD" || raw === "CASH") return "COD";
+  return null;
+}
+
+function resolvePaymentMethodFromPathname(pathname?: string): ApiPaymentMethod | null {
+  const raw = String(pathname ?? "").trim().toLowerCase();
+  if (!raw) return null;
+  if (raw.includes("/payment/vnpay/process/")) return "CARD";
+  if (raw.includes("/payment/cod/process/")) return "COD";
   return null;
 }
 
@@ -140,6 +154,7 @@ function getErrorText(error: unknown, fallback: string): string {
 
 export default function PaymentProcessPage() {
   const { orderId } = useParams<{ orderId: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -180,14 +195,60 @@ export default function PaymentProcessPage() {
   const statusRaw = String(payment?.status ?? "").toUpperCase();
   const statusText = paymentStatusLabel(payment?.status);
   const statusClass = paymentStatusClass(payment?.status);
-  const methodFromPayment = normalizePaymentMethod(String(payment?.method ?? "").trim().toUpperCase());
+  const checkoutState = (location.state as PaymentProcessLocationState | null) ?? null;
+  const methodFromPathname = resolvePaymentMethodFromPathname(location.pathname);
+  const methodFromNavigation = normalizePaymentMethod(
+    String(
+      checkoutState?.checkoutPaymentMethod ??
+      checkoutState?.checkoutBankName ??
+      "",
+    )
+      .trim()
+      .toUpperCase(),
+  );
+  const methodFromPayment = normalizePaymentMethod(
+    String(payment?.method ?? "").trim().toUpperCase(),
+  );
   const methodFromOrder = normalizePaymentMethod(
     String((order as any)?.payment_method ?? (order as any)?.method ?? (order as any)?.bank_name ?? "")
       .trim()
       .toUpperCase(),
   );
-  const effectiveMethod: ApiPaymentMethod = methodFromPayment ?? methodFromOrder ?? "COD";
+  const shouldPreferOrderMethod =
+    !!methodFromOrder &&
+    (!statusRaw || statusRaw === "PENDING" || statusRaw === "UNPAID") &&
+    (!methodFromPayment || (methodFromPayment === "COD" && methodFromOrder !== "COD"));
+  const shouldPreferPathMethod =
+    !!methodFromPathname &&
+    (!statusRaw || statusRaw === "PENDING" || statusRaw === "UNPAID") &&
+    (!methodFromPayment || (methodFromPayment === "COD" && methodFromPathname !== "COD"));
+  const shouldPreferNavigationMethod =
+    !!methodFromNavigation &&
+    (!statusRaw || statusRaw === "PENDING" || statusRaw === "UNPAID") &&
+    (!methodFromPayment || (methodFromPayment === "COD" && methodFromNavigation !== "COD"));
+  const effectiveMethod: ApiPaymentMethod =
+    (shouldPreferNavigationMethod
+      ? methodFromNavigation
+      : shouldPreferPathMethod
+        ? methodFromPathname
+      : shouldPreferOrderMethod
+        ? methodFromOrder
+        : methodFromPayment) ??
+    methodFromNavigation ??
+    methodFromPathname ??
+    methodFromOrder ??
+    "COD";
   const methodText = paymentMethodLabel(effectiveMethod);
+  const persistedBankName = String(
+    checkoutState?.checkoutBankName ??
+    (order as any)?.bank_name ??
+    (effectiveMethod === "CARD" ? "VNPAY" : ""),
+  ).trim();
+
+  useEffect(() => {
+    if (!orderId) return;
+    saveOrderPaymentIntent(orderId, effectiveMethod, persistedBankName);
+  }, [effectiveMethod, orderId, persistedBankName]);
 
   const paymentMissing = !paymentId;
   const paymentFailed = statusRaw === "FAILED";
@@ -242,7 +303,6 @@ export default function PaymentProcessPage() {
     });
   }, [effectiveMethod, amount, order?.code, orderId]);
   const canConfirm = !submitting && !paymentMissing && !paymentAlreadyPaid && !paymentFailed && !paymentRefunded;
-  const canRefund = !submitting && !paymentMissing && !paymentAlreadyPaid && !paymentFailed && !paymentRefunded;
 
   useEffect(() => {
     if (effectiveMethod !== "CARD") return;
@@ -318,6 +378,8 @@ export default function PaymentProcessPage() {
       setSubmitting(false);
     }
   }
+
+  void handleRefundPayment;
 
   if (isLoading) {
     return (
@@ -458,20 +520,13 @@ export default function PaymentProcessPage() {
               <p className="mt-4 text-sm text-gray-700">Payment đã được hoàn tiền hoặc hủy.</p>
             )}
 
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            <div className="mt-6">
               <button
                 onClick={handleConfirmPayment}
                 disabled={!canConfirm}
                 className="px-4 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium disabled:opacity-50"
               >
                 {submitting ? "Đang xử lý..." : "Xác nhận thanh toán"}
-              </button>
-              <button
-                onClick={handleRefundPayment}
-                disabled={!canRefund}
-                className="px-4 py-2 rounded-md border border-sky-200 bg-sky-50 text-sm font-medium text-sky-800 disabled:opacity-50"
-              >
-                Hủy / Hoàn tiền
               </button>
             </div>
 

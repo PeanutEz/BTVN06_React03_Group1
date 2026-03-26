@@ -40,6 +40,15 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 interface MenuProductModalProps {
   product: MenuProduct | null;
   onClose: () => void;
+  onSubmitSelection?: (payload: {
+    franchiseId: string;
+    productFranchiseId: string;
+    quantity: number;
+    note?: string;
+    options?: Array<{ product_franchise_id: string; quantity: number }>;
+    productName: string;
+    selectionDescription: string;
+  }) => Promise<void>;
   // When editing from cart, prefill sugar/ice/toppings/size/note.
   initialSelection?: {
     size?: string;
@@ -114,6 +123,7 @@ function resolveCartIdFromAddResponse(raw: unknown): string | null {
 export default function MenuProductModal({
   product,
   onClose,
+  onSubmitSelection,
   initialSelection,
   initialQuantity,
   replaceApiItemId,
@@ -200,20 +210,39 @@ export default function MenuProductModal({
 
   // Fetch full product detail from API (CLIENT-05) to get real sizes
   const [productDetail, setProductDetail] = useState<any>(null);
+  const [isFetchingProductDetail, setIsFetchingProductDetail] = useState(false);
   useEffect(() => {
     if (!product) {
       setProductDetail(null);
+      setIsFetchingProductDetail(false);
       return;
     }
     const apiFranchiseId = (product as any)?._apiFranchiseId;
-    const apiProductId = (product as any)?._apiProductId;
-    if (!apiFranchiseId || !apiProductId) return;
+    const apiProductId = String((product as any)?._apiProductId ?? "").trim();
+    const listSizes: ApiSize[] = Array.isArray((product as any)?._apiSizes)
+      ? ((product as any)._apiSizes as ApiSize[])
+      : [];
+    const fallbackProductFranchiseId =
+      initialSelection?.productFranchiseId ??
+      listSizes.find((size) => size.is_available)?.product_franchise_id ??
+      listSizes[0]?.product_franchise_id;
+    const detailLookupId = apiProductId || fallbackProductFranchiseId;
+    if (!apiFranchiseId || !detailLookupId) {
+      setProductDetail(null);
+      setIsFetchingProductDetail(false);
+      return;
+    }
 
     let cancelled = false;
+    setIsFetchingProductDetail(true);
+    setProductDetail(null);
     (async () => {
       try {
         const { clientService } = await import("@/services/client.service");
-        const detail = await clientService.getProductDetail(apiFranchiseId, apiProductId);
+        const detail = await clientService.getProductDetail(
+          apiFranchiseId,
+          detailLookupId,
+        );
         if (!cancelled) {
           setProductDetail(detail);
           // Update selectedSize from detail sizes (more accurate than list-level data)
@@ -230,10 +259,17 @@ export default function MenuProductModal({
         }
       } catch (err) {
         console.error("Failed to fetch product detail:", err);
+        if (!cancelled) {
+          setProductDetail(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsFetchingProductDetail(false);
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, [product?.id]);
+  }, [product?.id, (product as any)?._apiProductId, initialSelection?.productFranchiseId]);
 
   // When editing cart items, ensure the selected size matches the cart selection,
   // even if product detail was already fetched for the same product.
@@ -407,7 +443,7 @@ export default function MenuProductModal({
   }
   async function handleAddToCart() {
     if (!product || isAdding) return;
-    if (!isLoggedIn) {
+    if (!isLoggedIn && !onSubmitSelection) {
       toast.error("Vui lòng đăng nhập để thêm vào giỏ hàng");
       return;
     }
@@ -603,6 +639,46 @@ export default function MenuProductModal({
         quantity: toppingQtys[t.id] ?? 1,
       }));
 
+    const submitToppingDesc = displayToppings
+      .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
+      .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
+      .join(", ");
+    const submitSelectionDesc = isToppingProduct
+      ? `Size ${selectedSize?.size}${note.trim() ? ` â€¢ "${note.trim()}"` : ""}`
+      : `Size ${selectedSize?.size} â€¢ ${sugar} Ä‘Æ°á»ng â€¢ ${ice}${submitToppingDesc ? ` â€¢ ${submitToppingDesc}` : ""}${note.trim() ? ` â€¢ "${note.trim()}"` : ""}`;
+    const submitSuccessVerb = replaceApiItemId ? "cáº­p nháº­t" : "thÃªm";
+
+    if (onSubmitSelection) {
+      try {
+        await onSubmitSelection({
+          franchiseId,
+          productFranchiseId,
+          quantity,
+          note: apiNote,
+          options: apiOptions.length > 0 ? apiOptions : undefined,
+          productName: product.name,
+          selectionDescription: submitSelectionDesc,
+        });
+      } catch (err) {
+        console.error("Custom add-to-cart handler failed:", err);
+        toast.error(
+          err instanceof Error && err.message.trim()
+            ? err.message.trim()
+            : "KhÃ´ng thá»ƒ cáº­p nháº­t giá» hÃ ng. Vui lÃ²ng thá»­ láº¡i.",
+        );
+        setIsAdding(false);
+        hideGlobalLoading();
+        return;
+      }
+
+      toast.success(`Da ${submitSuccessVerb} "${product.name}" vao gio!`, {
+        description: submitSelectionDesc,
+      });
+      setIsAdding(false);
+      hideGlobalLoading();
+      return;
+    }
+
     // Then call API to persist to backend
     try {
       const apiCart = await cartClient.addProduct({
@@ -776,7 +852,9 @@ export default function MenuProductModal({
               <div>
                 <SectionLabel>Chọn size</SectionLabel>
                 {displaySizes.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">Đang tải kích cỡ...</p>
+                  <p className="text-xs text-gray-400 py-2">
+                    {isFetchingProductDetail ? "Đang tải kích cỡ..." : "Không có kích cỡ khả dụng"}
+                  </p>
                 ) : (
                   <div className="flex gap-2 flex-wrap">
                     {displaySizes.map((s) => (

@@ -288,7 +288,7 @@ export default function VoucherListPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {vouchers.map((v) => (
-                  <tr key={v.id} className={`hover:bg-slate-50 transition-colors ${isDeletedFilter ? "bg-red-50/60 opacity-75" : ""}`}>
+                  <tr key={v.id} className={`transition-colors ${v.is_deleted ? "bg-red-50/60 hover:bg-red-50" : "hover:bg-slate-50"}`}>
                     <td className="px-5 py-4 align-top">
                       <div className="font-mono font-semibold text-primary-700 text-sm bg-primary-50 inline-block px-2 py-0.5 rounded border border-primary-100 mb-1.5">
                         {v.code}
@@ -329,10 +329,10 @@ export default function VoucherListPage() {
                     <td className="px-5 py-4 align-top">
                       <button
                         onClick={() => handleToggleStatus(v.id, v.is_active)}
-                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider transition-colors ${
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
                           v.is_active
-                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                            : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                            ? "bg-green-100 text-green-700 hover:bg-green-200"
+                            : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
                         }`}
                       >
                         {v.is_active ? "Active" : "Inactive"}

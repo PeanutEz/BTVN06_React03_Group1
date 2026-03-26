@@ -16,6 +16,7 @@ import type { FranchiseSelectItem } from "../../../services/store.service";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
+import { useAuthStore } from "../../../store/auth.store";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -29,6 +30,21 @@ const DEFAULT_FORM: CreateShiftPayload = {
 const ShiftPage = () => {
   const showConfirm = useConfirm();
   const managerFranchiseId = useManagerFranchiseId();
+  const authUser = useAuthStore((s) => s.user);
+
+  const isAdminOrManager = useMemo(() => {
+    if (!authUser) return false;
+    const ctx = authUser.active_context as { role?: string; scope?: string } | null | undefined;
+    if (ctx) {
+      const role = ctx.role?.toUpperCase() ?? "";
+      const scope = ctx.scope?.toUpperCase() ?? "";
+      if (role === "ADMIN" || scope === "GLOBAL" || role === "MANAGER") return true;
+    }
+    return (authUser.roles as any[])?.some(
+      (r: any) => r.role?.toUpperCase() === "ADMIN" || r.scope?.toUpperCase() === "GLOBAL" || r.role?.toUpperCase() === "MANAGER"
+    ) ?? false;
+  }, [authUser]);
+
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -287,7 +303,7 @@ const ShiftPage = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Quản lý ca làm việc</h1>
           <p className="text-xs sm:text-sm text-slate-600">Quản lý ca làm việc hệ thống</p>
         </div>
-        <Button onClick={handleOpenCreate}>+ Tạo ca làm việc</Button>
+        {isAdminOrManager && <Button onClick={handleOpenCreate}>+ Tạo ca làm việc</Button>}
       </div>      {/* Search bar */}
       <div className="relative z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap gap-3">
@@ -435,11 +451,11 @@ const ShiftPage = () => {
                   <td className="px-4 py-3 text-slate-700">{s.end_time}</td>
                   <td className="px-4 py-3">
                     {s.is_deleted ? (
-                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600">Đã xóa</span>
+                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600">Deleted</span>
                     ) : s.is_active ? (
-                      <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Hoạt động</span>
+                      <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">Active</span>
                     ) : (
-                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Không hoạt động</span>
+                      <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Inactive</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
