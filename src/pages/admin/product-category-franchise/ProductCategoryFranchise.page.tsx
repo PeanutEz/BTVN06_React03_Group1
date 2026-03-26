@@ -504,10 +504,10 @@ export default function ProductCategoryFranchisePage() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         it.is_active
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-red-500/20 text-red-400"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
                       }`}
                     >
                       {it.is_active ? "Active" : "Inactive"}

@@ -705,11 +705,11 @@ export default function UserFranchiseRolePage() {
                     {it.note || "—"}
                   </td>
                   <td className="px-4 py-3">                    {it.is_deleted ? (
-                      <span className="inline-flex items-center rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300 border border-red-500/40">
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                         Deleted
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 border border-emerald-500/40">
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                         Active
                       </span>
                     )}

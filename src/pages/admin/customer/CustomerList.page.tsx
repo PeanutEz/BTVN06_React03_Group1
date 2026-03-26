@@ -308,11 +308,11 @@ const CustomerListPage = () => {
                   {/* Verified */}
                   <td className="px-4 py-3">
                     {customer.is_verified ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-                        ✓ Đã xác thực
+                      <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                        Đã xác thực
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-500">
+                      <span className="inline-flex items-center rounded-full bg-slate-50 border border-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-500">
                         Chưa xác thực
                       </span>
                     )}
@@ -330,8 +330,7 @@ const CustomerListPage = () => {
                             : "bg-slate-50 text-slate-500 border-slate-200"
                         }`}
                       >
-                        <span className={`mr-1 size-1.5 rounded-full ${customer.is_active ? "bg-green-500" : "bg-slate-400"}`} />
-                        {customer.is_active ? "Hoạt động" : "Ngưng"}
+                        {customer.is_active ? "Active" : "Inactive"}
                       </span>
                     )}
                   </td>
