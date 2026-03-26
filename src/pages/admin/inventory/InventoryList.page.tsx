@@ -1171,7 +1171,7 @@ export default function InventoryListPage() {
                   return (
                     <tr
                       key={item.id}
-                      className={`transition-colors ${item.is_deleted ? "opacity-60" : ""} ${low && !item.is_deleted ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-slate-50"}`}
+                      className={`transition-colors ${isDeletedFilter || item.is_deleted ? "bg-red-50/60 hover:bg-red-50" : low ? "bg-amber-50/50 hover:bg-amber-50" : "hover:bg-slate-50"}`}
                     >
                       <td className="px-4 py-3">
                         <div className="leading-tight">
@@ -1270,55 +1270,8 @@ export default function InventoryListPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
-                          {/* View */}
-                          <button
-                            onClick={() => setViewingItem(item)}
-                            className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
-                            title="Xem chi tiết"
-                          >
-                            <svg
-                              className="size-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                              />
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                              />
-                            </svg>
-                          </button>
-                          {/* Logs (INVENTORY-08) */}
-                          <button
-                            onClick={() => handleOpenLogs(item)}
-                            className="inline-flex items-center justify-center size-8 rounded-lg border border-purple-200 bg-white text-purple-500 hover:border-purple-400 hover:bg-purple-50 transition-colors"
-                            title="Xem lịch sử"
-                          >
-                            <svg
-                              className="size-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                              />
-                            </svg>
-                          </button>
-
-                          {/* Delete / Restore */}
-                          {item.is_deleted ? (
+                          {isDeletedFilter ? (
+                            /* Chế độ "Đã xóa" — chỉ hiện nút Khôi phục */
                             <button
                               onClick={() => handleRestore(item)}
                               className="inline-flex items-center justify-center size-8 rounded-lg border border-green-200 bg-white text-green-500 hover:border-green-400 hover:bg-green-50 transition-colors"
@@ -1339,25 +1292,74 @@ export default function InventoryListPage() {
                               </svg>
                             </button>
                           ) : (
-                            <button
-                              onClick={() => handleDelete(item)}
-                              className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
-                              title="Xóa"
-                            >
-                              <svg
-                                className="size-4"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
+                            <>
+                              {/* View */}
+                              <button
+                                onClick={() => setViewingItem(item)}
+                                className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                                title="Xem chi tiết"
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                />
-                              </svg>
-                            </button>
+                                <svg
+                                  className="size-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                  />
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                  />
+                                </svg>
+                              </button>
+                              {/* Logs (INVENTORY-08) */}
+                              <button
+                                onClick={() => handleOpenLogs(item)}
+                                className="inline-flex items-center justify-center size-8 rounded-lg border border-purple-200 bg-white text-purple-500 hover:border-purple-400 hover:bg-purple-50 transition-colors"
+                                title="Xem lịch sử"
+                              >
+                                <svg
+                                  className="size-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                  />
+                                </svg>
+                              </button>
+                              {/* Delete */}
+                              <button
+                                onClick={() => handleDelete(item)}
+                                className="inline-flex items-center justify-center size-8 rounded-lg border border-red-200 bg-white text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors"
+                                title="Xóa"
+                              >
+                                <svg
+                                  className="size-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>

@@ -300,7 +300,7 @@ export default function CategoryFranchisePage() {
             <tbody className="divide-y divide-white/5">              {loading && <tr><td colSpan={6} className="py-10 text-center text-white/40">Đang tải...</td></tr>}
               {!loading && items.length === 0 && <tr><td colSpan={6} className="py-10 text-center text-white/40">Không có dữ liệu</td></tr>}
               {!loading && items.map((it) => (
-                <tr key={it.id} className={`transition-colors ${it.is_deleted ? "bg-red-500/5" : "hover:bg-white/5"}`}>
+                <tr key={it.id} className={`transition-colors ${it.is_deleted ? "bg-red-500/15 hover:bg-red-500/20" : "hover:bg-white/5"}`}>
                   <td className="px-4 py-3 text-white/90 font-medium">{it.category_name ?? "—"}</td>
                   <td className="px-4 py-3 text-white/50 font-mono text-xs">{it.category_code ?? "—"}</td>
                   <td className="px-4 py-3 text-white/60 text-xs">{it.franchise_name ?? it.franchise_code ?? it.franchise_id}</td>

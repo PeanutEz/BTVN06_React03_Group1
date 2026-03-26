@@ -424,11 +424,11 @@ export default function LoyaltyManagementPage() {
                     </td>
                     <td className="px-4 py-3">
                       {it.is_deleted ? (
-                        <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">Đã xóa</span>
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">Đã xóa</span>
                       ) : it.is_active ? (
-                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Active</span>
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">Active</span>
                       ) : (
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Inactive</span>
+                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">Inactive</span>
                       )}
                     </td>
                     <td className="px-4 py-3">

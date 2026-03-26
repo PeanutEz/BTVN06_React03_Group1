@@ -6,6 +6,7 @@ import { searchShifts, getSelectShiftsByFranchise } from "../../../services/shif
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import { getUsersByFranchiseId } from "../../../services/user-franchise-role.service";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
+import { useAuthStore } from "../../../store/auth.store";
 
 import type {
     ShiftAssignment,
@@ -26,6 +27,33 @@ const DEFAULT_FORM: CreateShiftAssignmentDto = {
 
 export default function ShiftAssignmentPage() {
     const managerFranchiseId = useManagerFranchiseId();
+    const authUser = useAuthStore((s) => s.user);
+
+    const isStaff = useMemo(() => {
+        if (!authUser) return false;
+        const ctx = authUser.active_context as { role?: string } | null | undefined;
+        if (ctx?.role?.toUpperCase() === "STAFF") return true;
+        return (authUser.roles as any[])?.some((r: any) => r.role?.toUpperCase() === "STAFF") ?? false;
+    }, [authUser]);
+
+    const isAdminOrManager = useMemo(() => {
+        if (!authUser) return false;
+        const ctx = authUser.active_context as { role?: string; scope?: string } | null | undefined;
+        if (ctx) {
+            const role = ctx.role?.toUpperCase() ?? "";
+            const scope = ctx.scope?.toUpperCase() ?? "";
+            if (role === "ADMIN" || scope === "GLOBAL" || role === "MANAGER") return true;
+        }
+        return (authUser.roles as any[])?.some(
+            (r: any) => r.role?.toUpperCase() === "ADMIN" || r.scope?.toUpperCase() === "GLOBAL" || r.role?.toUpperCase() === "MANAGER"
+        ) ?? false;
+    }, [authUser]);
+
+    const staffUserId = useMemo(() => {
+        if (!isStaff) return "";
+        return (authUser?.user?.id ?? (authUser as any)?.id ?? "") as string;
+    }, [isStaff, authUser]);
+
     const [data, setData] = useState<ShiftAssignment[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -42,8 +70,12 @@ export default function ShiftAssignmentPage() {
     // Modal: franchise + shifts theo franchise đó
     const [modalFranchiseId, setModalFranchiseId] = useState("");
     const [modalShifts, setModalShifts] = useState<any[]>([]);
-    const [modalShiftsLoading, setModalShiftsLoading] = useState(false); const [searchName, setSearchName] = useState("");
-    const [searchNameApplied, setSearchNameApplied] = useState("");
+    const [modalShiftsLoading, setModalShiftsLoading] = useState(false);
+    const [filterUser, setFilterUser] = useState("");
+    const [filterUserComboOpen, setFilterUserComboOpen] = useState(false);
+    const [filterUserKeyword, setFilterUserKeyword] = useState("");
+    const filterUserComboRef = useRef<HTMLDivElement>(null);
+    const [filterUsers, setFilterUsers] = useState<any[]>([]);
     const [filterFranchise, setFilterFranchise] = useState(managerFranchiseId ?? "");
     const [filterStatus, setFilterStatus] = useState("");
 
@@ -122,7 +154,7 @@ export default function ShiftAssignmentPage() {
     // =====================
     const load = async (
         page = currentPage,
-        name = searchNameApplied,
+        userId = filterUser,
         franchise = filterFranchise,
         status = filterStatus,
         shiftsData?: any[],
@@ -142,15 +174,14 @@ export default function ShiftAssignmentPage() {
                 ? Object.fromEntries(shiftsData.map((s: any) => [s.id, s]))
                 : shiftMap;
 
-            // Filter client-side cho name + franchise (API không hỗ trợ trực tiếp)
+            // Filter client-side cho userId + franchise (API không hỗ trợ trực tiếp)
             const rawData: any[] = res?.data || [];
             const filtered = rawData.filter((item) => {
-                const matchName = !name.trim()
-                    || item.user_name?.toLowerCase().includes(name.trim().toLowerCase());
+                const matchUser = !userId || item.user_id === userId;
                 const shift = currentShiftMap[item.shift_id];
                 const matchFranchise = !franchise
                     || shift?.franchise_id === franchise;
-                return matchName && matchFranchise;
+                return matchUser && matchFranchise;
             });            setData(filtered);
             setTotalItems(filtered.length);
             setTotalPages(Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE)));
@@ -175,7 +206,27 @@ export default function ShiftAssignmentPage() {
     };
 
     // =====================
-    // LOAD Users
+    // LOAD Users (for filter combobox)
+    // =====================
+    const loadFilterUsers = async (franchiseId: string): Promise<any[]> => {
+        if (!franchiseId) {
+            setFilterUsers([]);
+            return [];
+        }
+        try {
+            const res = await getUsersByFranchiseId(franchiseId);
+            const list = res || [];
+            setFilterUsers(list);
+            return list;
+        } catch (err) {
+            console.log("load filter users error", err);
+            setFilterUsers([]);
+            return [];
+        }
+    };
+
+    // =====================
+    // LOAD Users (for modal)
     // =====================
     const loadUsers = async (franchiseId: string) => {
         try {
@@ -213,15 +264,26 @@ export default function ShiftAssignmentPage() {
             } catch (err) {
                 console.log("load shifts error", err);
             }
-            load(1, searchNameApplied, initFranchise, filterStatus, shiftsData);
             loadFranchises();
+            if (initFranchise) {
+                await loadFilterUsers(initFranchise);
+                const initUserId = (isStaff && staffUserId) ? staffUserId : "";
+                if (isStaff && staffUserId) setFilterUser(staffUserId);
+                load(1, initUserId, initFranchise, filterStatus, shiftsData);
+            } else {
+                load(1, "", initFranchise, filterStatus, shiftsData);
+            }
         };
         init();
     }, []);    // Sync khi managerFranchiseId thay đổi (store hydrate muộn)
     useEffect(() => {
         if (!managerFranchiseId) return;
         setFilterFranchise(managerFranchiseId);
-        load(1, searchNameApplied, managerFranchiseId, filterStatus);
+        loadFilterUsers(managerFranchiseId).then(() => {
+            const initUserId = (isStaff && staffUserId) ? staffUserId : "";
+            if (isStaff && staffUserId) setFilterUser(staffUserId);
+            load(1, initUserId, managerFranchiseId, filterStatus);
+        });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [managerFranchiseId]);
 
@@ -239,13 +301,24 @@ export default function ShiftAssignmentPage() {
 
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchNameApplied, filterFranchise, filterStatus]);
+    }, [filterUser, filterFranchise, filterStatus]);
 
     // click-outside franchise combobox
     useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (franchiseComboRef.current && !franchiseComboRef.current.contains(e.target as Node)) {
                 setFranchiseComboOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
+    // click-outside user combobox
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (filterUserComboRef.current && !filterUserComboRef.current.contains(e.target as Node)) {
+                setFilterUserComboOpen(false);
             }
         };
         document.addEventListener("mousedown", handler);
@@ -272,6 +345,15 @@ export default function ShiftAssignmentPage() {
         );
     }, [franchises, franchiseKeyword]);
 
+    const filteredUsersForCombo = useMemo(() => {
+        if (!filterUserKeyword.trim()) return filterUsers;
+        const k = filterUserKeyword.trim().toLowerCase();
+        return filterUsers.filter(u =>
+            (u.name || u.label || "").toLowerCase().includes(k) ||
+            (u.email || "").toLowerCase().includes(k)
+        );
+    }, [filterUsers, filterUserKeyword]);
+
     const getShiftName = (shiftId: string) => {
         return shiftMap[shiftId]?.name || shiftId;
     };
@@ -295,28 +377,9 @@ export default function ShiftAssignmentPage() {
     }, [users]);
     const getUserEmail = (userId: string) => {
         return userMap[userId]?.email || "-";
-    }; const handleSearch = () => {
-        setSearchNameApplied(searchName);
-        setCurrentPage(1);
-        load(1, searchName, filterFranchise, filterStatus);
     };
 
     const filteredData = data; // filter đã xử lý trong load()
-
-    const handleReset = () => {
-        setSearchName("");
-        setSearchNameApplied("");
-
-        const defaultFranchise = managerFranchiseId ?? "";
-        setFilterFranchise(defaultFranchise);
-
-        setFilterStatus("");
-        setFranchiseKeyword("");
-
-        setCurrentPage(1);
-
-        load(1, "", defaultFranchise, "");
-    };
 
     const handleSelectShift = (shiftId: string) => {
         setForm(prev => ({
@@ -431,37 +494,21 @@ export default function ShiftAssignmentPage() {
                     </p>
                 </div>
 
-                <Button onClick={handleOpenModal}>
-                    + Gán Ca Làm Việc
-                </Button>
-            </div>            {/* SEARCH BAR */}
+                {isAdminOrManager && (
+                    <Button onClick={handleOpenModal}>
+                        + Gán Ca Làm Việc
+                    </Button>
+                )}
+            </div>            {/* FILTER BAR */}
             <div className="relative z-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap gap-3">
-
-                    {/* 🔍 Search name */}
-                    <div className="relative flex-1 min-w-48">
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Tên nhân viên
-                        </label>
-                        <div className="relative">
-                            <svg className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>                            <input
-                                type="text"
-                                placeholder="Tìm theo tên..."
-                                value={searchName}
-                                onChange={(e) => setSearchName(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
-                                className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                            />
-                        </div>
-                    </div>
 
                     {/* 🏢 Filter franchise — custom combobox */}
                     <div className="min-w-[200px]" ref={franchiseComboRef}>
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Franchise
-                        </label>                        <div className="relative">
+                        </label>
+                        <div className="relative">
                             {managerFranchiseId ? (
                                 <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed">
                                     <span className="truncate font-medium">
@@ -496,18 +543,22 @@ export default function ShiftAssignmentPage() {
                                             className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
                                         />
                                     </div>
-                                    <div className="max-h-56 overflow-y-auto py-1">                                        <button
-                                        type="button"
-                                        onMouseDown={() => {
-                                            setFilterFranchise("");
-                                            setFranchiseKeyword("");
-                                            setFranchiseComboOpen(false);
-                                            load(1, searchNameApplied, "", filterStatus);
-                                        }}
-                                        className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${!filterFranchise ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"}`}
-                                    >
-                                        -- Tất cả --
-                                    </button>
+                                    <div className="max-h-56 overflow-y-auto py-1">
+                                        <button
+                                            type="button"
+                                            onMouseDown={() => {
+                                                setFilterFranchise("");
+                                                setFranchiseKeyword("");
+                                                setFranchiseComboOpen(false);
+                                                setFilterUser("");
+                                                setFilterUserKeyword("");
+                                                setFilterUsers([]);
+                                                load(1, "", "", filterStatus);
+                                            }}
+                                            className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${!filterFranchise ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"}`}
+                                        >
+                                            -- Tất cả --
+                                        </button>
                                         {filteredFranchisesForCombo.map((f) => (
                                             <button
                                                 key={f.value}
@@ -516,7 +567,10 @@ export default function ShiftAssignmentPage() {
                                                     setFilterFranchise(f.value);
                                                     setFranchiseKeyword("");
                                                     setFranchiseComboOpen(false);
-                                                    load(1, searchNameApplied, f.value, filterStatus);
+                                                    setFilterUser("");
+                                                    setFilterUserKeyword("");
+                                                    loadFilterUsers(f.value);
+                                                    load(1, "", f.value, filterStatus);
                                                 }}
                                                 className={`flex w-full items-center px-3 py-2 text-left text-xs ${filterFranchise === f.value ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"}`}
                                             >
@@ -532,16 +586,108 @@ export default function ShiftAssignmentPage() {
                         </div>
                     </div>
 
+                    {/* 👤 Filter nhân viên — custom combobox */}
+                    <div className="min-w-[200px]" ref={filterUserComboRef}>
+                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Nhân viên
+                        </label>
+                        <div className="relative">
+                            {isStaff ? (
+                                <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm text-white cursor-not-allowed">
+                                    <span className="truncate font-medium">
+                                        {filterUsers.find(u => u.value === staffUserId)?.name
+                                            || filterUsers.find(u => u.value === staffUserId)?.label
+                                            || (authUser?.user?.name as string)
+                                            || (authUser as any)?.name
+                                            || staffUserId}
+                                    </span>
+                                    <svg className="ml-2 size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                </div>
+                            ) : !filterFranchise ? (
+                                <div className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800/60 px-3 py-2 text-sm text-white/40 cursor-not-allowed">
+                                    <span className="truncate">Chọn franchise trước</span>
+                                    <svg className="ml-2 size-4 flex-shrink-0 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setFilterUserComboOpen((o) => !o)}
+                                    className="flex w-full items-center justify-between rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                                >
+                                    <span className="truncate">
+                                        {filterUser
+                                            ? (filterUsers.find(u => u.value === filterUser)?.name || filterUsers.find(u => u.value === filterUser)?.label || filterUser)
+                                            : "-- Tất cả --"}
+                                    </span>
+                                    <svg className="ml-2 size-4 flex-shrink-0 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                            )}
+                            {filterUserComboOpen && filterFranchise && !isStaff && (
+                                <div className="absolute left-0 right-0 z-50 mt-1 rounded-lg border border-white/[0.15] bg-slate-800 shadow-lg">
+                                    <div className="border-b border-white/[0.12] px-3 py-2">
+                                        <input
+                                            autoFocus
+                                            value={filterUserKeyword}
+                                            onChange={(e) => setFilterUserKeyword(e.target.value)}
+                                            placeholder="Tìm theo tên hoặc email..."
+                                            className="w-full rounded-md border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                                        />
+                                    </div>
+                                    <div className="max-h-56 overflow-y-auto py-1">
+                                        <button
+                                            type="button"
+                                            onMouseDown={() => {
+                                                setFilterUser("");
+                                                setFilterUserKeyword("");
+                                                setFilterUserComboOpen(false);
+                                                load(1, "", filterFranchise, filterStatus);
+                                            }}
+                                            className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${!filterUser ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"}`}
+                                        >
+                                            -- Tất cả --
+                                        </button>
+                                        {filteredUsersForCombo.map((u) => (
+                                            <button
+                                                key={u.value}
+                                                type="button"
+                                                onMouseDown={() => {
+                                                    setFilterUser(u.value);
+                                                    setFilterUserKeyword("");
+                                                    setFilterUserComboOpen(false);
+                                                    load(1, u.value, filterFranchise, filterStatus);
+                                                }}
+                                                className={`flex w-full flex-col items-start px-3 py-2 text-left text-xs ${filterUser === u.value ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"}`}
+                                            >
+                                                <span className="truncate font-medium">{u.name || u.label}</span>
+                                                {u.email && <span className="truncate text-white/40">{u.email}</span>}
+                                            </button>
+                                        ))}
+                                        {filteredUsersForCombo.length === 0 && (
+                                            <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy nhân viên</div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* 📊 Filter status */}
                     <div className="min-w-[140px]">
                         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Trạng thái
-                        </label>                        <select
+                        </label>
+                        <select
                             value={filterStatus}
                             onChange={(e) => {
                                 const val = e.target.value;
                                 setFilterStatus(val);
-                                load(1, searchNameApplied, filterFranchise, val);
+                                load(1, filterUser, filterFranchise, val);
                             }}
                             className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white appearance-none"
                             style={{ colorScheme: "dark" }}
@@ -552,17 +698,6 @@ export default function ShiftAssignmentPage() {
                             <option value="ABSENT">Absent</option>
                             <option value="CANCELED">Canceled</option>
                         </select>
-                    </div>                    {/* 🔎 Tìm kiếm + Đặt lại */}
-                    <div className="flex flex-col justify-end">
-                        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 invisible">&nbsp;</label>
-                        <div className="flex gap-2">
-                            <Button onClick={handleSearch} loading={loading}>
-                                Tìm kiếm
-                            </Button>
-                            <Button onClick={handleReset} variant="outline">
-                                Đặt lại
-                            </Button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -680,7 +815,7 @@ export default function ShiftAssignmentPage() {
                         totalItems={totalItems}
                         itemsPerPage={ITEMS_PER_PAGE} onPageChange={(page) => {
                             setCurrentPage(page);
-                            load(page, searchNameApplied, filterFranchise, filterStatus);
+                            load(page, filterUser, filterFranchise, filterStatus);
                         }}
                     />
                 </div>
