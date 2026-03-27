@@ -7,6 +7,7 @@ import { fetchFranchiseSelect } from "../../../services/store.service";
 import { getUsersByFranchiseId } from "../../../services/user-franchise-role.service";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 import { useAuthStore } from "../../../store/auth.store";
+import { useLoadingStore } from "../../../store/loading.store";
 
 import type {
     ShiftAssignment,
@@ -28,6 +29,7 @@ const DEFAULT_FORM: CreateShiftAssignmentDto = {
 export default function ShiftAssignmentPage() {
     const managerFranchiseId = useManagerFranchiseId();
     const authUser = useAuthStore((s) => s.user);
+    const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
 
     const isStaff = useMemo(() => {
         if (!authUser) return false;
@@ -84,6 +86,11 @@ export default function ShiftAssignmentPage() {
     const [franchiseKeyword, setFranchiseKeyword] = useState("");
     const franchiseComboRef = useRef<HTMLDivElement>(null);
 
+    // franchise combobox (modal)
+    const [modalFranchiseComboOpen, setModalFranchiseComboOpen] = useState(false);
+    const [modalFranchiseKeyword, setModalFranchiseKeyword] = useState("");
+    const modalFranchiseComboRef = useRef<HTMLDivElement>(null);
+
     const hasRun = useRef(false);
 
     const formatDate = (dateStr: string) => {
@@ -119,6 +126,8 @@ export default function ShiftAssignmentPage() {
         setWorkDates([]);
         setMode("single");
         setUsers([]);
+        setModalFranchiseComboOpen(false);
+        setModalFranchiseKeyword("");
         // Nếu là manager thì tự động set franchise và load shifts
         const initFranchise = managerFranchiseId ?? "";
         setModalFranchiseId(initFranchise);
@@ -325,6 +334,17 @@ export default function ShiftAssignmentPage() {
         return () => document.removeEventListener("mousedown", handler);
     }, []);
 
+    // click-outside modal franchise combobox
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (modalFranchiseComboRef.current && !modalFranchiseComboRef.current.contains(e.target as Node)) {
+                setModalFranchiseComboOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
+
     // =====================    // =====================
     // MAP DATA (TỐI ƯU)
     // =====================
@@ -344,6 +364,15 @@ export default function ShiftAssignmentPage() {
             (f.code || "").toLowerCase().includes(k)
         );
     }, [franchises, franchiseKeyword]);
+
+    const filteredFranchisesForModalCombo = useMemo(() => {
+        if (!modalFranchiseKeyword.trim()) return franchises;
+        const k = modalFranchiseKeyword.trim().toLowerCase();
+        return franchises.filter(f =>
+            (f.name || "").toLowerCase().includes(k) ||
+            (f.code || "").toLowerCase().includes(k)
+        );
+    }, [franchises, modalFranchiseKeyword]);
 
     const filteredUsersForCombo = useMemo(() => {
         if (!filterUserKeyword.trim()) return filterUsers;
@@ -405,41 +434,42 @@ export default function ShiftAssignmentPage() {
             return;
         }
 
+        if (mode === "single" && !form.work_date) {
+            showError("Chọn ngày");
+            return;
+        }
+
+        if (mode === "multiple" && workDates.length === 0) {
+            showError("Chọn ít nhất 1 ngày");
+            return;
+        }
+
+        // Đóng modal và bật loading page ngay lập tức
+        setShowModal(false);
+        showPageLoading("Đang tạo phân ca...");
+
         try {
             if (mode === "single") {
-                if (!form.work_date) {
-                    showError("Chọn ngày");
-                    return;
-                }
-
                 await shiftAssignmentService.create(form);
             } else {
-                if (workDates.length === 0) {
-                    showError("Chọn ít nhất 1 ngày");
-                    return;
-                }
-
                 const items = workDates.map(date => ({
                     user_id: form.user_id,
                     shift_id: form.shift_id,
                     work_date: date,
-                    note: form.note, // nếu backend nhận
+                    note: form.note,
                 }));
-
-                await shiftAssignmentService.bulkCreate({
-                    items,
-                });
+                await shiftAssignmentService.bulkCreate({ items });
             }
 
             showSuccess("Thành công");
-
             setForm({ ...DEFAULT_FORM });
             setWorkDates([]);
-            setShowModal(false);
-            load();
+            await load();
 
         } catch (err: any) {
             showError(err?.response?.data?.message || "Tạo thất bại");
+        } finally {
+            hidePageLoading();
         }
     };
 
@@ -868,24 +898,77 @@ export default function ShiftAssignmentPage() {
                                             </span>
                                         </div>
                                     ) : (
-                                        <select
-                                            value={modalFranchiseId}
-                                            onChange={(e) => {
-                                                const fid = e.target.value;
-                                                setModalFranchiseId(fid);
-                                                setForm(prev => ({ ...prev, shift_id: "", user_id: "" }));
-                                                setUsers([]);
-                                                loadModalShifts(fid);
-                                                if (fid) loadUsers(fid);
-                                            }}
-                                            className="w-full rounded-lg border border-white/[0.12] bg-white/[0.06] px-3 py-2 text-sm text-white/90 outline-none transition focus:border-primary-500/60 focus:bg-white/[0.09] focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
-                                            style={{ colorScheme: "dark" }}
-                                        >
-                                            <option value="">-- Chọn chi nhánh --</option>
-                                            {franchises.map((f) => (
-                                                <option key={f.value} value={f.value}>{f.name} ({f.code})</option>
-                                            ))}
-                                        </select>
+                                        <div className="relative" ref={modalFranchiseComboRef}>
+                                            <button
+                                                type="button"
+                                                onClick={() => setModalFranchiseComboOpen((o) => !o)}
+                                                className="flex w-full items-center justify-between rounded-lg border border-white/[0.12] bg-white/[0.06] px-3 py-2 text-left text-sm text-white/90 outline-none transition focus:border-primary-500/60 focus:ring-2 focus:ring-primary-500/20 hover:bg-white/[0.09]"
+                                            >
+                                                <span className="truncate">
+                                                    {modalFranchiseId
+                                                        ? (franchises.find(f => f.value === modalFranchiseId)?.name
+                                                            ? `${franchises.find(f => f.value === modalFranchiseId)!.name} (${franchises.find(f => f.value === modalFranchiseId)!.code})`
+                                                            : modalFranchiseId)
+                                                        : "-- Chọn chi nhánh --"}
+                                                </span>
+                                                <svg
+                                                    className={`ml-2 size-4 flex-shrink-0 text-white/40 transition-transform duration-200 ${modalFranchiseComboOpen ? "rotate-180" : ""}`}
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                >
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </button>
+                                            {modalFranchiseComboOpen && (
+                                                <div className="absolute left-0 right-0 z-[60] mt-1 rounded-lg border border-white/[0.15] shadow-2xl" style={{ background: "rgba(15,23,42,0.97)", backdropFilter: "blur(20px)" }}>
+                                                    <div className="border-b border-white/[0.12] px-3 py-2">
+                                                        <input
+                                                            autoFocus
+                                                            value={modalFranchiseKeyword}
+                                                            onChange={(e) => setModalFranchiseKeyword(e.target.value)}
+                                                            placeholder="Tìm theo tên hoặc mã..."
+                                                            className="w-full rounded-md border border-primary-500/50 bg-white/[0.08] text-white/90 placeholder-white/40 px-2.5 py-1.5 text-xs outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+                                                        />
+                                                    </div>
+                                                    <div className="max-h-56 overflow-y-auto py-1">
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={() => {
+                                                                setModalFranchiseId("");
+                                                                setModalFranchiseKeyword("");
+                                                                setModalFranchiseComboOpen(false);
+                                                                setForm(prev => ({ ...prev, shift_id: "", user_id: "" }));
+                                                                setUsers([]);
+                                                                setModalShifts([]);
+                                                            }}
+                                                            className={`flex w-full items-center px-3 py-2 text-left text-xs font-semibold ${!modalFranchiseId ? "bg-white/[0.12] text-white" : "text-white/60 hover:bg-white/[0.08]"}`}
+                                                        >
+                                                            -- Chọn chi nhánh --
+                                                        </button>
+                                                        {filteredFranchisesForModalCombo.map((f) => (
+                                                            <button
+                                                                key={f.value}
+                                                                type="button"
+                                                                onMouseDown={() => {
+                                                                    setModalFranchiseId(f.value);
+                                                                    setModalFranchiseKeyword("");
+                                                                    setModalFranchiseComboOpen(false);
+                                                                    setForm(prev => ({ ...prev, shift_id: "", user_id: "" }));
+                                                                    setUsers([]);
+                                                                    loadModalShifts(f.value);
+                                                                    loadUsers(f.value);
+                                                                }}
+                                                                className={`flex w-full items-center px-3 py-2 text-left text-xs ${modalFranchiseId === f.value ? "bg-white/[0.12] text-white" : "text-white/80 hover:bg-white/[0.08]"}`}
+                                                            >
+                                                                <span className="truncate">{f.name} ({f.code})</span>
+                                                            </button>
+                                                        ))}
+                                                        {filteredFranchisesForModalCombo.length === 0 && (
+                                                            <div className="px-3 py-2 text-xs text-white/40">Không tìm thấy franchise</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
