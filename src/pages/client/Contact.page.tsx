@@ -36,18 +36,18 @@ const ContactPage = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-4 px-0 py-2 sm:space-y-6 sm:py-4 lg:py-6">
       <Card className="shadow-sm">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+        <h1 className="mb-4 text-2xl font-bold text-gray-900 sm:mb-6 sm:text-3xl">
           {page.title}
         </h1>
         <div
-          className="prose max-w-none mb-8"
+          className="prose mb-6 max-w-none overflow-hidden break-words sm:mb-8"
           dangerouslySetInnerHTML={{ __html: page.content }}
         />
       </Card>
 
-      <Row gutter={[24, 24]}>
+      <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
           <Card title="Thông tin liên hệ" className="shadow-sm">
             <div className="space-y-4">

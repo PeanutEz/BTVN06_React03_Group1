@@ -478,7 +478,7 @@ export default function CartPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-xl font-bold text-green-700">
           Giỏ hàng <span className="text-gray-400 font-normal text-base">({itemCount} sản phẩm)</span>
         </h2>
@@ -490,7 +490,7 @@ export default function CartPage() {
       {
         sectionsWithItems.map((section) => (
           <div key={section.cartId} className="mb-6">
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <h3 className="text-base font-semibold text-gray-900">🏪 {section.franchiseName}</h3>
               <button
                 onClick={() => handleCancelCart(section.cartId)}
@@ -503,14 +503,14 @@ export default function CartPage() {
             </div>
             <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
               {section.items.map((item) => (
-          <div key={item.key} className="flex gap-4 p-4">
+          <div key={item.key} className="flex flex-col gap-4 p-4 sm:flex-row">
             {item.image && (
-              <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 shrink-0">
+              <div className="h-40 w-full overflow-hidden rounded-xl bg-gray-50 shrink-0 sm:h-16 sm:w-16">
                 <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <p className="font-semibold text-gray-900 text-sm truncate">{item.name}</p>
                   {item.franchiseName && (
@@ -534,31 +534,17 @@ export default function CartPage() {
                     </div>
                   )}
                   {item.toppingsText && (!item.apiOptions || item.apiOptions.length === 0) && (
-                    <div className="mt-1 flex items-start gap-2">
-                      <span className="text-[11px] text-amber-700 font-medium shrink-0">Topping:</span>
-                      <div className="min-w-0 space-y-0.5 pt-px">
-                        {item.toppingsText.split(",").map((part, idx) => {
-                          const text = part.trim();
-                          if (!text) return null;
-                          return (
-                            <div
-                              key={`${item.key}-fallback-${idx}`}
-                              className="text-[10px] font-medium leading-tight text-amber-800"
-                            >
-                              {text}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <p className="mt-1 text-[11px] leading-tight text-amber-800">
+                      <span className="font-medium text-amber-700">Topping:</span>{" "}
+                      <span>{item.toppingsText}</span>
+                    </p>
                   )}
                   {item.apiOptions && item.apiOptions.length > 0 && (
-                    <div className="mt-1 flex items-start gap-2">
-                      <span className="text-[11px] text-amber-700 font-medium shrink-0">Topping:</span>
-                      <div className="min-w-0 space-y-0.5 pt-px">
-                        {item.apiOptions.map((opt) => {
+                    (() => {
+                      const toppingSummary = item.apiOptions
+                        .map((opt) => {
                           const optId = opt.product_franchise_id;
-                          if (!optId) return null;
+                          if (!optId) return "";
                           const qty = opt.quantity ?? 0;
                           const optName =
                             String(
@@ -568,22 +554,29 @@ export default function CartPage() {
                               toppingNameByOptionId.get(String(optId).trim()) ??
                               "",
                             ).trim() || "Topping";
-                          return (
-                            <div
-                              key={optId}
-                              className="text-[10px] font-medium leading-tight text-amber-800"
-                            >
-                              {optName} x{qty}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                          return `${optName} x${qty}`;
+                        })
+                        .filter(Boolean)
+                        .join(", ");
+
+                      if (!toppingSummary) return null;
+
+                      return (
+                        <p className="mt-1 text-[11px] leading-tight text-amber-800">
+                          <span className="font-medium text-amber-700">Topping:</span>{" "}
+                          <span>{toppingSummary}</span>
+                        </p>
+                      );
+                    })()
                   )}
-                  {item.note && <p className="text-xs text-gray-400 mt-0.5 italic">Ghi chú: {item.note}</p>}
+                  {item.note && (
+                    <p className="mt-1 text-xs italic text-slate-600">
+                      <span className="font-medium text-slate-700">Ghi chú:</span> {item.note}
+                    </p>
+                  )}
                   <p className="text-xs text-green-700 font-medium mt-0.5">{fmt(item.unitPrice)}</p>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center justify-end gap-1 shrink-0">
                   <button
                     onClick={() => handleOpenEditDialog(item)}
                     className="h-7 px-2 flex items-center justify-center gap-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all text-xs font-medium"
@@ -607,7 +600,7 @@ export default function CartPage() {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center justify-between mt-2.5">
+              <div className="mt-2.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-0.5 border border-gray-200 rounded-lg overflow-hidden">
                   <button
                     onClick={() => item.quantity > 1 ? handleUpdateQty(item, item.quantity - 1) : handleRemove(item)}
@@ -717,6 +710,5 @@ export default function CartPage() {
     </div>
   );
 }
-
 
 

@@ -177,7 +177,7 @@ export default function StoreLocatorPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-700">
               Hệ thống cửa hàng
             </p>
-            <h1 className="mt-2 text-3xl font-bold text-stone-900">
+            <h1 className="mt-2 text-2xl font-bold text-stone-900 sm:text-3xl">
               Chọn cửa hàng để xem thông tin chi tiết
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-stone-600">
@@ -195,7 +195,7 @@ export default function StoreLocatorPage() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:px-6">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:px-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <section className="overflow-hidden rounded-3xl border border-stone-200 bg-white">
           <div className="border-b border-stone-100 bg-stone-50 px-4 py-3">
             <p className="text-sm font-medium text-stone-700">
@@ -203,7 +203,7 @@ export default function StoreLocatorPage() {
             </p>
           </div>
 
-          <div className="max-h-[70vh] overflow-y-auto">
+          <div className="max-h-[50vh] overflow-y-auto lg:max-h-[70vh]">
             {isLoadingStores && (
               <div className="space-y-3 p-4">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -242,7 +242,7 @@ export default function StoreLocatorPage() {
                     selectedStoreId === store.id ? "bg-amber-50" : "bg-white"
                   }`}
                 >
-                    <p className="text-sm font-bold uppercase tracking-wide text-stone-900">{store.name}</p>
+                    <p className="break-words text-sm font-bold uppercase tracking-wide text-stone-900">{store.name}</p>
                     <p className="mt-1 text-xs text-stone-500">{store.code || "Chưa cập nhật mã cửa hàng"}</p>
                 </button>
               ))}
@@ -318,7 +318,7 @@ export default function StoreLocatorPage() {
                       href={selectedStore.mapLink}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center justify-center rounded-2xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-700"
+                      className="inline-flex w-full items-center justify-center rounded-2xl bg-stone-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-700 sm:w-auto"
                     >
                       Mở bản đồ của cửa hàng
                     </a>
@@ -331,7 +331,7 @@ export default function StoreLocatorPage() {
                         src={selectedStore.mapEmbedUrl}
                         loading="lazy"
                         referrerPolicy="no-referrer-when-downgrade"
-                        className="h-[420px] w-full border-0"
+                        className="h-[320px] w-full border-0 sm:h-[420px]"
                         allowFullScreen
                       />
                     </div>

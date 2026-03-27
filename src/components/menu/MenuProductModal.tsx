@@ -18,6 +18,7 @@ import {
   type Topping,
 } from "@/types/menu.types";
 import { clientService } from "@/services/client.service";
+import LoadingLayout from "@/layouts/Loading.layout";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -40,6 +41,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 interface MenuProductModalProps {
   product: MenuProduct | null;
   onClose: () => void;
+  onAddedToCart?: () => void;
   onSubmitSelection?: (payload: {
     franchiseId: string;
     productFranchiseId: string;
@@ -123,6 +125,7 @@ function resolveCartIdFromAddResponse(raw: unknown): string | null {
 export default function MenuProductModal({
   product,
   onClose,
+  onAddedToCart,
   onSubmitSelection,
   initialSelection,
   initialQuantity,
@@ -211,10 +214,43 @@ export default function MenuProductModal({
   // Fetch full product detail from API (CLIENT-05) to get real sizes
   const [productDetail, setProductDetail] = useState<any>(null);
   const [isFetchingProductDetail, setIsFetchingProductDetail] = useState(false);
+  const [isProductDetailResolved, setIsProductDetailResolved] = useState(false);
+  const [isToppingsResolved, setIsToppingsResolved] = useState(false);
+
+  async function syncActiveCustomerCarts(customerId: string) {
+    if (!customerId) return [];
+
+    const carts = await queryClient.fetchQuery({
+      queryKey: ["carts-by-customer", customerId],
+      queryFn: () => cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" }),
+      staleTime: 0,
+    });
+
+    const entries = carts
+      .map(toCustomerCartEntry)
+      .filter((entry): entry is NonNullable<typeof entry> => !!entry);
+
+    if (entries.length > 0) {
+      setCarts(entries);
+      setCartId(entries[0]?.cartId ?? null);
+    } else {
+      setCarts([]);
+      setCartId(null);
+    }
+
+    return carts;
+  }
+
+  useEffect(() => {
+    setIsProductDetailResolved(false);
+    setIsToppingsResolved(false);
+  }, [product?.id]);
+
   useEffect(() => {
     if (!product) {
       setProductDetail(null);
       setIsFetchingProductDetail(false);
+      setIsProductDetailResolved(false);
       return;
     }
     const apiFranchiseId = (product as any)?._apiFranchiseId;
@@ -230,10 +266,12 @@ export default function MenuProductModal({
     if (!apiFranchiseId || !detailLookupId) {
       setProductDetail(null);
       setIsFetchingProductDetail(false);
+      setIsProductDetailResolved(true);
       return;
     }
 
     let cancelled = false;
+    setIsProductDetailResolved(false);
     setIsFetchingProductDetail(true);
     setProductDetail(null);
     (async () => {
@@ -265,6 +303,7 @@ export default function MenuProductModal({
       } finally {
         if (!cancelled) {
           setIsFetchingProductDetail(false);
+          setIsProductDetailResolved(true);
         }
       }
     })();
@@ -301,18 +340,27 @@ export default function MenuProductModal({
   useEffect(() => {
     if (!product) {
       setApiToppings([]);
+      setIsToppingsResolved(false);
       return;
     }
     const isToppingProductByCategory = normalizeText((product as any)?._apiCategoryName).includes("topping");
     if (isToppingProductByCategory) {
       setApiToppings([]);
       setToppingQtys({});
+      setIsToppingsResolved(true);
       return;
     }
     const franchiseId = (product as any)?._apiFranchiseId;
-    if (!franchiseId) return;
+    if (!franchiseId) {
+      setApiToppings([]);
+      setToppingQtys({});
+      setIsFetchingToppings(false);
+      setIsToppingsResolved(true);
+      return;
+    }
 
     let cancelled = false;
+    setIsToppingsResolved(false);
     setIsFetchingToppings(true);
 
     (async () => {
@@ -367,6 +415,7 @@ export default function MenuProductModal({
       } finally {
         if (!cancelled) {
           setIsFetchingToppings(false);
+          setIsToppingsResolved(true);
         }
       }
     })();
@@ -385,6 +434,18 @@ export default function MenuProductModal({
   }, [product]);
 
   if (!product) return null;
+
+  const isPreparingProductData = !isProductDetailResolved || !isToppingsResolved;
+  if (isPreparingProductData) {
+    const loadingScreen = (
+      <div className="fixed inset-0 z-[1100] bg-slate-950/55 backdrop-blur-md">
+        <LoadingLayout />
+      </div>
+    );
+
+    if (typeof document === "undefined") return null;
+    return createPortal(loadingScreen, document.body);
+  }
 
   // Use detail content if loaded, fallback to list data
   const displayContent = productDetail?.content || product.content;
@@ -457,9 +518,11 @@ export default function MenuProductModal({
     }
 
     setIsAdding(true);
-    // Đóng popup ngay, hiện loading toàn trang trong khi API chạy
-    onClose();
-    showGlobalLoading("Đang thêm vào giỏ hàng...");
+    const shouldUseGlobalLoading = !replaceApiItemId;
+    if (shouldUseGlobalLoading) {
+      onClose();
+      showGlobalLoading("Đang thêm vào giỏ hàng...");
+    }
 
     const isEditingApi = !!replaceApiItemId;
     const initSizeLabel = initialSelection?.size?.trim().toUpperCase();
@@ -578,11 +641,16 @@ export default function MenuProductModal({
 
         if (quantityChanged) {
           ops.push(cartClient.updateCartItemQuantity({ cart_item_id, quantity }));
-        }        await Promise.all(ops);
+        }
+        await Promise.all(ops);
+        const customerId = getCustomerIdFromUser(user);
+        await syncActiveCustomerCarts(customerId);
         if (replaceCartId) {
-          queryClient.invalidateQueries({ queryKey: ["cart-detail", replaceCartId] });
-        } else {
-          queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+          await queryClient.fetchQuery({
+            queryKey: ["cart-detail", replaceCartId],
+            queryFn: () => cartClient.getCartDetail(replaceCartId),
+            staleTime: 0,
+          });
         }
         toast.success(`Đã cập nhật "${product.name}" trong giỏ!`);
         onSaved?.({
@@ -590,7 +658,11 @@ export default function MenuProductModal({
           fingerprint: computeFingerprintFromCurrentSelection(),
         });
         setIsAdding(false);
-        hideGlobalLoading();
+        if (shouldUseGlobalLoading) {
+          hideGlobalLoading();
+        } else {
+          onClose();
+        }
         return;
       } catch (err) {
         console.error("Update cart item in-place failed:", err);
@@ -623,10 +695,13 @@ export default function MenuProductModal({
             queryKey: ["cart-detail", replaceCartId],
             queryFn: () => cartClient.getCartDetail(replaceCartId),
           });
-        }      } catch {
+        }
+      } catch {
         toast.error("Không thể cập nhật giỏ hàng (xóa item cũ thất bại).");
         setIsAdding(false);
-        hideGlobalLoading();
+        if (shouldUseGlobalLoading) {
+          hideGlobalLoading();
+        }
         return;
       }
     }
@@ -644,9 +719,9 @@ export default function MenuProductModal({
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
     const submitSelectionDesc = isToppingProduct
-      ? `Size ${selectedSize?.size}${note.trim() ? ` â€¢ "${note.trim()}"` : ""}`
-      : `Size ${selectedSize?.size} â€¢ ${sugar} Ä‘Æ°á»ng â€¢ ${ice}${submitToppingDesc ? ` â€¢ ${submitToppingDesc}` : ""}${note.trim() ? ` â€¢ "${note.trim()}"` : ""}`;
-    const submitSuccessVerb = replaceApiItemId ? "cáº­p nháº­t" : "thÃªm";
+      ? `Size ${selectedSize?.size}${note.trim() ? ` • "${note.trim()}"` : ""}`
+      : `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${submitToppingDesc ? ` • ${submitToppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`;
+    const submitSuccessVerb = replaceApiItemId ? "cập nhật" : "thêm";
 
     if (onSubmitSelection) {
       try {
@@ -664,18 +739,25 @@ export default function MenuProductModal({
         toast.error(
           err instanceof Error && err.message.trim()
             ? err.message.trim()
-            : "KhÃ´ng thá»ƒ cáº­p nháº­t giá» hÃ ng. Vui lÃ²ng thá»­ láº¡i.",
+            : "Không thể cập nhật giỏ hàng. Vui lòng thử lại.",
         );
         setIsAdding(false);
-        hideGlobalLoading();
+        if (shouldUseGlobalLoading) {
+          hideGlobalLoading();
+        }
         return;
       }
 
-      toast.success(`Da ${submitSuccessVerb} "${product.name}" vao gio!`, {
+      toast.success(`Đã ${submitSuccessVerb} "${product.name}" vào giỏ!`, {
         description: submitSelectionDesc,
       });
       setIsAdding(false);
-      hideGlobalLoading();
+      if (shouldUseGlobalLoading) {
+        hideGlobalLoading();
+      } else {
+        onClose();
+      }
+      if (!replaceApiItemId) onAddedToCart?.();
       return;
     }
 
@@ -694,27 +776,21 @@ export default function MenuProductModal({
       if (resolvedId) {
         setCartId(resolvedId);
       }
-      if (customerId) {
-        try {
-          const carts = await cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" });
-          const entries = carts
-            .map(toCustomerCartEntry)
-            .filter((entry): entry is NonNullable<typeof entry> => !!entry);
-          if (entries.length) setCarts(entries);
-          else if (resolvedId) setCartId(resolvedId);
-        } catch {
-          if (resolvedId) setCartId(resolvedId);
-        }
+
+      try {
+        await syncActiveCustomerCarts(customerId);
+      } catch {
+        if (resolvedId) setCartId(resolvedId);
       }
 
-      if (replaceCartId) {
-        queryClient.invalidateQueries({ queryKey: ["cart-detail", replaceCartId] });
-      } else {
-        queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+      const cartDetailId = replaceCartId ?? resolvedId;
+      if (cartDetailId) {
+        await queryClient.fetchQuery({
+          queryKey: ["cart-detail", cartDetailId],
+          queryFn: () => cartClient.getCartDetail(cartDetailId),
+          staleTime: 0,
+        });
       }
-      queryClient.invalidateQueries({ queryKey: ["carts-by-customer"] });
-      queryClient.refetchQueries({ queryKey: ["carts-by-customer"], type: "active" });
-      queryClient.refetchQueries({ queryKey: ["cart-detail"], type: "active" });
 
       if (replaceApiItemId) {
         onSaved?.({
@@ -726,7 +802,9 @@ export default function MenuProductModal({
       console.error("Add to cart API failed:", err);
       toast.error("Không thể cập nhật giỏ hàng. Vui lòng thử lại.");
       setIsAdding(false);
-      hideGlobalLoading();
+      if (shouldUseGlobalLoading) {
+        hideGlobalLoading();
+      }
       return;
     }
     const toppingDesc = displayToppings
@@ -740,7 +818,12 @@ export default function MenuProductModal({
       description: selectionDesc,
     });
     setIsAdding(false);
-    hideGlobalLoading();
+    if (shouldUseGlobalLoading) {
+      hideGlobalLoading();
+    } else {
+      onClose();
+    }
+    if (!replaceApiItemId) onAddedToCart?.();
   }
 
   const modal = (
@@ -1070,14 +1153,14 @@ export default function MenuProductModal({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  Đang thêm...
+                  {replaceApiItemId ? "Đang cập nhật..." : "Đang thêm..."}
                 </>
               ) : (
                 <>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
-                  Thêm vào giỏ · {fmt(totalPrice)}
+                  {replaceApiItemId ? `Cập nhật món · ${fmt(totalPrice)}` : `Thêm vào giỏ · ${fmt(totalPrice)}`}
                 </>
               )}
             </button>

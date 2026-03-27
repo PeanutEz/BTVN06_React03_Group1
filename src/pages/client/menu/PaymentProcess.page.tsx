@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ROUTER_URL } from "@/routes/router.const";
+import { buildPaymentProcessUrl, ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
 import { paymentClient } from "@/services/payment.client";
+import { useLoadingStore } from "@/store/loading.store";
 import { saveOrderPaymentIntent } from "@/utils/orderPaymentIntent.util";
 import { buildStaticPaymentQr } from "@/utils/payment-qr.util";
 import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
@@ -39,6 +40,13 @@ type ApiPaymentMethod = "COD" | "MOMO" | "CARD";
 type PaymentProcessLocationState = {
   checkoutPaymentMethod?: string;
   checkoutBankName?: string;
+};
+
+type PaymentMethodOption = {
+  method: ApiPaymentMethod;
+  label: string;
+  description: string;
+  icon: string;
 };
 
 function normalizePaymentMethod(method?: string): ApiPaymentMethod | null {
@@ -157,9 +165,13 @@ export default function PaymentProcessPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const showRouteLoading = useLoadingStore((s) => s.show);
+  const hideRouteLoading = useLoadingStore((s) => s.hide);
+  const summaryListRef = useRef<HTMLDivElement | null>(null);
 
   const [providerTxnId, setProviderTxnId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showSummaryScrollHint, setShowSummaryScrollHint] = useState(false);
 
   const { data: order, isLoading: orderLoading } = useQuery({
     queryKey: ["payment-order", orderId],
@@ -179,9 +191,10 @@ export default function PaymentProcessPage() {
 
   useEffect(() => {
     if (!paymentLoading && payment && isPaidStatus(payment.status) && orderId) {
-      navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
+      showRouteLoading("Đang chuyển trang", { persistOnNextRoute: true });
+      navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId), { replace: true });
     }
-  }, [paymentLoading, payment, orderId, navigate]);
+  }, [paymentLoading, payment, orderId, navigate, showRouteLoading]);
 
   const orderItems = useMemo(() => {
     const raw = order as Record<string, unknown> | null;
@@ -189,6 +202,50 @@ export default function PaymentProcessPage() {
     const fallback = Array.isArray(raw?.order_items) ? (raw?.order_items as typeof direct) : [];
     return direct.length > 0 ? direct : fallback;
   }, [order]);
+
+  useEffect(() => {
+    const element = summaryListRef.current;
+    if (!element) return;
+
+    const updateScrollHint = () => {
+      const hasOverflow = element.scrollHeight - element.clientHeight > 12;
+      const hiddenContentBelow = element.scrollHeight - element.clientHeight - element.scrollTop;
+      setShowSummaryScrollHint(hasOverflow && hiddenContentBelow > 12);
+    };
+
+    const rafId = window.requestAnimationFrame(updateScrollHint);
+    const timeoutIds = [150, 400, 900].map((delay) => window.setTimeout(updateScrollHint, delay));
+    const imageElements = Array.from(element.querySelectorAll("img"));
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => updateScrollHint())
+        : null;
+
+    resizeObserver?.observe(element);
+    Array.from(element.children).forEach((child) => resizeObserver?.observe(child));
+
+    imageElements.forEach((image) => {
+      if (!image.complete) {
+        image.addEventListener("load", updateScrollHint);
+        image.addEventListener("error", updateScrollHint);
+      }
+    });
+
+    element.addEventListener("scroll", updateScrollHint, { passive: true });
+    window.addEventListener("resize", updateScrollHint);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      resizeObserver?.disconnect();
+      imageElements.forEach((image) => {
+        image.removeEventListener("load", updateScrollHint);
+        image.removeEventListener("error", updateScrollHint);
+      });
+      element.removeEventListener("scroll", updateScrollHint);
+      window.removeEventListener("resize", updateScrollHint);
+    };
+  }, [orderItems.length, orderLoading, paymentLoading]);
 
   const isLoading = orderLoading || paymentLoading;
   const paymentId = payment?._id ?? payment?.id ?? "";
@@ -256,6 +313,22 @@ export default function PaymentProcessPage() {
   const paymentAlreadyPaid = isPaidStatus(statusRaw);
   const isPendingOrUnpaid = !statusRaw || statusRaw === "PENDING" || statusRaw === "UNPAID";
   const requiresProviderTxn = effectiveMethod === "MOMO" || effectiveMethod === "CARD";
+  const canSwitchPaymentMethod =
+    !!orderId && !submitting && !paymentAlreadyPaid && !paymentRefunded && !paymentFailed;
+  const paymentMethodOptions: PaymentMethodOption[] = [
+    {
+      method: "CARD",
+      label: "VNPAY",
+      description: "Quét QR, thanh toán online",
+      icon: "🏦",
+    },
+    {
+      method: "COD",
+      label: "Tiền mặt",
+      description: "Thanh toán khi nhận đơn",
+      icon: "💵",
+    },
+  ];
 
   const amount = order?.final_amount ?? order?.total_amount ?? 0;
   const providerTxnIdFromApi = String(payment?.provider_txn_id ?? payment?.providerTxnId ?? "").trim();
@@ -304,6 +377,18 @@ export default function PaymentProcessPage() {
   }, [effectiveMethod, amount, order?.code, orderId]);
   const canConfirm = !submitting && !paymentMissing && !paymentAlreadyPaid && !paymentFailed && !paymentRefunded;
 
+  function handleSwitchPaymentMethod(targetMethod: ApiPaymentMethod) {
+    if (!orderId || !canSwitchPaymentMethod || targetMethod === effectiveMethod) return;
+
+    navigate(buildPaymentProcessUrl(orderId, targetMethod), {
+      replace: true,
+      state: {
+        checkoutPaymentMethod: targetMethod,
+        checkoutBankName: targetMethod === "CARD" ? "VNPAY" : "COD",
+      },
+    });
+  }
+
   useEffect(() => {
     if (effectiveMethod !== "CARD") return;
     const current = providerTxnId.trim();
@@ -327,7 +412,9 @@ export default function PaymentProcessPage() {
       setProviderTxnId(autoTxnId ?? "");
     }
 
+    let handedOffToNextPage = false;
     setSubmitting(true);
+    showRouteLoading("Đang chuyển trang", { persistOnNextRoute: true });
     try {
       // ✅ Confirm payment with minimal required fields
       const result = await paymentClient.confirmPayment(paymentId, {
@@ -351,14 +438,23 @@ export default function PaymentProcessPage() {
 
       if (isPaymentSuccess) {
         toast.success(isCodFlow ? "Đã ghi nhận đơn COD" : "Thanh toán thành công");
-        if (orderId) navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
+        if (orderId) {
+          handedOffToNextPage = true;
+          navigate(ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderId));
+        }
       } else {
         toast.error("Thanh toán chưa thành công");
-        if (orderId) navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId));
+        if (orderId) {
+          handedOffToNextPage = true;
+          navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId));
+        }
       }
     } catch (error) {
       toast.error(getErrorText(error, "Không thể xác nhận thanh toán"));
     } finally {
+      if (!handedOffToNextPage) {
+        hideRouteLoading();
+      }
       setSubmitting(false);
     }
   }
@@ -366,20 +462,32 @@ export default function PaymentProcessPage() {
   async function handleRefundPayment() {
     if (!paymentId || submitting) return;
 
+    let handedOffToNextPage = false;
     setSubmitting(true);
+    showRouteLoading("Đang chuyển trang", { persistOnNextRoute: true });
     try {
       await paymentClient.refundPayment(paymentId, { refund_reason: "Khách hàng yêu cầu hủy" });
       queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
       toast.success("Đã hủy thanh toán");
-      if (orderId) navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId));
+      if (orderId) {
+        handedOffToNextPage = true;
+        navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId));
+      }
     } catch (error) {
       toast.error(getErrorText(error, "Không thể hủy thanh toán"));
     } finally {
+      if (!handedOffToNextPage) {
+        hideRouteLoading();
+      }
       setSubmitting(false);
     }
   }
 
   void handleRefundPayment;
+
+  if (!paymentLoading && payment && paymentAlreadyPaid && orderId) {
+    return null;
+  }
 
   if (isLoading) {
     return (
@@ -476,6 +584,53 @@ export default function PaymentProcessPage() {
               )}
             </div>
 
+            {canSwitchPaymentMethod && (
+              <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50/80 p-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Đổi phương thức thanh toán</p>
+                    <p className="mt-1 text-xs text-gray-500">Bạn có thể đổi trước khi xác nhận thanh toán.</p>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-amber-700 shadow-sm">
+                    {methodText}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {paymentMethodOptions.map((option) => {
+                    const isActive = option.method === effectiveMethod;
+                    return (
+                      <button
+                        key={option.method}
+                        type="button"
+                        onClick={() => handleSwitchPaymentMethod(option.method)}
+                        disabled={isActive}
+                        className={[
+                          "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-left transition-all disabled:cursor-default",
+                          isActive
+                            ? "border-amber-300 bg-amber-50 text-amber-900 shadow-sm"
+                            : "border-gray-200 bg-white text-gray-700 hover:border-amber-200 hover:bg-amber-50/60",
+                        ].join(" ")}
+                      >
+                        <span
+                          className={[
+                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg",
+                            isActive ? "bg-amber-100" : "bg-gray-100",
+                          ].join(" ")}
+                        >
+                          {option.icon}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold">{option.label}</span>
+                          <span className="mt-0.5 block text-[11px] text-gray-500">{option.description}</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {effectiveMethod === "CARD" && (
               <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -544,7 +699,8 @@ export default function PaymentProcessPage() {
                 <span>Tóm tắt đơn hàng</span>
               </h2>
 
-            <div className="mt-4 space-y-2 max-h-[320px] overflow-auto pr-1">
+            <div className="relative mt-4">
+            <div ref={summaryListRef} className="scrollbar-none space-y-2 max-h-[320px] overflow-auto pr-1 pb-8">
               {orderItems.length === 0 && <p className="text-sm text-gray-600">Không có sản phẩm.</p>}
               {orderItems.map((item, idx) => {
                 const name = item.product_name_snapshot ?? item.product_name ?? "Sản phẩm";
@@ -554,6 +710,11 @@ export default function PaymentProcessPage() {
                 const itemMeta = getOrderItemDisplayMeta(item as Record<string, unknown>);
                 const fallbackMetaLine =
                   !itemMeta.size && itemMeta.inlineMeta ? itemMeta.inlineMeta : "";
+                const paymentNoteLine =
+                  itemMeta.noteText ||
+                  [itemMeta.ice ? `Lượng đá: ${itemMeta.ice}` : "", itemMeta.sugar ? `Lượng đường: ${itemMeta.sugar}` : ""]
+                    .filter(Boolean)
+                    .join(" | ");
                 return (
                   <div
                     key={item._id ?? item.id ?? `item-${idx}`}
@@ -594,9 +755,14 @@ export default function PaymentProcessPage() {
                             {`Topping: ${itemMeta.toppingsText}`}
                           </p>
                         )}
-                        {itemMeta.noteText && (
-                          <p className="text-[11px] text-gray-500 italic mt-0.5">
+                        {paymentNoteLine && (
+                          <p className="text-[0px] text-gray-500 italic mt-0.5">
                             Ghi chú: {itemMeta.noteText}
+                          </p>
+                        )}
+                        {paymentNoteLine && (
+                          <p className="text-[11px] text-gray-500 italic mt-0.5">
+                            Ghi chú: {paymentNoteLine}
                           </p>
                         )}
                         <span className="inline-flex mt-1 min-w-[22px] h-[18px] items-center justify-center rounded bg-gray-100 border border-gray-200 text-[10px] font-semibold text-gray-700">
@@ -607,6 +773,17 @@ export default function PaymentProcessPage() {
                   </div>
                 );
               })}
+            </div>
+            <div
+              className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-2xl bg-gradient-to-t from-amber-50 via-amber-50/95 to-transparent pb-1.5 pt-6 transition-all duration-200 ${
+                showSummaryScrollHint ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+              }`}
+            >
+                <div className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white/95 px-3 py-1 text-[11px] font-medium text-amber-700 shadow-sm">
+                  <span className="text-sm leading-none">↓</span>
+                  <span>Vuốt để xem thêm món</span>
+                </div>
+              </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-gray-200 space-y-1 text-sm">
