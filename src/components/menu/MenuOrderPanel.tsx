@@ -436,6 +436,9 @@ export default function MenuOrderPanel({
       });
       return;
     }
+    showGlobalLoading("Đang chuyển sang thanh toán...", {
+      persistOnNextRoute: true,
+    });
     navigate(ROUTER_URL.MENU_CHECKOUT);
   }
 

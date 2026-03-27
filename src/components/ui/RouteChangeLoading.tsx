@@ -11,9 +11,6 @@ const SKIP_PATHS = [
   "/login",
   "/register",
   "/reset-password",
-  // Checkout already has per-page loading states for cart/profile queries.
-  // Skipping the global route overlay avoids the page looking stuck on a full-screen loader.
-  "/menu/checkout",
 ];
 
 type RouteChangeLoadingProps = {
