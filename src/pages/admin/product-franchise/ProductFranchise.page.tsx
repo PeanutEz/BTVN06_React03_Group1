@@ -12,6 +12,7 @@ import type {
 } from "../../../models/product.model";
 import { adminProductFranchiseService } from "../../../services/product-franchise.service";
 import { showError, showSuccess } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
@@ -25,6 +26,7 @@ const DEFAULT_CREATE: CreateProductFranchiseDto = {
 
 export default function ProductFranchisePage() {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const managerFranchiseId = useManagerFranchiseId();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ProductFranchiseApiResponse[]>([]);
@@ -370,6 +372,8 @@ export default function ProductFranchisePage() {
     if (!createForm.price_base || Number.isNaN(Number(createForm.price_base))) localErrors.price_base = "Vui lòng nhập price base hợp lệ";
     if (Object.keys(localErrors).length > 0) { setCreateErrors(localErrors); return; }
     setCreateErrors({});
+    setCreateOpen(false);
+    showPageLoading("Đang thêm sản phẩm vào franchise...");
     setCreating(true);
     try {
       await adminProductFranchiseService.createProductFranchise({
@@ -378,7 +382,6 @@ export default function ProductFranchisePage() {
         size: createForm.size,
         price_base: Number(createForm.price_base),
       });      showSuccess("Thêm sản phẩm vào franchise thành công");
-      setCreateOpen(false);
       await load(1);
     } catch (err: unknown) {
       // Lấy responseData từ custom error (interceptor đã attach) hoặc axios error gốc
@@ -389,14 +392,17 @@ export default function ProductFranchisePage() {
         apiErrors.forEach(e => { if (e.field && e.message) fieldErrors[e.field] = e.message; });
         if (Object.keys(fieldErrors).length > 0) {
           setCreateErrors(fieldErrors);
-          setCreating(false);
+          setCreateOpen(true);
           return;
         }
       }
-      // Fallback khi lỗi không có field cụ thể → dùng toast
-      showError((err instanceof Error && err.message) ? err.message : "Tạo thất bại");
+      // Fallback khi lỗi không có field cụ thể → mở lại popup với lỗi chung
+      const fallbackMsg = (err instanceof Error && err.message) ? err.message : "Tạo thất bại";
+      setCreateErrors({ general: fallbackMsg });
+      setCreateOpen(true);
     } finally {
       setCreating(false);
+      hidePageLoading();
     }
   };
 
@@ -426,16 +432,18 @@ export default function ProductFranchisePage() {
     if (!editSize.trim()) { showError("Size không được trống"); return; }
     const price = Number(editPriceBase);
     if (!editPriceBase.trim() || Number.isNaN(price)) { showError("price_base không hợp lệ"); return; }
+    setEditing(null);
+    showPageLoading("Đang cập nhật sản phẩm...");
     setUpdating(true);
     try {
       await adminProductFranchiseService.updateProductFranchise(editing.id, { size: editSize.trim(), price_base: price });
       showSuccess("Cập nhật thành công");
-      setEditing(null);
       await load(currentPage);
     } catch (err: unknown) {
       showError(getApiErrorMessage(err, "Cập nhật thất bại"));
     } finally {
       setUpdating(false);
+      hidePageLoading();
     }
   };
 
@@ -852,15 +860,16 @@ export default function ProductFranchisePage() {
       {/* Create Modal */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-xl rounded-2xl p-6" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-xl rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <div className="mb-5 flex items-center justify-between">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <div className="mb-5 mt-2 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white/95">Thêm sản phẩm vào Franchise</h2>
               </div>
@@ -979,6 +988,9 @@ export default function ProductFranchisePage() {
               </div>
 
               <div className="flex gap-3 pt-1">
+                {createErrors.general && (
+                  <p className="w-full rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">{createErrors.general}</p>
+                )}
                 <Button type="submit" loading={creating} className="flex-1">Xác nhận</Button>
                 <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={creating} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Hủy</Button>
               </div>
@@ -990,15 +1002,16 @@ export default function ProductFranchisePage() {
       {/* Detail Modal */}
       {detailId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-lg rounded-2xl p-6" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <div className="mb-4 mt-2 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white/95">Chi tiết</h2>
               </div>
@@ -1048,15 +1061,16 @@ export default function ProductFranchisePage() {
       {/* Edit Modal */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-lg rounded-2xl p-6" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <div className="mb-5 flex items-center justify-between">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <div className="mb-5 mt-2 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white/95">Cập nhật</h2>
               </div>

@@ -5,9 +5,11 @@ import { toast } from "sonner";
 import { ProductModal } from "@/components/product";
 import { GlassSelect } from "@/components/ui";
 import { useConfirm } from "@/components/ui";
+import { useLoadingStore } from "@/store/loading.store";
 
 export default function ProductListPage() {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -85,14 +87,20 @@ export default function ProductListPage() {
     setEditingProduct(null);
   };
 
-  const handleSaveProduct = () => {
+  const handleSaveProduct = async () => {
     handleCloseModal();
-    fetchProducts();
-    toast.success(
-      editingProduct
-        ? "Product updated successfully"
-        : "Product created successfully",
-    );
+    showPageLoading(editingProduct ? "Đang cập nhật sản phẩm..." : "Đang tạo sản phẩm...");
+    try {
+      lastParamsRef.current = null;
+      await fetchProducts();
+      toast.success(
+        editingProduct
+          ? "Product updated successfully"
+          : "Product created successfully",
+      );
+    } finally {
+      hidePageLoading();
+    }
   };
 
   // Handle delete
@@ -112,6 +120,8 @@ export default function ProductListPage() {
     if (!detailForm.description.trim()) { toast.error("Mô tả không được để trống"); return; }
     if (detailForm.min_price < 1000) { toast.error("Giá thấp nhất phải ít nhất 1.000 đ"); return; }
     if (detailForm.max_price <= detailForm.min_price) { toast.error("Giá cao nhất phải lớn hơn giá thấp nhất"); return; }
+    setViewingProduct(null);
+    showPageLoading("Đang cập nhật sản phẩm...");
     setDetailSaving(true);
     try {
       await adminProductService.updateProduct(viewingProduct.id.toString(), {
@@ -125,17 +135,14 @@ export default function ProductListPage() {
         max_price: detailForm.max_price,
       });
       toast.success("Cập nhật sản phẩm thành công");
-      setViewingProduct((prev) =>
-        prev ? { ...prev, ...detailForm } : null
-      );
-      setProducts((prev) =>
-        prev.map((p) => (p.id === viewingProduct.id ? { ...p, ...detailForm } : p))
-      );
+      lastParamsRef.current = null;
+      fetchProducts();
     } catch (err) {
       toast.error("Cập nhật thất bại");
       console.error(err);
     } finally {
       setDetailSaving(false);
+      hidePageLoading();
     }
   };
 
@@ -524,18 +531,20 @@ export default function ProductListPage() {
       {viewingProduct && detailForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Glassmorphism backdrop */}
-          <div className="absolute inset-0 bg-black/25" />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
           <div
-            className="relative w-full max-w-xl rounded-2xl max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-xl rounded-2xl overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <div className="max-h-[calc(90vh-2px)] overflow-y-auto">
             {/* Sticky Header */}
             <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-white/[0.08] bg-white/[0.06] px-6 py-4">
               <div>
@@ -655,6 +664,7 @@ export default function ProductListPage() {
                   Đóng
                 </button>
               </div>
+            </div>
             </div>
           </div>
         </div>

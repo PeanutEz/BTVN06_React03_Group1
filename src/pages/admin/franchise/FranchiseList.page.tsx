@@ -5,6 +5,7 @@ import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise, u
 
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 
 const CLOUDINARY_CLOUD_NAME = "dn2xh5rxe";
 const CLOUDINARY_UPLOAD_PRESET = "btvn06_upload";
@@ -41,6 +42,7 @@ const formatAddress = (address?: string | null) => {
 
 const FranchiseListPage = () => {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const [franchises, setFranchises] = useState<ApiFranchise[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -191,6 +193,10 @@ const FranchiseListPage = () => {
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!viewingFranchise) return;
+    setViewingFranchise(null);
+    setIsEditingDetail(false);
+    setEditLogoPreview("");
+    showPageLoading("Đang cập nhật franchise...");
     setSaving(true);
     try {
       let finalLogoUrl = editForm.logo_url ?? "";
@@ -200,14 +206,12 @@ const FranchiseListPage = () => {
       }
       await updateFranchise(viewingFranchise.id, { ...editForm, logo_url: finalLogoUrl });
       showSuccess("Cập nhật franchise thành công");
-      setViewingFranchise(null);
-      setIsEditingDetail(false);
-      setEditLogoPreview("");
-      load(currentPage);
+      await load(currentPage);
     } catch (error) {
       showError(error instanceof Error ? error.message : "Cập nhật franchise thất bại");
     } finally {
       setSaving(false);
+      hidePageLoading();
     }
   };
   const handleToggleStatus = async (f: ApiFranchise) => {
@@ -244,6 +248,9 @@ const FranchiseListPage = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setShowCreateModal(false);
+    setLogoPreview("");
+    showPageLoading("Đang tạo franchise...");
     setCreating(true);
     setCreateFieldErrors({});
     try {
@@ -254,14 +261,13 @@ const FranchiseListPage = () => {
       }
       await createFranchise({ ...createForm, logo_url: finalLogoUrl });
       showSuccess("Tạo franchise thành công");
-      setShowCreateModal(false);
-      setLogoPreview("");
-      load(1);
+      await load(1);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Tạo franchise thất bại";
       showError(msg);
     } finally {
       setCreating(false);
+      hidePageLoading();
     }
   };
 
@@ -476,17 +482,18 @@ const FranchiseListPage = () => {
       {/* ─── View / Edit Detail Modal ─────────────────────────────────────── */}
       {viewingFranchise && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }} />
           <div
-            className="relative w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+            className="relative w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
+            <div className="h-0.5 w-full shrink-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4 shrink-0">
               <div className="flex items-center gap-3">
@@ -629,22 +636,23 @@ const FranchiseListPage = () => {
       {/* ─── Create Franchise Modal ────────────────────────────────────────── */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div
-            className="relative w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+            className="relative w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
+            <div className="h-0.5 w-full shrink-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4 shrink-0">
               <div>
                 <h2 className="text-lg font-bold text-white/95">Tạo Franchise</h2>
-                <p className="text-xs text-white/50">Tạo chi nhánh mới</p>
+                <p className="text-xs text-white/40">Tạo chi nhánh mới</p>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}

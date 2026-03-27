@@ -25,6 +25,7 @@ import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
 import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -39,6 +40,7 @@ const DEFAULT_FORM: CreateUserPayload = {
 
 const UserPage = () => {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<ApiUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,6 +53,8 @@ const UserPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [editingUser, setEditingUser] = useState<ApiUser | null>(null);
+  const [updateError, setUpdateError] = useState("");
+  const [setRoleError, setSetRoleError] = useState("");
   const [showDeleted, setShowDeleted] = useState(false);
   const [roles, setRoles] = useState<RoleSelectItem[]>([]);
   const [franchises, setFranchises] = useState<FranchiseSelectItem[]>([]);
@@ -119,6 +123,7 @@ const UserPage = () => {
   }, []);
 
   const handleOpenSetRole = async (u: ApiUser) => {
+    setSetRoleError("");
     setSetRoleUser(u);
     setSetRoleForm({ user_id: u.id, role_id: "", franchise_id: null, note: "" });
     setExistingUserRoles([]);
@@ -164,19 +169,23 @@ const UserPage = () => {
   const handleSetRoleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!setRoleForm.role_id) { showError("Vui lòng chọn role"); return; }
+    const userForRole = setRoleUser;
+    setSetRoleUser(null);
+    showPageLoading("Đang set role cho user...");
     setSetRoleSubmitting(true);
     try {
       await createUserFranchiseRole(setRoleForm);
       showSuccess("Set role cho user thành công");
-      setSetRoleUser(null);
     } catch (err: unknown) {
       const apiMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message
         || (err instanceof Error ? err.message : null)
         || "Set role thất bại";
-      showError(apiMessage);
+      setSetRoleUser(userForRole);
+      setSetRoleError(apiMessage);
     } finally {
       setSetRoleSubmitting(false);
+      hidePageLoading();
     }
   };
   const handleOpenModal = () => {
@@ -188,11 +197,12 @@ const UserPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors({});
+    setShowModal(false);
+    showPageLoading("Đang tạo người dùng...");
     setSubmitting(true);
     try {
       await createUser(formData);
       showSuccess("Tạo người dùng thành công");
-      setShowModal(false);
       await load(searchQuery, currentPage);
     } catch (err) {
       const responseData = (err as any)?.responseData ?? (err as any)?.response?.data;
@@ -200,12 +210,13 @@ const UserPage = () => {
       if (apiErrors.length > 0) {
         const fieldErrors: Record<string, string> = {};
         apiErrors.forEach((e) => { if (e.field && e.message) fieldErrors[e.field] = e.message; });
-        if (Object.keys(fieldErrors).length > 0) { setFormErrors(fieldErrors); return; }
+        if (Object.keys(fieldErrors).length > 0) { setFormErrors(fieldErrors); setShowModal(true); return; }
       }
       const msg = responseData?.message || (err instanceof Error ? err.message : "Tạo người dùng thất bại");
-      setFormErrors({ general: msg });
+      setFormErrors({ general: msg }); setShowModal(true);
     } finally {
       setSubmitting(false);
+      hidePageLoading();
     }
   };
 
@@ -217,10 +228,15 @@ const UserPage = () => {
       // Fallback: dùng data từ danh sách nếu API lỗi
       setEditingUser(u);
     }
+    setUpdateError("");
   };
 
   const handleUpdateUser = async () => {
     if (!editingUser) return;
+    const userToEdit = editingUser;
+    setEditingUser(null);
+    setUpdateError("");
+    showPageLoading("Đang cập nhật người dùng...");
     setSubmitting(true);
     try {
       await updateUserProfile(editingUser.id, {
@@ -229,12 +245,13 @@ const UserPage = () => {
         avatar_url: editingUser.avatar_url,
       });
       showSuccess("Cập nhật thành công");
-      setEditingUser(null);
       await load();
     } catch {
-      showError("Cập nhật thất bại");
+      setEditingUser(userToEdit);
+      setUpdateError("Cập nhật thất bại");
     } finally {
       setSubmitting(false);
+      hidePageLoading();
     }
   };
 
@@ -524,19 +541,20 @@ const UserPage = () => {
       {/* Set Role Modal */}
       {setRoleUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" onClick={() => setSetRoleUser(null)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSetRoleUser(null)} />
           <div
-            className="relative w-full max-w-md rounded-2xl p-6"
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
             {/* Header */}
-            <div className="mb-5 flex items-center justify-between">
+            <div className="mb-5 mt-2 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-white/95">Set Role</h2>
                 <p className="mt-0.5 text-sm text-white/50">Gán role cho user vào franchise / system</p>
@@ -662,6 +680,9 @@ const UserPage = () => {
                 );
               })()}
 
+              {setRoleError && (
+                <p className="mb-3 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{setRoleError}</p>
+              )}
               <div className="flex gap-3 pt-1">
                 <button
                   type="submit"
@@ -691,17 +712,19 @@ const UserPage = () => {
       {/* Create User Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" onClick={() => setShowModal(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div
-            className="relative w-full max-w-md rounded-2xl p-6"
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
-          >            <h2 className="mb-5 text-xl font-bold text-white/95">Tạo người dùng mới</h2>
+          >
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <h2 className="mb-5 mt-2 text-xl font-bold text-white/95">Tạo người dùng mới</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               {formErrors.general && (
                 <p className="!text-[#f87171]" style={{ fontSize: 12, marginBottom: 4 }}>{formErrors.general}</p>
@@ -827,18 +850,19 @@ const UserPage = () => {
       {/* Edit / Detail User Modal */}
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" onClick={() => setEditingUser(null)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditingUser(null)} />
           <div
-            className="relative w-full max-w-md rounded-2xl p-6"
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
-            <h2 className="mb-5 text-xl font-bold text-white/95">Chi tiết người dùng</h2>
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <h2 className="mb-5 mt-2 text-xl font-bold text-white/95">Chi tiết người dùng</h2>
 
             <div className="space-y-4">
               {/* Avatar & basic info */}
@@ -906,6 +930,9 @@ const UserPage = () => {
                 />
               </div>
 
+              {updateError && (
+                <p className="mb-3 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{updateError}</p>
+              )}
               <div className="flex flex-wrap gap-3 pt-2">
                 <Button onClick={handleUpdateUser} loading={submitting} disabled={submitting} className="flex-1">
                   Cập nhật
