@@ -514,7 +514,7 @@ export default function PromotionPage() {
                         <tbody>
                             {!loading &&
                                 items.map((p) => (
-                                    <tr key={p.id} className="border-t">
+                                    <tr key={p.id} className={`border-t transition-colors ${p.is_deleted ? "bg-red-50/60" : ""}`}>
                                         <td className="px-4 py-3">{p.franchise_name}</td>
 
                                         <td className="px-4 py-3">
@@ -543,15 +543,15 @@ export default function PromotionPage() {
 
                                         <td className="px-4 py-3">
                                             {p.is_deleted ? (
-                                                <span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs">
+                                                <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                                                     Deleted
                                                 </span>
                                             ) : p.is_active ? (
-                                                <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
+                                                <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                                                     Active
                                                 </span>
                                             ) : (
-                                                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
+                                                <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
                                                     Inactive
                                                 </span>
                                             )}

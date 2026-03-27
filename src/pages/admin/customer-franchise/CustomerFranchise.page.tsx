@@ -561,11 +561,11 @@ export default function CustomerFranchisePage() {
                     <td className="px-4 py-3 text-slate-500 text-xs">{formatDate(item.last_order_date)}</td>
                     <td className="px-4 py-3">
                       {item.is_deleted ? (
-                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">Deleted</span>
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">Deleted</span>
                       ) : item.is_active ? (
-                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">Active</span>
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">Active</span>
                       ) : (
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Inactive</span>
+                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">Inactive</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -671,15 +671,15 @@ export default function CustomerFranchisePage() {
                 {/* Trạng thái badges */}
                 <div className="flex items-center gap-2 flex-wrap">
                   {detailItem.is_deleted ? (
-                    <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-400 border border-red-500/30">
+                    <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                       🗑 Đã xóa
                     </span>
                   ) : detailItem.is_active ? (
-                    <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/30">
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
                       ✓ Active
                     </span>
                   ) : (
-                    <span className="rounded-full bg-white/[0.08] px-3 py-1 text-xs font-semibold text-white/50 border border-white/[0.10]">
+                    <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
                       Inactive
                     </span>
                   )}
