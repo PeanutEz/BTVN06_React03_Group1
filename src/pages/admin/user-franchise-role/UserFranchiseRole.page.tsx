@@ -22,6 +22,7 @@ import type {
   UserFranchiseRole,
 } from "../../../services/user-franchise-role.service";
 import { showError, showSuccess } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
@@ -52,6 +53,7 @@ const getRoleBadge = (code: string) => {
 
 export default function UserFranchiseRolePage() {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const managerFranchiseId = useManagerFranchiseId();
 
   const [loading, setLoading] = useState(false);
@@ -96,6 +98,7 @@ export default function UserFranchiseRolePage() {
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
+  const [createError, setCreateError] = useState("");
   const [createForm, setCreateForm] = useState<CreateUserFranchiseRolePayload>({
     ...DEFAULT_CREATE_FORM,
   });
@@ -108,6 +111,7 @@ export default function UserFranchiseRolePage() {
 
   // Update modal
   const [editing, setEditing] = useState<UserFranchiseRole | null>(null);
+  const [updateError, setUpdateError] = useState("");
   const [updating, setUpdating] = useState(false);
   const [editRoleId, setEditRoleId] = useState("");
   const [editNote, setEditNote] = useState("");
@@ -379,6 +383,7 @@ export default function UserFranchiseRolePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.franchise_id]);
   const openCreate = () => {
+    setCreateError("");
     setCreateForm({
       ...DEFAULT_CREATE_FORM,
       franchise_id: managerFranchiseId ?? null,
@@ -395,11 +400,12 @@ export default function UserFranchiseRolePage() {
       showError("Vui lòng chọn role");
       return;
     }
+    setShowCreate(false);
+    showPageLoading("Đang tạo role cho user...");
     setCreating(true);
     try {
       await createUserFranchiseRole(createForm);
       showSuccess("Tạo role cho user thành công");
-      setShowCreate(false);
       await load(1);
     } catch (err: unknown) {
       const apiMessage =
@@ -407,9 +413,11 @@ export default function UserFranchiseRolePage() {
           ?.message ||
         (err instanceof Error ? err.message : null) ||
         "Tạo thất bại";
-      showError(apiMessage);
+      setShowCreate(true);
+      setCreateError(apiMessage);
     } finally {
       setCreating(false);
+      hidePageLoading();
     }
   };
 
@@ -429,6 +437,7 @@ export default function UserFranchiseRolePage() {
   };
 
   const openEdit = (it: UserFranchiseRole) => {
+    setUpdateError("");
     setEditing(it);
     setEditRoleId(it.role_id);
     setEditNote(it.note || "");
@@ -441,6 +450,10 @@ export default function UserFranchiseRolePage() {
       showError("Vui lòng chọn role");
       return;
     }
+    const itemToEdit = editing;
+    setEditing(null);
+    setUpdateError("");
+    showPageLoading("Đang cập nhật...");
     setUpdating(true);
     try {
       await updateUserFranchiseRole(editing.id, {
@@ -448,7 +461,6 @@ export default function UserFranchiseRolePage() {
         note: editNote,
       });
       showSuccess("Cập nhật thành công");
-      setEditing(null);
       await load(currentPage);
     } catch (err: unknown) {
       const apiMessage =
@@ -456,9 +468,11 @@ export default function UserFranchiseRolePage() {
           ?.message ||
         (err instanceof Error ? err.message : null) ||
         "Cập nhật thất bại";
-      showError(apiMessage);
+      setEditing(itemToEdit);
+      setUpdateError(apiMessage);
     } finally {
       setUpdating(false);
+      hidePageLoading();
     }
   };
   const handleDelete = async (it: UserFranchiseRole) => {
@@ -801,14 +815,15 @@ export default function UserFranchiseRolePage() {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-lg rounded-2xl shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
             <div className="shrink-0 px-6 pt-6 pb-5 flex items-start justify-between border-b border-white/[0.08]">
               <div>
                 <h2 className="text-lg font-bold text-white/95">Tạo mới phân quyền</h2>
@@ -963,6 +978,9 @@ export default function UserFranchiseRolePage() {
               </div>
 
               <div className="flex gap-3 pt-1">
+                {createError && (
+                  <p className="mb-1 w-full rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{createError}</p>
+                )}
                 <Button type="submit" loading={creating} className="flex-1">
                   Xác nhận
                 </Button>
@@ -984,15 +1002,16 @@ export default function UserFranchiseRolePage() {
       {/* Detail Modal */}
       {detailId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <div className="mb-4 mt-2 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white/95">Chi tiết</h2>
                 <p className="mt-0.5 text-xs text-white/50">
@@ -1082,15 +1101,16 @@ export default function UserFranchiseRolePage() {
       {/* Edit Modal */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <div className="mb-5 flex items-center justify-between">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <div className="mb-5 mt-2 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-white/95">Cập nhật</h2>
                 <p className="mt-0.5 text-xs text-white/50">
@@ -1177,6 +1197,9 @@ export default function UserFranchiseRolePage() {
               </div>
 
               <div className="flex gap-3 pt-1">
+                {updateError && (
+                  <p className="mb-1 w-full rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{updateError}</p>
+                )}
                 <Button onClick={submitUpdate} loading={updating} className="flex-1">
                   Lưu
                 </Button>

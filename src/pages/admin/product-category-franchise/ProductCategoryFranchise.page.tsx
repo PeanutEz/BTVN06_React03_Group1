@@ -18,6 +18,7 @@ import type {
   ProductWithCategoriesResponse,
 } from "../../../models/product.model";
 import { showError, showSuccess } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
@@ -46,6 +47,7 @@ const getApiErrorMessage = (err: unknown, fallback: string) => {
 
 export default function ProductCategoryFranchisePage() {
   const managerFranchiseId = useManagerFranchiseId();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ProductCategoryFranchiseApiResponse[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -223,19 +225,21 @@ export default function ProductCategoryFranchisePage() {
       showError("display_order phải >= 1");
       return;
     }
+    setCreateOpen(false);
+    setCreateForm({ ...DEFAULT_CREATE });
+    showPageLoading("Đang thêm sản phẩm...");
     setCreating(true);
     try {
       await productCategoryFranchiseService.createProductCategoryFranchise(
         createForm,
       );
       showSuccess("Thêm thành công");
-      setCreateOpen(false);
-      setCreateForm({ ...DEFAULT_CREATE });
       await load(1);
     } catch (err) {
       showError(getApiErrorMessage(err, "Tạo thất bại"));
     } finally {
       setCreating(false);
+      hidePageLoading();
     }
   };
 
@@ -598,15 +602,16 @@ export default function ProductCategoryFranchisePage() {
       {/* Create Modal */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <h2 className="mb-4 text-lg font-bold text-white/95">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <h2 className="mb-4 mt-2 text-lg font-bold text-white/95">
               Thêm Product vào Category Franchise
             </h2>            <form onSubmit={submitCreate} className="space-y-4">              <div className="space-y-1.5">                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Franchise <span className="text-red-500">*</span>
@@ -790,15 +795,16 @@ export default function ProductCategoryFranchisePage() {
       {/* Detail Modal */}
       {(detail || detailLoading) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <h2 className="mb-4 text-lg font-bold text-white/95">Chi tiết</h2>
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <h2 className="mb-4 mt-2 text-lg font-bold text-white/95">Chi tiết</h2>
             {detailLoading && (
               <p className="text-sm text-white/50">Đang tải...</p>
             )}
@@ -853,15 +859,16 @@ export default function ProductCategoryFranchisePage() {
       {/* Reorder Modal */}
       {reorderItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <h2 className="mb-1 text-lg font-bold text-white/95">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <h2 className="mb-1 mt-2 text-lg font-bold text-white/95">
               Đổi thứ tự hiển thị
             </h2>
             <p className="mb-4 text-xs text-white/50">

@@ -15,12 +15,14 @@ import type {
     PromotionType
 } from "../../../models/promotion.model";
 import { showError, showSuccess } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
 
 export default function PromotionPage() {
     const managerFranchiseId = useManagerFranchiseId();
+    const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
     const [items, setItems] = useState<Promotion[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -69,6 +71,8 @@ export default function PromotionPage() {
     const [createOpen, setCreateOpen] = useState(false);
     const [viewItem, setViewItem] = useState<Promotion | null>(null);
     const [editItem, setEditItem] = useState<Promotion | null>(null)
+    const [createError, setCreateError] = useState("");
+    const [editError, setEditError] = useState("");
 
     const [editForm, setEditForm] = useState({
         name: "",
@@ -88,6 +92,7 @@ export default function PromotionPage() {
     });
 
     const resetCreateForm = () => {
+        setCreateError("");
         setCreateForm({
             name: "",
             franchise_id: managerFranchiseId ?? "",
@@ -253,14 +258,18 @@ export default function PromotionPage() {
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        setCreateError("");
+        setCreateOpen(false);
+        setProductOptions([]);
+        showPageLoading("Đang tạo promotion...");
         try {
             const payload: CreatePromotionDto = {
                 ...createForm,
                 start_date: new Date(createForm.start_date).toISOString(),
                 end_date: new Date(createForm.end_date).toISOString(),
             };
-            await promotionService.createPromotion(payload);            showSuccess("Tạo promotion thành công");
-
+            await promotionService.createPromotion(payload);
+            showSuccess("Tạo promotion thành công");
             setCreateForm({
                 name: "",
                 franchise_id: managerFranchiseId ?? searchFranchise,
@@ -270,14 +279,12 @@ export default function PromotionPage() {
                 start_date: "",
                 end_date: "",
             });
-
-            setProductOptions([]);
-
-            setCreateOpen(false);
-
-            load(searchFranchise, 1, statusFilter, typeFilter, isDeletedFilter);
+            await load(searchFranchise, 1, statusFilter, typeFilter, isDeletedFilter);
         } catch {
-            showError("Tạo promotion thất bại");
+            setCreateOpen(true);
+            setCreateError("Tạo promotion thất bại");
+        } finally {
+            hidePageLoading();
         }
     };
 
@@ -286,8 +293,11 @@ export default function PromotionPage() {
 
         if (!editItem) return
 
+        const itemToEdit = editItem;
+        setEditError("");
+        setEditItem(null)
+        showPageLoading("Đang cập nhật promotion...")
         try {
-
             const payload = {
                 name: editForm.name,
                 type: editForm.type,
@@ -297,15 +307,13 @@ export default function PromotionPage() {
             }
 
             await promotionService.updatePromotion(editItem.id, payload)
-
             showSuccess("Cập nhật promotion thành công")
-
-            setEditItem(null)
-
-            load(searchFranchise, currentPage, statusFilter, typeFilter, isDeletedFilter)
-
+            await load(searchFranchise, currentPage, statusFilter, typeFilter, isDeletedFilter)
         } catch {
-            showError("Cập nhật promotion thất bại")
+            setEditItem(itemToEdit);
+            setEditError("Cập nhật promotion thất bại");
+        } finally {
+            hidePageLoading()
         }
     }    // helpers: split datetime string
     const getDatePart = (dt: string) => dt ? dt.substring(0, 10) : "";
@@ -581,7 +589,7 @@ export default function PromotionPage() {
                                                 {!p.is_deleted && (
                                                     <button
                                                         onClick={() => {
-                                                            setEditItem(p)
+                                                setEditError("");
 
                                                             setEditForm({
                                                                 name: p.name,
@@ -661,14 +669,16 @@ export default function PromotionPage() {
                 />
             </div>            {/* CREATE MODAL */}            {createOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => { resetCreateForm(); setCreateOpen(false); }} />
-                    <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-visible" style={{
-                        background: "rgba(255,255,255,0.10)",
-                        backdropFilter: "blur(40px) saturate(200%)",
-                        WebkitBackdropFilter: "blur(40px) saturate(200%)",
-                        border: "1px solid rgba(255,255,255,0.22)",
-                        boxShadow: "0 25px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { resetCreateForm(); setCreateOpen(false); }} />
+                    <div className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{
+                        background: "rgba(15,23,42,0.85)",
+                        backdropFilter: "blur(40px) saturate(180%)",
+                        WebkitBackdropFilter: "blur(40px) saturate(180%)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
                     }}>
+                        <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+                        <div className="p-6">
                         <div className="mb-5 flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-bold text-white/95">Tạo Promotion</h2>
@@ -843,29 +853,41 @@ export default function PromotionPage() {
                             </div>
 
                             {/* BUTTONS */}
+                            {createError && (
+                                <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{createError}</p>
+                            )}
                             <div className="flex justify-end gap-2 pt-2">
                                 <Button type="button" variant="outline" onClick={() => { resetCreateForm(); setCreateOpen(false); }}
-                                    className="border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">
+                                    className="border-white/[0.12] text-white/50 hover:bg-white/[0.07] hover:text-white/80">
                                     Hủy
                                 </Button>
                                 <Button type="submit">Tạo</Button>
                             </div>
                         </form>
+                        </div>
                     </div>
                 </div>
             )}
             {viewItem && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewItem(null)} />
+                    <div className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{
+                        background: "rgba(15,23,42,0.85)",
+                        backdropFilter: "blur(40px) saturate(180%)",
+                        WebkitBackdropFilter: "blur(40px) saturate(180%)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
+                    }}>
+                        <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
 
-                        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-                            <h2 className="text-lg font-semibold text-slate-900">
+                        <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
+                            <h2 className="text-lg font-semibold text-white/95">
                                 Chi tiết Promotion
                             </h2>
 
                             <button
                                 onClick={() => setViewItem(null)}
-                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                                className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/[0.08] hover:text-white/70"
                             >
                                 <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -878,19 +900,19 @@ export default function PromotionPage() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                         Tên Promotion
                                     </p>
-                                    <p className="mt-1 font-semibold text-slate-800">
+                                    <p className="mt-1 font-semibold text-white/90">
                                         {viewItem.name}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                         Chi Nhánh
                                     </p>
-                                    <p className="mt-1 text-slate-800">
+                                    <p className="mt-1 text-white/80">
                                         {viewItem.franchise_name}
                                     </p>
                                 </div>
@@ -899,41 +921,41 @@ export default function PromotionPage() {
                             <div className="grid grid-cols-2 gap-4">
 
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                         Loại giảm
                                     </p>
-                                    <p className="mt-1 text-lg font-semibold text-slate-900">
+                                    <p className="mt-1 text-lg font-semibold text-white/90">
                                         {viewItem.type === "PERCENT" ? "Percent" : "Fixed"}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                         Giá trị
                                     </p>
-                                    <p className="mt-1 text-2xl font-bold text-green-600">
+                                    <p className="mt-1 text-2xl font-bold text-green-400">
                                         {formatDiscount(viewItem)}
                                     </p>
                                 </div>
 
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                            <div className="grid grid-cols-2 gap-4 border-t border-white/[0.08] pt-3">
 
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                         Ngày bắt đầu
                                     </p>
-                                    <p className="mt-1 text-sm text-slate-700">
+                                    <p className="mt-1 text-sm text-white/80">
                                         {new Date(viewItem.start_date).toLocaleString("vi-VN")}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                         Ngày kết thúc
                                     </p>
-                                    <p className="mt-1 text-sm text-slate-700">
+                                    <p className="mt-1 text-sm text-white/80">
                                         {new Date(viewItem.end_date).toLocaleString("vi-VN")}
                                     </p>
                                 </div>
@@ -941,7 +963,7 @@ export default function PromotionPage() {
                             </div>
 
                             <div>
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                     Trạng thái
                                 </p>
 
@@ -964,22 +986,22 @@ export default function PromotionPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-3">
+                            <div className="grid grid-cols-2 gap-4 border-t border-white/[0.08] pt-3">
 
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                         Ngày tạo
                                     </p>
-                                    <p className="mt-1 text-sm text-slate-700">
+                                    <p className="mt-1 text-sm text-white/80">
                                         {new Date(viewItem.created_at).toLocaleString("vi-VN")}
                                     </p>
                                 </div>
 
                                 <div>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                    <p className="text-xs font-medium uppercase tracking-wide text-white/50">
                                         Ngày cập nhật
                                     </p>
-                                    <p className="mt-1 text-sm text-slate-700">
+                                    <p className="mt-1 text-sm text-white/80">
                                         {new Date(viewItem.updated_at).toLocaleString("vi-VN")}
                                     </p>
                                 </div>
@@ -989,7 +1011,7 @@ export default function PromotionPage() {
                             <div className="flex justify-end pt-2">
                                 <button
                                     onClick={() => setViewItem(null)}
-                                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                                    className="rounded-lg border border-white/[0.12] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                                 >
                                     Đóng
                                 </button>
@@ -1000,14 +1022,16 @@ export default function PromotionPage() {
                 </div>
             )}            {editItem && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/40" onClick={() => setEditItem(null)} />
-                    <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl" style={{
-                        background: "rgba(255,255,255,0.10)",
-                        backdropFilter: "blur(40px) saturate(200%)",
-                        WebkitBackdropFilter: "blur(40px) saturate(200%)",
-                        border: "1px solid rgba(255,255,255,0.22)",
-                        boxShadow: "0 25px 60px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18)",
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditItem(null)} />
+                    <div className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{
+                        background: "rgba(15,23,42,0.85)",
+                        backdropFilter: "blur(40px) saturate(180%)",
+                        WebkitBackdropFilter: "blur(40px) saturate(180%)",
+                        border: "1px solid rgba(255,255,255,0.12)",
+                        boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
                     }}>
+                        <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+                        <div className="p-6">
                         <div className="mb-5 flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-bold text-white/95">Chỉnh sửa Promotion</h2>
@@ -1110,14 +1134,18 @@ export default function PromotionPage() {
                                 </div>
                             </div>
 
+                            {editError && (
+                                <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{editError}</p>
+                            )}
                             <div className="flex justify-end gap-2 pt-2">
                                 <Button type="button" variant="outline" onClick={() => setEditItem(null)}
-                                    className="border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">
+                                    className="border-white/[0.12] text-white/50 hover:bg-white/[0.07] hover:text-white/80">
                                     Hủy
                                 </Button>
                                 <Button type="submit">Cập nhật</Button>
                             </div>
                         </form>
+                        </div>
                     </div>
                 </div>
             )}
