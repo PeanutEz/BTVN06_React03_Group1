@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import LoadingLayout from "@/layouts/Loading.layout";
 import { ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
 import { paymentClient } from "@/services/payment.client";
 import { clientService } from "@/services/client.service";
+import { useLoadingStore } from "@/store/loading.store";
 import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
+import { resolvePaymentResultReason } from "@/utils/paymentResultState.util";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -98,16 +99,22 @@ export default function PaymentSuccessPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const showRouteLoading = useLoadingStore((s) => s.show);
+  const hideRouteLoading = useLoadingStore((s) => s.hide);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [isNavigatingToTracking, setIsNavigatingToTracking] = useState(false);
+  const orderItemsListRef = useRef<HTMLDivElement | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showOrderItemsScrollHint, setShowOrderItemsScrollHint] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelReasonError, setCancelReasonError] = useState("");
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const handleTrackOrderClick = async () => {
-    if (!orderId || isNavigatingToTracking) return;
+    if (!orderId) return;
 
-    setIsNavigatingToTracking(true);
+    showRouteLoading("Đang chuyển trang", { persistOnNextRoute: true });
     try {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["order-status", orderId] }),
@@ -115,32 +122,53 @@ export default function PaymentSuccessPage() {
       ]);
       navigate(ROUTER_URL.MENU_ORDER_STATUS.replace(":orderId", orderId));
     } catch {
-      setIsNavigatingToTracking(false);
+      hideRouteLoading();
     }
+  };
+
+  const handleOpenCancelDialog = () => {
+    const paymentId = payment?._id ?? payment?.id ?? "";
+    if ((!paymentId && !orderId) || submitting) return;
+    setCancelReason("");
+    setCancelReasonError("");
+    setCancelDialogOpen(true);
+  };
+
+  const handleCloseCancelDialog = () => {
+    if (submitting) return;
+    setCancelDialogOpen(false);
+    setCancelReasonError("");
   };
 
   const handleRefundPayment = async () => {
     const paymentId = payment?._id ?? payment?.id ?? "";
+    const normalizedCancelReason = cancelReason.trim();
     if ((!paymentId && !orderId) || submitting) return;
+    if (!normalizedCancelReason) {
+      setCancelReasonError("Vui lòng nhập lý do hủy.");
+      return;
+    }
 
-    const confirmed = window.confirm("Bạn có chắc chắn muốn hủy thanh toán này không?");
-    if (!confirmed) return;
-
+    setCancelDialogOpen(false);
+    let handedOffToNextPage = false;
     setSubmitting(true);
+    showRouteLoading("Đang chuyển trang", { persistOnNextRoute: true });
     if (canRefundPayment) {
       try {
         await paymentClient.refundPayment(paymentId, {
-          refund_reason: "Khach hang yeu cau huy",
+          refund_reason: normalizedCancelReason,
         });
         queryClient.invalidateQueries({ queryKey: ["payment-success-order", orderId] });
         queryClient.invalidateQueries({ queryKey: ["payment-success-payment", orderId] });
         queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
         queryClient.invalidateQueries({ queryKey: ["order-status", orderId] });
-        toast.success("Da huy va hoan tien thanh cong");
+        toast.success("Đã hủy và hoàn tiền thành công");
         if (orderId) {
+          handedOffToNextPage = true;
           navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId), {
             state: {
               reason: "refunded",
+              customerReason: normalizedCancelReason,
               paymentMethod: paymentMethodRaw,
               bankName: bankNameRaw,
             },
@@ -148,44 +176,53 @@ export default function PaymentSuccessPage() {
         }
       } catch (error) {
         const errorMessage = error instanceof Error && error.message.includes("404")
-          ? "Thanh toan khong ton tai"
-          : "Khong the hoan tien thanh toan";
+          ? "Không tìm thấy thanh toán"
+          : "Không thể hoàn tiền cho thanh toán";
         toast.error(errorMessage);
       } finally {
+        if (!handedOffToNextPage) {
+          hideRouteLoading();
+        }
         setSubmitting(false);
       }
       return;
     }
 
     if (!orderId) {
-      toast.error("Khong the huy don");
+      hideRouteLoading();
+      toast.error("Không thể hủy đơn");
       setSubmitting(false);
       return;
     }
 
     try {
       await orderClient.setCancelled(orderId, {
-        cancel_reason: "Khach hang yeu cau huy",
+        cancel_reason: normalizedCancelReason,
         cancelled_by: "CUSTOMER",
       });
       queryClient.invalidateQueries({ queryKey: ["payment-success-order", orderId] });
       queryClient.invalidateQueries({ queryKey: ["payment-success-payment", orderId] });
       queryClient.invalidateQueries({ queryKey: ["payment-by-order", orderId] });
       queryClient.invalidateQueries({ queryKey: ["order-status", orderId] });
-      toast.success("Da huy don thanh cong");
+      toast.success("Đã hủy đơn thành công");
+      handedOffToNextPage = true;
       navigate(ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderId), {
         state: {
           reason: "cancelled",
+          customerReason: normalizedCancelReason,
           paymentMethod: paymentMethodRaw,
           bankName: bankNameRaw,
         },
       });
     } catch (error) {
       const errorMessage = error instanceof Error && error.message.includes("404")
-        ? "Thanh toan khong ton tai"
-        : "Khong the huy don";
+        ? "Không tìm thấy thanh toán"
+        : "Không thể hủy đơn";
       toast.error(errorMessage);
     } finally {
+      if (!handedOffToNextPage) {
+        hideRouteLoading();
+      }
       setSubmitting(false);
     }
     return;
@@ -297,11 +334,81 @@ export default function PaymentSuccessPage() {
     ""
   ).trim();
   const bankNameRaw = String((order as any)?.bank_name ?? "").trim();
+  const paymentResultReason = resolvePaymentResultReason((order as any)?.status, payment?.status);
+  const paymentResultCustomerReason = String(
+    payment?.refund_reason ??
+    (order as any)?.cancel_reason ??
+    (order as any)?.cancel_note ??
+    (order as any)?.note ??
+    "",
+  ).trim();
+  const paymentFailedUrl = ROUTER_URL.PAYMENT_FAILED.replace(":orderId", String(orderId ?? order?._id ?? order?.id ?? ""));
   const canRefundPayment = isPaidPaymentStatus(payment?.status);
   const providerTxnId = String(payment?.provider_txn_id ?? payment?.providerTxnId ?? "");
+  const cancelDialogTitle = canRefundPayment
+    ? "Xác nhận hủy và hoàn tiền"
+    : "Xác nhận hủy đơn hàng";
+  const cancelDialogDescription = canRefundPayment
+    ? "Đơn hàng đã thanh toán sẽ được hủy và hoàn tiền. Vui lòng xác nhận và ghi rõ lý do."
+    : "Đơn hàng này sẽ bị hủy. Vui lòng xác nhận và ghi rõ lý do.";
 
-  if (isNavigatingToTracking) {
-    return <LoadingLayout />;
+  useEffect(() => {
+    const element = orderItemsListRef.current;
+    if (!element) return;
+
+    const updateScrollHint = () => {
+      const hasOverflow = element.scrollHeight - element.clientHeight > 12;
+      const hiddenContentBelow = element.scrollHeight - element.clientHeight - element.scrollTop;
+      setShowOrderItemsScrollHint(hasOverflow && hiddenContentBelow > 12);
+    };
+
+    const rafId = window.requestAnimationFrame(updateScrollHint);
+    const timeoutIds = [150, 400, 900].map((delay) => window.setTimeout(updateScrollHint, delay));
+    const imageElements = Array.from(element.querySelectorAll("img"));
+    const resizeObserver =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => updateScrollHint())
+        : null;
+
+    resizeObserver?.observe(element);
+    Array.from(element.children).forEach((child) => resizeObserver?.observe(child));
+
+    imageElements.forEach((image) => {
+      if (!image.complete) {
+        image.addEventListener("load", updateScrollHint);
+        image.addEventListener("error", updateScrollHint);
+      }
+    });
+
+    element.addEventListener("scroll", updateScrollHint, { passive: true });
+    window.addEventListener("resize", updateScrollHint);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      resizeObserver?.disconnect();
+      imageElements.forEach((image) => {
+        image.removeEventListener("load", updateScrollHint);
+        image.removeEventListener("error", updateScrollHint);
+      });
+      element.removeEventListener("scroll", updateScrollHint);
+      window.removeEventListener("resize", updateScrollHint);
+    };
+  }, [orderItems.length, orderLoading, paymentLoading]);
+
+  if (order && paymentResultReason) {
+    return (
+      <Navigate
+        replace
+        to={paymentFailedUrl}
+        state={{
+          reason: paymentResultReason,
+          customerReason: paymentResultCustomerReason,
+          paymentMethod: paymentMethodRaw,
+          bankName: bankNameRaw,
+        }}
+      />
+    );
   }
 
   if (isLoading) {
@@ -341,6 +448,76 @@ export default function PaymentSuccessPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 flex items-center justify-center px-4 py-12">
+      {cancelDialogOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Đóng hộp thoại hủy đơn"
+            onClick={handleCloseCancelDialog}
+            className="absolute inset-0 bg-slate-950/45 backdrop-blur-sm"
+          />
+          <div
+            className="relative z-10 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-gray-900">{cancelDialogTitle}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-gray-500">
+                  {cancelDialogDescription}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <label className="mb-2 block text-sm font-semibold text-gray-800">
+                Lý do hủy
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(event) => {
+                  setCancelReason(event.target.value);
+                  if (cancelReasonError) setCancelReasonError("");
+                }}
+                rows={4}
+                placeholder="Ví dụ: đổi ý, nhập sai thông tin, muốn thay đổi đơn hàng..."
+                className={cn(
+                  "w-full rounded-2xl border px-4 py-3 text-sm text-gray-800 outline-none transition-all resize-none",
+                  cancelReasonError
+                    ? "border-red-300 bg-red-50 focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    : "border-gray-200 bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-100",
+                )}
+              />
+              {cancelReasonError && (
+                <p className="mt-2 text-sm font-medium text-red-600">{cancelReasonError}</p>
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleCloseCancelDialog}
+                className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Không
+              </button>
+              <button
+                type="button"
+                onClick={handleRefundPayment}
+                className="flex-1 rounded-2xl bg-red-500 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-600"
+              >
+                {canRefundPayment ? "Đồng ý hủy / hoàn tiền" : "Đồng ý hủy"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-xl space-y-4">
 
         {/* ── Main receipt card ── */}
@@ -464,12 +641,19 @@ export default function PaymentSuccessPage() {
             {orderItems.length > 0 && (
               <div className="space-y-2">
                 <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Sản phẩm đã đặt</p>
-                {orderItems.slice(0, 4).map((item: any, idx: number) => {
+                <div className="relative">
+                <div ref={orderItemsListRef} className="scrollbar-none max-h-[320px] space-y-2 overflow-auto pr-1 pb-8">
+                {orderItems.map((item: any, idx: number) => {
                   const name = item.product_name_snapshot ?? item.product_name ?? item.name ?? "Sản phẩm";
                   const qty = item.quantity ?? 1;
                   const price = item.line_total ?? item.subtotal ?? ((item.price_snapshot ?? item.price ?? 0) * qty);
                   const imageUrl = getOrderItemImage(item as Record<string, unknown>);
                   const itemMeta = getOrderItemDisplayMeta(item as Record<string, unknown>);
+                  const paymentNoteLine =
+                    itemMeta.noteText ||
+                    [itemMeta.ice ? `Lượng đá: ${itemMeta.ice}` : "", itemMeta.sugar ? `Lượng đường: ${itemMeta.sugar}` : ""]
+                      .filter(Boolean)
+                      .join(" | ");
                   return (
                     <div key={item._id ?? item.id ?? idx} className="flex items-start justify-between gap-2.5 text-sm py-1.5 px-2 rounded-xl bg-gray-50 border border-gray-100">
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -478,6 +662,16 @@ export default function PaymentSuccessPage() {
                             <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
                           ) : (
                             <span className="text-base">☕</span>
+                          )}
+                          {paymentNoteLine && (
+                            <p className="hidden">
+                              Ghi chú: {paymentNoteLine}
+                            </p>
+                          )}
+                          {paymentNoteLine && (
+                            <p className="text-[10px] text-gray-500 italic mt-0.5">
+                              Ghi chú: {paymentNoteLine}
+                            </p>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -498,9 +692,21 @@ export default function PaymentSuccessPage() {
                     </div>
                   );
                 })}
-                {orderItems.length > 4 && (
+                {false && orderItems.length > 4 && (
                   <p className="text-xs text-gray-400 text-right">+{orderItems.length - 4} sản phẩm khác</p>
                 )}
+                <div
+                  className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center bg-gradient-to-t from-white via-white/95 to-transparent pb-1 pt-8 transition-all duration-200 ${
+                    showOrderItemsScrollHint ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"
+                  }`}
+                >
+                    <div className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-white/95 px-3 py-1 text-[11px] font-medium text-amber-700 shadow-sm">
+                      <span className="text-sm leading-none">↓</span>
+                      <span>Vuốt để xem thêm món</span>
+                    </div>
+                  </div>
+                </div>
+                </div>
                 <div className="space-y-1.5 pt-2 border-t border-gray-100 text-sm">
                   <div className="flex justify-between text-gray-600">
                     <span>Tạm tính</span>
@@ -559,11 +765,11 @@ export default function PaymentSuccessPage() {
         </div>
 
         {/* ── CTA ── */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <button
             type="button"
             onClick={handleTrackOrderClick}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-sm shadow-lg shadow-amber-200/60 transition-all active:scale-[0.97]"
+            className="flex min-h-[88px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-amber-200/60 transition-all active:scale-[0.97] hover:from-amber-600 hover:to-amber-700"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -572,27 +778,42 @@ export default function PaymentSuccessPage() {
           </button>
           <Link
             to={ROUTER_URL.MENU}
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl border-2 border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 text-gray-700 font-bold text-sm transition-all active:scale-[0.97]"
+            className="flex min-h-[88px] items-center justify-center gap-2 rounded-2xl border-2 border-gray-200 bg-white px-4 py-3.5 text-center text-sm font-bold text-gray-700 transition-all active:scale-[0.97] hover:border-gray-300 hover:bg-gray-50"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             Tiếp tục đặt món
           </Link>
-        </div>
-
-        {/* ── Refund button ── */}
-        <div className="flex justify-center">
           <button
             type="button"
-            onClick={handleRefundPayment}
+            onClick={handleOpenCancelDialog}
             disabled={submitting}
-            className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border-2 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 font-semibold text-sm transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex min-h-[88px] items-center justify-center gap-2 rounded-2xl border-2 border-red-200 bg-red-50 px-4 py-3.5 text-center text-sm font-semibold text-red-700 transition-all active:scale-[0.97] hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 text-[0px]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-            {submitting ? "Dang xu ly..." : canRefundPayment ? "Huy / Hoan tien" : "Huy don"}
+            <span className="text-sm font-semibold">
+              {submitting ? "Đang xử lý..." : canRefundPayment ? "Hủy / Hoàn tiền" : "Hủy đơn"}
+            </span>
+          </button>
+        </div>
+
+        {/* ── Refund button ── */}
+        <div className="hidden">
+          <button
+            type="button"
+            onClick={handleOpenCancelDialog}
+            disabled={submitting}
+            className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border-2 border-red-200 bg-red-50 hover:bg-red-100 hover:border-red-300 text-red-700 font-semibold text-sm transition-all active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed text-[0px]"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span className="text-sm font-semibold">
+              {submitting ? "Đang xử lý..." : canRefundPayment ? "Hủy / Hoàn tiền" : "Hủy đơn"}
+            </span>
           </button>
         </div>
 
@@ -601,4 +822,3 @@ export default function PaymentSuccessPage() {
     </div>
   );
 }
-

@@ -7,6 +7,7 @@ import {
   type CartItemOption,
 } from "@/services/cart.client";
 import { clientService } from "@/services/client.service";
+import { buildCartSelectionNote } from "@/utils/cartSelectionNote.util";
 import type {
   IceLevel,
   MenuProduct,
@@ -70,6 +71,7 @@ export default function CartItemEditDialog({
   const [quantity, setQuantity] = useState(initialQuantity ?? 1);
   const [apiToppings, setApiToppings] = useState<Topping[]>([]);
   const [toppingQtys, setToppingQtys] = useState<Record<string, number>>({});
+  const [note, setNote] = useState(initialSelection?.note ?? "");
   const [isFetchingToppings, setIsFetchingToppings] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const initialToppingQtysRef = useRef<Record<string, number>>({});
@@ -80,6 +82,10 @@ export default function CartItemEditDialog({
   useEffect(() => {
     setQuantity(initialQuantity ?? 1);
   }, [initialQuantity, product?.id, replaceApiItemId]);
+
+  useEffect(() => {
+    setNote(initialSelection?.note ?? "");
+  }, [initialSelection?.note, product?.id, replaceApiItemId]);
 
   useEffect(() => {
     if (product) {
@@ -255,6 +261,17 @@ export default function CartItemEditDialog({
       toppingMap.set(topping.name, qty);
     });
 
+    const userNote = note.trim() || undefined;
+    const noteForApi = isToppingProduct
+      ? userNote
+      : (initialSelection?.sugar && initialSelection?.ice)
+        ? buildCartSelectionNote({
+            sugar: initialSelection.sugar,
+            ice: initialSelection.ice,
+            userNote,
+          })
+        : userNote;
+
     return {
       apiProductId: (product as any)?._apiProductId as string | undefined,
       apiProductFranchiseId: initialSelection?.productFranchiseId,
@@ -267,7 +284,7 @@ export default function CartItemEditDialog({
             quantity: qty,
           }))
         : undefined,
-      note: initialSelection?.note,
+      note: noteForApi,
     };
   }
 
@@ -276,41 +293,75 @@ export default function CartItemEditDialog({
 
     const initialQty = initialQuantity ?? 1;
     const quantityChanged = quantity !== initialQty;
+    const initialNote = (initialSelection?.note ?? "").trim();
+    const currentNote = note.trim();
+    const noteChanged = initialNote !== currentNote;
     const changedToppings = displayToppings.filter((topping) => {
       const prevQty = initialToppingQtysRef.current[topping.id] ?? 0;
       const nextQty = toppingQtys[topping.id] ?? 0;
       return prevQty !== nextQty;
     });
 
-    if (!quantityChanged && changedToppings.length === 0) {
+    if (!quantityChanged && changedToppings.length === 0 && !noteChanged) {
       onClose();
       return;
     }
+
+    const noteForApi = isToppingProduct
+      ? currentNote || undefined
+      : (initialSelection?.sugar && initialSelection?.ice)
+        ? buildCartSelectionNote({
+            sugar: initialSelection.sugar,
+            ice: initialSelection.ice,
+            userNote: currentNote || undefined,
+          })
+        : (currentNote || undefined);
+
+    const selectedOptions: CartItemOption[] = displayToppings
+      .filter((topping) => (toppingQtys[topping.id] ?? 0) > 0 && topping.product_franchise_id)
+      .map((topping) => ({
+        product_franchise_id: topping.product_franchise_id!,
+        quantity: toppingQtys[topping.id] ?? 0,
+      }));
 
     setIsSaving(true);
     showGlobalLoading("Đang lưu thay đổi...");
 
     try {
-      if (quantityChanged) {
-        await cartClient.updateCartItemQuantity({
-          cart_item_id: replaceApiItemId,
-          quantity,
-        });
-      }
+      if (noteChanged) {
+        const franchiseId = String((product as any)?._apiFranchiseId ?? "").trim();
+        const productFranchiseId = String(initialSelection?.productFranchiseId ?? "").trim();
 
-      if (changedToppings.length > 0) {
+        if (franchiseId && productFranchiseId) {
+          await cartClient.deleteCartItem(replaceApiItemId);
+          await cartClient.addProduct({
+            franchise_id: franchiseId,
+            product_franchise_id: productFranchiseId,
+            quantity,
+            note: noteForApi,
+            options: selectedOptions.length > 0 ? selectedOptions : undefined,
+          });
+        } else {
+          await cartClient.updateCartItemQuantity({
+            cart_item_id: replaceApiItemId,
+            quantity,
+            note: noteForApi,
+          });
+        }
+      } else {
+        if (quantityChanged) {
+          await cartClient.updateCartItemQuantity({
+            cart_item_id: replaceApiItemId,
+            quantity,
+          });
+        }
+
+        if (changedToppings.length > 0) {
         const hasAddedNewTopping = changedToppings.some((topping) => {
           const prevQty = initialToppingQtysRef.current[topping.id] ?? 0;
           const nextQty = toppingQtys[topping.id] ?? 0;
           return prevQty === 0 && nextQty > 0;
         });
-
-        const selectedOptions: CartItemOption[] = displayToppings
-          .filter((topping) => (toppingQtys[topping.id] ?? 0) > 0 && topping.product_franchise_id)
-          .map((topping) => ({
-            product_franchise_id: topping.product_franchise_id!,
-            quantity: toppingQtys[topping.id] ?? 0,
-          }));
 
         if (
           selectedOptions.length > 0 &&
@@ -338,6 +389,7 @@ export default function CartItemEditDialog({
               });
             }
           }
+        }
         }
       }
 
@@ -387,7 +439,7 @@ export default function CartItemEditDialog({
               </p>
               <h2 className="mt-3 text-lg font-bold text-gray-900">Cập nhật giỏ hàng</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Điều chỉnh số lượng và topping theo ý bạn.
+                Điều chỉnh số lượng, topping và ghi chú theo ý bạn.
               </p>
             </div>
             <button
@@ -466,14 +518,19 @@ export default function CartItemEditDialog({
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
                       Topping
                     </p>
-                    <h4 className="mt-1 text-sm font-semibold text-gray-900">Tùy chọn thêm</h4>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Thêm hoặc bớt topping để món đúng ý hơn.
-                    </p>
                   </div>
                 </div>
 
                 <div className="mt-4 space-y-3">
+                  {isFetchingToppings && (
+                    <div className="flex items-center gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-3 py-3 text-sm font-medium text-amber-700">
+                      <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      Đang tải tùy chọn chỉnh sửa...
+                    </div>
+                  )}
                   {displayToppings.length === 0 && (
                     <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-sm text-gray-500">
                       Sản phẩm này hiện chưa có topping để chỉnh sửa.
@@ -527,6 +584,27 @@ export default function CartItemEditDialog({
                   })}
                 </div>
               </section>
+
+              <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+                    Note
+                  </p>
+                  <h4 className="mt-1 text-sm font-semibold text-gray-900">Ghi chú thêm cho món</h4>
+                </div>
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Ví dụ: Ít ngọt hơn bình thường, giao ly lớn..."
+                  rows={3}
+                  maxLength={160}
+                  disabled={isSaving}
+                  className="mt-3 w-full resize-none rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-amber-300 focus:bg-white focus:ring-4 focus:ring-amber-100"
+                />
+                <p className="mt-1 text-right text-[11px] text-gray-400">
+                  {note.trim().length}/160
+                </p>
+              </section>
             </div>
 
             <div className="border-t border-gray-100 bg-white px-5 py-4">
@@ -550,9 +628,15 @@ export default function CartItemEditDialog({
                 </div>
                 <button
                   onClick={() => void handleSave()}
-                  className="h-12 flex-[1.3] rounded-2xl bg-amber-500 font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
+                  className="flex h-12 flex-[1.3] items-center justify-center gap-2 rounded-2xl bg-amber-500 font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
                   disabled={isSaving}
                 >
+                  {isSaving && (
+                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  )}
                   {isSaving ? "Đang cập nhật..." : "Lưu thay đổi"}
                 </button>
               </div>

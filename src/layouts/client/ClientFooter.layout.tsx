@@ -3,9 +3,9 @@ import { ROUTER_URL } from "../../routes/router.const";
 
 const ClientFooter = () => {
   return (
-    <footer className="bg-slate-900 text-white pt-16 pb-8">
+    <footer className="bg-slate-900 pb-8 pt-12 text-white sm:pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-8">
+        <div className="mb-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
           {/* Brand */}
           <div>
             <h3 className="text-2xl font-bold mb-4 text-amber-200">Hylux Coffee</h3>
@@ -69,13 +69,13 @@ const ClientFooter = () => {
             <p className="text-slate-400 mb-4 text-sm">
               Đăng ký để nhận ưu đãi mới nhất
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input 
                 type="email" 
                 placeholder="Email của bạn"
-                className="flex-1 px-4 py-2 rounded bg-slate-800 text-white border border-slate-700 focus:outline-none focus:border-amber-200"
+                className="min-w-0 flex-1 rounded border border-slate-700 bg-slate-800 px-4 py-2 text-white focus:border-amber-200 focus:outline-none"
               />
-              <button className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded font-bold transition-colors">
+              <button className="rounded bg-red-600 px-4 py-2 font-bold transition-colors hover:bg-red-700 sm:shrink-0">
                 Gửi
               </button>
             </div>

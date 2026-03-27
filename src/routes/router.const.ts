@@ -59,6 +59,7 @@ export const ROUTER_URL = {
   ADMIN_LOGIN: "/admin/login",
   ADMIN_ROUTES: {
     DASHBOARD: "dashboard",
+    STAFF_ORDER: "staff-order",
     USERS: "users",
     USER_FRANCHISE_ROLES: "user-franchise-roles",
     PRODUCT_FRANCHISES: "product-franchises",    ORDERS: "orders",

@@ -16,18 +16,18 @@ const LandingPage = () => {
 				<div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
 				
 				{/* Content */}
-				<div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20 lg:py-0">
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+				<div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-0">
+					<div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
 						{/* Left Content */}
 						<div className="animate-fade-in text-center lg:text-left">
 							{/* Main Heading */}
-							<h1 className="text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold text-white mb-4 lg:mb-6 font-serif tracking-tight">
+							<h1 className="mb-4 font-serif text-4xl font-bold tracking-tight text-white sm:text-6xl lg:mb-6 lg:text-7xl xl:text-8xl">
 								Hylux
 							</h1>
-							<p className="text-xl sm:text-2xl lg:text-3xl text-amber-200 font-medium mb-6 lg:mb-8 tracking-wider uppercase">
+							<p className="mb-5 text-lg font-medium uppercase tracking-[0.2em] text-amber-200 sm:text-2xl lg:mb-8 lg:text-3xl">
 								Premium Coffee Experience
 							</p>
-							<p className="text-base sm:text-lg lg:text-xl text-slate-300 mb-8 lg:mb-12 leading-relaxed max-w-xl mx-auto lg:mx-0">
+							<p className="mx-auto mb-8 max-w-xl text-sm leading-relaxed text-slate-300 sm:text-lg lg:mx-0 lg:mb-12 lg:text-xl">
 								Khám phá hương vị cà phê đặc biệt từ những vùng đất nổi tiếng nhất thế giới.
 								Mỗi tách cà phê là một hành trình, mỗi hương thơm là một câu chuyện.
 							</p>
@@ -46,17 +46,17 @@ const LandingPage = () => {
 							</div>
 
 							{/* Stats */}
-							<div className="grid grid-cols-3 gap-4 sm:gap-6 lg:gap-8 pt-8 lg:pt-12 border-t border-white/20 max-w-xl mx-auto lg:mx-0">
+							<div className="mx-auto grid max-w-xl grid-cols-3 gap-3 border-t border-white/20 pt-6 sm:gap-6 lg:mx-0 lg:gap-8 lg:pt-12">
 								<div>
-									<p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-amber-400">15+</p>
+									<p className="text-xl font-bold text-amber-400 sm:text-3xl lg:text-4xl">15+</p>
 									<p className="text-xs sm:text-sm lg:text-base text-slate-300 mt-1 lg:mt-2">Năm Kinh Nghiệm</p>
 								</div>
 								<div>
-									<p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-amber-400">50+</p>
+									<p className="text-xl font-bold text-amber-400 sm:text-3xl lg:text-4xl">50+</p>
 									<p className="text-xs sm:text-sm lg:text-base text-slate-300 mt-1 lg:mt-2">Loại Cà Phê</p>
 								</div>
 								<div>
-									<p className="text-2xl sm:text-3xl lg:text-4xl font-bold text-amber-400">10K+</p>
+									<p className="text-xl font-bold text-amber-400 sm:text-3xl lg:text-4xl">10K+</p>
 									<p className="text-xs sm:text-sm lg:text-base text-slate-300 mt-1 lg:mt-2">Khách Hàng</p>
 								</div>
 							</div>
@@ -86,7 +86,7 @@ const LandingPage = () => {
 				</div>
 
 				{/* Scroll Indicator */}
-				<div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+				<div className="absolute bottom-8 left-1/2 hidden -translate-x-1/2 animate-bounce sm:block">
 					<svg className="w-8 h-8 text-white opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
 					</svg>
@@ -94,14 +94,14 @@ const LandingPage = () => {
 			</section>
 
 			{/* Story Section */}
-			<section id="story" className="py-24 bg-white">
+			<section id="story" className="bg-white py-16 sm:py-24">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-					<div className="grid md:grid-cols-2 gap-16 items-center">
+					<div className="grid items-center gap-10 md:grid-cols-2 md:gap-16">
 						<div className="order-2 md:order-1">
-							<h2 className="text-5xl font-bold text-slate-900 mb-6 font-serif">
+							<h2 className="mb-6 font-serif text-3xl font-bold text-slate-900 sm:text-5xl">
 								Câu Chuyện Của Chúng Tôi
 							</h2>
-							<div className="space-y-6 text-lg text-slate-700 leading-relaxed">
+							<div className="space-y-5 text-base leading-relaxed text-slate-700 sm:text-lg">
 								<p>
 									<strong className="text-red-900">Hylux Coffee</strong> được sinh ra từ niềm đam mê với hạt cà phê nguyên chất 
 									và khát khao mang đến những trải nghiệm cà phê đẳng cấp cho người Việt.
@@ -128,7 +128,7 @@ const LandingPage = () => {
 								<img 
 									src="https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=800" 
 									alt="Coffee Story" 
-									className="rounded-3xl shadow-2xl"
+									className="w-full rounded-3xl shadow-2xl"
 								/>
 								<div className="absolute -bottom-8 -left-8 w-64 h-64 bg-red-900 rounded-full opacity-10 blur-3xl" />
 							</div>
@@ -138,13 +138,13 @@ const LandingPage = () => {
 			</section>
 
 			{/* Products Showcase */}
-			<section id="products" className="py-24 bg-gradient-to-b from-slate-50 to-white">
+			<section id="products" className="bg-gradient-to-b from-slate-50 to-white py-16 sm:py-24">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 					<div className="text-center mb-16">
-						<h2 className="text-5xl font-bold text-slate-900 mb-4 font-serif">
+						<h2 className="mb-4 font-serif text-3xl font-bold text-slate-900 sm:text-5xl">
 							Sản Phẩm Đặc Biệt
 						</h2>
-						<p className="text-xl text-slate-600">
+						<p className="text-base text-slate-600 sm:text-xl">
 							Khám phá bộ sưu tập cà phê đặc sản của chúng tôi
 						</p>
 					</div>
@@ -162,7 +162,7 @@ const LandingPage = () => {
 							<div className="p-6">
 								<h3 className="text-2xl font-bold text-slate-900 mb-2">Espresso Premium</h3>
 								<p className="text-slate-600 mb-4">Đậm đà, mạnh mẽ từ hạt Arabica nguyên chất</p>
-								<div className="flex items-center justify-between">
+								<div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<span className="text-2xl font-bold text-red-900">39.000₫</span>
 									<Button size="sm" className="bg-red-900 hover:bg-red-800">Đặt Ngay</Button>
 								</div>
@@ -181,7 +181,7 @@ const LandingPage = () => {
 							<div className="p-6">
 								<h3 className="text-2xl font-bold text-slate-900 mb-2">Cappuccino Đặc Biệt</h3>
 								<p className="text-slate-600 mb-4">Kết hợp hoàn hảo cà phê và sữa tươi</p>
-								<div className="flex items-center justify-between">
+								<div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<span className="text-2xl font-bold text-red-900">45.000₫</span>
 									<Button size="sm" className="bg-red-900 hover:bg-red-800">Đặt Ngay</Button>
 								</div>
@@ -200,7 +200,7 @@ const LandingPage = () => {
 							<div className="p-6">
 								<h3 className="text-2xl font-bold text-slate-900 mb-2">Cold Brew</h3>
 								<p className="text-slate-600 mb-4">Ủ lạnh 24h, hương vị tinh tế độc đáo</p>
-								<div className="flex items-center justify-between">
+								<div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<span className="text-2xl font-bold text-red-900">49.000₫</span>
 									<Button size="sm" className="bg-red-900 hover:bg-red-800">Đặt Ngay</Button>
 								</div>
@@ -210,7 +210,7 @@ const LandingPage = () => {
 
 					<div className="text-center mt-12">
 							<Link to={ROUTER_URL.MENU}>
-							<Button size="lg" className="bg-red-900 hover:bg-red-800 text-white px-12">
+							<Button size="lg" className="w-full bg-red-900 px-12 text-white hover:bg-red-800 sm:w-auto">
 								Xem Tất Cả Sản Phẩm
 							</Button>
 						</Link>
