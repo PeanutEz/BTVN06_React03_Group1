@@ -65,9 +65,9 @@ const MENU_ITEMS = [
 
 export default function AccountSidebar({ onLogout }: AccountSidebarProps) {
   return (
-    <aside className="w-full md:w-64 flex-shrink-0">
+    <aside className="w-full flex-shrink-0 lg:w-64">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <nav className="py-2">
+        <nav className="flex gap-2 overflow-x-auto px-2 py-2 lg:block lg:px-0 lg:py-2">
           {MENU_ITEMS.map((item) => (
             <NavLink
               key={item.to}
@@ -75,7 +75,7 @@ export default function AccountSidebar({ onLogout }: AccountSidebarProps) {
               end
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-3 px-5 py-3 mx-2 my-0.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
+                  "relative flex min-w-[220px] items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 group lg:mx-2 lg:my-0.5 lg:min-w-0 lg:px-5",
                   isActive
                     ? "bg-primary-50 text-primary-700"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
@@ -118,8 +118,7 @@ export default function AccountSidebar({ onLogout }: AccountSidebarProps) {
           {/* Logout */}
           <button
             onClick={onLogout}
-            className="flex items-center gap-3 w-full px-5 py-3 mx-2 my-0.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-150 group"
-            style={{ width: "calc(100% - 1rem)" }}
+            className="group flex min-w-[220px] items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-gray-600 transition-all duration-150 hover:bg-red-50 hover:text-red-600 lg:mx-2 lg:my-0.5 lg:min-w-0 lg:px-5"
           >
             <span className="shrink-0 text-gray-400 group-hover:text-red-500 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

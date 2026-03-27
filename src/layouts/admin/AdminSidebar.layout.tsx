@@ -166,7 +166,19 @@ const adminNav: Array<{
           />
         </svg>
       ),
-    },    {
+    },
+    {
+      label: "Staff Order",
+      to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.STAFF_ORDER}`,
+      hiddenForRoles: ["SHIPPER"],
+      icon: (
+        <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 6.75h15m-15 5.25h15m-15 5.25h9" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M18 16.5l1.5 1.5 3-3" />
+        </svg>
+      ),
+    },
+    {
       label: "Orders",
       to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`,
       icon: (

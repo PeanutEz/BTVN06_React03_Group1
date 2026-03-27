@@ -18,7 +18,7 @@ export default function CustomerAccountLayout() {
   return (
     <div>
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm text-gray-400 mb-7">
+      <nav className="mb-5 flex flex-wrap items-center gap-1.5 text-sm text-gray-400 sm:mb-7">
         <Link to={ROUTER_URL.HOME} className="hover:text-green-600 transition-colors">
           Trang chủ
         </Link>
@@ -29,7 +29,7 @@ export default function CustomerAccountLayout() {
       </nav>
 
       {/* Layout */}
-      <div className="flex flex-col md:flex-row gap-6 items-start">
+      <div className="flex flex-col items-stretch gap-4 lg:flex-row lg:items-start lg:gap-6">
         <AccountSidebar onLogout={handleLogout} />
         <div className="flex-1 min-w-0">
           <Outlet />

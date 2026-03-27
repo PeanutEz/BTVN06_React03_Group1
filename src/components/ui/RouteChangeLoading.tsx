@@ -3,9 +3,18 @@ import { useLocation } from "react-router-dom";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 import logoHylux from "../../assets/logo-hylux.png";
 import { useLoadingStore } from "../../store/loading.store";
+import { lockDocumentScroll } from "../../utils/scrollLock.util";
 
 const MAX_MS = 8000;
-const SKIP_PATHS = ["/", "/login", "/register", "/reset-password"];
+const SKIP_PATHS = [
+  "/",
+  "/login",
+  "/register",
+  "/reset-password",
+  // Checkout already has per-page loading states for cart/profile queries.
+  // Skipping the global route overlay avoids the page looking stuck on a full-screen loader.
+  "/menu/checkout",
+];
 
 type RouteChangeLoadingProps = {
   minDurationMs?: number;
@@ -17,11 +26,13 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
   const isMutating = useIsMutating();
   const manualLoading = useLoadingStore((s) => s.isLoading);
   const manualMessage = useLoadingStore((s) => s.message);
+  const persistOnNextRoute = useLoadingStore((s) => s.persistOnNextRoute);
   const hideManual = useLoadingStore((s) => s.hide);
+  const clearRoutePersistence = useLoadingStore((s) => s.clearRoutePersistence);
 
-  // routeVisible handles route-change loading separately
-  // The overlay shows if EITHER is true — manualLoading is derived directly so it
-  // appears in the same render frame (no useEffect delay)
+  // routeVisible handles route-change loading separately.
+  // The overlay shows if EITHER is true so a manual transition loader can appear
+  // immediately on submit, then hand off to route/API tracking after navigation.
   const [routeVisible, setRouteVisible] = useState(false);
   const visible = routeVisible || manualLoading;
 
@@ -30,91 +41,141 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
   const minTimerRef = useRef<number | null>(null);
   const maxTimerRef = useRef<number | null>(null);
   const trackApiRef = useRef(false);
+  const requireApiCycleRef = useRef(false);
+  const sawApiActivityRef = useRef(false);
 
   const isSkipPath = SKIP_PATHS.some(
-    (p) => location.pathname === p || location.pathname.startsWith(p + "/")
+    (p) => location.pathname === p || location.pathname.startsWith(p + "/"),
   );
 
   const forceHide = useCallback(() => {
     setRouteVisible(false);
     trackApiRef.current = false;
-    if (minTimerRef.current) { window.clearTimeout(minTimerRef.current); minTimerRef.current = null; }
-    if (maxTimerRef.current) { window.clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
+    requireApiCycleRef.current = false;
+    sawApiActivityRef.current = false;
+    if (minTimerRef.current) {
+      window.clearTimeout(minTimerRef.current);
+      minTimerRef.current = null;
+    }
+    if (maxTimerRef.current) {
+      window.clearTimeout(maxTimerRef.current);
+      maxTimerRef.current = null;
+    }
   }, []);
 
   const tryHide = useCallback(() => {
     if (minElapsedRef.current && apiDoneRef.current) forceHide();
   }, [forceHide]);
 
-  const startRouteLoading = useCallback(() => {
-    if (minTimerRef.current) { window.clearTimeout(minTimerRef.current); minTimerRef.current = null; }
-    if (maxTimerRef.current) { window.clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
-    setRouteVisible(true);
-    minElapsedRef.current = false;
-    apiDoneRef.current = true;
-    minTimerRef.current = window.setTimeout(() => {
-      minElapsedRef.current = true;
-      minTimerRef.current = null;
-      tryHide();
-    }, minDurationMs);
-    maxTimerRef.current = window.setTimeout(() => {
-      maxTimerRef.current = null;
-      forceHide();
-    }, MAX_MS);
-  }, [tryHide, forceHide]);
+  const startRouteLoading = useCallback(
+    (options?: { requireApiCycle?: boolean; maxDurationMs?: number }) => {
+      if (minTimerRef.current) {
+        window.clearTimeout(minTimerRef.current);
+        minTimerRef.current = null;
+      }
+      if (maxTimerRef.current) {
+        window.clearTimeout(maxTimerRef.current);
+        maxTimerRef.current = null;
+      }
 
-  // Route change → show loading (skip auth/landing pages)
+      setRouteVisible(true);
+      minElapsedRef.current = false;
+      requireApiCycleRef.current = !!options?.requireApiCycle;
+      sawApiActivityRef.current = false;
+      apiDoneRef.current = !options?.requireApiCycle;
+
+      minTimerRef.current = window.setTimeout(() => {
+        minElapsedRef.current = true;
+        minTimerRef.current = null;
+        tryHide();
+      }, minDurationMs);
+
+      const maxDurationMs = options?.maxDurationMs ?? MAX_MS;
+      if (maxDurationMs > 0) {
+        maxTimerRef.current = window.setTimeout(() => {
+          maxTimerRef.current = null;
+          forceHide();
+        }, maxDurationMs);
+      }
+    },
+    [forceHide, minDurationMs, tryHide],
+  );
+
+  // Route change -> show loading (skip auth/landing pages).
   useEffect(() => {
-    if (isSkipPath) { forceHide(); return; }
-    // If manual loading was active (e.g. login), just clear it — no route-change loading needed
-    if (manualLoading) {
-      hideManual();
+    if (isSkipPath) {
       forceHide();
       return;
     }
+
+    if (manualLoading) {
+      if (persistOnNextRoute) {
+        clearRoutePersistence();
+        trackApiRef.current = true;
+        startRouteLoading({ requireApiCycle: true, maxDurationMs: MAX_MS * 2 });
+        hideManual();
+      } else {
+        hideManual();
+        forceHide();
+      }
+      return;
+    }
+
     trackApiRef.current = true;
     startRouteLoading();
     return () => {
-      if (minTimerRef.current) { window.clearTimeout(minTimerRef.current); minTimerRef.current = null; }
-      if (maxTimerRef.current) { window.clearTimeout(maxTimerRef.current); maxTimerRef.current = null; }
+      if (minTimerRef.current) {
+        window.clearTimeout(minTimerRef.current);
+        minTimerRef.current = null;
+      }
+      if (maxTimerRef.current) {
+        window.clearTimeout(maxTimerRef.current);
+        maxTimerRef.current = null;
+      }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, location.hash]);
 
-  // Max safety timeout for manual loading (prevents stuck overlay)
+  // Max safety timeout for generic manual loading.
   useEffect(() => {
-    if (!manualLoading) return;
+    if (!manualLoading || persistOnNextRoute) return;
     const t = window.setTimeout(() => hideManual(), MAX_MS);
     return () => window.clearTimeout(t);
-  }, [manualLoading, hideManual]);
+  }, [manualLoading, persistOnNextRoute, hideManual]);
 
-  // Track API calls fired right after a route change
+  // Track API calls fired right after a route change.
   useEffect(() => {
     if (!routeVisible || !trackApiRef.current) return;
+
     const apiActive = isFetching + isMutating > 0;
     if (apiActive) {
+      sawApiActivityRef.current = true;
       apiDoneRef.current = false;
-    } else {
-      apiDoneRef.current = true;
-      tryHide();
+      return;
     }
+
+    if (requireApiCycleRef.current && !sawApiActivityRef.current) return;
+
+    apiDoneRef.current = true;
+    tryHide();
   }, [isFetching, isMutating, routeVisible, tryHide]);
+
+  useEffect(() => {
+    if (!visible) return;
+    return lockDocumentScroll();
+  }, [visible]);
 
   if (!visible) return null;
 
   return (
     <div className="fixed inset-0 z-[9998]">
-      {/* Golden progress bar at top */}
       <div className="route-progress-bar" />
 
-      {/* Centered loading scene */}
       <div className="flex h-full items-center justify-center bg-slate-950/55 backdrop-blur-md">
         <div className="flex flex-col items-center gap-6">
           <div className="loading-scene">
-            {/* Progress ring */}
             <div className="progress-ring" />
 
-            {/* Orbiting beans */}
             <div className="orbit-ring">
               <div className="coffee-bean" />
               <div className="coffee-bean" />
@@ -122,7 +183,6 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
               <div className="coffee-bean" />
             </div>
 
-            {/* Floating particles */}
             <div className="coffee-particles">
               <div className="particle" />
               <div className="particle" />
@@ -132,7 +192,6 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
               <div className="particle" />
             </div>
 
-            {/* Steam */}
             <div className="steam-group">
               <div className="steam-wisp" />
               <div className="steam-wisp" />
@@ -141,7 +200,6 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
               <div className="steam-wisp" />
             </div>
 
-            {/* Cup structure */}
             <div className="cup-rim" />
             <div className="cup-body">
               <div className="cup-liquid" />

@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.category-scroll-mask {
+  position: relative;
+}
+
+.category-scroll-mask::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: calc(100% - 0.5rem);
+  width: 2.5rem;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 82%);
+}
+
 /* ===== Force 24h time input — hide AM/PM ===== */
 input[type="time"]::-webkit-datetime-edit-ampm-field {
   display: none !important;
@@ -595,6 +619,41 @@ input[type="time"] {
   border-color: rgba(255, 255, 255, 0.16) !important;
   color: rgba(255, 255, 255, 0.7) !important;
 }
+
+/* Staff Order: make category select stand out even under glass theme overrides */
+.staff-menu-select-shell {
+  border-radius: 14px;
+}
+
+.staff-menu-select {
+  border: 1px solid #cbd5e1 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  color: #0f172a !important;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1) !important;
+  text-align: left !important;
+  text-align-last: left !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: none !important;
+  padding-right: 1rem !important;
+}
+
+.staff-menu-select::-ms-expand {
+  display: none;
+}
+
+.staff-menu-select:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2) !important;
+}
+
+.admin-glass-theme .staff-menu-select {
+  border: 1px solid rgba(148, 163, 184, 0.55) !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(248, 250, 252, 0.1) 100%) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.3) !important;
+}
 .admin-glass-theme .fixed.inset-0 button.border-slate-200:hover,
 .admin-glass-theme .fixed.inset-0 button.border-slate-300:hover {
   background: rgba(255, 255, 255, 0.1) !important;
@@ -641,6 +700,103 @@ input[type="time"] {
   border-color: rgba(239, 68, 68, 0.25) !important;
 }
 
+/* Staff Order category select - brighten only while sticky is active */
+.category-sticky-shell {
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.category-sticky-shell.category-sticky-shell-active {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1) !important;
+}
+
+.category-select-trigger {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #0f172a !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08) !important;
+}
+
+.category-select-panel {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14) !important;
+}
+
+.category-select-option {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+.category-select-option:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.category-select-option-active {
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #92400e !important;
+}
+
+.category-select-badge {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+}
+
+.category-select-badge-active {
+  background: #fde68a !important;
+  color: #92400e !important;
+}
+
+.admin-glass-theme .category-select-trigger {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #0f172a !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.admin-glass-theme .category-sticky-shell.category-sticky-shell-active.rounded-2xl.border {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.2) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.admin-glass-theme .category-sticky-shell.category-sticky-shell-active .text-slate-500,
+.admin-glass-theme .category-sticky-shell.category-sticky-shell-active .text-slate-700,
+.admin-glass-theme .category-sticky-shell.category-sticky-shell-active .text-slate-800,
+.admin-glass-theme .category-sticky-shell.category-sticky-shell-active .text-slate-900 {
+  color: #334155 !important;
+}
+
+.admin-glass-theme .category-select-panel {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.admin-glass-theme .category-select-option.rounded-xl.border {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+.admin-glass-theme .category-select-option-active.rounded-xl.border {
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #92400e !important;
+}
+
 /* --- Missing hover text override --- */
 .admin-glass-theme .hover\:text-slate-700:hover {
   color: rgba(255, 255, 255, 0.8) !important;
@@ -664,6 +820,128 @@ input[type="time"] {
 .admin-glass-theme .absolute.bg-white {
   background: #1e293b !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Category select dropdown should stay bright white */
+.admin-glass-theme .category-select-panel.absolute.bg-white {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+}
+
+.admin-glass-theme .category-select-panel .category-select-option.rounded-xl.border {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+.admin-glass-theme .category-select-panel .category-select-option-active.rounded-xl.border {
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
+  color: #92400e !important;
+}
+
+/* Staff Order customer search - force clean white UI */
+.customer-search-input {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #0f172a !important;
+}
+
+.customer-search-panel {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14) !important;
+}
+
+.customer-search-option {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+.customer-search-option:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.customer-search-empty {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+.customer-search-create {
+  background: #ffffff !important;
+  border-color: #bae6fd !important;
+  color: #0369a1 !important;
+}
+
+.customer-search-create:hover {
+  background: #f0f9ff !important;
+}
+
+.admin-glass-theme .customer-search-input {
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #0f172a !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.customer-search-input::placeholder,
+.admin-glass-theme .customer-search-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.customer-search-input:focus,
+.customer-search-input:focus-visible,
+.admin-glass-theme .customer-search-input:focus,
+.admin-glass-theme .customer-search-input:focus-visible {
+  background: #ffffff !important;
+  border-color: #f59e0b !important;
+  color: #0f172a !important;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15) !important;
+}
+
+.admin-glass-theme .customer-search-panel {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.admin-glass-theme .customer-search-panel.absolute.bg-white {
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+}
+
+.admin-glass-theme .customer-search-option.rounded-lg.border {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.admin-glass-theme .customer-search-option .text-slate-900 {
+  color: #0f172a !important;
+}
+
+.admin-glass-theme .customer-search-option .text-slate-500,
+.admin-glass-theme .customer-search-option .text-slate-400 {
+  color: #64748b !important;
+}
+
+.admin-glass-theme .customer-search-empty {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
+}
+
+.admin-glass-theme .customer-search-create {
+  background: #ffffff !important;
+  border-color: #bae6fd !important;
+  color: #0369a1 !important;
 }
 
 /* --- Badges/pills: boost bg-slate-100 visibility --- */
@@ -1778,4 +2056,16 @@ input[type="password"]::-webkit-textfield-decoration-container {
 @keyframes progressGlow {
   0%, 100% { background-position: 0% center; }
   50%      { background-position: 300% center; }
+}
+
+html.menu-order-open,
+body.menu-order-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+body.menu-order-open .scroll-to-top-button {
+  opacity: 0;
+  pointer-events: none;
 }

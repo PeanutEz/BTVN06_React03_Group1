@@ -55,28 +55,28 @@ const ClientHeader = () => {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 bg-white shadow-md">
+    <header className="sticky top-0 z-50 overflow-x-clip bg-white shadow-md">
       <div className="mx-auto max-w-7xl">
 
         {/* ── ROW 1: Logo · Search · Actions ── */}
-        <div className="flex items-center gap-4 py-3 px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:gap-4 sm:px-6 lg:flex-nowrap lg:px-8">
 
           {/* Logo */}
-          <Link to={ROUTER_URL.HOME} className="shrink-0 flex items-center group" aria-label="Hylux Coffee - Trang chủ">
+          <Link to={ROUTER_URL.HOME} className="order-1 flex shrink-0 items-center group" aria-label="Hylux Coffee - Trang chủ">
             <img
               src={logoHylux}
               alt="Hylux Coffee"
-              className="h-16 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+              className="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105 sm:h-14 lg:h-16"
             />
           </Link>
 
           {/* Search */}
-          <div className="flex-1">
+          <div className="order-3 basis-full lg:order-2 lg:basis-auto lg:flex-1">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Xin chào, bạn cần gì hôm nay?"
-                className="w-full px-4 py-2.5 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent text-sm transition"
+                className="min-h-[56px] w-full rounded-2xl border border-gray-300 px-5 py-3 pr-12 text-[15px] leading-6 text-gray-700 placeholder:text-[15px] placeholder:leading-6 placeholder:text-gray-400 transition focus:border-transparent focus:outline-none focus:ring-2 focus:ring-red-400 sm:min-h-0 sm:rounded-lg sm:px-4 sm:py-2.5 sm:text-sm sm:leading-5 sm:placeholder:text-sm"
               />
               <button
                 aria-label="Tìm kiếm"
@@ -90,7 +90,7 @@ const ClientHeader = () => {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3">
+          <div className="order-2 ml-auto flex items-center gap-2 sm:gap-3 lg:order-3 lg:ml-0">
             {/* ── Receiving Method Pill ───────────────────────────────── */}
             <div className="hidden lg:flex items-center gap-2">
               <button
@@ -205,7 +205,7 @@ const ClientHeader = () => {
 
             {/* Mobile hamburger */}
             <button
-              className="lg:hidden text-gray-600 p-2"
+              className="p-2 text-gray-600 lg:hidden"
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Toggle menu"
             >
@@ -257,7 +257,7 @@ const ClientHeader = () => {
 
         {/* ── MOBILE MENU ── */}
         {menuOpen && (
-          <div className="lg:hidden pb-4 px-4 space-y-1 bg-gray-50 border-t border-gray-100">
+          <div className="space-y-1 border-t border-gray-100 bg-gray-50 px-4 pb-4 lg:hidden">
             {NAV_LINKS.length > 0 && (
               <>
                 {NAV_LINKS.map((link) => (
@@ -308,5 +308,3 @@ const ClientHeader = () => {
 };
 
 export default ClientHeader;
-
-
