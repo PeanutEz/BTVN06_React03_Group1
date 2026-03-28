@@ -41,14 +41,6 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     isEnd: true,
   },
   {
-    label: "Pending Payments",
-    path: ROUTER_URL.ADMIN_ROUTES.PENDING_PAYMENTS,
-    component: React.lazy(
-      () => import("../../pages/admin/pending-payments/PendingPayments.page.tsx"),
-    ),
-    isEnd: true,
-  },
-  {
     label: "Orders",
     path: ROUTER_URL.ADMIN_ROUTES.ORDERS,
     component: React.lazy(
@@ -76,10 +68,9 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     label: "Order Detail",
     path: ROUTER_URL.ADMIN_ROUTES.ORDER_DETAIL,
     component: React.lazy(
-      () => import("../../pages/admin/order/OrderList.page.tsx"),
+      () => import("../../pages/admin/order/OrderDetail.page.tsx"),
     ),
-  },
-  {
+  },  {
     label: "Customers",
     path: ROUTER_URL.ADMIN_ROUTES.CUSTOMERS,
     component: React.lazy(
@@ -109,13 +100,6 @@ export const ADMIN_MENU: AdminMenuItem[] = [
       () => import("../../pages/admin/payment/PaymentList.page.tsx"),
     ),
     isEnd: true,
-  },
-  {
-    label: "Payment Detail",
-    path: ROUTER_URL.ADMIN_ROUTES.PAYMENT_DETAIL,
-    component: React.lazy(
-      () => import("../../pages/admin/payment/PaymentDetail.page.tsx"),
-    ),
   },
   {
     label: "Loyalty",
@@ -195,6 +179,13 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     path: ROUTER_URL.ADMIN_ROUTES.CATEGORIES,
     component: React.lazy(
       () => import("../../pages/admin/category/CategoryList.page.tsx"),
+    ),
+  },
+  {
+    label: "Franchise Categories",
+    path: ROUTER_URL.ADMIN_ROUTES.CATEGORY_FRANCHISE,
+    component: React.lazy(
+      () => import("../../pages/admin/franchise/CategoryFranchise.page.tsx"),
     ),
   },
   {

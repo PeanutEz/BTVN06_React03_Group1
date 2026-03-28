@@ -556,7 +556,7 @@ const ShiftPage = () => {
       </div>
 
       {/* Create / Edit Modal */}
-      {showModal && (
+      {showModal && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{
@@ -761,6 +761,7 @@ const ShiftPage = () => {
                   <TimeSelect
                     value={formData.start_time}
                     onChange={(v) => setFormData((p) => ({ ...p, start_time: v }))}
+                    darkMode
                   />
                   {formErrors.start_time && <p className="text-[11px] text-red-400 mt-1">{formErrors.start_time}</p>}
                 </div>
@@ -772,6 +773,7 @@ const ShiftPage = () => {
                   <TimeSelect
                     value={formData.end_time}
                     onChange={(v) => setFormData((p) => ({ ...p, end_time: v }))}
+                    darkMode
                   />
                   {formErrors.end_time && <p className="text-[11px] text-red-400 mt-1">{formErrors.end_time}</p>}
                 </div>
@@ -782,8 +784,8 @@ const ShiftPage = () => {
               )}
 
               <div className="flex justify-end gap-2 border-t border-white/[0.07] pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowModal(false)}
-                  className="border-white/[0.12] text-white/50 hover:bg-white/[0.07] hover:text-white/80">
+                <Button type="button" onClick={() => setShowModal(false)}
+                  className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
                   Hủy
                 </Button>
                 <Button type="submit" loading={submitting}>
@@ -794,7 +796,7 @@ const ShiftPage = () => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

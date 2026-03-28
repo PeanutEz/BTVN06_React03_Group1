@@ -54,7 +54,7 @@ export default function DeliveryBanner({ onOpenPicker }: DeliveryBannerProps) {
           {!selectedBranch ? (
             <div>
               <p className="text-sm font-semibold text-amber-900">Chọn phương thức đặt hàng</p>
-              <p className="text-xs text-amber-700 mt-0.5">Nhấn để chọn giao hàng hoặc lấy tại chi nhánh</p>
+              <p className="text-xs text-amber-700 mt-0.5">Nhấn để chọn giao hàng hoặc lấy tại cửa hàng</p>
             </div>
           ) : (
             <div>

@@ -389,7 +389,7 @@ export default function CategoryFranchisePage() {
       )}
 
       {/* Create Modal */}
-      {showCreate && (
+      {showCreate && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
           <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-hidden"
@@ -423,7 +423,7 @@ export default function CategoryFranchisePage() {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowCreate(false)}
-                  className="rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/70 hover:bg-white/15 transition">Hủy</button>
+                  className="rounded-xl border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-600 transition">Hủy</button>
                 <button type="submit" disabled={submitting}
                   className="rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-50"
                   style={{ background: "rgba(239,68,68,0.3)", border: "1px solid rgba(239,68,68,0.5)" }}>
@@ -433,7 +433,7 @@ export default function CategoryFranchisePage() {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

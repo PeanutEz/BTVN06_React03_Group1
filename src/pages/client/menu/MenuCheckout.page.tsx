@@ -130,7 +130,7 @@ function PromotionsBanner({
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 truncate">
             {franchiseName
               ? `Khuyến mãi của ${franchiseName}`
-              : "Khuyến mãi theo chi nhánh"}
+              : "Khuyến mãi theo cửa hàng"}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

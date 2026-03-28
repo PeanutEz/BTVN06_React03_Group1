@@ -1,25 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-html.app-scroll-locked,
-body.app-scroll-locked {
-  overflow: hidden !important;
-}
-
-html.app-scroll-locked [data-scroll-lock-root="admin-main"] {
-  overflow-y: hidden !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* Lock fullscreen modal overlays so popup layer itself cannot scroll */
-html.app-scroll-locked [class*="fixed"][class*="inset-0"] {
-  overflow: hidden !important;
-  overscroll-behavior: none !important;
-}
 
 .scrollbar-none {
   -ms-overflow-style: none;
@@ -684,45 +665,6 @@ input[type="time"] {
   background: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* Checkout dialog action buttons: opt out from generic modal glass overrides */
-.admin-glass-theme .fixed.inset-0 .checkout-voucher-apply-button.checkout-voucher-apply-button-disabled {
-  background: linear-gradient(180deg, rgba(226, 232, 240, 0.96) 0%, rgba(203, 213, 225, 0.92) 100%) !important;
-  border-color: rgba(226, 232, 240, 0.92) !important;
-  color: rgba(100, 116, 139, 0.95) !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
-}
-
-.admin-glass-theme .fixed.inset-0 .checkout-voucher-apply-button.checkout-voucher-apply-button-active {
-  background: linear-gradient(180deg, #fb7185 0%, #f43f5e 100%) !important;
-  border-color: #fb7185 !important;
-  color: #fff !important;
-  box-shadow: 0 12px 24px rgba(244, 63, 94, 0.24) !important;
-}
-
-.admin-glass-theme .fixed.inset-0 .checkout-voucher-apply-button.checkout-voucher-apply-button-active:hover {
-  background: linear-gradient(180deg, #f43f5e 0%, #e11d48 100%) !important;
-  border-color: #f43f5e !important;
-}
-
-.admin-glass-theme .fixed.inset-0 .checkout-cancel-cart-button.checkout-cancel-cart-button-active {
-  background: linear-gradient(180deg, rgba(254, 226, 226, 0.98) 0%, rgba(254, 202, 202, 0.96) 100%) !important;
-  border-color: rgba(252, 165, 165, 0.9) !important;
-  color: #dc2626 !important;
-  box-shadow: 0 12px 24px rgba(220, 38, 38, 0.16) !important;
-}
-
-.admin-glass-theme .fixed.inset-0 .checkout-cancel-cart-button.checkout-cancel-cart-button-active:hover {
-  background: linear-gradient(180deg, rgba(254, 202, 202, 0.98) 0%, rgba(252, 165, 165, 0.94) 100%) !important;
-  border-color: rgba(248, 113, 113, 0.92) !important;
-  color: #b91c1c !important;
-}
-
-.admin-glass-theme .fixed.inset-0 .checkout-cancel-cart-button.checkout-cancel-cart-button-disabled {
-  background: linear-gradient(180deg, rgba(127, 29, 29, 0.32) 0%, rgba(69, 10, 10, 0.26) 100%) !important;
-  border-color: rgba(248, 113, 113, 0.2) !important;
-  color: rgba(254, 202, 202, 0.68) !important;
-}
-
 /* Modal table heads */
 .admin-glass-theme .fixed.inset-0 thead {
   background: rgba(255, 255, 255, 0.06) !important;
@@ -761,180 +703,98 @@ input[type="time"] {
 /* Staff Order category select - brighten only while sticky is active */
 .category-sticky-shell {
   transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-  background: rgba(58, 55, 61, 0.58) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
-  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16) !important;
-  backdrop-filter: blur(14px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(135%) !important;
 }
 
 .category-sticky-shell.category-sticky-shell-active {
-  background: rgba(66, 63, 70, 0.72) !important;
-  border-color: rgba(255, 255, 255, 0.24) !important;
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.22) !important;
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1) !important;
 }
 
 .category-select-trigger {
-  background: rgba(254, 243, 199, 0.94) !important;
-  border-color: rgba(245, 181, 53, 0.9) !important;
-  color: #92400e !important;
-  box-shadow: 0 10px 22px rgba(245, 158, 11, 0.18) !important;
-  backdrop-filter: blur(14px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(135%) !important;
-}
-
-.category-select-trigger .rounded-full {
-  background: rgba(253, 230, 138, 0.94) !important;
-  color: #92400e !important;
-  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.18) !important;
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #0f172a !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08) !important;
 }
 
 .category-select-panel {
-  background: rgba(231, 236, 244, 0.76) !important;
-  border-color: rgba(255, 255, 255, 0.34) !important;
-  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.24) !important;
-  backdrop-filter: blur(18px) saturate(145%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14) !important;
 }
 
 .category-select-option {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(203, 213, 225, 0.78) !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
   color: #334155 !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04) !important;
-  backdrop-filter: blur(10px) saturate(130%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(130%) !important;
 }
 
 .category-select-option:hover {
-  background: rgba(255, 255, 255, 0.97) !important;
-  border-color: rgba(180, 194, 214, 0.94) !important;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08) !important;
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
 }
 
 .category-select-option-active {
-  background: rgba(254, 243, 199, 0.94) !important;
-  border-color: rgba(245, 181, 53, 0.9) !important;
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
   color: #92400e !important;
-  box-shadow: 0 10px 22px rgba(245, 158, 11, 0.18) !important;
 }
 
 .category-select-badge {
-  background: rgba(226, 232, 240, 0.92) !important;
-  color: #334155 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  background: #f1f5f9 !important;
+  color: #475569 !important;
 }
 
 .category-select-badge-active {
-  background: rgba(253, 230, 138, 0.94) !important;
+  background: #fde68a !important;
   color: #92400e !important;
-  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.18) !important;
 }
 
 .admin-glass-theme .category-select-trigger {
-  background: rgba(254, 243, 199, 0.94) !important;
-  border-color: rgba(245, 181, 53, 0.9) !important;
-  color: #92400e !important;
-  box-shadow: 0 10px 22px rgba(245, 158, 11, 0.2) !important;
-  backdrop-filter: blur(14px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(135%) !important;
-}
-
-.admin-glass-theme .category-select-trigger .rounded-full {
-  background: rgba(253, 230, 138, 0.94) !important;
-  color: #92400e !important;
-  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.18) !important;
+  background: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #0f172a !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .admin-glass-theme .category-sticky-shell.category-sticky-shell-active.rounded-2xl.border {
-  background: rgba(66, 63, 70, 0.72) !important;
-  border-color: rgba(255, 255, 255, 0.24) !important;
-  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.24) !important;
-  backdrop-filter: blur(16px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.2) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .admin-glass-theme .category-sticky-shell.category-sticky-shell-active .text-slate-500,
 .admin-glass-theme .category-sticky-shell.category-sticky-shell-active .text-slate-700,
 .admin-glass-theme .category-sticky-shell.category-sticky-shell-active .text-slate-800,
 .admin-glass-theme .category-sticky-shell.category-sticky-shell-active .text-slate-900 {
-  color: #e5eefb !important;
+  color: #334155 !important;
 }
 
 .admin-glass-theme .category-select-panel {
-  background: rgba(231, 236, 244, 0.76) !important;
-  border-color: rgba(255, 255, 255, 0.34) !important;
-  backdrop-filter: blur(18px) saturate(145%) !important;
-  -webkit-backdrop-filter: blur(18px) saturate(145%) !important;
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .admin-glass-theme .category-select-option.rounded-xl.border {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(203, 213, 225, 0.78) !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
   color: #334155 !important;
-  backdrop-filter: blur(10px) saturate(130%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(130%) !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
 }
 
 .admin-glass-theme .category-select-option-active.rounded-xl.border {
-  background: rgba(254, 243, 199, 0.94) !important;
-  border-color: rgba(245, 181, 53, 0.9) !important;
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
   color: #92400e !important;
-  box-shadow: 0 10px 22px rgba(245, 158, 11, 0.18) !important;
-}
-
-.admin-glass-theme .staff-cart-list-shell {
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  background: linear-gradient(180deg, rgba(68, 66, 69, 0.9) 0%, rgba(49, 47, 50, 0.95) 100%) !important;
-  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.3) !important;
-}
-
-.admin-glass-theme .staff-cart-list-shell .text-slate-500 {
-  color: rgba(226, 232, 240, 0.72) !important;
-}
-
-.admin-glass-theme .staff-cart-list-shell .border-slate-200\/80 {
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-.admin-glass-theme .staff-cart-item-card {
-  background: rgba(69, 67, 70, 0.84) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.2) !important;
-  backdrop-filter: blur(14px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(135%) !important;
-}
-
-.admin-glass-theme .staff-cart-item-card .text-fuchsia-100,
-.admin-glass-theme .staff-cart-item-card .text-slate-200 {
-  color: rgba(226, 232, 240, 0.9) !important;
-}
-
-.admin-glass-theme .staff-cart-item-card .bg-fuchsia-300\/12,
-.admin-glass-theme .staff-cart-item-card .bg-white\/8 {
-  background: rgba(255, 255, 255, 0.08) !important;
-}
-
-.admin-glass-theme .staff-cart-item-card .border-fuchsia-200\/10 {
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.admin-glass-theme .staff-cart-item-card .bg-slate-100 {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: rgba(253, 230, 138, 0.95) !important;
-}
-
-.admin-glass-theme .staff-cart-item-card .text-slate-500 {
-  color: rgba(226, 232, 240, 0.66) !important;
-}
-
-.admin-glass-theme .staff-cart-item-card .text-amber-700 {
-  color: rgba(253, 230, 138, 0.92) !important;
-}
-
-.admin-glass-theme .staff-cart-item-card .text-amber-800 {
-  color: rgba(254, 243, 199, 0.92) !important;
 }
 
 /* --- Missing hover text override --- */
@@ -964,214 +824,20 @@ input[type="time"] {
 
 /* Category select dropdown should stay bright white */
 .admin-glass-theme .category-select-panel.absolute.bg-white {
-  background: rgba(231, 236, 244, 0.76) !important;
-  border-color: rgba(255, 255, 255, 0.34) !important;
+  background: #ffffff !important;
+  border-color: #dbe3ef !important;
 }
 
 .admin-glass-theme .category-select-panel .category-select-option.rounded-xl.border {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(203, 213, 225, 0.78) !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
   color: #334155 !important;
 }
 
 .admin-glass-theme .category-select-panel .category-select-option-active.rounded-xl.border {
-  background: rgba(254, 243, 199, 0.94) !important;
-  border-color: rgba(245, 181, 53, 0.9) !important;
+  background: #fef3c7 !important;
+  border-color: #fcd34d !important;
   color: #92400e !important;
-  box-shadow: 0 10px 22px rgba(245, 158, 11, 0.18) !important;
-}
-
-/* Staff Order franchise picker - compact dropdown */
-.franchise-picker-shell {
-  font-family: "Sora", "Inter", system-ui, sans-serif;
-}
-
-.franchise-picker-kicker {
-  color: #cfa24a;
-  font-size: 0.78rem;
-}
-
-.franchise-picker-trigger {
-  background:
-    radial-gradient(circle at 16% 20%, rgba(251, 191, 36, 0.12), transparent 24%),
-    linear-gradient(180deg, rgba(28, 33, 49, 0.96), rgba(25, 30, 45, 0.94));
-  border-color: rgba(205, 160, 60, 0.65);
-  color: #f0dfb2;
-  box-shadow:
-    0 16px 32px rgba(15, 23, 42, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(14px) saturate(135%);
-  -webkit-backdrop-filter: blur(14px) saturate(135%);
-  min-height: 60px;
-}
-
-.franchise-picker-trigger:hover:not(:disabled) {
-  border-color: rgba(224, 181, 78, 0.82);
-}
-
-.franchise-picker-trigger-open {
-  border-bottom-left-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
-}
-
-.franchise-picker-icon,
-.franchise-picker-trigger-meta,
-.franchise-picker-badge,
-.franchise-picker-panel-head,
-.franchise-picker-option-sub,
-.franchise-picker-option-pill {
-  display: none !important;
-}
-
-.franchise-picker-title-text {
-  color: #f3dfb0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.franchise-picker-chevron {
-  background: transparent;
-  border: none;
-  color: #d6ad48;
-}
-
-.franchise-picker-chevron-open {
-  transform: rotate(180deg);
-}
-
-.franchise-picker-panel {
-  padding: 10px 0 12px !important;
-  border-radius: 0 0 22px 22px !important;
-  background:
-    radial-gradient(circle at 84% 12%, rgba(251, 191, 36, 0.08), transparent 18%),
-    linear-gradient(180deg, rgba(13, 18, 37, 0.98), rgba(14, 19, 39, 0.96));
-  border-color: rgba(205, 160, 60, 0.55);
-  border-top-color: transparent;
-  box-shadow: 0 26px 58px rgba(15, 23, 42, 0.34);
-  transform: translateY(-10px);
-  backdrop-filter: blur(16px) saturate(138%);
-  -webkit-backdrop-filter: blur(16px) saturate(138%);
-  z-index: 140;
-}
-
-.franchise-picker-search-shell {
-  margin: 0 16px 8px;
-  background: rgba(255, 255, 255, 0.98);
-  border-color: rgba(214, 173, 72, 0.65);
-  box-shadow: 0 0 0 2px rgba(105, 149, 255, 0.2);
-  border-radius: 18px !important;
-  padding: 10px 12px !important;
-}
-
-.franchise-picker-search-shell:focus-within {
-  border-color: rgba(214, 173, 72, 0.9);
-  box-shadow:
-    0 0 0 2px rgba(105, 149, 255, 0.26),
-    0 8px 18px rgba(15, 23, 42, 0.12);
-}
-
-.franchise-picker-search-icon {
-  color: #d6ad48;
-  background: transparent;
-}
-
-.franchise-picker-search {
-  color: #1f2937;
-  font-size: 0.92rem;
-}
-
-.franchise-picker-search::placeholder {
-  color: rgba(201, 165, 88, 0.68);
-}
-
-.franchise-picker-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(214, 173, 72, 0.9) rgba(255, 255, 255, 0.06);
-}
-
-.franchise-picker-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.franchise-picker-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 999px;
-}
-
-.franchise-picker-scroll::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(234, 192, 89, 0.98), rgba(196, 144, 30, 0.92));
-  border-radius: 999px;
-}
-
-.franchise-picker-scroll::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(244, 210, 116, 0.98), rgba(205, 154, 40, 0.94));
-}
-
-.franchise-picker-option {
-  position: relative;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 13px 18px 13px 36px !important;
-  color: #cdb88b;
-}
-
-.franchise-picker-option::before {
-  content: "";
-  position: absolute;
-  left: 18px;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(177, 143, 70, 0.52);
-  transform: translateY(-50%);
-}
-
-.franchise-picker-option + .franchise-picker-option {
-  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-}
-
-.franchise-picker-option:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
-}
-
-.franchise-picker-option-active {
-  background: rgba(73, 60, 38, 0.58) !important;
-  box-shadow: inset 4px 0 0 rgba(234, 192, 89, 0.96) !important;
-}
-
-.franchise-picker-option-active::before {
-  background: rgba(234, 192, 89, 0.98);
-}
-
-.franchise-picker-option-name {
-  color: #ceb98b;
-  font-size: 0.96rem;
-}
-
-.franchise-picker-option-active .franchise-picker-option-name {
-  color: #f1cf77;
-  font-weight: 600;
-}
-
-.franchise-picker-empty {
-  margin: 0 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(214, 173, 72, 0.24);
-  color: #d8c7a3;
-}
-
-.admin-glass-theme .franchise-picker-kicker {
-  color: #d8ae58 !important;
-}
-
-.admin-glass-theme .franchise-picker-trigger,
-.admin-glass-theme .franchise-picker-panel {
-  backdrop-filter: blur(16px) saturate(138%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(138%) !important;
 }
 
 /* Staff Order customer search - force clean white UI */

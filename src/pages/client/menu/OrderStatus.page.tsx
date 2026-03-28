@@ -669,7 +669,7 @@ function OrderStatusFromApi({
                   <span className="font-mono font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg">{order.code}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-gray-400 w-24 shrink-0">Chi nhánh:</span>
+                  <span className="text-gray-400 w-24 shrink-0">Cửa hàng:</span>
                   <span className="font-medium text-gray-900">{franchiseName}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -758,7 +758,7 @@ function OrderStatusFromApi({
                     <span className="font-semibold text-gray-900">#{order.code}</span>
                   </div>
                   <div className="flex justify-between gap-3">
-                    <span className="text-gray-500">Chi nhánh</span>
+                    <span className="text-gray-500">Cửa hàng</span>
                     <span className="font-semibold text-gray-900 text-right">{franchiseName}</span>
                   </div>
                   <div className="flex justify-between gap-3">

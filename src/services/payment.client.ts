@@ -127,11 +127,9 @@ export const paymentClient = {
   getPaymentByOrderId: async (orderId: string): Promise<PaymentData | null> => {
     try {
       const response = await apiClient.get(`/payments/order/${orderId}`);
-      const payment = normalizePayment(unwrapSingle<PaymentData>(response.data));
-      return payment ? flattenPaymentRelations(payment) : null;
+      return normalizePayment(unwrapSingle<PaymentData>(response.data));
     } catch {
-      const payment = normalizePayment(getMockPaymentByOrderId(orderId));
-      return payment ? flattenPaymentRelations(payment) : null;
+      return normalizePayment(getMockPaymentByOrderId(orderId));
     }
   },
 
@@ -145,23 +143,19 @@ export const paymentClient = {
 
   getPaymentByCode: async (code: string): Promise<PaymentData | null> => {
     const response = await apiClient.get("/payments/code", { params: { code } });
-    const payment = normalizePayment(unwrapSingle<PaymentData>(response.data));
-    return payment ? flattenPaymentRelations(payment) : null;
+    return normalizePayment(unwrapSingle<PaymentData>(response.data));
   },
 
   getPaymentById: async (id: string): Promise<PaymentData | null> => {
     if (shouldUseMockPaymentId(id)) {
-      const payment = normalizePayment(getMockPaymentById(id));
-      return payment ? flattenPaymentRelations(payment) : null;
+      return normalizePayment(getMockPaymentById(id));
     }
 
     try {
       const response = await apiClient.get(`/payments/${id}`);
-      const payment = normalizePayment(unwrapSingle<PaymentData>(response.data));
-      return payment ? flattenPaymentRelations(payment) : null;
+      return normalizePayment(unwrapSingle<PaymentData>(response.data));
     } catch {
-      const payment = normalizePayment(getMockPaymentById(id));
-      return payment ? flattenPaymentRelations(payment) : null;
+      return normalizePayment(getMockPaymentById(id));
     }
   },
 

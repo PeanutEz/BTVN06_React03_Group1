@@ -536,7 +536,7 @@ export default function PaymentProcessPage() {
               </div>
               {franchiseName && (
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2 gap-3">
-                  <span className="text-gray-600">Chi nhánh</span>
+                  <span className="text-gray-600">Cửa hàng</span>
                   <span className="font-medium text-gray-900 text-right">{franchiseName}</span>
                 </div>
               )}

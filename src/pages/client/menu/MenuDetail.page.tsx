@@ -83,8 +83,8 @@ export default function MenuDetailPage() {
       <div className="min-h-screen bg-white flex items-center justify-center text-center">
         <div>
           <div className="text-5xl mb-4">🏪</div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Chưa chọn chi nhánh</h2>
-          <p className="text-sm text-gray-500 mb-4">Vui lòng chọn chi nhánh trước khi xem chi tiết món.</p>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Chưa chọn cửa hàng</h2>
+          <p className="text-sm text-gray-500 mb-4">Vui lòng chọn phương thức đặt hàng trước.</p>
           <Link to={ROUTER_URL.MENU} className="text-amber-600 hover:text-amber-700 font-medium text-sm">← Quay lại Menu</Link>
         </div>
       </div>
