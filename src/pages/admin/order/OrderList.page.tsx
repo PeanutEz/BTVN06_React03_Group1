@@ -3,7 +3,7 @@ import { Button } from "../../../components";
 import { OrderDetailModal } from "./OrderDetail.page";
 import { GlassSearchSelect } from "../../../components/ui";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS, ORDER_TYPE_LABELS } from "../../../models/order.model";
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "../../../models/order.model";
 import { orderClient } from "../../../services/order.client";
 import { updateOrderStatus } from "../../../services/order.service";
 import { fetchFranchiseSelect } from "../../../services/store.service";
@@ -159,18 +159,6 @@ const OrderListPage = () => {
   const formatCurrency= (amount: number) =>
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
-  const getDiscountSummary = (order: OrderDisplay) => {
-    const promotion = order.promotion_discount ?? 0;
-    const voucher   = order.voucher_discount   ?? 0;
-    const loyalty   = order.loyalty_discount   ?? 0;
-    const discountTotal = promotion + voucher + loyalty;
-    const parts: string[] = [];
-    if (promotion > 0) parts.push("KM");
-    if (voucher   > 0) parts.push("Voucher");
-    if (loyalty   > 0) parts.push("Điểm");
-    return { discountTotal, parts };
-  };
-
   return (
     <div className="space-y-6">
       {/* HEADER */}
@@ -255,49 +243,31 @@ const OrderListPage = () => {
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Mã đơn</th>
-                  <th className="px-4 py-3">Chi nhánh</th>
                   <th className="px-4 py-3">Khách hàng</th>
                   <th className="px-4 py-3">Tổng tiền</th>
-                  <th className="px-4 py-3">Giảm giá</th>
-                  <th className="px-4 py-3">Loại đơn</th>                  <th className="px-4 py-3">Trạng thái</th>                  <th className="px-4 py-3">Ngày tạo</th>
+                  <th className="px-4 py-3">Trạng thái</th>                  <th className="px-4 py-3">Ngày tạo</th>
                   <th className="px-4 py-3">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">                {loading ? (                  <tr><td colSpan={9}>
+              <tbody className="divide-y divide-slate-200">                {loading ? (                  <tr><td colSpan={6}>
                     <div className="flex justify-center items-center py-16">
                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500" />
                     </div>
                   </td></tr>
                 ) : paginatedOrders.length === 0 ? (
-                  <tr><td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-500">Không có đơn hàng nào</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-slate-500">Không có đơn hàng nào</td></tr>
                 ) : (
                   paginatedOrders.map((order) => {
-                    const { discountTotal, parts } = getDiscountSummary(order);
-                    const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-slate-100 text-slate-600 border-slate-200";                    const custPhone = order.customer?.phone || (order as any).phone || "—";
-                    const custName  = order.customer_name || order.customer?.name || "—";
+                    const statusColor = ORDER_STATUS_COLORS[order.status] ?? "bg-slate-100 text-slate-600 border-slate-200";                    const custName  = order.customer_name || order.customer?.name || "—";
                     return (
                       <tr key={order._id ?? order.id} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-3 font-semibold text-primary-600">{order.code}</td>
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-slate-900">{String(order.franchise?.name || (order as any).franchise_name || "—")}</p>
-                          <p className="text-xs text-slate-500">{String(order.franchise?.code || (order as any).franchise_code || "")}</p>
-                        </td>
-                        <td className="px-4 py-3">
                           <p className="font-semibold text-slate-900">{custName}</p>
-                          <p className="text-xs text-slate-500">{custPhone}</p>
                         </td>
                         <td className="px-4 py-3 font-semibold text-slate-900 whitespace-nowrap">
                           {formatCurrency(order.final_amount ?? order.total_amount ?? 0)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {discountTotal > 0 ? (
-                            <div>
-                              <p className="font-semibold text-green-600 whitespace-nowrap">-{formatCurrency(discountTotal)}</p>
-                              <p className="text-[11px] text-slate-500">{parts.join(", ")}</p>
-                            </div>
-                          ) : <span className="text-slate-400">—</span>}
-                        </td>
-                        <td className="px-4 py-3 text-slate-600">{ORDER_TYPE_LABELS[order.type] ?? order.type ?? "—"}</td>                        <td className="px-4 py-3">
+                        </td>                        <td className="px-4 py-3">
                           <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusColor}`}>
                             {updatingId === String(order._id ?? order.id)
                               ? "Đang cập nhật..."
@@ -306,8 +276,8 @@ const OrderListPage = () => {
                         </td>                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
                           {order.created_at ? new Date(order.created_at).toLocaleString("vi-VN") : "—"}                        </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center justify-between gap-1">
-                            {/* Xem chi tiết — bên trái */}
+                          <div className="flex items-center gap-2">
+                            {/* Xem chi tiết */}
                             <button
                               onClick={() => setSelectedOrderId(String(order._id ?? order.id))}
                               className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
@@ -318,8 +288,8 @@ const OrderListPage = () => {
                               </svg>
                             </button>
 
-                            {/* Action buttons — bên phải */}
-                            <div className="flex items-center gap-1">
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-1.5">
                               {/* Chuẩn bị — chỉ hiện khi CONFIRMED */}
                               {order.status === "CONFIRMED" && (
                                 <button
