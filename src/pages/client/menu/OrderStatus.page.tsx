@@ -1,13 +1,16 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import LoadingLayout from "@/layouts/Loading.layout";
 import { buildPaymentProcessUrl, ROUTER_URL } from "@/routes/router.const";
 import { orderClient } from "@/services/order.client";
 import type { DeliveryData } from "@/services/delivery.client";
 import { paymentClient, type PaymentData } from "@/services/payment.client";
 import { getOrderItemDisplayMeta } from "@/utils/orderItemDisplay.util";
 import { getOrderPaymentIntent } from "@/utils/orderPaymentIntent.util";
+import {
+  getPaymentResultActionLabel,
+  resolvePaymentResultReason,
+} from "@/utils/paymentResultState.util";
 import type { OrderDisplay } from "@/models/order.model";
 import type { OrderStatus as ApiOrderStatus } from "@/models/order.model";
 import {
@@ -180,9 +183,11 @@ function getTrackingConfig(status: TrackingStatus) {
 function StatusTimeline({
   steps,
   currentStatus,
+  cancelReason,
 }: {
   steps: TrackingStatus[];
   currentStatus: TrackingStatus;
+  cancelReason?: string;
 }) {
   const currentIdx = steps.indexOf(currentStatus);
   const isCancelled = currentStatus === "CANCELLED";
@@ -263,6 +268,14 @@ function StatusTimeline({
             <div className="flex-1 pb-2">
               <p className="font-semibold text-sm text-red-700">{ORDER_STATUS_CONFIG.CANCELLED.label}</p>
               <p className="text-xs text-red-500 mt-0.5">{ORDER_STATUS_CONFIG.CANCELLED.description}</p>
+              {cancelReason && (
+                <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-red-700">
+                    Lý do hủy
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-red-700">{cancelReason}</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -443,7 +456,7 @@ function OrderStatusFromApi({
   const hasPaymentInfo = Boolean(payment || paymentMethodRaw || paymentBankName);
   const isCashMethod = paymentMethodRaw === "CASH" || paymentMethodRaw === "COD";
   const timelineCurrentStatus: TrackingStatus =
-    mappedStatus === "CANCELLED" || isCashMethod || isPaidPayment(payment?.status)
+    mappedStatus === "CANCELLED" || isPaidPayment(payment?.status)
       ? mappedStatus
       : "PAYMENT_PENDING";
   const showDeliveringContact =
@@ -458,6 +471,25 @@ function OrderStatusFromApi({
   const voucherPercentText = voucherTypeText.includes("PERCENT") && toNumber((order as any).voucher_value) > 0
     ? `${toNumber((order as any).voucher_value)}%`
     : null;
+  const paymentResultReason = resolvePaymentResultReason((order as any)?.status, payment?.status);
+  const cancelReason = pickFirstText(
+    (payment as any)?.refund_reason,
+    (order as any)?.cancel_reason,
+    (order as any)?.cancel_note,
+    (order as any)?.note,
+  );
+  const shouldShowPaymentResultButton = Boolean(
+    paymentResultReason || isPaidPayment(payment?.status),
+  );
+  const paymentResultUrl = shouldShowPaymentResultButton && orderResolvedId
+    ? paymentResultReason
+      ? ROUTER_URL.PAYMENT_FAILED.replace(":orderId", orderResolvedId)
+      : ROUTER_URL.PAYMENT_SUCCESS.replace(":orderId", orderResolvedId)
+    : null;
+  const paymentResultLabel = getPaymentResultActionLabel(paymentResultReason);
+  const paymentResultClassName = paymentResultReason
+    ? "border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700"
+    : "border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700";
   const handleContinuePayment = () => {
     const currentOrderId = String(order?._id ?? order?.id ?? "");
     if (!currentOrderId) return;
@@ -473,13 +505,6 @@ function OrderStatusFromApi({
     <div className="bg-[#faf8f4] min-h-screen text-[#3d2b1f]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-5">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            className="px-3 py-2 rounded-lg border border-[#3d2b1f]/15 bg-white text-[#6b4c3b] hover:bg-[#f2ede4] text-xs font-medium"
-          >
-            ← Quay lại
-          </button>
           <Link
             to={ROUTER_URL.CUSTOMER_ORDER_HISTORY}
             className="px-3 py-2 rounded-lg border border-[#3d2b1f]/15 bg-white text-[#6b4c3b] hover:bg-[#f2ede4] text-xs font-medium"
@@ -493,7 +518,11 @@ function OrderStatusFromApi({
             <div className="bg-white rounded-[14px] border border-[#3d2b1f]/10 overflow-hidden shadow-sm">
               <div className="px-5 py-4">
                 <h2 className="font-semibold text-sm mb-4">Trạng thái đơn hàng</h2>
-                <StatusTimeline steps={steps} currentStatus={timelineCurrentStatus} />
+                <StatusTimeline
+                  steps={steps}
+                  currentStatus={timelineCurrentStatus}
+                  cancelReason={cancelReason}
+                />
                 {showDeliveringContact && (
                   <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                     <div className="flex items-center gap-2 text-emerald-800 text-sm font-semibold">
@@ -781,15 +810,33 @@ function OrderStatusFromApi({
 
               <div className="mt-4 flex flex-col gap-2">
                 {payment &&
-              isPendingPayment(payment.status) &&
-              !isCashMethod ? (
+              isPendingPayment(payment.status) ? (
                   <button
                     type="button"
                     onClick={handleContinuePayment}
                     className="block text-center w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-sm"
                   >
-                    Thanh toán
+                    {isCashMethod ? "Xác nhận COD" : "Thanh toán"}
                   </button>
+                ) : null}
+                {paymentResultUrl ? (
+                  <Link
+                    to={paymentResultUrl}
+                    aria-label={paymentResultLabel}
+                    state={
+                      paymentResultReason
+                        ? {
+                            reason: paymentResultReason,
+                            paymentMethod: paymentMethodRaw,
+                            bankName: paymentBankName,
+                          }
+                        : undefined
+                    }
+                    className={`block text-center w-full py-3 rounded-xl font-semibold text-[0px] transition-colors ${paymentResultClassName}`}
+                  >
+                    <span className="text-sm font-semibold">{paymentResultLabel}</span>
+                    Thanh toán thành công
+                  </Link>
                 ) : null}
                 <Link to="/menu" className="block text-center w-full py-3 bg-[#d4832a] hover:bg-[#a05e10] text-white rounded-xl font-semibold text-sm">
                   Đặt thêm đơn mới
@@ -835,7 +882,9 @@ export default function OrderStatusPage() {
   const apiPayment = paymentQuery.data;
 
   const apiOrder = orderQuery.data;
-  if (orderQuery.isLoading || orderQuery.isFetching) return <LoadingLayout />;
+  if (orderQuery.isLoading || orderQuery.isFetching) {
+    return <div className="min-h-screen bg-[#faf8f4]" />;
+  }
 
   if (orderQuery.error) {
     const status = (orderQuery.error as any)?.response?.status;

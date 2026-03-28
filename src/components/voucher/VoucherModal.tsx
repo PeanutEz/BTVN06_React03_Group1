@@ -9,6 +9,7 @@ import type { FranchiseSelectItem } from "@/services/store.service";
 import { adminProductFranchiseService } from "@/services/product-franchise.service";
 import type { ProductFranchiseApiResponse } from "@/models/product.model";
 import { useManagerFranchiseId } from "@/hooks/useManagerFranchiseId";
+import { useLoadingStore } from "@/store/loading.store";
 
 interface VoucherModalProps {
   voucher: Voucher | null;
@@ -18,7 +19,9 @@ interface VoucherModalProps {
 
 export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
   const managerFranchiseId = useManagerFranchiseId();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     type: "FIXED" as "PERCENT" | "FIXED",
@@ -172,6 +175,8 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
     if (formData.type === "PERCENT" && formData.value > 100) return toast.error("Phần trăm không được vượt quá 100");
     if (!voucher && !formData.franchise_id) return toast.error("Vui lòng chọn chi nhánh áp dụng");
 
+    setSubmitError("");
+    showPageLoading(voucher ? "Đang cập nhật voucher..." : "Đang tạo voucher...");
     setLoading(true);
     try {
       const payloadDateFormatted = {
@@ -197,7 +202,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
         };
         // Strict adherence to backend payload requirements
         createDto.franchise_id = formData.franchise_id; // Always send since it's required
-        
+
         if (formData.product_franchise_id) {
           createDto.product_franchise_id = formData.product_franchise_id;
         }
@@ -207,24 +212,43 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
       }
       onSave();
     } catch (error) {
-      toast.error(voucher ? "Lỗi cập nhật voucher" : "Lỗi tạo voucher");
+      setSubmitError(voucher ? "Lỗi cập nhật voucher" : "Lỗi tạo voucher");
       console.error(error);
     } finally {
       setLoading(false);
+      hidePageLoading();
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
       <div className="flex min-h-full items-center justify-center p-4">
-      <div className="w-full max-w-xl my-4 rounded-2xl bg-white shadow-2xl flex flex-col">
+      <div className="w-full max-w-xl my-4 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{
+        background: "rgba(15,23,42,0.85)",
+        backdropFilter: "blur(40px) saturate(180%)",
+        WebkitBackdropFilter: "blur(40px) saturate(180%)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
+      }}>
+        {/* Gradient accent top */}
+        <div className="h-0.5 w-full shrink-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
-          <h2 className="text-xl font-bold text-gray-800">
-            {voucher ? "Chỉnh sửa Voucher" : "Tạo Voucher mới"}
-          </h2>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="px-6 py-4 border-b border-white/[0.12] flex items-start justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary-500/20">
+              <svg className="size-4 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white">
+                {voucher ? "Chỉnh sửa Voucher" : "Tạo Voucher mới"}
+              </h2>
+              <p className="text-xs text-white/40">{voucher ? "Cập nhật thông tin voucher" : "Tạo voucher giảm giá mới"}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/[0.08] hover:text-white/70">
+            <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -234,17 +258,17 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
         <div className="p-6">
           <form id="voucher-form" onSubmit={handleSubmit} className="space-y-4">
             {!voucher && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">🏪 Phạm vi áp dụng</p>
+              <div className="rounded-xl border border-white/[0.1] bg-white/[0.06] p-3.5 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-white/50">Phạm vi áp dụng</p>
                 <div className="grid grid-cols-2 gap-4">
                   {/* Chi nhánh áp dụng */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      Chi nhánh áp dụng <span className="text-red-500">*</span>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">
+                      Chi nhánh áp dụng <span className="text-red-400">*</span>
                     </label>
                     {managerFranchiseId ? (
-                      <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-50 px-3 py-2 text-sm cursor-not-allowed select-none">
-                        <span className="truncate font-medium text-primary-700">
+                      <div className="flex w-full items-center justify-between rounded-lg border border-primary-500/50 bg-primary-500/10 px-3 py-2 text-sm cursor-not-allowed select-none">
+                        <span className="truncate font-medium text-white/80">
                           {selectedFranchise
                             ? `${selectedFranchise.name} (${selectedFranchise.code})`
                             : managerFranchiseId}
@@ -385,18 +409,19 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
 
                   {/* Sản phẩm áp dụng */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-500 mb-1">Sản phẩm áp dụng (Tùy chọn)</label>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Sản phẩm áp dụng (Tùy chọn)</label>
                     <select
                       name="product_franchise_id"
                       value={formData.product_franchise_id}
                       onChange={handleChange}
-                      className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                      className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{ colorScheme: "dark" }}
                       disabled={!formData.franchise_id || loadingProducts}
                     >
                       <option value="">-- Chọn sản phẩm (Áp dụng tất cả) --</option>
                       {productFranchises.map((pf) => (
                         <option key={pf.id} value={pf.id}>
-                          Size {pf.size} - {pf.price_base.toLocaleString("vi-VN")}đ
+                          {pf.product_name} - Size {pf.size} - {pf.price_base.toLocaleString("vi-VN")}đ
                         </option>
                       ))}
                     </select>
@@ -406,13 +431,13 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Tên Voucher <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Tên Voucher <span className="text-red-400">*</span></label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder-white/30 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
                 placeholder="VD: Voucher Giảm 10K Tháng 5"
                 required
               />
@@ -420,50 +445,53 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Loại giảm giá <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Loại giảm giá <span className="text-red-400">*</span></label>
                 <select
                   name="type"
                   value={formData.type}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                  className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
+                  style={{ colorScheme: "dark" }}
                 >
                   <option value="PERCENT">Phần trăm (%)</option>
                   <option value="FIXED">Giá tiền cố định (VNĐ)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Giá trị giảm <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Giá trị giảm <span className="text-red-400">*</span></label>
                 <input
                   type="number"
                   name="value"
                   min={1}
                   value={formData.value}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                  style={{ colorScheme: "dark" }}
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Tổng số lượng (Quota) <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Tổng số lượng (Quota) <span className="text-red-400">*</span></label>
               <input
                 type="number"
                 name="quota_total"
                 min={1}
                 value={formData.quota_total}
                 onChange={handleChange}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                style={{ colorScheme: "dark" }}
                 required
               />
             </div>            {/* DATE RANGE */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5 space-y-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">⏱ Thời gian áp dụng</p>
+            <div className="rounded-xl border border-white/[0.1] bg-white/[0.06] p-3.5 space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-white/50">Thời gian áp dụng</p>
 
               {/* Start */}
               <div className="space-y-1.5">
-                <label className="block text-sm font-semibold text-gray-700">
-                  Bắt đầu <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-white/50">
+                  Bắt đầu <span className="text-red-400">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {/* Date picker */}
@@ -477,17 +505,19 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                       value={startDatePart}
                       onChange={(e) => handleDateTimePart("start_date", "date", e.target.value)}
                       max={endDatePart || undefined}
-                      className="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 pl-9 pr-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      style={{ colorScheme: "dark" }}
                       required
                     />
                   </div>                  {/* Time picker */}
                   <TimeSelect
                     value={startTimePart}
                     onChange={(val) => handleDateTimePart("start_date", "time", val)}
+                    darkMode
                   />
                 </div>
                 {startDatePart && (
-                  <p className="text-xs text-primary-600 font-medium pl-1">
+                  <p className="text-xs text-primary-400 font-medium pl-1">
                     ✓ {new Date(`${startDatePart}T${startTimePart || "00:00"}`).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" })}
                   </p>
                 )}
@@ -495,15 +525,15 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
 
               {/* Arrow */}
               <div className="flex items-center gap-2 px-1">
-                <div className="h-px flex-1 bg-slate-200" />
-                <span className="text-xs font-semibold text-slate-400">đến</span>
-                <div className="h-px flex-1 bg-slate-200" />
+                <div className="h-px flex-1 bg-white/[0.1]" />
+                <span className="text-xs font-semibold text-white/40">đến</span>
+                <div className="h-px flex-1 bg-white/[0.1]" />
               </div>
 
               {/* End */}
               <div className="space-y-1.5">
-                <label className="block text-sm font-semibold text-gray-700">
-                  Kết thúc <span className="text-red-500">*</span>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-white/50">
+                  Kết thúc <span className="text-red-400">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="relative">
@@ -516,16 +546,18 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                       value={endDatePart}
                       onChange={(e) => handleDateTimePart("end_date", "date", e.target.value)}
                       min={startDatePart || undefined}
-                      className="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 pl-9 pr-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      style={{ colorScheme: "dark" }}
                       required
                     />
                   </div>                  <TimeSelect
                     value={endTimePart}
                     onChange={(val) => handleDateTimePart("end_date", "time", val)}
+                    darkMode
                   />
                 </div>
                 {endDatePart && (
-                  <p className="text-xs text-primary-600 font-medium pl-1">
+                  <p className="text-xs text-primary-400 font-medium pl-1">
                     ✓ {new Date(`${endDatePart}T${endTimePart || "00:00"}`).toLocaleString("vi-VN", { dateStyle: "full", timeStyle: "short" })}
                   </p>
                 )}
@@ -533,7 +565,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
 
               {/* Duration preview */}
               {startDatePart && endDatePart && new Date(formData.end_date) > new Date(formData.start_date) && (
-                <div className="rounded-lg bg-primary-50 border border-primary-200 px-3 py-2 text-xs text-primary-700 font-medium">
+                <div className="rounded-lg bg-primary-500/15 border border-primary-500/30 px-3 py-2 text-xs text-primary-300 font-medium">
                   🗓 Thời gian hiệu lực:{" "}
                   {(() => {
                     const diff = new Date(formData.end_date).getTime() - new Date(formData.start_date).getTime();
@@ -544,7 +576,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                 </div>
               )}
               {startDatePart && endDatePart && new Date(formData.end_date) <= new Date(formData.start_date) && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600 font-medium">
+                <div className="rounded-lg bg-red-500/15 border border-red-500/30 px-3 py-2 text-xs text-red-400 font-medium">
                   ⚠ Ngày kết thúc phải sau ngày bắt đầu
                 </div>
               )}
@@ -553,12 +585,16 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-white/[0.08] shrink-0">
+          {submitError && (
+            <p className="mb-3 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{submitError}</p>
+          )}
+          <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-5 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600 disabled:opacity-50"
           >
             Hủy
           </button>
@@ -571,9 +607,10 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
             {loading && <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
             {voucher ? "Cập nhật" : "Tạo mới"}
           </button>
+          </div>
         </div>
       </div>
       </div>
     </div>
-  );
+  , document.body);
 }

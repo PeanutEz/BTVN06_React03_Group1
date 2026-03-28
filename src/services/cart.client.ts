@@ -50,6 +50,7 @@ export type CheckoutCartBody = UpdateCartBody;
 export interface UpdateCartItemBody {
   cart_item_id: string;
   quantity: number;
+  note?: string;
 }
 
 export interface UpdateOptionBody {

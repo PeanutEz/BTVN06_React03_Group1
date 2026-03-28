@@ -1,4 +1,5 @@
 ﻿import { useEffect, useRef, useState, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { Button, GlassSelect, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { adminInventoryService } from "../../../services/inventory.service";
@@ -16,6 +17,7 @@ import type { ProductFranchiseApiResponse } from "../../../models/product.model"
 import { showSuccess, showError } from "../../../utils";
 import * as XLSX from "xlsx";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
+import { useLoadingStore } from "../../../store/loading.store";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -39,6 +41,7 @@ interface ImportPreviewRow {
 
 export default function InventoryListPage() {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const managerFranchiseId = useManagerFranchiseId();
   const [items, setItems] = useState<InventoryApiResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -554,11 +557,6 @@ export default function InventoryListPage() {
     e.target.value = "";
   };
 
-  const handleOpenAdjust = (item: InventoryApiResponse) => {
-    setAdjustTarget(item);
-    setAdjustForm({ change: "", reason: "" });
-  };
-
   // ─── Batch edit handlers ──────────────────────────────────────────────────
   const handlePendingChange = (
     id: string,
@@ -770,6 +768,8 @@ export default function InventoryListPage() {
       showError("Vui lòng điền đầy đủ thông tin hợp lệ");
       return;
     }
+    setCreateOpen(false);
+    showPageLoading("Đang tạo inventory...");
     setCreating(true);
     try {
       const dto: CreateInventoryDto = {
@@ -779,8 +779,7 @@ export default function InventoryListPage() {
       };
       await adminInventoryService.createInventory(dto);
       showSuccess("Tạo inventory thành công");
-      setCreateOpen(false);
-      load(searchFranchise, 1, statusFilter, isDeletedFilter);
+      await load(searchFranchise, 1, statusFilter, isDeletedFilter);
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -790,6 +789,7 @@ export default function InventoryListPage() {
       showError(msg);
     } finally {
       setCreating(false);
+      hidePageLoading();
     }
   };
 
@@ -1381,53 +1381,66 @@ export default function InventoryListPage() {
       </div>
 
       {/* ─── Create Modal (INVENTORY-01) ─────────────────────────────────────── */}
-      {createOpen && (
+      {createOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-md rounded-2xl shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setCreateOpen(false)} />
+          <div className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
-              <h2 className="text-lg font-semibold text-white/95">
-                Thêm inventory mới
-              </h2>
-              <button
-                onClick={() => setCreateOpen(false)}
-                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition-colors"
-              >
-                <svg
-                  className="size-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+            {/* Gradient accent top */}
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+
+            <div className="p-6">
+              {/* Header */}
+              <div className="mb-6 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary-500/20">
+                    <svg className="size-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white">Thêm inventory mới</h2>
+                    <p className="text-xs text-white/40">Tạo bản ghi tồn kho cho sản phẩm</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(false)}
+                  className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/[0.08] hover:text-white/70"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>            <form onSubmit={handleCreateSubmit} className="space-y-4 px-6 py-5">
+                  <svg
+                    className="size-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            <form onSubmit={handleCreateSubmit} className="space-y-4">
               {/* ── Franchise ── */}
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-white/80">
-                  Franchise <span className="text-red-500">*</span>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
+                  <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                  Franchise <span className="text-red-400 normal-case">*</span>
                 </label>
                 {managerFranchiseId ? (
-                  <div className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm cursor-not-allowed"
-                    style={{ background: "rgba(15,23,42,0.75)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.9)" }}>
-                    <span className="truncate">
+                  <div className="flex w-full items-center gap-2 rounded-lg border border-primary-500/40 bg-primary-500/10 px-3 py-2 text-sm text-white/80">
+                    <svg className="size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    <span className="truncate font-medium">
                       {franchiseOptions.find((f) => f.value === managerFranchiseId)?.name ?? managerFranchiseId}
                     </span>
-                    <svg className="ml-2 size-4 shrink-0 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
                   </div>
                 ) : (
                   <div ref={createFranchiseComboRef} className="relative">
@@ -1589,9 +1602,10 @@ export default function InventoryListPage() {
                   )}
                 </div>
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-white/80">
-                  Số lượng ban đầu <span className="text-red-500">*</span>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
+                  <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>
+                  Số lượng ban đầu <span className="text-red-400 normal-case">*</span>
                 </label>
                 <input
                   type="number"
@@ -1601,15 +1615,16 @@ export default function InventoryListPage() {
                   onChange={(e) =>
                     setCreateForm((f) => ({ ...f, quantity: e.target.value }))
                   }
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.12] bg-white/[0.06] text-white/90 placeholder-white/20 px-3 py-2 text-sm outline-none transition focus:border-primary-500/60 focus:bg-white/[0.09] focus:ring-2 focus:ring-primary-500/20"
                   required
                 />
               </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-white/80">
-                  Ngưỡng cảnh báo <span className="text-red-500">*</span>
-                  <span className="ml-1 text-xs font-normal text-white/40">
-                    (cảnh báo khi tồn kho xuống dưới ngưỡng này)
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
+                  <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  Ngưỡng cảnh báo <span className="text-red-400 normal-case">*</span>
+                  <span className="ml-1 text-[10px] font-normal text-white/30 normal-case">
+                    (cảnh báo khi dưới ngưỡng này)
                   </span>
                 </label>
                 <input
@@ -1623,29 +1638,30 @@ export default function InventoryListPage() {
                       alert_threshold: e.target.value,
                     }))
                   }
-                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.12] bg-white/[0.06] text-white/90 placeholder-white/20 px-3 py-2 text-sm outline-none transition focus:border-primary-500/60 focus:bg-white/[0.09] focus:ring-2 focus:ring-primary-500/20"
                   required
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
+              <div className="flex justify-end gap-2 border-t border-white/[0.07] pt-4">
+                <Button
                   type="button"
                   onClick={() => setCreateOpen(false)}
-                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+                  className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
                 >
                   Hủy
-                </button>
+                </Button>
                 <Button type="submit" loading={creating}>
                   Tạo mới
                 </Button>
               </div>
             </form>
+            </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ─── Adjust Modal ────────────────────────────────────────────────────── */}
-      {adjustTarget && (
+      {adjustTarget && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/25" />
           <div className="relative w-full max-w-md rounded-2xl shadow-2xl" style={{
@@ -1740,7 +1756,7 @@ export default function InventoryListPage() {
                 <button
                   type="button"
                   onClick={() => setAdjustTarget(null)}
-                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+                  className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
                 >
                   Hủy
                 </button>
@@ -1751,10 +1767,10 @@ export default function InventoryListPage() {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ─── View Detail Modal ───────────────────────────────────────────────── */}
-      {viewingItem && (
+      {viewingItem && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/25" />
           <div className="relative w-full max-w-md rounded-2xl shadow-2xl" style={{
@@ -1873,20 +1889,9 @@ export default function InventoryListPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                {!viewingItem.is_deleted && (
-                  <button
-                    onClick={() => {
-                      setViewingItem(null);
-                      handleOpenAdjust(viewingItem);
-                    }}
-                    className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
-                  >
-                    Điều chỉnh
-                  </button>
-                )}
                 <button
                   onClick={() => setViewingItem(null)}
-                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+                  className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
                 >
                   Đóng
                 </button>
@@ -1894,10 +1899,10 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ─── Logs Modal (INVENTORY-08) ────────────────────────────────────────── */}
-      {logsItem && (
+      {logsItem && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/25" />
           <div className="relative w-full max-w-xl rounded-2xl shadow-2xl" style={{
@@ -1980,17 +1985,17 @@ export default function InventoryListPage() {
             <div className="flex justify-end border-t border-white/[0.08] px-6 py-4">
               <button
                 onClick={() => setLogsItem(null)}
-                className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+                className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
               >
                 Đóng
               </button>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ─── Import Preview Modal ──────────────────────────────────────────────── */}
-      {importPreviewOpen && (
+      {importPreviewOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 shrink-0">
@@ -2094,10 +2099,10 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ─── Import Modal ─────────────────────────────────────────────────────── */}
-      {importModalOpen && (
+      {importModalOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -2207,10 +2212,10 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ─── Export Modal ─────────────────────────────────────────────────────── */}
-      {exportFranchiseOpen && (
+      {exportFranchiseOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -2369,7 +2374,7 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

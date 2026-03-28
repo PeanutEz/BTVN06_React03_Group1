@@ -18,6 +18,7 @@ import type {
   ProductWithCategoriesResponse,
 } from "../../../models/product.model";
 import { showError, showSuccess } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
 const ITEMS_PER_PAGE = 10;
@@ -46,6 +47,7 @@ const getApiErrorMessage = (err: unknown, fallback: string) => {
 
 export default function ProductCategoryFranchisePage() {
   const managerFranchiseId = useManagerFranchiseId();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<ProductCategoryFranchiseApiResponse[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,6 +133,17 @@ export default function ProductCategoryFranchisePage() {
     return map;
   }, [franchises]);
 
+  // Filter categories by selected franchise
+  const filteredCategoryOptions = useMemo(() => {
+    const list = filters.franchise_id
+      ? categoryFranchises.filter((cf) => cf.franchise_id === filters.franchise_id)
+      : categoryFranchises;
+    return list.map((cf) => ({
+      value: cf.category_id ?? cf.id,
+      label: cf.category_name ?? cf.category_code ?? cf.id,
+    }));
+  }, [categoryFranchises, filters.franchise_id]);
+
   const buildSearchDto = (
     pageNum: number,
   ): SearchProductCategoryFranchiseDto => {
@@ -207,6 +220,12 @@ export default function ProductCategoryFranchisePage() {
     setFilters(prev => ({ ...prev, franchise_id: managerFranchiseId }));
   }, [managerFranchiseId]);
 
+  // Reset category_id when franchise filter changes
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, category_id: "" }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.franchise_id]);
+
   useEffect(() => {
     if (!isInitialized.current) return;
     load(1);
@@ -223,19 +242,21 @@ export default function ProductCategoryFranchisePage() {
       showError("display_order phải >= 1");
       return;
     }
+    setCreateOpen(false);
+    setCreateForm({ ...DEFAULT_CREATE });
+    showPageLoading("Đang thêm sản phẩm...");
     setCreating(true);
     try {
       await productCategoryFranchiseService.createProductCategoryFranchise(
         createForm,
       );
       showSuccess("Thêm thành công");
-      setCreateOpen(false);
-      setCreateForm({ ...DEFAULT_CREATE });
       await load(1);
     } catch (err) {
       showError(getApiErrorMessage(err, "Tạo thất bại"));
     } finally {
       setCreating(false);
+      hidePageLoading();
     }
   };
 
@@ -403,17 +424,23 @@ export default function ProductCategoryFranchisePage() {
             <label className="block text-xs font-semibold uppercase tracking-widest text-white/40">
               Danh mục
             </label>
-            <GlassSearchSelect
-              value={filters.category_id}
-              onChange={(v) => setFilters((f) => ({ ...f, category_id: v }))}
-              options={categoryFranchises.map((cf) => ({
-                value: cf.category_id ?? cf.id,
-                label: cf.category_name ?? cf.category_code ?? cf.id,
-              }))}
-              placeholder="-- Tất cả danh mục --"
-              searchPlaceholder="Tìm theo tên danh mục..."
-              allLabel="-- Tất cả danh mục --"
-            />
+            {!filters.franchise_id ? (
+              <div className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/30 cursor-not-allowed select-none">
+                <span className="truncate">Chọn franchise trước</span>
+                <svg className="ml-2 size-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            ) : (
+              <GlassSearchSelect
+                value={filters.category_id}
+                onChange={(v) => setFilters((f) => ({ ...f, category_id: v }))}
+                options={filteredCategoryOptions}
+                placeholder="-- Tất cả danh mục --"
+                searchPlaceholder="Tìm theo tên danh mục..."
+                allLabel="-- Tất cả danh mục --"
+              />
+            )}
           </div>
 
           {/* Status select */}
@@ -596,17 +623,18 @@ export default function ProductCategoryFranchisePage() {
       )}
 
       {/* Create Modal */}
-      {createOpen && (
+      {createOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <h2 className="mb-4 text-lg font-bold text-white/95">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <h2 className="mb-4 mt-2 text-lg font-bold text-white/95">
               Thêm Product vào Category Franchise
             </h2>            <form onSubmit={submitCreate} className="space-y-4">              <div className="space-y-1.5">                <label className="text-xs font-semibold uppercase tracking-wide text-white/50">
                   Franchise <span className="text-red-500">*</span>
@@ -724,9 +752,8 @@ export default function ProductCategoryFranchisePage() {
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
-                  variant="outline"
                   onClick={() => setCreateOpen(false)}
-                  className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
+                  className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
                 >
                   Hủy
                 </Button>
@@ -736,7 +763,7 @@ export default function ProductCategoryFranchisePage() {
               </div>
             </form>
           </div>
-        </div>      )}
+        </div>      , document.body)}
 
       {/* Portal: create franchise dropdown */}
       {createFranchiseOpen && createFranchiseRect && ReactDOM.createPortal(
@@ -788,17 +815,18 @@ export default function ProductCategoryFranchisePage() {
       )}
 
       {/* Detail Modal */}
-      {(detail || detailLoading) && (
+      {(detail || detailLoading) && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <h2 className="mb-4 text-lg font-bold text-white/95">Chi tiết</h2>
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <h2 className="mb-4 mt-2 text-lg font-bold text-white/95">Chi tiết</h2>
             {detailLoading && (
               <p className="text-sm text-white/50">Đang tải...</p>
             )}
@@ -842,26 +870,27 @@ export default function ProductCategoryFranchisePage() {
               </div>
             )}
             <div className="mt-4 flex justify-end">
-              <Button variant="outline" onClick={() => setDetail(null)} className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]">
+              <Button onClick={() => setDetail(null)} className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
                 Đóng
               </Button>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Reorder Modal */}
-      {reorderItem && (
+      {reorderItem && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
-          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl" style={{
-            background: "rgba(255, 255, 255, 0.12)",
-            backdropFilter: "blur(40px) saturate(200%)",
-            WebkitBackdropFilter: "blur(40px) saturate(200%)",
-            border: "1px solid rgba(255, 255, 255, 0.25)",
-            boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
           }}>
-            <h2 className="mb-1 text-lg font-bold text-white/95">
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <h2 className="mb-1 mt-2 text-lg font-bold text-white/95">
               Đổi thứ tự hiển thị
             </h2>
             <p className="mb-4 text-xs text-white/50">
@@ -885,9 +914,8 @@ export default function ProductCategoryFranchisePage() {
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
-                  variant="outline"
                   onClick={() => setReorderItem(null)}
-                  className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
+                  className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
                 >
                   Hủy
                 </Button>
@@ -898,7 +926,7 @@ export default function ProductCategoryFranchisePage() {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

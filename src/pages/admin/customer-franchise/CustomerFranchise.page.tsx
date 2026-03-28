@@ -614,20 +614,17 @@ export default function CustomerFranchisePage() {
           style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
           onClick={(e) => { if (e.target === e.currentTarget) setDetailItem(null); }}
         >
-          <div className="relative w-full max-w-lg rounded-2xl border border-white/[0.12] bg-slate-900 shadow-2xl">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-white/[0.12] bg-slate-900 shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-white/[0.10] px-6 py-4">
+            <div className="flex items-center justify-between border-b border-white/[0.10] px-5 py-3">
               <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
-                  <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <div className="flex size-8 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
+                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                     <path strokeLinecap="round" strokeLinejoin="round"
                       d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                   </svg>
                 </div>
-                <div>
-                  <h3 className="font-bold text-white text-sm">Chi tiết Customer Franchise</h3>
-                  <p className="text-xs text-white/40 font-mono mt-0.5">{detailItem.id}</p>
-                </div>
+                <h3 className="font-bold text-white text-sm">Chi tiết Customer Franchise</h3>
               </div>
               <button
                 onClick={() => setDetailItem(null)}
@@ -637,104 +634,82 @@ export default function CustomerFranchisePage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>            {/* Body */}
+            </div>
+
+            {/* Body */}
             {detailLoading ? (
-              <div className="flex items-center justify-center py-16">
+              <div className="flex items-center justify-center py-12">
                 <svg className="size-8 animate-spin text-amber-400" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
               </div>
             ) : (
-              <div className="max-h-[80vh] overflow-y-auto p-6 space-y-4">
+              <div className="p-5 space-y-4">
 
-                {/* Points hero — 2 card nổi bật */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 text-center">
-                    <p className="text-xs text-amber-300/70 font-semibold uppercase tracking-wide mb-1">
-                      ⭐ Điểm hiện tại
-                    </p>
-                    <p className="text-3xl font-bold text-amber-400">
+                {/* Points hero + trạng thái */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-xl bg-amber-500/10 border border-amber-500/20 p-3 text-center">
+                    <p className="text-[10px] text-amber-300/70 font-semibold uppercase tracking-wide mb-1">⭐ Điểm hiện tại</p>
+                    <p className="text-2xl font-bold text-amber-400">
                       {(detailItem.loyalty_points ?? 0).toLocaleString("vi-VN")}
                     </p>
                   </div>
-                  <div className="rounded-xl bg-white/[0.05] border border-white/[0.10] p-4 text-center">
-                    <p className="text-xs text-white/50 font-semibold uppercase tracking-wide mb-1">
-                      📈 Tổng điểm tích
-                    </p>
-                    <p className="text-3xl font-bold text-white">
+                  <div className="rounded-xl bg-white/[0.05] border border-white/[0.10] p-3 text-center">
+                    <p className="text-[10px] text-white/50 font-semibold uppercase tracking-wide mb-1">📈 Tổng điểm tích</p>
+                    <p className="text-2xl font-bold text-white">
                       {(detailItem.total_earned_points ?? 0).toLocaleString("vi-VN")}
                     </p>
                   </div>
-                </div>
-
-                {/* Trạng thái badges */}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {detailItem.is_deleted ? (
-                    <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
-                      🗑 Đã xóa
-                    </span>
-                  ) : detailItem.is_active ? (
-                    <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                      ✓ Active
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">
-                      Inactive
-                    </span>
-                  )}
-                  <span className="rounded-full bg-white/[0.05] px-3 py-1 text-xs text-white/40 border border-white/[0.08] font-mono">
-                    {detailItem.id}
-                  </span>
-                </div>
-
-                {/* Thông tin khách hàng */}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-2 px-1">
-                    Khách hàng
-                  </p>
-                  <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] divide-y divide-white/[0.06]">
-                    <Row label="Tên" value={detailItem.customer_name} />
-                    <Row label="Email" value={detailItem.customer_email} mono />
-                    <Row label="Customer ID" value={detailItem.customer_id} mono truncate />
+                  <div className="rounded-xl bg-white/[0.05] border border-white/[0.10] p-3 flex flex-col items-center justify-center gap-2">
+                    <p className="text-[10px] text-white/50 font-semibold uppercase tracking-wide">Trạng thái</p>
+                    {detailItem.is_deleted ? (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">🗑 Đã xóa</span>
+                    ) : detailItem.is_active ? (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">✓ Active</span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-700">Inactive</span>
+                    )}
                   </div>
                 </div>
 
-                {/* Thông tin franchise */}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-2 px-1">
-                    Franchise
-                  </p>
-                  <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] divide-y divide-white/[0.06]">
-                    <Row label="Tên franchise" value={detailItem.franchise_name} />
-                    <Row label="Mã franchise" value={detailItem.franchise_code} mono />
-                    <Row label="Franchise ID" value={detailItem.franchise_id} mono truncate />
+                {/* Khách hàng + Franchise — 2 cột */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1.5 px-1">Khách hàng</p>
+                    <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] divide-y divide-white/[0.06]">
+                      <Row label="Tên" value={detailItem.customer_name} />
+                      <Row label="Email" value={detailItem.customer_email} mono />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1.5 px-1">Franchise</p>
+                    <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] divide-y divide-white/[0.06]">
+                      <Row label="Tên" value={detailItem.franchise_name} />
+                      <Row label="Mã" value={detailItem.franchise_code} mono />
+                    </div>
                   </div>
                 </div>
 
-                {/* Lịch sử đơn hàng */}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-2 px-1">
-                    Lịch sử đơn hàng
-                  </p>
-                  <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] divide-y divide-white/[0.06]">
-                    <Row label="Đơn đầu tiên" value={formatDate(detailItem.first_order_date)} />
-                    <Row
-                      label="Đơn gần nhất"
-                      value={detailItem.last_order_date ? formatDate(detailItem.last_order_date) : "Chưa có"}
-                      dim={!detailItem.last_order_date}
-                    />
+                {/* Lịch sử đơn hàng + Metadata — 2 cột */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1.5 px-1">Lịch sử đơn hàng</p>
+                    <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] divide-y divide-white/[0.06]">
+                      <Row label="Đơn đầu tiên" value={formatDate(detailItem.first_order_date)} />
+                      <Row
+                        label="Đơn gần nhất"
+                        value={detailItem.last_order_date ? formatDate(detailItem.last_order_date) : "Chưa có"}
+                        dim={!detailItem.last_order_date}
+                      />
+                    </div>
                   </div>
-                </div>
-
-                {/* Metadata */}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-2 px-1">
-                    Metadata
-                  </p>
-                  <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] divide-y divide-white/[0.06]">
-                    <Row label="Tạo lúc" value={formatDatetime(detailItem.created_at)} />
-                    <Row label="Cập nhật" value={formatDatetime(detailItem.updated_at)} />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-1.5 px-1">Metadata</p>
+                    <div className="rounded-xl bg-white/[0.04] border border-white/[0.08] divide-y divide-white/[0.06]">
+                      <Row label="Tạo lúc" value={formatDatetime(detailItem.created_at)} />
+                      <Row label="Cập nhật" value={formatDatetime(detailItem.updated_at)} />
+                    </div>
                   </div>
                 </div>
               </div>

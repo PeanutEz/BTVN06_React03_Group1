@@ -3,9 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import LoadingLayout from "@/layouts/Loading.layout";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useLoadingStore } from "@/store/loading.store";
 import { buildPaymentProcessUrl, ROUTER_URL } from "@/routes/router.const";
 import { PAYMENT_METHODS } from "@/const/payment-method.const";
 import type { AppliedPromo } from "@/types/delivery.types";
@@ -472,6 +472,8 @@ export default function MenuCheckoutPage() {
   const removeCartId = useMenuCartStore((s) => s.removeCartId);
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const showRouteLoading = useLoadingStore((s) => s.show);
+  const hideRouteLoading = useLoadingStore((s) => s.hide);
 
   const customerId = getUserId(user);
 
@@ -784,51 +786,6 @@ export default function MenuCheckoutPage() {
     }
   }
 
-  function invalidateCartQueries(cartId: string) {
-    queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
-    queryClient.invalidateQueries({
-      queryKey: ["carts-by-customer", customerId],
-    });
-  }
-
-  async function handleUpdateItemQuantity(item: DisplayItem, newQty: number) {
-    if (newQty < 1) {
-      await handleRemoveItem(item);
-      return;
-    }
-    if (!item.apiItemId) {
-      toast.error("Không thể cập nhật số lượng. Sản phẩm chưa đồng bộ với server.");
-      return;
-    }
-
-    try {
-      await cartClient.updateCartItemQuantity({
-        cart_item_id: item.apiItemId,
-        quantity: newQty,
-      });
-      invalidateCartQueries(item.cartId);
-    } catch (error) {
-      console.error("Update item quantity failed:", error);
-      toast.error("Không thể cập nhật số lượng sản phẩm");
-    }
-  }
-
-  async function handleRemoveItem(item: DisplayItem) {
-    if (!item.apiItemId) {
-      toast.error("Không thể xóa. Sản phẩm chưa đồng bộ với server.");
-      console.warn("Item missing apiItemId:", item);
-      return;
-    }
-    try {
-      await cartClient.deleteCartItem(item.apiItemId);
-      invalidateCartQueries(item.cartId);
-      toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
-    } catch (error) {
-      console.error("Remove item failed:", error);
-      toast.error("Không thể xóa sản phẩm");
-    }
-  }
-
   async function getOrderByCartIdWithRetry(cartId: string) {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const order = await orderClient.getOrderByCartId(cartId);
@@ -846,7 +803,9 @@ export default function MenuCheckoutPage() {
     if (!validate() || orderingCartId || !isTermsAccepted(cartId)) return;
 
     const loadingStartedAt = Date.now();
+    let handedOffToNextPage = false;
     setOrderingCartId(cartId);
+    showRouteLoading("Đang chuyển trang", { persistOnNextRoute: true });
     try {
       try {
         await updateCurrentCustomerProfile({
@@ -976,6 +935,7 @@ export default function MenuCheckoutPage() {
 
         // Luôn vào trang xử lý payment trước; success chỉ hiển thị sau bước xác nhận payment.
         saveOrderPaymentIntent(String(orderId), paymentMethod, bankName);
+        handedOffToNextPage = true;
         navigate(
           buildPaymentProcessUrl(String(orderId), paymentMethod),
           {
@@ -998,12 +958,11 @@ export default function MenuCheckoutPage() {
         getErrorMessage(error) ?? "Không thể đặt hàng. Vui lòng thử lại.";
       toast.error(msg);
     } finally {
+      if (!handedOffToNextPage) {
+        hideRouteLoading();
+      }
       setOrderingCartId(null);
     }
-  }
-
-  if (orderingCartId) {
-    return <LoadingLayout />;
   }
 
   if (!isLoggedIn) {
@@ -1350,31 +1309,10 @@ export default function MenuCheckoutPage() {
 
                         {/* Product Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3 mb-2">
+                          <div className="mb-2">
                             <h3 className="font-semibold text-gray-900 text-base truncate">
                               {item.name}
                             </h3>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => handleRemoveItem(item)}
-                                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
-                                title="Xóa sản phẩm"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
                           </div>
 
                           {/* Product Options */}
@@ -1436,42 +1374,9 @@ export default function MenuCheckoutPage() {
 
                           {/* Quantity and Price */}
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm text-gray-600">
-                                Số lượng:
-                              </span>
-                              <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void handleUpdateItemQuantity(
-                                      item,
-                                      item.quantity - 1,
-                                    )
-                                  }
-                                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
-                                  aria-label={`Giảm số lượng ${item.name}`}
-                                >
-                                  -
-                                </button>
-                                <span className="min-w-10 px-2 text-center text-sm font-bold text-emerald-800">
-                                  {item.quantity}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void handleUpdateItemQuantity(
-                                      item,
-                                      item.quantity + 1,
-                                    )
-                                  }
-                                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors"
-                                  aria-label={`Tăng số lượng ${item.name}`}
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
+                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+                              x{item.quantity}
+                            </span>
                             <div className="text-right">
                               <p className="text-lg font-bold text-amber-700">
                                 {fmt(item.lineTotal)}
@@ -1494,7 +1399,18 @@ export default function MenuCheckoutPage() {
                   )}
 
                   {/* Voucher Section */}
-                  <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/30">
+                  <div className="relative px-4 py-3 border-t border-gray-100 bg-gray-50/30">
+                    {promo.loading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-2xl bg-white/70 backdrop-blur-[1px]">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-3 py-2 text-xs font-semibold text-white shadow-sm">
+                          <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          </svg>
+                          Đang áp dụng mã...
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-lg">🎫</span>
                       <h3 className="font-medium text-gray-900 text-sm">
@@ -1503,7 +1419,14 @@ export default function MenuCheckoutPage() {
                     </div>
 
                     {appliedVoucher ? (
-                      <div className="flex items-center justify-between p-3 bg-emerald-100 border border-emerald-200 rounded-lg">
+                      <div
+                        className={cn(
+                          "flex items-center justify-between p-3 border rounded-lg transition-opacity",
+                          promo.loading
+                            ? "bg-emerald-50 border-emerald-100 opacity-50 pointer-events-none"
+                            : "bg-emerald-100 border-emerald-200",
+                        )}
+                      >
                         <div className="flex items-center gap-2">
                           <span className="text-emerald-600 text-lg">✓</span>
                           <span className="font-semibold text-emerald-800 text-sm">
@@ -1512,13 +1435,32 @@ export default function MenuCheckoutPage() {
                         </div>
                         <button
                           onClick={() => removePromoForCart(block.cartId)}
-                          className="text-xs text-red-600 hover:text-red-700 font-medium"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
+                          title="Xóa mã giảm giá"
+                          aria-label="Xóa mã giảm giá"
                         >
-                          Hủy
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
                         </button>
                       </div>
                     ) : (
-                      <div className="flex gap-2">
+                      <div
+                        className={cn(
+                          "flex gap-2 transition-opacity",
+                          promo.loading && "opacity-50 pointer-events-none",
+                        )}
+                      >
                         <input
                           value={promo.input}
                           onChange={(e) => {
@@ -1532,6 +1474,7 @@ export default function MenuCheckoutPage() {
                             void applyPromoForCart(block.cartId)
                           }
                           placeholder="Nhập mã..."
+                          disabled={promo.loading}
                           className={cn(
                             "flex-1 px-3 py-2 rounded-lg border text-xs outline-none transition-all uppercase font-mono",
                             promo.error

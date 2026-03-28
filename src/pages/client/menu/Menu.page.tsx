@@ -5,14 +5,19 @@ import { clientService } from "@/services/client.service";
 import type { ClientFranchiseItem, ClientCategoryByFranchiseItem } from "@/models/store.model";
 import type { ClientProductListItem } from "@/models/product.model.tsx";
 import { useDeliveryStore } from "@/store/delivery.store";
-import { useMenuCartStore, useMenuCartTotals } from "@/store/menu-cart.store";
+import { useMenuCartTotals } from "@/store/menu-cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useLoadingStore } from "@/store/loading.store";
 import MenuOrderPanel from "@/components/menu/MenuOrderPanel";
 import BranchPickerModal from "@/components/menu/BranchPickerModal";
 import MenuProductModal from "@/components/menu/MenuProductModal";
 import type { MenuProduct } from "@/types/menu.types";
-import { cartClient } from "@/services/cart.client";
+import {
+  cartClient,
+  getCartItems,
+  getCartPricingSummary,
+  normalizeCustomerCarts,
+} from "@/services/cart.client";
 
 const fmtVnd = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -419,10 +424,13 @@ export default function MenuPage() {
   const [showOrderPanel, setShowOrderPanel] = useState(false);
   const openBranchPicker = () => setShowBranchPicker(true);
   const { itemCount: localItemCount, total: localTotal } = useMenuCartTotals();
-  const cartId = useMenuCartStore((s) => s.cartId);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const user = useAuthStore((s) => s.user);
   const authInitialized = useAuthStore((s) => s.isInitialized);
   const deliveryInitialized = useDeliveryStore((s) => s.isInitialized);
+  const customerId = String(
+    (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? (user as any)?._id ?? "",
+  ).trim();
 
   // Auto-open picker sau khi cả 2 store đã hydrate từ localStorage
   // (tránh nhấp nháy do render trước khi biết trạng thái thật)
@@ -439,21 +447,125 @@ export default function MenuPage() {
     }
   }, [authInitialized, deliveryInitialized, isLoggedIn, selectedFranchiseId]);
 
-  const { data: apiCart } = useQuery({
-    queryKey: ["cart-detail", cartId],
-    queryFn: () => cartClient.getCartDetail(cartId!),
-    enabled: !!cartId && isLoggedIn,
+  useEffect(() => {
+    if (!showOrderPanel) {
+      document.documentElement.classList.remove("menu-order-open");
+      document.body.classList.remove("menu-order-open");
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+      return;
+    }
+
+    const scrollY = window.scrollY;
+
+    document.documentElement.classList.add("menu-order-open");
+    document.body.classList.add("menu-order-open");
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+
+    return () => {
+      const savedTop = document.body.style.top;
+      document.documentElement.classList.remove("menu-order-open");
+      document.body.classList.remove("menu-order-open");
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
+
+      const restoreY = Math.abs(parseInt(savedTop || "0", 10)) || 0;
+      window.scrollTo(0, restoreY);
+    };
+  }, [showOrderPanel]);
+
+  const { data: customerCartsData } = useQuery({
+    queryKey: ["carts-by-customer", customerId],
+    queryFn: () => cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" }),
+    enabled: !!customerId && isLoggedIn,
     staleTime: 10_000,
   });
 
-  const apiItemCount = (apiCart?.items ?? []).reduce((s, i) => s + (i.quantity ?? 1), 0);
-  const apiTotal = apiCart?.final_amount ?? 0;
-  const itemCount = apiItemCount > 0 ? apiItemCount : localItemCount;
-  const total = apiTotal > 0 ? apiTotal : localTotal;
+  const activeCustomerCarts = normalizeCustomerCarts(customerCartsData);
+  const aggregatedApiItemCount = activeCustomerCarts.reduce(
+    (sum, cart) => sum + getCartItems(cart).reduce((cartSum, item) => cartSum + (item.quantity ?? 1), 0),
+    0,
+  );
+  const aggregatedApiTotal = activeCustomerCarts.reduce((sum, cart) => {
+    const fallbackSubtotal = getCartItems(cart).reduce((cartSum, item) => {
+      const qty = Math.max(1, item.quantity ?? 1);
+      const unitPrice =
+        Number((item as any).final_line_total ?? (item as any).line_total) > 0
+          ? Number((item as any).final_line_total ?? (item as any).line_total) / qty
+          : Number((item as any).product_cart_price ?? (item as any).price_snapshot ?? (item as any).price ?? 0);
+      return cartSum + unitPrice * qty;
+    }, 0);
+    return sum + getCartPricingSummary(cart, fallbackSubtotal).finalAmount;
+  }, 0);
+  const itemCount = aggregatedApiItemCount > 0 ? aggregatedApiItemCount : localItemCount;
+  const total = aggregatedApiTotal > 0 ? aggregatedApiTotal : localTotal;
+  const responsiveCategoryTabs = canShowMenu ? (
+    <div className="sticky top-[8rem] z-30 border-y border-gray-100 bg-white/95 shadow-sm backdrop-blur sm:top-[8.75rem] lg:hidden">
+      <div className="mx-auto max-w-[1280px] px-4 py-3 sm:px-6">
+        <div className="category-scroll-mask -mx-1 flex gap-3 overflow-x-auto px-1 pb-2 scrollbar-none snap-x snap-mandatory">
+          {loading === "categories" && categories.length === 0 ? (
+            <div className="text-sm text-gray-400 py-2">Äang táº£i...</div>
+          ) : (
+            <>
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={cn(
+                  "snap-start shrink-0 min-w-[152px] rounded-2xl border px-4 py-3 text-left text-[0px] transition-all duration-200",
+                  !selectedCategory
+                    ? "border-amber-300 bg-gradient-to-br from-amber-400 via-orange-400 to-amber-500 text-white shadow-md shadow-amber-200/70"
+                    : "border-gray-200 bg-white text-gray-700 shadow-sm hover:border-amber-200 hover:bg-amber-50/50",
+                )}
+              >
+                ðŸ½ï¸ Táº¥t cáº£
+                <span className="text-sm font-semibold">🍽️ Tất cả</span>
+                {products.length > 0 && (
+                  <span className={cn(
+                    "ml-2 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
+                    !selectedCategory ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500",
+                  )}>{products.length}</span>
+                )}
+              </button>
+              {categories.map((c) => (
+                <button
+                  key={c.category_id}
+                  onClick={() => setSelectedCategory(c)}
+                  className={cn(
+                    "snap-start shrink-0 min-w-[152px] rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-200",
+                    c.category_id === selectedCategory?.category_id
+                      ? "border-amber-300 bg-gradient-to-br from-amber-400 via-orange-400 to-amber-500 text-white shadow-md shadow-amber-200/70"
+                      : "border-gray-200 bg-white text-gray-700 shadow-sm hover:border-amber-200 hover:bg-amber-50/50",
+                  )}
+                >
+                  <span>{getCategoryIcon(c.category_name)}</span>
+                  {c.category_name}
+                  {categoryCounts[c.category_id] !== undefined && (
+                    <span className={cn(
+                      "ml-2 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
+                      c.category_id === selectedCategory?.category_id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500",
+                    )}>{categoryCounts[c.category_id]}</span>
+                  )}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   return (
     <>
-      <div className="-mx-4 sm:-mx-6 lg:-mx-8 -my-8 sm:-my-10 lg:-my-12 min-h-screen bg-white">
+      <div className="-mx-4 -my-8 min-h-screen bg-white pb-24 sm:-mx-6 sm:-my-10 lg:-mx-8 lg:-my-12 lg:pb-0">
         {/* ── Page header ── */}
         <div className="border-b border-gray-100 bg-white">
           <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-6">
@@ -468,32 +580,20 @@ export default function MenuPage() {
                 </>
               )}
             </nav>
-            <div className="flex items-center justify-between gap-4 flex-wrap">              <div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
                   🍽️ {selectedCategory?.category_name ?? "Tất cả"}
                 </h1>
                 <p className="text-sm text-gray-500 mt-0.5">
                   {canShowMenu ? "Toàn bộ thực đơn Hylux" : "Vui lòng chọn cửa hàng để xem thực đơn"}
                 </p>
-              </div>              <div className="flex items-center gap-3">
-                {/* Mobile cart button */}
-                {itemCount > 0 && (
-                  <button
-                    onClick={() => setShowOrderPanel(true)}
-                    className="lg:hidden flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    <span>{itemCount}</span>
-                  </button>
-                )}
               </div>
             </div>
 
             {/* Mobile: horizontal category tabs */}
-            {canShowMenu && (
-              <div className="mt-4 flex gap-2 overflow-x-auto pb-1 scrollbar-none md:hidden">
+            {false && canShowMenu && (
+              <div className="category-scroll-mask sticky top-[6.75rem] z-30 -mx-4 mt-4 flex gap-3 overflow-x-auto border-y border-gray-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur scrollbar-none snap-x snap-mandatory sm:-mx-6 sm:px-6 lg:hidden">
                 {loading === "categories" && categories.length === 0 ? (
                   <div className="text-sm text-gray-400 py-2">Đang tải...</div>
                 ) : (
@@ -501,17 +601,17 @@ export default function MenuPage() {
                     <button
                       onClick={() => setSelectedCategory(null)}
                       className={cn(
-                        "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
+                        "snap-start shrink-0 min-w-[152px] rounded-2xl border px-4 py-3 text-left transition-all duration-200",
                         !selectedCategory
-                          ? "bg-amber-500 text-white shadow-sm"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                          ? "border-amber-300 bg-gradient-to-br from-amber-400 via-orange-400 to-amber-500 text-white shadow-md shadow-amber-200/70"
+                          : "border-gray-200 bg-white text-gray-700 shadow-sm hover:border-amber-200 hover:bg-amber-50/50",
                       )}
                     >
                       🍽️ Tất cả
                       {products.length > 0 && (
                         <span className={cn(
-                          "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-                          !selectedCategory ? "bg-white/20" : "bg-gray-200 text-gray-500",
+                          "ml-2 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
+                          !selectedCategory ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500",
                         )}>{products.length}</span>
                       )}
                     </button>
@@ -520,18 +620,18 @@ export default function MenuPage() {
                         key={c.category_id}
                         onClick={() => setSelectedCategory(c)}
                         className={cn(
-                          "shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all",
+                          "snap-start shrink-0 min-w-[152px] rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all duration-200",
                           c.category_id === selectedCategory?.category_id
-                            ? "bg-amber-500 text-white shadow-sm"
-                            : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                            ? "border-amber-300 bg-gradient-to-br from-amber-400 via-orange-400 to-amber-500 text-white shadow-md shadow-amber-200/70"
+                            : "border-gray-200 bg-white text-gray-700 shadow-sm hover:border-amber-200 hover:bg-amber-50/50",
                         )}
                       >
                         <span>{getCategoryIcon(c.category_name)}</span>
                         {c.category_name}
                         {categoryCounts[c.category_id] !== undefined && (
                           <span className={cn(
-                            "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
-                            c.category_id === selectedCategory?.category_id ? "bg-white/20" : "bg-gray-200 text-gray-500",
+                            "ml-2 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
+                            c.category_id === selectedCategory?.category_id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500",
                           )}>{categoryCounts[c.category_id]}</span>
                         )}
                       </button>
@@ -550,11 +650,12 @@ export default function MenuPage() {
         </div>
 
         {/* ── Main 3-panel layout ── */}
+        {responsiveCategoryTabs}
         <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex gap-8 min-h-screen">
+          <div className="flex min-h-0 flex-col gap-6 md:min-h-screen md:flex-row lg:gap-8">
 
             {/* ── LEFT: Category Sidebar (desktop only) ── */}
-            <aside className="hidden md:flex w-56 shrink-0 flex-col sticky top-40 self-start">
+            <aside className="sticky top-40 hidden w-56 shrink-0 self-start lg:flex lg:flex-col">
               <div className="pr-1">
                 <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3 px-3">
                   Danh mục
@@ -630,7 +731,8 @@ export default function MenuPage() {
             </aside>
 
             {/* ── MIDDLE: Product Grid ── */}
-            <div className="flex-1 min-w-0">              {!canShowMenu ? (
+            <div className="min-w-0 flex-1">
+              {!canShowMenu ? (
                 <EmptyState
                   title="Chưa chọn cửa hàng"
                   description="Hãy chọn cửa hàng để hệ thống tải thực đơn."
@@ -701,7 +803,16 @@ export default function MenuPage() {
       </div>
 
       {/* Add-to-cart modal (size / sugar / ice / topping customisation) */}
-      <MenuProductModal product={addToCartProduct} onClose={() => setAddToCartProduct(null)} />      {/* Branch picker modal */}
+      <MenuProductModal
+        product={addToCartProduct}
+        onClose={() => setAddToCartProduct(null)}
+        onAddedToCart={() => {
+          if (typeof window !== "undefined" && window.innerWidth < 1024) {
+            setShowOrderPanel(true);
+          }
+        }}
+      />
+      {/* Branch picker modal */}
       {showBranchPicker && (
         <BranchPickerModal
           onClose={() => setShowBranchPicker(false)}
@@ -709,12 +820,74 @@ export default function MenuPage() {
         />
       )}
 
-      {/* Mobile: sticky bottom cart button */}
-      {itemCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 p-4 bg-white border-t border-gray-100 shadow-lg lg:hidden">
+      {/* Mobile: horizontal cart bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200 bg-white/95 p-4 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <button
+          onClick={() => setShowOrderPanel(true)}
+          className="flex w-full items-center justify-between rounded-2xl bg-amber-500 px-4 py-3.5 text-white shadow-lg shadow-amber-500/30 transition-all active:scale-[0.98]"
+          aria-label="Mo gio hang"
+        >
+          <span className="flex items-center gap-3 text-left">
+            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/20">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-bold text-amber-600">
+                {itemCount}
+              </span>
+            </span>
+            <span>
+              <span className="block text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
+                Giỏ hàng
+              </span>
+              <span className="block text-sm font-semibold leading-tight">
+                {itemCount > 0 ? "Xem đơn hàng" : "Giỏ hàng đang trống"}
+              </span>
+            </span>
+          </span>
+          <span className="text-right">
+            <span className="block text-[11px] text-white/75">
+              {itemCount > 0 ? "Tổng tạm tính" : "Chọn món để bắt đầu"}
+            </span>
+            <span className="block text-base font-bold leading-tight">
+              {itemCount > 0 ? fmtVnd(total) : "Mở giỏ hàng"}
+            </span>
+          </span>
+        </button>
+      </div>
+      {/* Mobile: floating cart button */}
+      {false && itemCount > 0 && (
+        <div className="fixed bottom-4 right-4 z-40 lg:hidden">
           <button
             onClick={() => setShowOrderPanel(true)}
-            className="flex items-center justify-between w-full bg-amber-500 hover:bg-amber-600 text-white px-5 py-3.5 rounded-2xl font-semibold transition-all active:scale-[0.98]"
+            className="flex items-center gap-3 rounded-full bg-gray-900 px-3 py-3 text-white shadow-2xl shadow-gray-900/25 transition-all active:scale-[0.98]"
+            aria-label="Mở giỏ hàng"
+          >
+            <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-500 shadow-lg shadow-amber-500/30">
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-gray-900 bg-white px-1 text-[10px] font-bold text-gray-900">
+                {itemCount}
+              </span>
+            </span>
+            <span className="pr-1 text-left">
+              <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">
+                Giỏ hàng
+              </span>
+              <span className="block text-sm font-semibold leading-tight">
+                {fmtVnd(total)}
+              </span>
+            </span>
+          </button>
+        </div>
+      )}
+      {false && itemCount > 0 && (
+        <div className="fixed bottom-4 right-4 z-40 lg:hidden">
+          <button
+            onClick={() => setShowOrderPanel(true)}
+            className="flex items-center gap-3 rounded-full bg-gray-900 px-3 py-3 text-white shadow-2xl shadow-gray-900/25 transition-all active:scale-[0.98]"
+            aria-label="Mở giỏ hàng"
           >
             <span className="flex items-center gap-2">
               <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
@@ -729,9 +902,14 @@ export default function MenuPage() {
 
       {/* Mobile: Order panel bottom sheet */}
       {showOrderPanel && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowOrderPanel(false)} />
-          <div className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden min-h-0">
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end overscroll-none">
+          <div
+            className="absolute inset-0 touch-none bg-black/50"
+            onClick={() => setShowOrderPanel(false)}
+          />
+          <div
+            className="relative bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[90dvh] overflow-hidden min-h-0 overscroll-contain"
+          >
             <MenuOrderPanel
               onRequestClose={() => setShowOrderPanel(false)}
             />

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import ReactDOM from "react-dom";
 import { Button, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { categoryService } from "../../../services/category.service";
 import type { CategoryApiResponse, CreateCategoryDto, CategorySelectItem } from "../../../models/product.model";
 import { showSuccess, showError } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -16,6 +18,7 @@ const DEFAULT_FORM: CreateCategoryDto = {
 
 export default function CategoryListPage() {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const [categories, setCategories] = useState<CategoryApiResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -124,6 +127,8 @@ export default function CategoryListPage() {
       showError("Vui lòng nhập đầy đủ Code và Tên");
       return;
     }
+    setShowModal(false);
+    showPageLoading(editingCategory ? "Đang cập nhật category..." : "Đang tạo category...");
     setSubmitting(true);
     try {
       if (editingCategory) {
@@ -133,7 +138,6 @@ export default function CategoryListPage() {
         await categoryService.createCategory(formData);
         showSuccess("Tạo category thành công");
       }
-      setShowModal(false);
       await load(searchQuery, currentPage, statusFilter, parentFilter, isDeletedFilter);
       loadParentOptions();
     } catch (err: unknown) {
@@ -144,6 +148,7 @@ export default function CategoryListPage() {
       showError(msg);
     } finally {
       setSubmitting(false);
+      hidePageLoading();
     }
   };
 
@@ -407,19 +412,20 @@ export default function CategoryListPage() {
       </div>
 
       {/* ─── Create / Edit Modal ─────────────────────────────────────────────── */}
-      {showModal && (
+      {showModal && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div
-            className="relative w-full max-w-lg rounded-2xl shadow-2xl"
+            className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
               <h2 className="text-lg font-semibold text-white/95">
@@ -496,7 +502,7 @@ export default function CategoryListPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+                  className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
                 >
                   Hủy
                 </button>
@@ -507,22 +513,23 @@ export default function CategoryListPage() {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ─── Detail / View Modal ─────────────────────────────────────────────── */}
-      {viewingCategory && (
+      {viewingCategory && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/25" />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div
-            className="relative w-full max-w-md rounded-2xl shadow-2xl"
+            className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
             <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
               <h2 className="text-lg font-semibold text-white/95">Chi tiết danh mục</h2>
               <button
@@ -584,17 +591,9 @@ export default function CategoryListPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
-                {!viewingCategory.is_deleted && (
-                  <button
-                    onClick={() => { setViewingCategory(null); handleOpenEdit(viewingCategory); }}
-                    className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
-                  >
-                    Chỉnh sửa
-                  </button>
-                )}
                 <button
                   onClick={() => setViewingCategory(null)}
-                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
+                  className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
                 >
                   Đóng
                 </button>
@@ -602,7 +601,7 @@ export default function CategoryListPage() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

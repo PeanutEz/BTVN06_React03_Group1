@@ -17,6 +17,7 @@ import Pagination from "../../../components/ui/Pagination";
 import { showSuccess, showError } from "../../../utils";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 import { useAuthStore } from "../../../store/auth.store";
+import { useLoadingStore } from "../../../store/loading.store";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -29,6 +30,7 @@ const DEFAULT_FORM: CreateShiftPayload = {
 
 const ShiftPage = () => {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const managerFranchiseId = useManagerFranchiseId();
   const authUser = useAuthStore((s) => s.user);
 
@@ -209,6 +211,8 @@ const ShiftPage = () => {
     if (!formData.franchise_id) { setFormErrors({ franchise_id: "Vui lòng chọn franchise" }); return; }
     if (!formData.name.trim()) { setFormErrors({ name: "Vui lòng nhập tên ca" }); return; }
     setFormErrors({});
+    setShowModal(false);
+    showPageLoading(editingShift ? "Đang cập nhật ca..." : "Đang tạo ca làm việc...");
     setSubmitting(true);
     try {
       if (editingShift) {
@@ -222,7 +226,6 @@ const ShiftPage = () => {
         await createShift(formData);
         showSuccess("Tạo ca làm việc thành công");
       }
-      setShowModal(false);
       await load();
     } catch (err: unknown) {
       const responseData = (err as any)?.responseData ?? (err as any)?.response?.data;
@@ -233,9 +236,10 @@ const ShiftPage = () => {
         if (Object.keys(fieldErrors).length > 0) { setFormErrors(fieldErrors); return; }
       }
       const msg = responseData?.message || (err instanceof Error ? err.message : null) || (editingShift ? "Cập nhật thất bại" : "Tạo ca thất bại");
-      setFormErrors({ general: msg });
+      showError(msg);
     } finally {
       setSubmitting(false);
+      hidePageLoading();
     }
   };
 
@@ -552,37 +556,61 @@ const ShiftPage = () => {
       </div>
 
       {/* Create / Edit Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  {editingShift ? "Cập nhật ca làm việc" : "Tạo ca làm việc"}
-                </h2>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  {editingShift ? "Chỉnh sửa thông tin ca" : "Thêm ca mới vào hệ thống"}
-                </p>
+      {showModal && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{
+            background: "rgba(15,23,42,0.85)",
+            backdropFilter: "blur(40px) saturate(180%)",
+            WebkitBackdropFilter: "blur(40px) saturate(180%)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
+          }}>
+            {/* Gradient accent top */}
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+
+            <div className="p-6">
+              {/* Header */}
+              <div className="mb-6 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary-500/20">
+                    <svg className="size-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-white">
+                      {editingShift ? "Cập nhật ca làm việc" : "Tạo ca làm việc"}
+                    </h2>
+                    <p className="text-xs text-white/40">
+                      {editingShift ? "Chỉnh sửa thông tin ca" : "Thêm ca mới vào hệ thống"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/[0.08] hover:text-white/70"
+                >
+                  <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
-              <button
-                onClick={() => setShowModal(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-              >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Franchise — portal combobox */}
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Franchise <span className="text-red-500">*</span>
+                <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40 mb-1.5">
+                  <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                  Franchise <span className="text-red-400 normal-case">*</span>
                 </label>
                 {(editingShift || !!managerFranchiseId) ? (
-                  <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 cursor-not-allowed">
-                    {selectedModalFranchise ? `${selectedModalFranchise.name} (${selectedModalFranchise.code})` : formData.franchise_id}
+                  <div className="flex w-full items-center gap-2 rounded-lg border border-primary-500/40 bg-primary-500/10 px-3 py-2 text-sm text-white/80">
+                    <svg className="size-4 flex-shrink-0 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                    <span className="truncate font-medium">
+                      {selectedModalFranchise ? `${selectedModalFranchise.name} (${selectedModalFranchise.code})` : formData.franchise_id}
+                    </span>
                   </div>
                 ) : (
                   <div className="relative">
@@ -705,67 +733,70 @@ const ShiftPage = () => {
                     )}
                   </div>                )}
               </div>
-              {formErrors.franchise_id && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.franchise_id}</p>}
+              {formErrors.franchise_id && <p className="text-[11px] text-red-400 mt-1">{formErrors.franchise_id}</p>}
 
               {/* Name */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Tên ca <span className="text-red-500">*</span>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
+                  <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
+                  Tên ca <span className="text-red-400 normal-case">*</span>
                 </label>
                 <input
                   type="text"
                   placeholder="VD: Ca Sáng"
                   value={formData.name}
                   onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-                  className={`w-full rounded-lg border bg-white px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.name ? "border-red-400 focus:border-red-400" : "border-slate-300 focus:border-primary-500"}`}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm text-white/90 bg-white/[0.06] outline-none transition focus:ring-2 focus:ring-primary-500/20 placeholder-white/20 ${formErrors.name ? "border-red-400/60 focus:border-red-400" : "border-white/[0.12] focus:border-primary-500/60 focus:bg-white/[0.09]"}`}
                 />
-                {formErrors.name && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.name}</p>}
+                {formErrors.name && <p className="text-[11px] text-red-400 mt-1">{formErrors.name}</p>}
               </div>
 
               {/* Times */}
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Giờ bắt đầu <span className="text-red-500">*</span>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
+                    <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Giờ bắt đầu <span className="text-red-400 normal-case">*</span>
                   </label>
                   <TimeSelect
                     value={formData.start_time}
                     onChange={(v) => setFormData((p) => ({ ...p, start_time: v }))}
+                    darkMode
                   />
-                  {formErrors.start_time && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.start_time}</p>}
+                  {formErrors.start_time && <p className="text-[11px] text-red-400 mt-1">{formErrors.start_time}</p>}
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-slate-700">
-                    Giờ kết thúc <span className="text-red-500">*</span>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-white/40">
+                    <svg className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Giờ kết thúc <span className="text-red-400 normal-case">*</span>
                   </label>
                   <TimeSelect
                     value={formData.end_time}
                     onChange={(v) => setFormData((p) => ({ ...p, end_time: v }))}
+                    darkMode
                   />
-                  {formErrors.end_time && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.end_time}</p>}
+                  {formErrors.end_time && <p className="text-[11px] text-red-400 mt-1">{formErrors.end_time}</p>}
                 </div>
               </div>
 
               {formErrors.general && (
-                <p className="!text-[#f87171] rounded-lg border border-red-400/30 bg-red-50 px-3 py-2" style={{ fontSize: 12 }}>{formErrors.general}</p>
+                <p className="text-[12px] text-red-400 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2">{formErrors.general}</p>
               )}
 
-              <div className="flex gap-3 pt-2">
-                <Button type="submit" loading={submitting} className="flex-1">
+              <div className="flex justify-end gap-2 border-t border-white/[0.07] pt-4">
+                <Button type="button" onClick={() => setShowModal(false)}
+                  className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
+                  Hủy
+                </Button>
+                <Button type="submit" loading={submitting}>
                   {editingShift ? "Lưu thay đổi" : "Tạo ca"}
                 </Button>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 rounded-lg border border-slate-300 bg-white py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
-                >
-                  Hủy
-                </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useMenuCartStore } from "@/store/menu-cart.store";
 import { useDeliveryStore } from "@/store/delivery.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useLoadingStore } from "@/store/loading.store";
 import { isBranchOpen } from "@/services/branch.service";
 import { ROUTER_URL } from "@/routes/router.const";
 import {
@@ -136,6 +137,8 @@ export default function MenuOrderPanel({
   const clearItemsOnly = useMenuCartStore((s) => s.clearItemsOnly);
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const showGlobalLoading = useLoadingStore((s) => s.show);
+  const hideGlobalLoading = useLoadingStore((s) => s.hide);
 
   const customerId = String(
     (user as any)?.user?.id ?? (user as any)?.user?._id ?? (user as any)?.id ?? (user as any)?._id ?? "",
@@ -143,6 +146,7 @@ export default function MenuOrderPanel({
 
   const [cancellingCart, setCancellingCart] = useState(false);
   const [editingItem, setEditingItem] = useState<DisplayCartItem | null>(null);
+  const [removingItemKey, setRemovingItemKey] = useState<string | null>(null);
   const [pendingReorder, setPendingReorder] = useState<{
     fromIndex: number;
     fingerprint: null | {
@@ -339,6 +343,7 @@ export default function MenuOrderPanel({
   const deliveryFee = orderMode === "DELIVERY" ? currentDeliveryFee : 0;
   const total = pricingSummary.finalAmount + deliveryFee;
   const cartLoading = cartIds.length > 0 && cartDetails.some((q) => q.isLoading);
+  const isOrderPanelBusy = cancellingCart || removingItemKey !== null;
 
   function invalidateCart(cartId: string | undefined) {
     if (cartId) queryClient.invalidateQueries({ queryKey: ["cart-detail", cartId] });
@@ -346,40 +351,57 @@ export default function MenuOrderPanel({
   }
 
   async function handleRemoveItem(item: DisplayCartItem) {
+    if (removingItemKey === item.key) return;
     if (!item.apiItemId) {
       toast.error("Không thể xóa sản phẩm. Sản phẩm chưa đồng bộ với server.");
       return;
     }
+    setRemovingItemKey(item.key);
     try {
       await cartClient.deleteCartItem(item.apiItemId);
       invalidateCart(item.cartId);
       toast.success("Đã xóa sản phẩm khỏi giỏ hàng");
     } catch (error) {
       toast.error("Không thể xóa sản phẩm: " + ((error as any)?.response?.data?.message || (error as any)?.message || "Lỗi không xác định"));
+    } finally {
+      setRemovingItemKey(null);
     }
   }
 
   async function handleCancelCart() {
     const cartIdToCancel = sectionsWithItems[0]?.cartId ?? cartIds[0] ?? null;
     if (cartIdToCancel == null) {
+      showGlobalLoading("Đang hủy giỏ hàng...");
       clearLocalCart();
+      hideGlobalLoading();
       toast.success("Đã xóa giỏ hàng");
       return;
     }
     if (!isLoggedIn) {
+      showGlobalLoading("Đang hủy giỏ hàng...");
       clearLocalCart();
+      hideGlobalLoading();
       toast.success("Đã xóa giỏ tạm trên thiết bị");
       return;
     }
     if (cancellingCart) return;
     setCancellingCart(true);
+    showGlobalLoading("Đang hủy giỏ hàng...");
     try {
       await cartClient.cancelCart(cartIdToCancel);
       const isLastCart = cartIds.length <= 1;
       removeCartId(cartIdToCancel);
-      queryClient.invalidateQueries({ queryKey: ["cart-detail", cartIdToCancel] });
-      queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["carts-by-customer", customerId] });
+      await queryClient.invalidateQueries({ queryKey: ["cart-detail", cartIdToCancel] });
+      await queryClient.invalidateQueries({ queryKey: ["cart-detail"] });
+      if (customerId) {
+        await queryClient.fetchQuery({
+          queryKey: ["carts-by-customer", customerId],
+          queryFn: () => cartClient.getCartsByCustomerId(customerId, { status: "ACTIVE" }),
+          staleTime: 0,
+        });
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ["carts-by-customer"] });
+      }
       if (isLastCart) {
         // Avoid showing stale local fallback items after cancelling the final server cart.
         clearLocalCart();
@@ -393,6 +415,7 @@ export default function MenuOrderPanel({
       toast.error("Không thể hủy giỏ hàng");
     } finally {
       setCancellingCart(false);
+      hideGlobalLoading();
     }
   }
 
@@ -413,6 +436,9 @@ export default function MenuOrderPanel({
       });
       return;
     }
+    showGlobalLoading("Đang chuyển sang thanh toán...", {
+      persistOnNextRoute: true,
+    });
     navigate(ROUTER_URL.MENU_CHECKOUT);
   }
 
@@ -571,7 +597,14 @@ export default function MenuOrderPanel({
           Đơn hàng <span className="text-gray-400 font-normal">({itemCount} món)</span>
         </h2>
         {onRequestClose && (
-          <button onClick={onRequestClose} className="lg:hidden text-gray-400 hover:text-gray-600">
+          <button
+            onClick={onRequestClose}
+            disabled={isOrderPanelBusy}
+            className={cn(
+              "lg:hidden text-gray-400",
+              isOrderPanelBusy ? "cursor-not-allowed opacity-50" : "hover:text-gray-600",
+            )}
+          >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -580,7 +613,7 @@ export default function MenuOrderPanel({
       </div>
       <div className="flex-1 min-h-0 flex flex-col">
         {/* Scroll area: chứa danh sách sản phẩm */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div className="divide-y divide-gray-50">
             {
               sectionsWithItems.map((section) => (
@@ -618,10 +651,20 @@ export default function MenuOrderPanel({
 
                       {/* Action buttons - Smaller */}
                       <div className="flex items-center gap-0.5 shrink-0">
+                        {/*
+                          Keep feedback local to the row: delete shows spinner here,
+                          while edit loading is handled in the modal submit button.
+                        */}
                         {/* Edit button */}
                         <button
                           onClick={() => handleOpenEditDialog(item)}
-                          className="h-6 px-2 rounded flex items-center justify-center gap-1 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all text-[11px] font-medium"
+                          disabled={isOrderPanelBusy}
+                          className={cn(
+                            "h-6 px-2 rounded flex items-center justify-center gap-1 transition-all text-[11px] font-medium",
+                            isOrderPanelBusy
+                              ? "bg-amber-50/70 text-amber-400 cursor-not-allowed"
+                              : "bg-amber-50 text-amber-700 hover:bg-amber-100",
+                          )}
                           title="Chỉnh sửa"
                         >
                           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -634,12 +677,27 @@ export default function MenuOrderPanel({
                         {/* Delete button */}
                         <button
                           onClick={() => handleRemoveItem(item)}
-                          className="w-5 h-5 rounded flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                          disabled={isOrderPanelBusy}
+                          className={cn(
+                            "w-5 h-5 rounded flex items-center justify-center transition-all",
+                            removingItemKey === item.key
+                              ? "text-red-400 bg-red-50 cursor-wait"
+                              : isOrderPanelBusy
+                              ? "text-gray-300 bg-gray-50 cursor-not-allowed"
+                              : "text-gray-400 hover:text-red-500 hover:bg-red-50",
+                          )}
                           title="Xóa"
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
+                          {removingItemKey === item.key ? (
+                            <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -663,32 +721,18 @@ export default function MenuOrderPanel({
 
                       {/* Toppings - Inline */}
                       {item.toppingsText && (!item.apiOptions || item.apiOptions.length === 0) && (
-                        <div className="flex items-start gap-2 pt-0.5">
-                          <span className="text-[11px] text-amber-700 font-medium shrink-0">Topping:</span>
-                          <div className="min-w-0 space-y-0.5 pt-px">
-                            {item.toppingsText.split(",").map((part, idx) => {
-                              const text = part.trim();
-                              if (!text) return null;
-                              return (
-                                <div
-                                  key={`${item.key}-fallback-${idx}`}
-                                  className="text-[10px] font-medium leading-tight text-amber-800"
-                                >
-                                  {text}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                        <p className="text-[11px] leading-tight text-amber-800">
+                          <span className="font-medium text-amber-700">Topping:</span>{" "}
+                          <span>{item.toppingsText}</span>
+                        </p>
                       )}
 
                       {item.apiOptions && item.apiOptions.length > 0 && (
-                        <div className="flex items-start gap-2 pt-0.5">
-                          <span className="text-[11px] text-amber-700 font-medium shrink-0">Topping:</span>
-                          <div className="min-w-0 space-y-0.5 pt-px">
-                            {item.apiOptions.map((opt) => {
+                        (() => {
+                          const toppingSummary = item.apiOptions
+                            .map((opt) => {
                               const optId = opt.product_franchise_id;
-                              if (!optId) return null;
+                              if (!optId) return "";
                               const qty = opt.quantity ?? 0;
                               const optName =
                                 String(
@@ -698,17 +742,20 @@ export default function MenuOrderPanel({
                                   toppingNameByOptionId.get(String(optId).trim()) ??
                                   "",
                                 ).trim() || "Topping";
-                              return (
-                                <div
-                                  key={optId}
-                                  className="text-[10px] font-medium leading-tight text-amber-800"
-                                >
-                                  {optName} x{qty}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                              return `${optName} x${qty}`;
+                            })
+                            .filter(Boolean)
+                            .join(", ");
+
+                          if (!toppingSummary) return null;
+
+                          return (
+                            <p className="text-[11px] leading-tight text-amber-800">
+                              <span className="font-medium text-amber-700">Topping:</span>{" "}
+                              <span>{toppingSummary}</span>
+                            </p>
+                          );
+                        })()
                       )}
 
                       {item.note && (
@@ -801,22 +848,22 @@ export default function MenuOrderPanel({
             </div>
           )}
           <button
-            disabled={cancellingCart}
-            onClick={() => !cancellingCart && handleCancelCart()}
+            disabled={isOrderPanelBusy}
+            onClick={() => !isOrderPanelBusy && handleCancelCart()}
             className={cn(
               "w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150",
-              cancellingCart ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-100"
+              isOrderPanelBusy ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-100"
             )}
             title="Hủy giỏ hàng"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
-            {cancellingCart ? "Đang hủy..." : "Hủy giỏ"}
+            {cancellingCart ? "Đang hủy..." : removingItemKey ? "Đang xử lý..." : "Hủy giỏ"}
           </button>
-          <button disabled={!canCheckout} onClick={() => canCheckout && handleCheckout()} className={cn("w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-150", canCheckout ? "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
+          <button disabled={!canCheckout || isOrderPanelBusy} onClick={() => canCheckout && !isOrderPanelBusy && handleCheckout()} className={cn("w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all duration-150", canCheckout && !isOrderPanelBusy ? "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-            Đặt hàng · {fmt(total)}
+            {removingItemKey ? "Đang cập nhật giỏ..." : `Đặt hàng · ${fmt(total)}`}
           </button>
         </div>
       </div>
@@ -847,7 +894,3 @@ export default function MenuOrderPanel({
     </div>
   );
 }
-
-
-
-
