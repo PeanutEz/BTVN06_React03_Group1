@@ -19,6 +19,7 @@ const normalizeOrder = (order: any): OrderDisplay => {
     ...order,
     total_amount: totalAmount,
     items, // Normalize to items
+    created_at: order.created_at ?? order.createdAt,
     customer: {
       ...(order.customer ?? {}),
       name: order.customer?.name || order.customer_name || "N/A",

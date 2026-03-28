@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
@@ -122,7 +123,7 @@ export default function CustomerDetailModal({
 
   const displayName = customer?.name || "...";
 
-  return (
+  return ReactDOM.createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
@@ -346,7 +347,7 @@ export default function CustomerDetailModal({
               Cập nhật lần cuối: {new Date(customer.updated_at).toLocaleString("vi-VN")}
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={onClose}>
+              <Button size="sm" onClick={onClose} className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
                 Đóng
               </Button>
             </div>
@@ -354,5 +355,5 @@ export default function CustomerDetailModal({
         )}
       </div>
     </div>
-  );
+  , document.body);
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { Button, GlassSelect, useConfirm } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
@@ -437,7 +438,7 @@ const CustomerListPage = () => {
       )}
 
       {/* Create / Edit Modal */}
-      {showModal && (
+      {showModal && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -633,9 +634,8 @@ const CustomerListPage = () => {
                 <Button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  variant="outline"
                   disabled={submitting}
-                  className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
+                  className="flex-1 bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
                 >
                   Hủy
                 </Button>
@@ -643,7 +643,7 @@ const CustomerListPage = () => {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };
