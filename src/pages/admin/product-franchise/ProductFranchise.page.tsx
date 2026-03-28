@@ -858,7 +858,7 @@ export default function ProductFranchisePage() {
       </div>
 
       {/* Create Modal */}
-      {createOpen && (
+      {createOpen && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-xl rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
@@ -992,15 +992,15 @@ export default function ProductFranchisePage() {
                   <p className="w-full rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-400">{createErrors.general}</p>
                 )}
                 <Button type="submit" loading={creating} className="flex-1">Xác nhận</Button>
-                <Button type="button" variant="outline" onClick={() => setCreateOpen(false)} disabled={creating} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Hủy</Button>
+                <Button type="button" onClick={() => setCreateOpen(false)} disabled={creating} className="flex-1 bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">Hủy</Button>
               </div>
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Detail Modal */}
-      {detailId && (
+      {detailId && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
@@ -1051,15 +1051,14 @@ export default function ProductFranchisePage() {
               </div>
             )}
             <div className="mt-5 flex gap-3">
-              <Button variant="outline" onClick={() => { if (detail) openEdit(detail); setDetailId(null); }} disabled={!detail} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Sửa</Button>
-              <Button variant="outline" onClick={() => setDetailId(null)} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Đóng</Button>
+              <Button onClick={() => setDetailId(null)} className="flex-1 bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">Đóng</Button>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Edit Modal */}
-      {editing && (
+      {editing && ReactDOM.createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
@@ -1092,11 +1091,17 @@ export default function ProductFranchisePage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-white/80">Size *</label>
-                  <input
+                  <select
                     value={editSize}
                     onChange={(e) => setEditSize(e.target.value)}
-                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] text-white/90 placeholder-white/30 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  />
+                    className="w-full rounded-lg border border-white/[0.15] bg-slate-800 text-white/90 px-4 py-2.5 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  >
+                    <option value="S" className="bg-slate-800">S</option>
+                    <option value="M" className="bg-slate-800">M</option>
+                    <option value="L" className="bg-slate-800">L</option>
+                    <option value="XL" className="bg-slate-800">XL</option>
+                    <option value="DEFAULT" className="bg-slate-800">DEFAULT</option>
+                  </select>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-white/80">Price base *</label>
@@ -1110,12 +1115,12 @@ export default function ProductFranchisePage() {
 
               <div className="flex gap-3 pt-1">
                 <Button onClick={submitUpdate} loading={updating} className="flex-1">Lưu</Button>
-                <Button variant="outline" onClick={() => setEditing(null)} disabled={updating} className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">Hủy</Button>
+                <Button onClick={() => setEditing(null)} disabled={updating} className="flex-1 bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">Hủy</Button>
               </div>
             </div>
           </div>
         </div>
-      )}    </div>
+      , document.body)}    </div>
   );
 }
 
