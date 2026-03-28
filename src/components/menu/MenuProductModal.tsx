@@ -18,7 +18,7 @@ import {
   type Topping,
 } from "@/types/menu.types";
 import { clientService } from "@/services/client.service";
-import { lockDocumentScroll } from "@/utils/scrollLock.util";
+import LoadingLayout from "@/layouts/Loading.layout";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -29,18 +29,6 @@ const normalizeText = (value: unknown) =>
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
-
-function waitForNextPaint() {
-  if (typeof window === "undefined") {
-    return Promise.resolve();
-  }
-
-  return new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => resolve());
-    });
-  });
-}
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -144,8 +132,7 @@ export default function MenuProductModal({
   replaceApiItemId,
   replaceCartId,
   onSaved,
-}: MenuProductModalProps) {
-  const queryClient = useQueryClient();
+}: MenuProductModalProps) {  const queryClient = useQueryClient();
   const setCartId = useMenuCartStore((s) => s.setCartId);
   const setCarts = useMenuCartStore((s) => s.setCarts);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
@@ -164,11 +151,9 @@ export default function MenuProductModal({
 
   // Fetch toppings from API
   const [apiToppings, setApiToppings] = useState<Topping[]>([]);
-  const [, setIsFetchingToppings] = useState(false);
+  const [isFetchingToppings, setIsFetchingToppings] = useState(false);
   const desiredToppingsByNameRef = useRef<Record<string, number>>({});
   const initialToppingQtysRef = useRef<Record<string, number> | null>(null);
-  const preparingLoadingActiveRef = useRef(false);
-  const submitLoadingActiveRef = useRef(false);
 
   // Reset state when product changes
   useEffect(() => {
@@ -440,62 +425,27 @@ export default function MenuProductModal({
 
   // Lock body scroll
   useEffect(() => {
-    if (!product) return;
-    return lockDocumentScroll();
+    if (product) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
   }, [product]);
 
-  const isPreparingProductData = !!product && (!isProductDetailResolved || !isToppingsResolved);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!product) {
-      if (preparingLoadingActiveRef.current) {
-        preparingLoadingActiveRef.current = false;
-        if (!submitLoadingActiveRef.current) {
-          hideGlobalLoading();
-        }
-      }
-      return;
-    }
-
-    if (isPreparingProductData) {
-      if (!preparingLoadingActiveRef.current) {
-        preparingLoadingActiveRef.current = true;
-        showGlobalLoading("Đang tải thông tin món...");
-      }
-      return;
-    }
-
-    if (!preparingLoadingActiveRef.current) return;
-
-    void (async () => {
-      await waitForNextPaint();
-      if (cancelled || !preparingLoadingActiveRef.current) return;
-      preparingLoadingActiveRef.current = false;
-      if (!submitLoadingActiveRef.current) {
-        hideGlobalLoading();
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [product, isPreparingProductData, showGlobalLoading, hideGlobalLoading]);
-
-  useEffect(() => {
-    return () => {
-      if (preparingLoadingActiveRef.current) {
-        preparingLoadingActiveRef.current = false;
-        if (!submitLoadingActiveRef.current) {
-          hideGlobalLoading();
-        }
-      }
-    };
-  }, [hideGlobalLoading]);
-
   if (!product) return null;
-  if (isPreparingProductData) return null;
+
+  const isPreparingProductData = !isProductDetailResolved || !isToppingsResolved;
+  if (isPreparingProductData) {
+    const loadingScreen = (
+      <div className="fixed inset-0 z-[1100] bg-slate-950/55 backdrop-blur-md">
+        <LoadingLayout />
+      </div>
+    );
+
+    if (typeof document === "undefined") return null;
+    return createPortal(loadingScreen, document.body);
+  }
 
   // Use detail content if loaded, fallback to list data
   const displayContent = productDetail?.content || product.content;
@@ -568,10 +518,11 @@ export default function MenuProductModal({
     }
 
     setIsAdding(true);
-    submitLoadingActiveRef.current = true;
-    showGlobalLoading(
-      replaceApiItemId ? "Đang cập nhật giỏ hàng..." : "Đang thêm vào giỏ hàng...",
-    );
+    const shouldUseGlobalLoading = !replaceApiItemId;
+    if (shouldUseGlobalLoading) {
+      onClose();
+      showGlobalLoading("Đang thêm vào giỏ hàng...");
+    }
 
     const isEditingApi = !!replaceApiItemId;
     const initSizeLabel = initialSelection?.size?.trim().toUpperCase();
@@ -707,10 +658,11 @@ export default function MenuProductModal({
           fingerprint: computeFingerprintFromCurrentSelection(),
         });
         setIsAdding(false);
-        submitLoadingActiveRef.current = false;
-        onClose();
-        await waitForNextPaint();
-        hideGlobalLoading();
+        if (shouldUseGlobalLoading) {
+          hideGlobalLoading();
+        } else {
+          onClose();
+        }
         return;
       } catch (err) {
         console.error("Update cart item in-place failed:", err);
@@ -747,8 +699,9 @@ export default function MenuProductModal({
       } catch {
         toast.error("Không thể cập nhật giỏ hàng (xóa item cũ thất bại).");
         setIsAdding(false);
-        submitLoadingActiveRef.current = false;
-        hideGlobalLoading();
+        if (shouldUseGlobalLoading) {
+          hideGlobalLoading();
+        }
         return;
       }
     }
@@ -789,8 +742,9 @@ export default function MenuProductModal({
             : "Không thể cập nhật giỏ hàng. Vui lòng thử lại.",
         );
         setIsAdding(false);
-        submitLoadingActiveRef.current = false;
-        hideGlobalLoading();
+        if (shouldUseGlobalLoading) {
+          hideGlobalLoading();
+        }
         return;
       }
 
@@ -798,11 +752,12 @@ export default function MenuProductModal({
         description: submitSelectionDesc,
       });
       setIsAdding(false);
+      if (shouldUseGlobalLoading) {
+        hideGlobalLoading();
+      } else {
+        onClose();
+      }
       if (!replaceApiItemId) onAddedToCart?.();
-      submitLoadingActiveRef.current = false;
-      onClose();
-      await waitForNextPaint();
-      hideGlobalLoading();
       return;
     }
 
@@ -847,8 +802,9 @@ export default function MenuProductModal({
       console.error("Add to cart API failed:", err);
       toast.error("Không thể cập nhật giỏ hàng. Vui lòng thử lại.");
       setIsAdding(false);
-      submitLoadingActiveRef.current = false;
-      hideGlobalLoading();
+      if (shouldUseGlobalLoading) {
+        hideGlobalLoading();
+      }
       return;
     }
     const toppingDesc = displayToppings
@@ -862,24 +818,25 @@ export default function MenuProductModal({
       description: selectionDesc,
     });
     setIsAdding(false);
+    if (shouldUseGlobalLoading) {
+      hideGlobalLoading();
+    } else {
+      onClose();
+    }
     if (!replaceApiItemId) onAddedToCart?.();
-    submitLoadingActiveRef.current = false;
-    onClose();
-    await waitForNextPaint();
-    hideGlobalLoading();
   }
 
   const modal = (
     /* Backdrop */
     <div
-      className="fixed inset-0 z-[1000] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-4"
-      onClick={isAdding ? undefined : onClose}
+      className="fixed inset-0 z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       {/* Modal */}
       <div
-        className="relative flex max-h-[92dvh] min-h-0 w-full flex-col overflow-hidden bg-white text-black shadow-2xl sm:max-h-[88dvh] sm:max-w-lg sm:rounded-2xl"
+        className="relative w-full sm:max-w-lg bg-white text-black sm:rounded-2xl shadow-2xl overflow-hidden h-[92dvh] sm:h-[88dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header + image */}
@@ -899,7 +856,6 @@ export default function MenuProductModal({
             onClick={onClose}
             className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white hover:bg-black/60 transition-colors"
             aria-label="Đóng"
-            disabled={isAdding}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -972,7 +928,7 @@ export default function MenuProductModal({
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="overflow-y-auto flex-1 px-4 py-4 space-y-4">
           {tab === "order" ? (
             <>
               {/* Size – from real API (product_franchise_id) */}
@@ -1070,66 +1026,69 @@ export default function MenuProductModal({
               {!isToppingProduct && (
                 <div>
                   <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
-                  {displayToppings.length === 0 ? (
-                    <div className="text-xs text-gray-400 py-2">Không có topping để chọn</div>
+                  {isFetchingToppings ? (
+                    <div className="text-xs text-gray-400 py-2">Đang tải topping...</div>
                   ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {displayToppings.map((topping) => {
-                        const qty = toppingQtys[topping.id] ?? 0;
-                        return (
-                          <div
-                            key={topping.id}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
-                              qty > 0 ? "border-amber-500 bg-amber-50" : "border-gray-200 bg-white",
-                            )}
-                          >
-                            {/* Ảnh topping: dùng image_url từ API, fallback emoji */}
-                            {topping.image_url ? (
-                              <img
-                                src={topping.image_url}
-                                alt={topping.name}
-                                className="shrink-0 w-9 h-9 rounded-lg object-cover border border-gray-100"
-                              />
-                            ) : (
-                              <span className="shrink-0 text-base">{topping.emoji}</span>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>
-                                {topping.name}
+                    displayToppings.length === 0 ? (
+                      <div className="text-xs text-gray-400 py-2">Không có topping để chọn</div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {displayToppings.map((topping) => {
+                          const qty = toppingQtys[topping.id] ?? 0;
+                          return (
+                            <div
+                              key={topping.id}
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-2 rounded-xl border text-xs transition-all duration-150",
+                                qty > 0 ? "border-amber-500 bg-amber-50" : "border-gray-200 bg-white",
+                              )}                          >
+                              {/* Ảnh topping: dùng image_url từ API, fallback emoji */}
+                              {topping.image_url ? (
+                                <img
+                                  src={topping.image_url}
+                                  alt={topping.name}
+                                  className="shrink-0 w-9 h-9 rounded-lg object-cover border border-gray-100"
+                                />
+                              ) : (
+                                <span className="shrink-0 text-base">{topping.emoji}</span>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className={cn("font-medium truncate", qty > 0 ? "text-amber-800" : "text-gray-700")}>
+                                  {topping.name}
+                                </div>
+                                <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
                               </div>
-                              <div className="text-[10px] text-gray-400">+{fmt(topping.price)}</div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={() => changeToppingQty(topping, -1)}
+                                  disabled={qty === 0}
+                                  className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                                  title="Giảm topping"
+                                >
+                                  <span className="text-sm font-semibold text-gray-700 leading-none">−</span>
+                                </button>
+                                <span
+                                  className={cn(
+                                    "w-5 text-center font-semibold text-sm tabular-nums",
+                                    qty > 0 ? "text-amber-800" : "text-gray-600",
+                                  )}
+                                >
+                                  {qty}
+                                </span>
+                                <button
+                                  onClick={() => changeToppingQty(topping, 1)}
+                                  disabled={qty >= 3}
+                                  className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
+                                  title="Tăng topping"
+                                >
+                                  <span className="text-sm font-semibold text-gray-700 leading-none">+</span>
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => changeToppingQty(topping, -1)}
-                                disabled={isAdding || qty === 0}
-                                className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                                title="Giảm topping"
-                              >
-                                <span className="text-sm font-semibold text-gray-700 leading-none">−</span>
-                              </button>
-                              <span
-                                className={cn(
-                                  "w-5 text-center font-semibold text-sm tabular-nums",
-                                  qty > 0 ? "text-amber-800" : "text-gray-600",
-                                )}
-                              >
-                                {qty}
-                              </span>
-                              <button
-                                onClick={() => changeToppingQty(topping, 1)}
-                                disabled={isAdding || qty >= 3}
-                                className="w-6 h-6 rounded-full border flex items-center justify-center transition-all disabled:opacity-35 disabled:cursor-not-allowed border-gray-300 hover:border-amber-400 hover:bg-amber-50"
-                                title="Tăng topping"
-                              >
-                                <span className="text-sm font-semibold text-gray-700 leading-none">+</span>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )
                   )}
                 </div>
               )}
@@ -1159,7 +1118,7 @@ export default function MenuProductModal({
             <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden shrink-0">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                disabled={isAdding || quantity <= 1}
+                disabled={quantity <= 1}
                 className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1169,7 +1128,6 @@ export default function MenuProductModal({
               <span className="w-8 text-center text-sm font-semibold select-none">{quantity}</span>
               <button
                 onClick={() => setQuantity((q) => q + 1)}
-                disabled={isAdding}
                 className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1189,12 +1147,22 @@ export default function MenuProductModal({
                   : "bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow-sm shadow-amber-200",
               )}
             >
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                {replaceApiItemId ? `Cập nhật món · ${fmt(totalPrice)}` : `Thêm vào giỏ · ${fmt(totalPrice)}`}
-              </>
+              {isAdding ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  {replaceApiItemId ? "Đang cập nhật..." : "Đang thêm..."}
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  {replaceApiItemId ? `Cập nhật món · ${fmt(totalPrice)}` : `Thêm vào giỏ · ${fmt(totalPrice)}`}
+                </>
+              )}
             </button>
           </div>
         </div>

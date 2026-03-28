@@ -3,7 +3,6 @@ import type { ErrorInfo } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { RouteChangeLoading } from "../components";
 import ScrollToTopOnNavigate from "../components/ui/ScrollToTopOnNavigate";
-import { useGlobalOverlayScrollLock } from "../hooks/useGlobalOverlayScrollLock";
 import LoadingLayout from "../layouts/Loading.layout";
 import AdminLayout from "../layouts/admin/Admin.layout";
 import ClientLayout from "../layouts/client/Client.layout";
@@ -14,7 +13,7 @@ import LoginPage from "../pages/client/auth/Login.page";
 import RegisterPage from "../pages/client/auth/Register.page";
 import ResetPasswordPage from "../pages/client/auth/ResetPassword.page";
 import VerifyEmailPage from "../pages/client/auth/VerifyEmail.page";
-import { ADMIN_MENU } from "./admin/Admin.menu.tsx";
+import { ADMIN_MENU } from "./admin/Admin.menu";
 import {
   CLIENT_ACCOUNT_ROUTE_ITEMS,
   CLIENT_MENU_PROTECTED_ROUTE_ITEMS,
@@ -72,8 +71,6 @@ const LandingPage = React.lazy(() => import("../pages/client/Landing.page"));
 const StaffOrdersPage = React.lazy(() => import("../pages/orders/OrdersList.page"));
 
 function AppRoutes() {
-  useGlobalOverlayScrollLock();
-
   return (
     <BrowserRouter>
       <RouteChangeLoading minDurationMs={1500} />

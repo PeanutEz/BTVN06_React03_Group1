@@ -147,7 +147,6 @@ export default function MenuOrderPanel({
   const [cancellingCart, setCancellingCart] = useState(false);
   const [editingItem, setEditingItem] = useState<DisplayCartItem | null>(null);
   const [removingItemKey, setRemovingItemKey] = useState<string | null>(null);
-  const closePanelAfterEditRef = useState(() => ({ current: false }))[0];
   const [pendingReorder, setPendingReorder] = useState<{
     fromIndex: number;
     fingerprint: null | {
@@ -425,7 +424,6 @@ export default function MenuOrderPanel({
       toast.error("Sản phẩm này chưa có cart item id để chỉnh sửa.");
       return;
     }
-    closePanelAfterEditRef.current = false;
     const fromIndex = apiItems.findIndex((i) => i.key === item.key);
     setPendingReorder(fromIndex >= 0 ? { fromIndex, fingerprint: null } : null);
     setEditingItem(item);
@@ -434,7 +432,7 @@ export default function MenuOrderPanel({
   function handleCheckout() {
     if (!user) {
       toast.error("Vui lòng đăng nhập để đặt hàng", {
-        description: "Giỏ hàng và chi nhánh của bạn sẽ được giữ nguyên.",
+        description: "Giỏ hàng và cửa hàng của bạn sẽ được giữ nguyên.",
       });
       return;
     }
@@ -450,9 +448,9 @@ export default function MenuOrderPanel({
   const disabledReason = !isLoggedIn
     ? "Vui lòng đăng nhập"
     : !hasLocation
-    ? "Vui lòng chọn chi nhánh"
+    ? "Vui lòng chọn cửa hàng"
     : orderMode === "DELIVERY" && !branchOpen
-    ? "Chi nhánh đang đóng cửa"
+    ? "Cửa hàng đang đóng cửa"
     : orderMode === "DELIVERY" && !isReadyToOrder
     ? "Địa chỉ chưa xác nhận"
     : displayItems.length === 0
@@ -875,10 +873,6 @@ export default function MenuOrderPanel({
           onClose={() => {
             setEditingItem(null);
             setPendingReorder(null);
-            if (closePanelAfterEditRef.current) {
-              closePanelAfterEditRef.current = false;
-              onRequestClose?.();
-            }
           }}
           initialApiOptions={editingItem.apiOptions}
           replaceApiItemId={editingItem.apiItemId}
@@ -894,10 +888,6 @@ export default function MenuOrderPanel({
           }}
           onSaved={(payload) => {
             setPendingReorder((p) => (p ? { ...p, fingerprint: payload.fingerprint ?? null } : p));
-            closePanelAfterEditRef.current =
-              !!onRequestClose &&
-              typeof window !== "undefined" &&
-              window.innerWidth < 1024;
           }}
         />
       )}

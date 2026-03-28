@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import { OrderDetailModal } from "./OrderDetail.page";
 import { GlassSearchSelect } from "../../../components/ui";
@@ -15,7 +14,6 @@ import Pagination from "../../../components/ui/Pagination";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 import { showSuccess, showError } from "../../../utils";
 import { useAuthStore } from "../../../store";
-import { ROUTER_URL } from "../../../routes/router.const";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -28,8 +26,6 @@ const STATUS_OPTIONS = [
 ];
 
 const OrderListPage = () => {
-  const navigate = useNavigate();
-  const { id: routeOrderId } = useParams<{ id?: string }>();
   const managerFranchiseId = useManagerFranchiseId();
   const { user } = useAuthStore();
   const isShipper = ((user?.active_context as { role?: string } | null)?.role ?? user?.role ?? "").toUpperCase() === "SHIPPER";
@@ -39,7 +35,7 @@ const OrderListPage = () => {
   const [selectedFranchiseId, setSelectedFranchiseId] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(routeOrderId ?? null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   // inline status popover
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [staffList, setStaffList] = useState<UserFranchiseRole[]>([]);
@@ -59,26 +55,6 @@ const OrderListPage = () => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
-
-  // Keep modal open state in sync with URL: /admin/orders/:id
-  useEffect(() => {
-    setSelectedOrderId(routeOrderId ?? null);
-  }, [routeOrderId]);
-
-  const openOrderDetailModal = (orderId: string) => {
-    setSelectedOrderId(orderId);
-    const detailPath = `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDER_DETAIL.replace(":id", orderId)}`;
-    if (routeOrderId !== orderId) {
-      navigate(detailPath);
-    }
-  };
-
-  const closeOrderDetailModal = () => {
-    setSelectedOrderId(null);
-    if (routeOrderId) {
-      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`);
-    }
-  };
 
   // ─── Quick status update ──────────────────────────────────────────────────────
   const handleQuickStatus = async (orderId: string, newStatus: OrderStatus) => {
@@ -330,90 +306,10 @@ const OrderListPage = () => {
                         </td>                        <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
                           {order.created_at ? new Date(order.created_at).toLocaleString("vi-VN") : "—"}                        </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            {/* Chuẩn bị — chỉ hiện khi CONFIRMED */}
-                            {order.status === "CONFIRMED" && (
-                              <button
-                                onClick={() => handleQuickStatus(String(order._id ?? order.id), "PREPARING")}
-                                disabled={updatingId === String(order._id ?? order.id)}
-                                className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-xs font-semibold text-orange-600 transition-colors hover:border-orange-400 hover:bg-orange-100 disabled:opacity-50"
-                                title="Chuyển sang Đang chuẩn bị"
-                              >
-                                <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
-                                  <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                                Chuẩn bị
-                              </button>
-                            )}
-                            {/* Assign — chỉ hiện khi PREPARING */}
-                            {order.status === "PREPARING" && (
-                              <div className="relative inline-block" ref={assignPopoverId === String(order._id ?? order.id) ? assignPopoverRef : null}>
-                                <button
-                                  onClick={() => setAssignPopoverId(prev => prev === String(order._id ?? order.id) ? null : String(order._id ?? order.id))}
-                                  disabled={assigningId === String(order._id ?? order.id)}
-                                  className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-600 transition-colors hover:border-blue-400 hover:bg-blue-100 disabled:opacity-50"
-                                  title="Giao việc cho nhân viên (Ready for Pickup)"
-                                >
-                                  {assigningId === String(order._id ?? order.id) ? (
-                                    <span>Đang giao...</span>
-                                  ) : (
-                                    <>
-                                      <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                      </svg>
-                                      Assign
-                                    </>
-                                  )}
-                                </button>                                {assignPopoverId === String(order._id ?? order.id) && (
-                                  <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-slate-600 bg-slate-800 shadow-2xl shadow-black/60">
-                                    {/* Header */}
-                                    <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-700">Chọn nhân viên</p>
-                                    {/* Search */}
-                                    <div className="p-2 border-b border-slate-700">
-                                      <div className="relative">
-                                        <svg className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                        </svg>
-                                        <input
-                                          type="text"
-                                          value={assignSearch}
-                                          onChange={e => setAssignSearch(e.target.value)}
-                                          placeholder="Tìm theo tên..."
-                                          autoFocus
-                                          className="w-full rounded-md border border-slate-600 bg-slate-700 py-1.5 pl-8 pr-3 text-xs text-slate-100 placeholder-slate-400 outline-none focus:border-red-400/50 focus:ring-1 focus:ring-red-400/20"
-                                        />
-                                      </div>
-                                    </div>
-                                    {/* List */}
-                                    <div className="max-h-52 overflow-y-auto">
-                                      {(() => {
-                                        const filtered = staffList
-                                          .filter(s => s.role_code === "STAFF" || s.role_code === "SHIPPER")
-                                          .filter(s => !assignSearch.trim() || s.user_name.toLowerCase().includes(assignSearch.toLowerCase()));
-                                        return filtered.length === 0 ? (
-                                          <p className="px-3 py-3 text-xs text-slate-400 text-center">Không có nhân viên</p>
-                                        ) : (
-                                          filtered.map(s => (
-                                            <button
-                                              key={s.id}
-                                              onClick={() => { handleAssign(String(order._id ?? order.id), s.user_id); setAssignSearch(""); }}
-                                              className="w-full px-3 py-2 text-left transition-colors hover:bg-slate-700"
-                                            >
-                                              <p className="text-xs font-semibold text-slate-100">{s.user_name}</p>
-                                              <p className="text-[10px] text-slate-400">{s.role_name}</p>
-                                            </button>
-                                          ))
-                                        );
-                                      })()}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {/* Xem chi tiết */}
+                          <div className="flex items-center justify-between gap-1">
+                            {/* Xem chi tiết — bên trái */}
                             <button
-                              onClick={() => openOrderDetailModal(String(order._id ?? order.id))}
+                              onClick={() => setSelectedOrderId(String(order._id ?? order.id))}
                               className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
                               title="Xem chi tiết"
                             >
@@ -421,6 +317,90 @@ const OrderListPage = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.25 2.25 0 013.182 3.182L7.5 19.213l-4 1 1-4L16.862 3.487z" />
                               </svg>
                             </button>
+
+                            {/* Action buttons — bên phải */}
+                            <div className="flex items-center gap-1">
+                              {/* Chuẩn bị — chỉ hiện khi CONFIRMED */}
+                              {order.status === "CONFIRMED" && (
+                                <button
+                                  onClick={() => handleQuickStatus(String(order._id ?? order.id), "PREPARING")}
+                                  disabled={updatingId === String(order._id ?? order.id)}
+                                  className="flex items-center gap-1 rounded-lg border border-orange-200 bg-orange-50 px-2 py-1 text-xs font-semibold text-orange-600 transition-colors hover:border-orange-400 hover:bg-orange-100 disabled:opacity-50"
+                                  title="Chuyển sang Đang chuẩn bị"
+                                >
+                                  <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2" />
+                                    <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                  Chuẩn bị
+                                </button>
+                              )}
+                              {/* Assign — chỉ hiện khi PREPARING */}
+                              {order.status === "PREPARING" && (
+                                <div className="relative inline-block" ref={assignPopoverId === String(order._id ?? order.id) ? assignPopoverRef : null}>
+                                  <button
+                                    onClick={() => setAssignPopoverId(prev => prev === String(order._id ?? order.id) ? null : String(order._id ?? order.id))}
+                                    disabled={assigningId === String(order._id ?? order.id)}
+                                    className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-600 transition-colors hover:border-blue-400 hover:bg-blue-100 disabled:opacity-50"
+                                    title="Giao việc cho nhân viên (Ready for Pickup)"
+                                  >
+                                    {assigningId === String(order._id ?? order.id) ? (
+                                      <span>Đang giao...</span>
+                                    ) : (
+                                      <>
+                                        <svg className="size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        Assign
+                                      </>
+                                    )}
+                                  </button>                                {assignPopoverId === String(order._id ?? order.id) && (
+                                    <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-slate-600 bg-slate-800 shadow-2xl shadow-black/60">
+                                      {/* Header */}
+                                      <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-700">Chọn nhân viên</p>
+                                      {/* Search */}
+                                      <div className="p-2 border-b border-slate-700">
+                                        <div className="relative">
+                                          <svg className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                          </svg>
+                                          <input
+                                            type="text"
+                                            value={assignSearch}
+                                            onChange={e => setAssignSearch(e.target.value)}
+                                            placeholder="Tìm theo tên..."
+                                            autoFocus
+                                            className="w-full rounded-md border border-slate-600 bg-slate-700 py-1.5 pl-8 pr-3 text-xs text-slate-100 placeholder-slate-400 outline-none focus:border-red-400/50 focus:ring-1 focus:ring-red-400/20"
+                                          />
+                                        </div>
+                                      </div>
+                                      {/* List */}
+                                      <div className="max-h-52 overflow-y-auto">
+                                        {(() => {
+                                          const filtered = staffList
+                                            .filter(s => s.role_code === "STAFF" || s.role_code === "SHIPPER")
+                                            .filter(s => !assignSearch.trim() || s.user_name.toLowerCase().includes(assignSearch.toLowerCase()));
+                                          return filtered.length === 0 ? (
+                                            <p className="px-3 py-3 text-xs text-slate-400 text-center">Không có nhân viên</p>
+                                          ) : (
+                                            filtered.map(s => (
+                                              <button
+                                                key={s.id}
+                                                onClick={() => { handleAssign(String(order._id ?? order.id), s.user_id); setAssignSearch(""); }}
+                                                className="w-full px-3 py-2 text-left transition-colors hover:bg-slate-700"
+                                              >
+                                                <p className="text-xs font-semibold text-slate-100">{s.user_name}</p>
+                                                <p className="text-[10px] text-slate-400">{s.role_name}</p>
+                                              </button>
+                                            ))
+                                          );
+                                        })()}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -443,7 +423,7 @@ const OrderListPage = () => {
 
       <OrderDetailModal
         orderId={selectedOrderId}
-        onClose={closeOrderDetailModal}
+        onClose={() => setSelectedOrderId(null)}
         onStatusChange={(orderId, newStatus) => {
           setOrders(prev => prev.map(o =>
             String(o._id ?? o.id) === orderId ? { ...o, status: newStatus } : o

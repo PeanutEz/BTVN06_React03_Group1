@@ -7,7 +7,6 @@ import {
   type CartItemOption,
 } from "@/services/cart.client";
 import { clientService } from "@/services/client.service";
-import { posService } from "@/services/pos.service";
 import { buildCartSelectionNote } from "@/utils/cartSelectionNote.util";
 import type {
   IceLevel,
@@ -16,7 +15,6 @@ import type {
   Topping,
 } from "@/types/menu.types";
 import { useLoadingStore } from "@/store/loading.store";
-import { lockDocumentScroll } from "@/utils/scrollLock.util";
 
 const fmt = (n: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
@@ -28,26 +26,10 @@ const normalizeText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
-function waitForNextPaint() {
-  if (typeof window === "undefined") {
-    return Promise.resolve();
-  }
-
-  return new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => resolve());
-    });
-  });
-}
-
 interface CartItemEditDialogProps {
   product: MenuProduct | null;
   onClose: () => void;
   initialApiOptions?: CartItemOption[];
-  staffRecreateContext?: {
-    customerId: string;
-    franchiseId: string;
-  };
   initialSelection?: {
     size?: string;
     productFranchiseId?: string;
@@ -70,14 +52,13 @@ interface CartItemEditDialogProps {
       toppings?: Array<{ name: string; quantity: number }>;
       note?: string;
     };
-  }) => void | Promise<void>;
+  }) => void;
 }
 
 export default function CartItemEditDialog({
   product,
   onClose,
   initialApiOptions,
-  staffRecreateContext,
   initialSelection,
   initialQuantity,
   replaceApiItemId,
@@ -94,8 +75,6 @@ export default function CartItemEditDialog({
   const [isFetchingToppings, setIsFetchingToppings] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const initialToppingQtysRef = useRef<Record<string, number>>({});
-  const toppingsLoadingActiveRef = useRef(false);
-  const saveLoadingActiveRef = useRef(false);
   const categoryName = (product as any)?._apiCategoryName ?? "";
   const isToppingProduct = normalizeText(categoryName).includes("topping");
   const franchiseId = String((product as any)?._apiFranchiseId ?? "").trim();
@@ -109,9 +88,21 @@ export default function CartItemEditDialog({
   }, [initialSelection?.note, product?.id, replaceApiItemId]);
 
   useEffect(() => {
-    if (!product) return;
-    return lockDocumentScroll();
+    if (product) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [product]);
+
+  useEffect(() => {
+    return () => {
+      hideGlobalLoading();
+    };
+  }, [hideGlobalLoading]);
 
   useEffect(() => {
     if (!product) {
@@ -154,7 +145,6 @@ export default function CartItemEditDialog({
 
     let cancelled = false;
     setIsFetchingToppings(true);
-    toppingsLoadingActiveRef.current = true;
     showGlobalLoading("Đang tải tùy chọn chỉnh sửa...");
 
     (async () => {
@@ -198,26 +188,14 @@ export default function CartItemEditDialog({
       } finally {
         if (!cancelled) {
           setIsFetchingToppings(false);
-          await waitForNextPaint();
-          if (cancelled) return;
-          if (toppingsLoadingActiveRef.current) {
-            toppingsLoadingActiveRef.current = false;
-            if (!saveLoadingActiveRef.current) {
-              hideGlobalLoading();
-            }
-          }
+          hideGlobalLoading();
         }
       }
     })();
 
     return () => {
       cancelled = true;
-      if (toppingsLoadingActiveRef.current) {
-        toppingsLoadingActiveRef.current = false;
-        if (!saveLoadingActiveRef.current) {
-          hideGlobalLoading();
-        }
-      }
+      hideGlobalLoading();
     };
   }, [
     product?.id,
@@ -226,7 +204,6 @@ export default function CartItemEditDialog({
     franchiseId,
     initialSelection?.toppings,
     initialApiOptions,
-    staffRecreateContext,
     showGlobalLoading,
     hideGlobalLoading,
   ]);
@@ -348,7 +325,6 @@ export default function CartItemEditDialog({
       }));
 
     setIsSaving(true);
-    saveLoadingActiveRef.current = true;
     showGlobalLoading("Đang lưu thay đổi...");
 
     try {
@@ -358,24 +334,13 @@ export default function CartItemEditDialog({
 
         if (franchiseId && productFranchiseId) {
           await cartClient.deleteCartItem(replaceApiItemId);
-          if (staffRecreateContext?.customerId && staffRecreateContext?.franchiseId) {
-            await posService.addProductToCart({
-              customer_id: staffRecreateContext.customerId,
-              franchise_id: staffRecreateContext.franchiseId,
-              product_franchise_id: productFranchiseId,
-              quantity,
-              note: noteForApi,
-              options: selectedOptions.length > 0 ? selectedOptions : undefined,
-            });
-          } else {
-            await cartClient.addProduct({
-              franchise_id: franchiseId,
-              product_franchise_id: productFranchiseId,
-              quantity,
-              note: noteForApi,
-              options: selectedOptions.length > 0 ? selectedOptions : undefined,
-            });
-          }
+          await cartClient.addProduct({
+            franchise_id: franchiseId,
+            product_franchise_id: productFranchiseId,
+            quantity,
+            note: noteForApi,
+            options: selectedOptions.length > 0 ? selectedOptions : undefined,
+          });
         } else {
           await cartClient.updateCartItemQuantity({
             cart_item_id: replaceApiItemId,
@@ -438,19 +403,17 @@ export default function CartItemEditDialog({
       await queryClient.invalidateQueries({ queryKey: ["carts-by-customer"] });
       await queryClient.refetchQueries({ queryKey: ["carts-by-customer"], type: "active" });
 
-      await onSaved?.({
+      onSaved?.({
         replacedApiItemId: replaceApiItemId,
         fingerprint: buildFingerprint(),
       });
 
       toast.success(`Đã cập nhật "${itemName}" trong giỏ hàng`);
-      await waitForNextPaint();
       onClose();
     } catch (error) {
       console.error("Cart item edit failed:", error);
       toast.error("Không thể cập nhật sản phẩm trong giỏ hàng.");
     } finally {
-      saveLoadingActiveRef.current = false;
       setIsSaving(false);
       hideGlobalLoading();
     }
@@ -460,12 +423,12 @@ export default function CartItemEditDialog({
 
   const modal = (
     <div
-      className="fixed inset-0 z-[1000] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-4"
+      className="fixed inset-0 z-[1000] flex items-end justify-center p-0 sm:items-center sm:p-4"
       onClick={isLoadingOverlayActive ? undefined : onClose}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative flex max-h-[92dvh] min-h-0 w-full flex-col overflow-hidden bg-white text-black shadow-2xl sm:max-h-[88dvh] sm:max-w-lg sm:rounded-2xl"
+        className="relative flex h-[92dvh] w-full flex-col overflow-hidden bg-white text-black shadow-2xl sm:h-[88dvh] sm:max-w-lg sm:rounded-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="border-b border-gray-100 bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_46%),linear-gradient(180deg,_#fff,_#fffaf1)] px-5 py-4">
@@ -493,7 +456,7 @@ export default function CartItemEditDialog({
         </div>
 
         <>
-            <div className="flex-1 min-h-0 space-y-4 overflow-y-auto px-5 py-5">
+            <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
               <section className="rounded-3xl border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4 shadow-sm">
                 <div className="flex gap-4">
                   {itemImage ? (
@@ -559,6 +522,15 @@ export default function CartItemEditDialog({
                 </div>
 
                 <div className="mt-4 space-y-3">
+                  {isFetchingToppings && (
+                    <div className="flex items-center gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-3 py-3 text-sm font-medium text-amber-700">
+                      <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      Đang tải tùy chọn chỉnh sửa...
+                    </div>
+                  )}
                   {displayToppings.length === 0 && (
                     <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-3 py-4 text-sm text-gray-500">
                       Sản phẩm này hiện chưa có topping để chỉnh sửa.
@@ -659,7 +631,13 @@ export default function CartItemEditDialog({
                   className="flex h-12 flex-[1.3] items-center justify-center gap-2 rounded-2xl bg-amber-500 font-semibold text-white transition hover:bg-amber-600 disabled:opacity-60"
                   disabled={isSaving}
                 >
-                  Lưu thay đổi
+                  {isSaving && (
+                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  )}
+                  {isSaving ? "Đang cập nhật..." : "Lưu thay đổi"}
                 </button>
               </div>
             </div>

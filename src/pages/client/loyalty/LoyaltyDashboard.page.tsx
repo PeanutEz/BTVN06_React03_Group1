@@ -109,15 +109,15 @@ export default function LoyaltyDashboardPage() {
     return (
       <div className="p-6">
         <Card className="shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900">Chưa chọn chi nhánh</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Chưa chọn cửa hàng</h2>
           <p className="text-gray-600 mt-2">
-            Vui lòng chọn chi nhánh để xem điểm loyalty tương ứng.
+            Vui lòng chọn cửa hàng nhận hàng để xem điểm loyalty theo franchise.
           </p>
           <Link
             to={ROUTER_URL.RECEIVING_SETUP}
             className="inline-flex mt-4 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-medium"
           >
-            Chọn chi nhánh
+            Chọn cửa hàng
           </Link>
         </Card>
       </div>

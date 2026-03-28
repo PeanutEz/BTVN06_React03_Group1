@@ -51,7 +51,6 @@ export interface UpdateCartItemBody {
   cart_item_id: string;
   quantity: number;
   note?: string;
-  message?: string;
 }
 
 export interface UpdateOptionBody {
@@ -89,11 +88,6 @@ export interface ApiCartItem {
   line_total?: number;
   final_line_total?: number;
   note?: string;
-  message?: string;
-  customer_note?: string;
-  note_snapshot?: string;
-  selection_note?: string;
-  special_instruction?: string;
   options?: CartItemOption[];
   [key: string]: unknown;
 }
@@ -229,25 +223,6 @@ export function getCartItemImage(item: ApiCartItem): string {
     product?.image ??
     "",
   ).trim();
-}
-
-export function getCartItemNote(item: ApiCartItem): string {
-  const raw = item as Record<string, unknown>;
-  const product =
-    raw.product && typeof raw.product === "object"
-      ? (raw.product as Record<string, unknown>)
-      : null;
-
-  return firstNonEmptyString(
-    raw.note,
-    raw.message,
-    raw.customer_note,
-    raw.note_snapshot,
-    raw.selection_note,
-    raw.special_instruction,
-    product?.note,
-    product?.message,
-  );
 }
 
 function firstNonEmptyString(...values: unknown[]) {

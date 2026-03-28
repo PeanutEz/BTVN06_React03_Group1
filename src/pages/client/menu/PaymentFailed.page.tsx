@@ -270,7 +270,7 @@ export default function PaymentFailedPage() {
                     <span className="font-semibold text-[#2f2217]">{paymentMethodText}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[#8a8070]">Chi nhánh</span>
+                    <span className="text-[#8a8070]">Cửa hàng</span>
                     <span className="font-semibold text-right text-[#2f2217]">{franchiseName}</span>
                   </div>
                   {providerTxnId && (

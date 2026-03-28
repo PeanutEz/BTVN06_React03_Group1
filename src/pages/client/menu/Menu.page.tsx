@@ -35,18 +35,6 @@ const isToppingCategory = (categoryName: unknown) =>
 const getProductSizes = (product: ClientProductListItem) =>
   Array.isArray(product.sizes) ? product.sizes : [];
 
-function clearMenuOrderScrollLockStyles() {
-  if (typeof document === "undefined") return;
-
-  document.documentElement.classList.remove("menu-order-open");
-  document.body.classList.remove("menu-order-open");
-  document.body.style.position = "";
-  document.body.style.top = "";
-  document.body.style.left = "";
-  document.body.style.right = "";
-  document.body.style.width = "";
-}
-
 type LoadingPhase = "franchises" | "categories" | "products" | "productDetail" | null;
 
 function EmptyState({
@@ -148,7 +136,7 @@ function ProductGrid({
         return (
           <div
             key={`${p.product_id}-${p.SKU}`}
-            className="group h-full bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200 flex flex-col"
+            className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-amber-200 hover:shadow-lg transition-all duration-200"
           >
             <button
               type="button"
@@ -171,14 +159,14 @@ function ProductGrid({
                 )}
               </div>
             </button>
-            <div className="p-3.5 flex flex-1 flex-col">
+            <div className="p-3.5">
               <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-1 mb-1">
                 {p.name}
               </h3>
-              <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed min-h-[2.5rem]">
+              <p className="text-xs text-gray-500 line-clamp-2 mb-3 leading-relaxed">
                 {p.description}
               </p>
-              <div className="mt-auto pt-3 flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-bold text-amber-700">
                   {fmtVnd(basePrice)}
                 </span>
@@ -446,8 +434,7 @@ export default function MenuPage() {
 
   // Auto-open picker sau khi cả 2 store đã hydrate từ localStorage
   // (tránh nhấp nháy do render trước khi biết trạng thái thật)
-  // Keep the branch picker closed on first visit; open it only after explicit user action.
-  const autoPickerFiredRef = useRef(true);
+  const autoPickerFiredRef = useRef(false);
   useEffect(() => {
     if (!authInitialized || !deliveryInitialized) return;
     if (autoPickerFiredRef.current) return;
@@ -462,7 +449,13 @@ export default function MenuPage() {
 
   useEffect(() => {
     if (!showOrderPanel) {
-      clearMenuOrderScrollLockStyles();
+      document.documentElement.classList.remove("menu-order-open");
+      document.body.classList.remove("menu-order-open");
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
       return;
     }
 
@@ -478,18 +471,18 @@ export default function MenuPage() {
 
     return () => {
       const savedTop = document.body.style.top;
-      clearMenuOrderScrollLockStyles();
+      document.documentElement.classList.remove("menu-order-open");
+      document.body.classList.remove("menu-order-open");
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.left = "";
+      document.body.style.right = "";
+      document.body.style.width = "";
 
       const restoreY = Math.abs(parseInt(savedTop || "0", 10)) || 0;
       window.scrollTo(0, restoreY);
     };
   }, [showOrderPanel]);
-
-  useEffect(() => {
-    return () => {
-      clearMenuOrderScrollLockStyles();
-    };
-  }, []);
 
   const { data: customerCartsData } = useQuery({
     queryKey: ["carts-by-customer", customerId],
@@ -593,7 +586,7 @@ export default function MenuPage() {
                   🍽️ {selectedCategory?.category_name ?? "Tất cả"}
                 </h1>
                 <p className="text-sm text-gray-500 mt-0.5">
-                  {canShowMenu ? "Toàn bộ thực đơn Hylux" : "Vui lòng chọn chi nhánh để xem thực đơn"}
+                  {canShowMenu ? "Toàn bộ thực đơn Hylux" : "Vui lòng chọn cửa hàng để xem thực đơn"}
                 </p>
               </div>
             </div>
@@ -741,9 +734,9 @@ export default function MenuPage() {
             <div className="min-w-0 flex-1">
               {!canShowMenu ? (
                 <EmptyState
-                  title="Chưa chọn chi nhánh"
-                  description="Hãy chọn chi nhánh để hệ thống tải thực đơn."
-                  actionLabel="🏪 Chọn chi nhánh"
+                  title="Chưa chọn cửa hàng"
+                  description="Hãy chọn cửa hàng để hệ thống tải thực đơn."
+                  actionLabel="🏪 Chọn cửa hàng"
                   onAction={openBranchPicker}
                 />
               ) : showLoadingSkeleton ? (

@@ -6,7 +6,7 @@ import type { ClientFranchiseItem } from "@/models/store.model";
 
 interface BranchPickerModalProps {
   onClose: () => void;
-  /** Nếu true thì không hiện nút X — bắt buộc phải chọn chi nhánh */
+  /** Nếu true thì không hiện nút X — bắt buộc phải chọn cửa hàng */
   required?: boolean;
 }
 
@@ -27,7 +27,7 @@ export default function BranchPickerModal({ onClose, required = false }: BranchP
       .then((data) => { if (alive) setFranchises(data); })
       .catch((e: unknown) => {
         if (!alive) return;
-        setFranchiseError(e instanceof Error ? e.message : "Không tải được danh sách chi nhánh");
+        setFranchiseError(e instanceof Error ? e.message : "Không tải được danh sách cửa hàng");
         setFranchises([]);
       })
       .finally(() => { if (alive) setLoadingFranchises(false); });
@@ -55,10 +55,7 @@ export default function BranchPickerModal({ onClose, required = false }: BranchP
       />
 
       {/* Panel */}
-      <div
-        data-allow-overlay-scroll="true"
-        className="relative bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85dvh]"
-      >
+      <div className="relative bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85dvh]">
 
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-gray-100">
@@ -68,8 +65,8 @@ export default function BranchPickerModal({ onClose, required = false }: BranchP
                 🏪
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900 leading-tight">Chi nhánh</h2>
-                <p className="text-xs text-gray-500">Chọn chi nhánh để xem thực đơn</p>
+                <h2 className="text-base font-bold text-gray-900 leading-tight">Cửa hàng</h2>
+                <p className="text-xs text-gray-500">Chọn cửa hàng để xem thực đơn</p>
               </div>
             </div>
             {!required && (
@@ -92,17 +89,14 @@ export default function BranchPickerModal({ onClose, required = false }: BranchP
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm tên hoặc mã chi nhánh..."
+              placeholder="Tìm tên hoặc mã cửa hàng..."
               className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-gray-50"
             />
           </div>
         </div>
 
-        {/* Body — danh sách chi nhánh */}
-        <div
-          data-allow-overlay-scroll="true"
-          className="flex-1 overflow-y-auto min-h-0 p-4 space-y-2"
-        >
+        {/* Body — danh sách cửa hàng */}
+        <div className="flex-1 overflow-y-auto min-h-0 p-4 space-y-2">
           {loadingFranchises && franchises.length === 0 ? (
             <div className="flex justify-center py-10">
               <svg className="w-7 h-7 animate-spin text-amber-500" fill="none" viewBox="0 0 24 24">
@@ -114,7 +108,7 @@ export default function BranchPickerModal({ onClose, required = false }: BranchP
             <p className="text-center text-sm text-red-500 py-8">{franchiseError}</p>
           ) : filtered.length === 0 ? (
             <p className="text-center text-sm text-gray-400 py-8">
-              {search ? "Không tìm thấy chi nhánh phù hợp" : "Không có chi nhánh nào"}
+              {search ? "Không tìm thấy cửa hàng phù hợp" : "Không có cửa hàng nào"}
             </p>
           ) : (
             filtered.map((f) => {
@@ -166,7 +160,7 @@ export default function BranchPickerModal({ onClose, required = false }: BranchP
         {required && (
           <div className="px-5 py-3 border-t border-gray-100 bg-amber-50/60">
             <p className="text-xs text-amber-700 text-center font-medium">
-              Vui lòng chọn một chi nhánh để tiếp tục xem thực đơn
+              Vui lòng chọn một cửa hàng để tiếp tục xem thực đơn
             </p>
           </div>
         )}

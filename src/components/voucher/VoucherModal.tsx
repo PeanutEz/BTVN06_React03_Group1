@@ -220,7 +220,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
     }
   };
 
-  return (
+  return ReactDOM.createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
       <div className="flex min-h-full items-center justify-center p-4">
       <div className="w-full max-w-xl my-4 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{
@@ -421,7 +421,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                       <option value="">-- Chọn sản phẩm (Áp dụng tất cả) --</option>
                       {productFranchises.map((pf) => (
                         <option key={pf.id} value={pf.id}>
-                          Size {pf.size} - {pf.price_base.toLocaleString("vi-VN")}đ
+                          {pf.product_name} - Size {pf.size} - {pf.price_base.toLocaleString("vi-VN")}đ
                         </option>
                       ))}
                     </select>
@@ -431,13 +431,13 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
             )}
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Tên Voucher <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Tên Voucher <span className="text-red-400">*</span></label>
               <input
                 type="text"
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder-white/30 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
                 placeholder="VD: Voucher Giảm 10K Tháng 5"
                 required
               />
@@ -445,40 +445,43 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Loại giảm giá <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Loại giảm giá <span className="text-red-400">*</span></label>
                 <select
                   name="type"
                   value={formData.type}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                  className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 [&>option]:bg-slate-900 [&>option]:text-white"
+                  style={{ colorScheme: "dark" }}
                 >
                   <option value="PERCENT">Phần trăm (%)</option>
                   <option value="FIXED">Giá tiền cố định (VNĐ)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Giá trị giảm <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Giá trị giảm <span className="text-red-400">*</span></label>
                 <input
                   type="number"
                   name="value"
                   min={1}
                   value={formData.value}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                  style={{ colorScheme: "dark" }}
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Tổng số lượng (Quota) <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-white/50 mb-1">Tổng số lượng (Quota) <span className="text-red-400">*</span></label>
               <input
                 type="number"
                 name="quota_total"
                 min={1}
                 value={formData.quota_total}
                 onChange={handleChange}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all outline-none"
+                className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-3 py-2 text-sm text-white/90 outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20"
+                style={{ colorScheme: "dark" }}
                 required
               />
             </div>            {/* DATE RANGE */}
@@ -510,6 +513,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                   <TimeSelect
                     value={startTimePart}
                     onChange={(val) => handleDateTimePart("start_date", "time", val)}
+                    darkMode
                   />
                 </div>
                 {startDatePart && (
@@ -549,6 +553,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
                   </div>                  <TimeSelect
                     value={endTimePart}
                     onChange={(val) => handleDateTimePart("end_date", "time", val)}
+                    darkMode
                   />
                 </div>
                 {endDatePart && (
@@ -589,7 +594,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-lg border border-white/[0.12] px-4 py-2 text-sm font-medium text-white/50 transition hover:bg-white/[0.07] hover:text-white/80 disabled:opacity-50"
+            className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600 disabled:opacity-50"
           >
             Hủy
           </button>
@@ -607,5 +612,5 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
       </div>
       </div>
     </div>
-  );
+  , document.body);
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { useIsFetching, useIsMutating } from "@tanstack/react-query";
 import logoHylux from "../../assets/logo-hylux.png";
@@ -6,7 +6,6 @@ import { useLoadingStore } from "../../store/loading.store";
 import { lockDocumentScroll } from "../../utils/scrollLock.util";
 
 const MAX_MS = 8000;
-const CUP_FILL_CYCLE_MS = 3500;
 const SKIP_PATHS = [
   "/",
   "/login",
@@ -29,19 +28,15 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
   const clearRoutePersistence = useLoadingStore((s) => s.clearRoutePersistence);
 
   // routeVisible handles route-change loading separately.
-  // The overlay shows if EITHER source is active so a manual transition loader can appear
+  // The overlay shows if EITHER is true so a manual transition loader can appear
   // immediately on submit, then hand off to route/API tracking after navigation.
   const [routeVisible, setRouteVisible] = useState(false);
-  const [displayVisible, setDisplayVisible] = useState(false);
-  const [displayMessage, setDisplayMessage] = useState("Đang chuyển trang");
   const visible = routeVisible || manualLoading;
 
   const minElapsedRef = useRef(false);
   const apiDoneRef = useRef(true);
   const minTimerRef = useRef<number | null>(null);
   const maxTimerRef = useRef<number | null>(null);
-  const displayHideTimerRef = useRef<number | null>(null);
-  const displayStartedAtRef = useRef<number | null>(null);
   const trackApiRef = useRef(false);
   const requireApiCycleRef = useRef(false);
   const sawApiActivityRef = useRef(false);
@@ -50,19 +45,11 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
     (p) => location.pathname === p || location.pathname.startsWith(p + "/"),
   );
 
-  const clearDisplayHideTimer = useCallback(() => {
-    if (displayHideTimerRef.current) {
-      window.clearTimeout(displayHideTimerRef.current);
-      displayHideTimerRef.current = null;
-    }
-  }, []);
-
   const forceHide = useCallback(() => {
     setRouteVisible(false);
     trackApiRef.current = false;
     requireApiCycleRef.current = false;
     sawApiActivityRef.current = false;
-
     if (minTimerRef.current) {
       window.clearTimeout(minTimerRef.current);
       minTimerRef.current = null;
@@ -71,8 +58,7 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
       window.clearTimeout(maxTimerRef.current);
       maxTimerRef.current = null;
     }
-    clearDisplayHideTimer();
-  }, [clearDisplayHideTimer]);
+  }, []);
 
   const tryHide = useCallback(() => {
     if (minElapsedRef.current && apiDoneRef.current) forceHide();
@@ -154,35 +140,6 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
     return () => window.clearTimeout(t);
   }, [manualLoading, persistOnNextRoute, hideManual]);
 
-  useEffect(() => {
-    clearDisplayHideTimer();
-
-    if (visible) {
-      setDisplayVisible(true);
-      setDisplayMessage(manualLoading ? manualMessage : "Đang chuyển trang");
-      if (displayStartedAtRef.current === null) {
-        displayStartedAtRef.current = Date.now();
-      }
-      return;
-    }
-
-    if (!displayVisible) {
-      displayStartedAtRef.current = null;
-      return;
-    }
-
-    const startedAt = displayStartedAtRef.current ?? Date.now();
-    const elapsed = Date.now() - startedAt;
-    const cycleProgress = elapsed % CUP_FILL_CYCLE_MS;
-    const remaining = cycleProgress === 0 ? 0 : CUP_FILL_CYCLE_MS - cycleProgress;
-
-    displayHideTimerRef.current = window.setTimeout(() => {
-      setDisplayVisible(false);
-      displayStartedAtRef.current = null;
-      displayHideTimerRef.current = null;
-    }, remaining);
-  }, [clearDisplayHideTimer, displayVisible, manualLoading, manualMessage, visible]);
-
   // Track API calls fired right after a route change.
   useEffect(() => {
     if (!routeVisible || !trackApiRef.current) return;
@@ -201,17 +158,11 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
   }, [isFetching, isMutating, routeVisible, tryHide]);
 
   useEffect(() => {
-    if (!displayVisible) return;
+    if (!visible) return;
     return lockDocumentScroll();
-  }, [displayVisible]);
+  }, [visible]);
 
-  useEffect(() => {
-    return () => {
-      clearDisplayHideTimer();
-    };
-  }, [clearDisplayHideTimer]);
-
-  if (!displayVisible) return null;
+  if (!visible) return null;
 
   return (
     <div className="fixed inset-0 z-[9998]">
@@ -257,7 +208,7 @@ export function RouteChangeLoading({ minDurationMs = 600 }: RouteChangeLoadingPr
             <div className="cup-saucer" />
           </div>
 
-          <div className="loading-text">{displayMessage}</div>
+          <div className="loading-text">{manualLoading ? manualMessage : "Đang chuyển trang"}</div>
           <div className="loading-dots">
             <div className="loading-dot" />
             <div className="loading-dot" />

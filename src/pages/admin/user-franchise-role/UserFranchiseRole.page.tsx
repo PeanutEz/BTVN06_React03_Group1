@@ -813,7 +813,7 @@ export default function UserFranchiseRolePage() {
       </div>
 
       {/* Create Modal */}
-      {showCreate && (
+      {showCreate && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{
@@ -986,10 +986,9 @@ export default function UserFranchiseRolePage() {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
                   onClick={() => setShowCreate(false)}
                   disabled={creating}
-                  className="flex-1 text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
+                  className="flex-1 bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
                 >
                   Hủy
                 </Button>
@@ -997,10 +996,10 @@ export default function UserFranchiseRolePage() {
             </form>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Detail Modal */}
-      {detailId && (
+      {detailId && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
@@ -1087,19 +1086,18 @@ export default function UserFranchiseRolePage() {
 
             <div className="mt-5 flex gap-3">
               <Button
-                variant="outline"
                 onClick={() => setDetailId(null)}
-                className="flex-1 text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
+                className="flex-1 bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
               >
                 Đóng
               </Button>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Edit Modal */}
-      {editing && (
+      {editing && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
@@ -1204,10 +1202,9 @@ export default function UserFranchiseRolePage() {
                   Lưu
                 </Button>
                 <Button
-                  variant="outline"
                   onClick={() => setEditing(null)}
                   disabled={updating}
-                  className="flex-1 text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
+                  className="flex-1 bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
                 >
                   Hủy
                 </Button>
@@ -1215,7 +1212,7 @@ export default function UserFranchiseRolePage() {
             </div>
           </div>
         </div>
-      )}      {/* Edit Role Dropdown Portal */}
+      , document.body)}      {/* Edit Role Dropdown Portal */}
       {isEditRoleDropdownOpen && createPortal(
         <div
           ref={editRoleDropdownRef}
