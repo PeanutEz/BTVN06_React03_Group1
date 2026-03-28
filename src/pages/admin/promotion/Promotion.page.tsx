@@ -309,17 +309,9 @@ export default function PromotionPage() {
             await promotionService.updatePromotion(editItem.id, payload)
             showSuccess("Cập nhật promotion thành công")
             await load(searchFranchise, currentPage, statusFilter, typeFilter, isDeletedFilter)
-        } catch (err: unknown) {
+        } catch {
             setEditItem(itemToEdit);
-            const responseData = (err as any)?.response?.data;
-            const fieldErrors: Array<{ field?: string; message?: string }> = responseData?.errors ?? [];
-            if (fieldErrors.length > 0) {
-                const msg = fieldErrors.map((e) => e.message).filter(Boolean).join("; ");
-                setEditError(msg || "Cập nhật promotion thất bại");
-            } else {
-                const msg = responseData?.message || (err instanceof Error ? err.message : "Cập nhật promotion thất bại");
-                setEditError(msg);
-            }
+            setEditError("Cập nhật promotion thất bại");
         } finally {
             hidePageLoading()
         }
@@ -606,13 +598,14 @@ export default function PromotionPage() {
                                                                 start_date: p.start_date.slice(0, 16),
                                                                 end_date: p.end_date.slice(0, 16)
                                                             })
-                                                            setEditItem(p)
                                                         }}
-                                                        className="inline-flex items-center justify-center size-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                                                        className="inline-flex items-center justify-center size-8 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 transition"
                                                         title="Chỉnh sửa"
                                                     >
                                                         <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                                d="M11 5h2m-1-1v2m-7 7h2m-1-1v2
+            m8-8l3 3m0 0l-9 9H6v-3l9-9z"/>
                                                         </svg>
                                                     </button>
                                                 )}
@@ -674,7 +667,7 @@ export default function PromotionPage() {
                     totalItems={totalItems}
                     itemsPerPage={ITEMS_PER_PAGE}
                 />
-            </div>            {/* CREATE MODAL */}            {createOpen && ReactDOM.createPortal(
+            </div>            {/* CREATE MODAL */}            {createOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { resetCreateForm(); setCreateOpen(false); }} />
                     <div className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{
@@ -864,8 +857,8 @@ export default function PromotionPage() {
                                 <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{createError}</p>
                             )}
                             <div className="flex justify-end gap-2 pt-2">
-                                <Button type="button" onClick={() => { resetCreateForm(); setCreateOpen(false); }}
-                                    className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
+                                <Button type="button" variant="outline" onClick={() => { resetCreateForm(); setCreateOpen(false); }}
+                                    className="border-white/[0.12] text-white/50 hover:bg-white/[0.07] hover:text-white/80">
                                     Hủy
                                 </Button>
                                 <Button type="submit">Tạo</Button>
@@ -874,8 +867,8 @@ export default function PromotionPage() {
                         </div>
                     </div>
                 </div>
-            , document.body)}
-            {viewItem && ReactDOM.createPortal(
+            )}
+            {viewItem && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setViewItem(null)} />
                     <div className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{
@@ -1018,7 +1011,7 @@ export default function PromotionPage() {
                             <div className="flex justify-end pt-2">
                                 <button
                                     onClick={() => setViewItem(null)}
-                                    className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
+                                    className="rounded-lg border border-white/[0.12] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                                 >
                                     Đóng
                                 </button>
@@ -1027,7 +1020,7 @@ export default function PromotionPage() {
                         </div>
                     </div>
                 </div>
-            , document.body)}            {editItem && ReactDOM.createPortal(
+            )}            {editItem && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditItem(null)} />
                     <div className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{
@@ -1145,8 +1138,8 @@ export default function PromotionPage() {
                                 <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs text-[#f87171]">{editError}</p>
                             )}
                             <div className="flex justify-end gap-2 pt-2">
-                                <Button type="button" onClick={() => setEditItem(null)}
-                                    className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
+                                <Button type="button" variant="outline" onClick={() => setEditItem(null)}
+                                    className="border-white/[0.12] text-white/50 hover:bg-white/[0.07] hover:text-white/80">
                                     Hủy
                                 </Button>
                                 <Button type="submit">Cập nhật</Button>
@@ -1155,7 +1148,7 @@ export default function PromotionPage() {
                         </div>
                     </div>
                 </div>
-            , document.body)}
+            )}
         </div>
     );
 }

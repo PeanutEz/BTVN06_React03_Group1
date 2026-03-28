@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import ReactDOM from "react-dom";
 import { Button, useConfirm } from "../../../components";
 import type { ApiFranchise, CreateFranchisePayload } from "../../../services/store.service";
 import { searchFranchises, deleteFranchise, getFranchiseById, createFranchise, updateFranchise, changeFranchiseStatus, restoreFranchise } from "../../../services/store.service";
@@ -481,7 +480,7 @@ const FranchiseListPage = () => {
       </div>
 
       {/* ─── View / Edit Detail Modal ─────────────────────────────────────── */}
-      {viewingFranchise && ReactDOM.createPortal(
+      {viewingFranchise && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }} />
           <div
@@ -625,17 +624,17 @@ const FranchiseListPage = () => {
               </div>
               <button
                 onClick={() => { setViewingFranchise(null); setIsEditingDetail(false); }}
-                className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
+                className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
               >
                 Đóng
               </button>
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
 
-      {/* ─── Create Franchise Modal ──────────────────────────────────────── */}
-      {showCreateModal && ReactDOM.createPortal(
+      {/* ─── Create Franchise Modal ────────────────────────────────────────── */}
+      {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div
@@ -799,7 +798,7 @@ const FranchiseListPage = () => {
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </button>
@@ -810,7 +809,7 @@ const FranchiseListPage = () => {
             </form>
           </div>
         </div>
-      , document.body)}
+      )}
     </div>
   );
 };

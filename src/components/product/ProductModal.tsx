@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import ReactDOM from "react-dom";
 import { useForm } from "react-hook-form";
 import type { Product, ProductFormData } from "@/models/product.model";
 import { adminProductService } from "@/services/product.service";
@@ -234,7 +233,7 @@ export default function ProductModal({ product, onClose, onSave }: ProductModalP
       hasError ? "border-red-400/60 bg-red-500/10" : "border-white/[0.18] bg-white/[0.08]"
     }`;
 
-  return ReactDOM.createPortal(
+  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]"
@@ -519,5 +518,5 @@ export default function ProductModal({ product, onClose, onSave }: ProductModalP
         </form>
       </div>
     </div>
-  , document.body);
+  );
 }

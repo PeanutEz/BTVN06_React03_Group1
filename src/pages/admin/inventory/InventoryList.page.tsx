@@ -1,5 +1,4 @@
 ﻿import { useEffect, useRef, useState, useCallback } from "react";
-import ReactDOM from "react-dom";
 import { Button, GlassSelect, useConfirm } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { adminInventoryService } from "../../../services/inventory.service";
@@ -555,6 +554,11 @@ export default function InventoryListPage() {
 
     // Reset input so same file can be re-imported
     e.target.value = "";
+  };
+
+  const handleOpenAdjust = (item: InventoryApiResponse) => {
+    setAdjustTarget(item);
+    setAdjustForm({ change: "", reason: "" });
   };
 
   // ─── Batch edit handlers ──────────────────────────────────────────────────
@@ -1381,7 +1385,7 @@ export default function InventoryListPage() {
       </div>
 
       {/* ─── Create Modal (INVENTORY-01) ─────────────────────────────────────── */}
-      {createOpen && ReactDOM.createPortal(
+      {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setCreateOpen(false)} />
           <div className="relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{
@@ -1645,8 +1649,9 @@ export default function InventoryListPage() {
               <div className="flex justify-end gap-2 border-t border-white/[0.07] pt-4">
                 <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setCreateOpen(false)}
-                  className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
+                  className="border-white/[0.12] text-white/50 hover:bg-white/[0.07] hover:text-white/80"
                 >
                   Hủy
                 </Button>
@@ -1658,10 +1663,10 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
 
       {/* ─── Adjust Modal ────────────────────────────────────────────────────── */}
-      {adjustTarget && ReactDOM.createPortal(
+      {adjustTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/25" />
           <div className="relative w-full max-w-md rounded-2xl shadow-2xl" style={{
@@ -1756,7 +1761,7 @@ export default function InventoryListPage() {
                 <button
                   type="button"
                   onClick={() => setAdjustTarget(null)}
-                  className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </button>
@@ -1767,10 +1772,10 @@ export default function InventoryListPage() {
             </form>
           </div>
         </div>
-      , document.body)}
+      )}
 
       {/* ─── View Detail Modal ───────────────────────────────────────────────── */}
-      {viewingItem && ReactDOM.createPortal(
+      {viewingItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/25" />
           <div className="relative w-full max-w-md rounded-2xl shadow-2xl" style={{
@@ -1889,9 +1894,20 @@ export default function InventoryListPage() {
                 </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
+                {!viewingItem.is_deleted && (
+                  <button
+                    onClick={() => {
+                      setViewingItem(null);
+                      handleOpenAdjust(viewingItem);
+                    }}
+                    className="rounded-lg border border-blue-300 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
+                  >
+                    Điều chỉnh
+                  </button>
+                )}
                 <button
                   onClick={() => setViewingItem(null)}
-                  className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
+                  className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
                 >
                   Đóng
                 </button>
@@ -1899,10 +1915,10 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
 
       {/* ─── Logs Modal (INVENTORY-08) ────────────────────────────────────────── */}
-      {logsItem && ReactDOM.createPortal(
+      {logsItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/25" />
           <div className="relative w-full max-w-xl rounded-2xl shadow-2xl" style={{
@@ -1985,17 +2001,17 @@ export default function InventoryListPage() {
             <div className="flex justify-end border-t border-white/[0.08] px-6 py-4">
               <button
                 onClick={() => setLogsItem(null)}
-                className="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-600"
+                className="rounded-lg border border-white/[0.15] px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[0.1] hover:text-white"
               >
                 Đóng
               </button>
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
 
       {/* ─── Import Preview Modal ──────────────────────────────────────────────── */}
-      {importPreviewOpen && ReactDOM.createPortal(
+      {importPreviewOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 shrink-0">
@@ -2099,10 +2115,10 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
 
       {/* ─── Import Modal ─────────────────────────────────────────────────────── */}
-      {importModalOpen && ReactDOM.createPortal(
+      {importModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -2212,10 +2228,10 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
 
       {/* ─── Export Modal ─────────────────────────────────────────────────────── */}
-      {exportFranchiseOpen && ReactDOM.createPortal(
+      {exportFranchiseOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -2374,7 +2390,7 @@ export default function InventoryListPage() {
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
     </div>
   );
 }

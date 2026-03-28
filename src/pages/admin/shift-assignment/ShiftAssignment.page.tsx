@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import ReactDOM from "react-dom";
 import { Button } from "../../../components";
 import Pagination from "../../../components/ui/Pagination";
 import { shiftAssignmentService } from "../../../services/shift-assignment.service";
@@ -850,7 +849,7 @@ export default function ShiftAssignmentPage() {
                         }}
                     />
                 </div>
-            </div>            {showModal && ReactDOM.createPortal(
+            </div>            {showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
                     <div className="relative w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden" style={{
@@ -1202,8 +1201,8 @@ export default function ShiftAssignmentPage() {
 
                                 {/* ACTION */}
                                 <div className="flex justify-end gap-2 border-t border-white/[0.07] pt-4">
-                                    <Button type="button" onClick={() => setShowModal(false)}
-                                        className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
+                                    <Button type="button" variant="outline" onClick={() => setShowModal(false)}
+                                        className="border-white/[0.12] text-white/50 hover:bg-white/[0.07] hover:text-white/80">
                                         Hủy
                                     </Button>
                                     <Button type="submit">
@@ -1216,7 +1215,7 @@ export default function ShiftAssignmentPage() {
                         </div>
                     </div>
                 </div>
-            , document.body)}{viewing && ReactDOM.createPortal(
+            )}{viewing && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/40" onClick={() => setViewing(null)} />
                     <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl" style={{
@@ -1308,14 +1307,14 @@ export default function ShiftAssignmentPage() {
 
                         {/* ACTION */}
                         <div className="flex justify-end pt-4">
-                            <Button onClick={() => setViewing(null)}
-                                className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
+                            <Button variant="outline" onClick={() => setViewing(null)}
+                                className="border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white">
                                 Đóng
                             </Button>
                         </div>
                     </div>
                 </div>
-            , document.body)}
+            )}
         </div>
     );
 }

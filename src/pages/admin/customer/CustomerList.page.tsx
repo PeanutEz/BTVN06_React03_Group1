@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom";
 import { Button, GlassSelect, useConfirm } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
 import {
@@ -135,7 +134,12 @@ const CustomerListPage = () => {
   };
 
   const handleDelete = async (id: string, name: string, email?: string) => {
-    if (!await showConfirm({ message: `Bạn có chắc muốn xóa khách hàng "${name}" không?`, variant: "danger" })) return;
+    if (!await showConfirm({
+      title: "Xác nhận xóa",
+      message: `Bạn có chắc muốn xóa khách hàng "${name}" không?`,
+      variant: "danger",
+      confirmText: "Xóa",
+    })) return;
     try {
       await deleteCustomer(id);      showSuccess(`Xóa khách hàng${email ? ` ${email}` : ` ${name}`} thành công`);
       const nextPage = customers.length <= 1 && currentPage > 1 ? currentPage - 1 : currentPage;
@@ -157,6 +161,17 @@ const CustomerListPage = () => {
   };
 
   const handleToggleStatus = async (id: string, currentActive: boolean, email?: string, name?: string) => {
+    const actionLabel = currentActive ? "vô hiệu hóa" : "kích hoạt";
+    const targetLabel = email || name ? ` ${email || name}` : "";
+    const variant = currentActive ? "danger" : "warning";
+    const confirmed = await showConfirm({
+      title: "Xác nhận thay đổi trạng thái",
+      message: `Bạn có chắc muốn ${actionLabel} khách hàng${targetLabel} không?`,
+      variant,
+      confirmText: currentActive ? "Vô hiệu hóa" : "Kích hoạt",
+    });
+    if (!confirmed) return;
+
     try {
       await changeCustomerStatus(id, !currentActive);
       const label = email || name || "";
@@ -433,12 +448,13 @@ const CustomerListPage = () => {
       {detailCustomerId && (
         <CustomerDetailModal
           customerId={detailCustomerId}
+          onUpdated={() => loadPage(currentPage, searchRef.current.keyword, searchRef.current.activeFilter, searchRef.current.showDeleted)}
           onClose={() => setDetailCustomerId(null)}
         />
       )}
 
       {/* Create / Edit Modal */}
-      {showModal && ReactDOM.createPortal(
+      {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -536,22 +552,6 @@ const CustomerListPage = () => {
                       )}
                     </button>                  </div>
                   {formErrors.password && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.password}</p>}
-                </div>                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-sm font-semibold text-white/80">Trạng thái</label>
-                  <div className="flex gap-3">
-                    {[{ val: true, label: "Hoạt động" }, { val: false, label: "Ngưng hoạt động" }].map(({ val, label }) => (
-                      <label key={String(val)} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="is_active"
-                          checked={formData.is_active === val}
-                          onChange={() => setFormData({ ...formData, is_active: val })}
-                          className="accent-primary-500"
-                        />
-                        <span className="text-sm text-white/80">{label}</span>
-                      </label>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Địa chỉ */}
@@ -634,8 +634,9 @@ const CustomerListPage = () => {
                 <Button
                   type="button"
                   onClick={() => setShowModal(false)}
+                  variant="outline"
                   disabled={submitting}
-                  className="flex-1 bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
+                  className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
                 >
                   Hủy
                 </Button>
@@ -643,7 +644,7 @@ const CustomerListPage = () => {
             </form>
           </div>
         </div>
-      , document.body)}
+      )}
     </div>
   );
 };

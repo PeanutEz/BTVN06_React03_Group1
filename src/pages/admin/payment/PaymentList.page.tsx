@@ -15,7 +15,7 @@ import {
   PAYMENT_STATUS_COLORS,
   PAYMENT_METHOD_TYPE_LABELS,
 } from "../../../models/payment.model";
-import PaymentDetailModal from "./PaymentDetail.page";
+import { PaymentDetailModal } from "./PaymentDetail.page";
 
 import type { Payment } from "../../../models/payment.model";
 
@@ -44,7 +44,7 @@ const PaymentListPage = (): React.JSX.Element => {
   const [loading, setLoading] = useState(false);
 
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
-  const [setOrderDetail] = useState<any>(null);
+  const [, setOrderDetail] = useState<any>(null);
 
   const [allCustomers, setAllCustomers] = useState<
     { id: string; name: string; email: string }[]

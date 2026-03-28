@@ -133,17 +133,6 @@ export default function ProductCategoryFranchisePage() {
     return map;
   }, [franchises]);
 
-  // Filter categories by selected franchise
-  const filteredCategoryOptions = useMemo(() => {
-    const list = filters.franchise_id
-      ? categoryFranchises.filter((cf) => cf.franchise_id === filters.franchise_id)
-      : categoryFranchises;
-    return list.map((cf) => ({
-      value: cf.category_id ?? cf.id,
-      label: cf.category_name ?? cf.category_code ?? cf.id,
-    }));
-  }, [categoryFranchises, filters.franchise_id]);
-
   const buildSearchDto = (
     pageNum: number,
   ): SearchProductCategoryFranchiseDto => {
@@ -219,12 +208,6 @@ export default function ProductCategoryFranchisePage() {
     if (!managerFranchiseId) return;
     setFilters(prev => ({ ...prev, franchise_id: managerFranchiseId }));
   }, [managerFranchiseId]);
-
-  // Reset category_id when franchise filter changes
-  useEffect(() => {
-    setFilters(prev => ({ ...prev, category_id: "" }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.franchise_id]);
 
   useEffect(() => {
     if (!isInitialized.current) return;
@@ -424,23 +407,17 @@ export default function ProductCategoryFranchisePage() {
             <label className="block text-xs font-semibold uppercase tracking-widest text-white/40">
               Danh mục
             </label>
-            {!filters.franchise_id ? (
-              <div className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/30 cursor-not-allowed select-none">
-                <span className="truncate">Chọn franchise trước</span>
-                <svg className="ml-2 size-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            ) : (
-              <GlassSearchSelect
-                value={filters.category_id}
-                onChange={(v) => setFilters((f) => ({ ...f, category_id: v }))}
-                options={filteredCategoryOptions}
-                placeholder="-- Tất cả danh mục --"
-                searchPlaceholder="Tìm theo tên danh mục..."
-                allLabel="-- Tất cả danh mục --"
-              />
-            )}
+            <GlassSearchSelect
+              value={filters.category_id}
+              onChange={(v) => setFilters((f) => ({ ...f, category_id: v }))}
+              options={categoryFranchises.map((cf) => ({
+                value: cf.category_id ?? cf.id,
+                label: cf.category_name ?? cf.category_code ?? cf.id,
+              }))}
+              placeholder="-- Tất cả danh mục --"
+              searchPlaceholder="Tìm theo tên danh mục..."
+              allLabel="-- Tất cả danh mục --"
+            />
           </div>
 
           {/* Status select */}
@@ -623,7 +600,7 @@ export default function ProductCategoryFranchisePage() {
       )}
 
       {/* Create Modal */}
-      {createOpen && ReactDOM.createPortal(
+      {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
@@ -752,8 +729,9 @@ export default function ProductCategoryFranchisePage() {
               <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setCreateOpen(false)}
-                  className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
+                  className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
                 >
                   Hủy
                 </Button>
@@ -763,7 +741,7 @@ export default function ProductCategoryFranchisePage() {
               </div>
             </form>
           </div>
-        </div>      , document.body)}
+        </div>      )}
 
       {/* Portal: create franchise dropdown */}
       {createFranchiseOpen && createFranchiseRect && ReactDOM.createPortal(
@@ -815,7 +793,7 @@ export default function ProductCategoryFranchisePage() {
       )}
 
       {/* Detail Modal */}
-      {(detail || detailLoading) && ReactDOM.createPortal(
+      {(detail || detailLoading) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
@@ -870,16 +848,16 @@ export default function ProductCategoryFranchisePage() {
               </div>
             )}
             <div className="mt-4 flex justify-end">
-              <Button onClick={() => setDetail(null)} className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600">
+              <Button variant="outline" onClick={() => setDetail(null)} className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]">
                 Đóng
               </Button>
             </div>
           </div>
         </div>
-      , document.body)}
+      )}
 
       {/* Reorder Modal */}
-      {reorderItem && ReactDOM.createPortal(
+      {reorderItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
           <div className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl overflow-hidden" style={{
@@ -914,8 +892,9 @@ export default function ProductCategoryFranchisePage() {
               <div className="flex justify-end gap-2">
                 <Button
                   type="button"
+                  variant="outline"
                   onClick={() => setReorderItem(null)}
-                  className="bg-slate-700 border border-slate-600 text-white hover:bg-slate-600"
+                  className="text-white/70 hover:bg-white/[0.1] hover:text-white border-white/[0.15]"
                 >
                   Hủy
                 </Button>
@@ -926,7 +905,7 @@ export default function ProductCategoryFranchisePage() {
             </form>
           </div>
         </div>
-      , document.body)}
+      )}
     </div>
   );
 }

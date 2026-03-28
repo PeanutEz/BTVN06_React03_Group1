@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
 import {
   ORDER_STATUS_LABELS,
   ORDER_STATUS_COLORS,
+  ORDER_TYPE_LABELS,
 } from "../../../models/order.model";
 import { fetchOrderById, updateOrderStatus } from "../../../services/order.service";
 import { ROUTER_URL } from "../../../routes/router.const";
@@ -14,8 +14,6 @@ import { useAuthStore } from "../../../store";
 import { getOrderItemDisplayMeta } from "../../../utils/orderItemDisplay.util";
 import { adminProductFranchiseService } from "../../../services/product-franchise.service";
 import { adminProductService } from "../../../services/product.service";
-import { fetchCustomerById } from "../../../services/customer.service";
-import type { CustomerDisplay } from "../../../models/customer.model";
 
 function getOrderItemImage(item: Record<string, unknown>, imageMap: Record<string, string>): string | null {
   // Ưu tiên lấy từ imageMap (fetch từ product service)
@@ -42,7 +40,6 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
   const [updating, setUpdating] = useState(false);
   // product_franchise_id → image_url
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
-  const [customerDetail, setCustomerDetail] = useState<CustomerDisplay | null>(null);
   const lastId = useRef<string | undefined>(undefined);
 
   // Fetch ảnh cho tất cả items sau khi có order
@@ -108,11 +105,6 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
       }
       setOrder(data);
       loadImages(data.items ?? []);
-      // Fetch customer detail
-      const customerId = data.customer_id ?? data.customer?._id ?? data.customer?.id;
-      if (customerId) {
-        fetchCustomerById(String(customerId)).then(c => setCustomerDetail(c)).catch(() => {});
-      }
     } catch (error) {
       console.error("Lỗi tải chi tiết đơn hàng:", error);
     } finally {
@@ -166,7 +158,12 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
     );
   }
 
-  const canPrepare = order.status === "CONFIRMED"; return (
+  const canPrepare =
+    order.status !== "PREPARING" &&
+    order.status !== "READY_FOR_PICKUP" &&
+    order.status !== "DELIVERING" &&
+    order.status !== "COMPLETED" &&
+    order.status !== "CANCELLED"; return (
       <div className="space-y-6 text-white">
         {/* ── Hero Header ── */}
         <div
@@ -184,6 +181,11 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                 <span className={`rounded-full border px-3 py-1 text-xs font-bold ${ORDER_STATUS_COLORS[order.status]}`}>
                   {ORDER_STATUS_LABELS[order.status]}
                 </span>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/60">
+                  {ORDER_TYPE_LABELS[order.type]}
+                </span>
+                <span className="text-white/30">•</span>
+                <span className="text-xs text-white/40">{new Date(order.created_at).toLocaleString("vi-VN")}</span>
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -317,8 +319,8 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
               )}
             </div>
 
-            {/* Bottom row: Store + Customer */}
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            {/* Bottom row: Store + Customer + Timestamps */}
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               {/* Store */}
               <div
                 className="rounded-2xl p-5"
@@ -334,6 +336,10 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                   <div>
                     <p className="text-xs text-white/35">Tên</p>
                     <p className="font-semibold text-white/90">{order.franchise?.name || (order as any).franchise_name || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-white/35">Mã</p>
+                    <p className="font-mono text-sm text-white/70">{String(order.franchise?.code || (order as any).franchise_code || "N/A")}</p>
                   </div>
                   {order.created_by_user && (
                     <div>
@@ -356,38 +362,57 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                   Khách hàng
                 </h2>
                 <div className="space-y-2 text-sm">
-                  {(customerDetail?.avatar_url) && (
-                    <div className="mb-3 flex justify-center">
-                      <img src={customerDetail.avatar_url} alt="avatar" className="size-14 rounded-full object-cover border border-white/10" />
-                    </div>
-                  )}
                   <div>
                     <p className="text-xs text-white/35">Tên</p>
-                    <p className="font-semibold text-white/90">{customerDetail?.name || order.customer?.name || (order as any).customer_name || "N/A"}</p>
+                    <p className="font-semibold text-white/90">{order.customer?.name || (order as any).customer_name || "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-white/35">SĐT</p>
-                    <p className="font-semibold text-white/90">{customerDetail?.phone || order.customer?.phone || (order as any).phone || "N/A"}</p>
+                    <p className="font-semibold text-white/90">{order.customer?.phone || (order as any).phone || "N/A"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-white/35">Email</p>
-                    <p className="text-sm text-white/70 break-all">{customerDetail?.email || String(order.customer?.email || (order as any).email || "N/A")}</p>
+                    <p className="text-sm text-white/70 break-all">{String(order.customer?.email || (order as any).email || "N/A")}</p>
                   </div>
-                  {customerDetail?.address && (
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div
+                className="rounded-2xl p-5"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+              >
+                <h2 className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/40">
+                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Thời gian
+                </h2>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <p className="text-xs text-white/35">Ngày tạo</p>
+                    <p className="font-semibold text-white/90">{new Date(order.created_at).toLocaleString("vi-VN")}</p>
+                  </div>
+                  {order.confirmed_at && (
                     <div>
-                      <p className="text-xs text-white/35">?́a chỉ</p>
-                      <p className="text-sm text-white/70">{customerDetail.address}</p>
+                      <p className="text-xs text-white/35">Xác nhận</p>
+                      <p className="font-semibold text-white/90">{new Date(order.confirmed_at).toLocaleString("vi-VN")}</p>
                     </div>
                   )}
-                  {(order.loyalty_points_used ?? 0) > 0 && (
+                  {order.completed_at && (
                     <div>
-                      <p className="text-xs text-white/35">Điểm tích lũy đã dùng</p>
-                      <p className="font-semibold text-amber-400">{order.loyalty_points_used} điểm</p>
+                      <p className="text-xs text-white/35">Hoàn thành</p>
+                      <p className="font-semibold text-emerald-400">{new Date(order.completed_at).toLocaleString("vi-VN")}</p>
+                    </div>
+                  )}
+                  {order.cancelled_at && (
+                    <div>
+                      <p className="text-xs text-white/35">Hủy</p>
+                      <p className="font-semibold text-red-400">{new Date(order.cancelled_at).toLocaleString("vi-VN")}</p>
                     </div>
                   )}
                 </div>
               </div>
-
             </div>        </div>
         </div>
       </div>
@@ -411,18 +436,18 @@ export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDeta
   }, [orderId]);
 
   if (!orderId) return null;
-  return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-50 flex">
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" onClick={onClose} />
 
-      {/* Full-screen panel — solid background, không để lộ content phía sau */}
+      {/* Centered modal dialog */}
       <div
-        className="relative z-10 ml-auto flex h-full w-full flex-col overflow-hidden"
+        className="relative z-10 flex h-[min(88vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl"
         style={{
           background: "rgb(10, 15, 30)",
-          borderLeft: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.7)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.7)",
         }}
       >
         {/* Top bar */}
@@ -455,13 +480,12 @@ export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDeta
 
         {/* Scrollable content */}
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-6 py-6 sm:px-10 sm:py-8">
+          <div className="mx-auto w-full px-4 py-4 sm:px-6 sm:py-6">
             <OrderDetailContent orderId={orderId} onClose={onClose} onStatusChange={onStatusChange} />
           </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
 

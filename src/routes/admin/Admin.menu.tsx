@@ -48,6 +48,14 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     isEnd: true,
   },
   {
+    label: "Pending Payments",
+    path: ROUTER_URL.ADMIN_ROUTES.PENDING_PAYMENTS,
+    component: React.lazy(
+      () => import("../../pages/admin/pending-payments/PendingPayments.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Orders",
     path: ROUTER_URL.ADMIN_ROUTES.ORDERS,
     component: React.lazy(
@@ -64,10 +72,18 @@ export const ADMIN_MENU: AdminMenuItem[] = [
     isEnd: true,
   },
   {
+    label: "Deliveries",
+    path: ROUTER_URL.ADMIN_ROUTES.DELIVERIES,
+    component: React.lazy(
+      () => import("../../pages/admin/delivery/Delivery.page.tsx"),
+    ),
+    isEnd: true,
+  },
+  {
     label: "Order Detail",
     path: ROUTER_URL.ADMIN_ROUTES.ORDER_DETAIL,
     component: React.lazy(
-      () => import("../../pages/admin/order/OrderDetail.page.tsx"),
+      () => import("../../pages/admin/order/OrderList.page.tsx"),
     ),
   },  {
     label: "Customers",

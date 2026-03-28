@@ -1,38 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import ReactDOM from "react-dom";
-import { adminProductService } from "@/services/product.service";
+import { adminProductService, categories } from "@/services/product.service";
 import type { Product, ProductQueryParams } from "@/models/product.model";
 import { toast } from "sonner";
 import { ProductModal } from "@/components/product";
 import { GlassSelect } from "@/components/ui";
 import { useConfirm } from "@/components/ui";
 import { useLoadingStore } from "@/store/loading.store";
-
-const CLOUDINARY_CLOUD_NAME = "dn2xh5rxe";
-const CLOUDINARY_UPLOAD_PRESET = "btvn06_upload";
-const MAX_SECONDARY = 4;
-
-async function uploadToCloudinary(file: File): Promise<string> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-    { method: "POST", body: formData }
-  );
-  if (!res.ok) throw new Error("Upload ảnh lên Cloudinary thất bại");
-  const json = await res.json();
-  return json.secure_url as string;
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 export default function ProductListPage() {
   const showConfirm = useConfirm();
@@ -66,40 +39,6 @@ export default function ProductListPage() {
   const [statusFilter, setStatusFilter] = useState<boolean | undefined>();
   const [isDeletedFilter, setIsDeletedFilter] = useState<boolean>(false);
   const lastParamsRef = useRef<string | null>(null);
-
-  // Image state for edit modal
-  const [editMainImageFile, setEditMainImageFile] = useState<File | null>(null);
-  const [editMainImagePreview, setEditMainImagePreview] = useState<string>("");
-  const [editMainDragOver, setEditMainDragOver] = useState(false);
-  const [editSecondarySlots, setEditSecondarySlots] = useState<Array<{ file: File | null; preview: string }>>([]);
-  const [editSecondaryDragOver, setEditSecondaryDragOver] = useState(false);
-  const editMainFileInputRef = useRef<HTMLInputElement>(null);
-
-  const applyEditMainFile = async (file: File) => {
-    setEditMainImageFile(file);
-    setEditMainImagePreview(await fileToDataUrl(file));
-  };
-  const handleEditMainImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await applyEditMainFile(file);
-  };
-  const handleEditMainDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setEditMainDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (!file || !file.type.startsWith("image/")) return;
-    await applyEditMainFile(file);
-  };
-  const handleEditSecondaryImageChange = async (e: React.ChangeEvent<HTMLInputElement>, idx: number) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const preview = await fileToDataUrl(file);
-    setEditSecondarySlots((prev) => { const next = [...prev]; next[idx] = { file, preview }; return next; });
-  };
-  const handleEditRemoveSecondary = (idx: number) => {
-    setEditSecondarySlots((prev) => { const next = [...prev]; next[idx] = { file: null, preview: "" }; return next; });
-  };
 
   // Fetch products
   const fetchProducts = async () => {
@@ -173,12 +112,6 @@ export default function ProductListPage() {
       min_price: product.min_price,
       max_price: product.max_price,
     });
-    setEditMainImageFile(null);
-    setEditMainImagePreview(product.image_url || product.image || "");
-    const existingUrls: string[] = (product as unknown as { images_url?: string[] }).images_url ?? product.images ?? [];
-    setEditSecondarySlots(
-      Array.from({ length: MAX_SECONDARY }, (_, i) => ({ file: null, preview: existingUrls[i] ?? "" }))
-    );
   };
 
   const handleDetailSave = async () => {
@@ -191,20 +124,13 @@ export default function ProductListPage() {
     showPageLoading("Đang cập nhật sản phẩm...");
     setDetailSaving(true);
     try {
-      toast.loading("Đang upload ảnh...", { id: "upload" });
-      let finalMainUrl = editMainImagePreview;
-      if (editMainImageFile) finalMainUrl = await uploadToCloudinary(editMainImageFile);
-      const finalImagesUrl = await Promise.all(
-        editSecondarySlots.map(async (slot) => slot.file ? uploadToCloudinary(slot.file) : slot.preview)
-      );
-      toast.dismiss("upload");
       await adminProductService.updateProduct(viewingProduct.id.toString(), {
         SKU: viewingProduct.sku,
         name: detailForm.name,
         description: detailForm.description,
         content: viewingProduct.content,
-        image_url: finalMainUrl,
-        images_url: finalImagesUrl.filter(Boolean),
+        image_url: viewingProduct.image_url || viewingProduct.image || "",
+        images_url: viewingProduct.images ?? [],
         min_price: detailForm.min_price,
         max_price: detailForm.max_price,
       });
@@ -212,7 +138,6 @@ export default function ProductListPage() {
       lastParamsRef.current = null;
       fetchProducts();
     } catch (err) {
-      toast.dismiss("upload");
       toast.error("Cập nhật thất bại");
       console.error(err);
     } finally {
@@ -272,6 +197,11 @@ export default function ProductListPage() {
       toast.error("Failed to update status");
       console.error(error);
     }
+  };
+
+  // Get category name
+  const getCategoryName = (categoryId: number) => {
+    return categories.find((c) => c.id === categoryId)?.name || "Unknown";
   };
 
   // Calculate total pages
@@ -414,6 +344,9 @@ export default function ProductListPage() {
                       Name
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       Price Range
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
@@ -451,6 +384,11 @@ export default function ProductListPage() {
                             {product.description}
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-gray-900">
+                          {getCategoryName(product.categoryId)}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-sm">
@@ -590,37 +528,38 @@ export default function ProductListPage() {
       )}
 
       {/* Product Detail Modal */}
-      {viewingProduct && detailForm && ReactDOM.createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+      {viewingProduct && detailForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Glassmorphism backdrop */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+
           <div
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]"
-            onClick={() => setViewingProduct(null)}
-          />
-          <div
-            className="relative flex max-h-[78vh] w-full max-w-[600px] flex-col overflow-hidden rounded-2xl shadow-2xl"
+            className="relative w-full max-w-xl rounded-2xl overflow-hidden"
             style={{
-              background: "rgba(15, 23, 42, 0.58)",
-              backdropFilter: "blur(28px) saturate(140%)",
-              WebkitBackdropFilter: "blur(28px) saturate(140%)",
-              border: "1px solid rgba(255, 255, 255, 0.16)",
-              boxShadow: "0 22px 44px rgba(2, 6, 23, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-white/[0.14] px-5 py-3.5 sm:px-6">
+            <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <div className="max-h-[calc(90vh-2px)] overflow-y-auto">
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-white/[0.08] bg-white/[0.06] px-6 py-4">
               <div>
-                <h2 className="text-lg font-bold text-white/95 sm:text-xl">Chỉnh sửa sản phẩm</h2>
-                <p className="mt-0.5 text-xs text-white/55 sm:text-sm font-mono">{viewingProduct.sku}</p>
+                <h2 className="text-xl font-bold text-white/95">Chi tiết sản phẩm</h2>
+                <p className="mt-0.5 text-xs text-white/50 font-mono">{viewingProduct.sku}</p>
               </div>
               <div className="flex items-center gap-2">
                 {viewingProduct.isActive ? (
-                  <span className="rounded-full bg-green-500/20 px-2.5 py-1 text-xs font-semibold text-green-400">Active</span>
+                  <span className="rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">Active</span>
                 ) : (
-                  <span className="rounded-full bg-red-500/20 px-2.5 py-1 text-xs font-semibold text-red-400">Inactive</span>
+                  <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">Inactive</span>
                 )}
                 <button
                   onClick={() => setViewingProduct(null)}
-                  className="rounded-lg p-2 text-white/50 transition hover:bg-white/[0.1] hover:text-white/80"
+                  className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -629,155 +568,89 @@ export default function ProductListPage() {
               </div>
             </div>
 
-            {/* Body */}
-            <div className="space-y-3.5 overflow-y-auto px-5 py-4 sm:px-6">
-              {/* Main image upload */}
-              <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-white/85">Ảnh chính <span className="text-red-400">*</span></label>
-                <div
-                  className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-5 transition ${
-                    editMainDragOver
-                      ? "border-primary-400 bg-primary-500/10 scale-[1.01]"
-                      : "border-white/[0.22] bg-white/[0.05] hover:border-primary-400 hover:bg-white/[0.09]"
-                  }`}
-                  onClick={() => editMainFileInputRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setEditMainDragOver(true); }}
-                  onDragEnter={(e) => { e.preventDefault(); setEditMainDragOver(true); }}
-                  onDragLeave={() => setEditMainDragOver(false)}
-                  onDrop={handleEditMainDrop}
-                >
-                  <input ref={editMainFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleEditMainImageChange} />
-                  {editMainImagePreview ? (
-                    <img src={editMainImagePreview} alt="Ảnh chính" className="h-24 w-24 rounded-xl border border-white/[0.18] object-cover shadow" onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/96x96?text=Err"; }} />
-                  ) : (
-                    <>
-                      <svg className="h-8 w-8 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-xs text-white/45">Kéo thả hoặc nhấn để chọn ảnh chính</span>
-                    </>
-                  )}
-                  {editMainImagePreview && (
-                    <span className="text-xs text-primary-300">{editMainDragOver ? "Thả để thay ảnh" : "Nhấn hoặc kéo thả để thay ảnh"}</span>
-                  )}
+            <div className="space-y-5 p-6">
+              {/* Main image */}
+              <div className="flex items-center gap-4 rounded-xl bg-white/[0.06] p-4">
+                <img
+                  src={viewingProduct.image_url || viewingProduct.image}
+                  alt={viewingProduct.name}
+                  className="h-24 w-24 rounded-xl object-cover ring-2 ring-primary-200 flex-shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/96x96?text=No+Image"; }}
+                />
+                <div className="leading-tight min-w-0">
+                  <p className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1">Danh mục</p>
+                  <p className="text-sm text-white/80">{getCategoryName(viewingProduct.categoryId)}</p>
                 </div>
               </div>
 
-              {/* Secondary images */}
-              <div
-                className={`space-y-2.5 rounded-xl border p-3 transition ${
-                  editSecondaryDragOver ? "border-primary-400 bg-primary-500/10" : "border-white/[0.14] bg-white/[0.05]"
-                }`}
-                onDragOver={(e) => { e.preventDefault(); setEditSecondaryDragOver(true); }}
-                onDragEnter={(e) => { e.preventDefault(); setEditSecondaryDragOver(true); }}
-                onDragLeave={() => setEditSecondaryDragOver(false)}
-                onDrop={async (e) => {
-                  e.preventDefault(); setEditSecondaryDragOver(false);
-                  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/")).slice(0, MAX_SECONDARY);
-                  for (const file of files) {
-                    const preview = await fileToDataUrl(file);
-                    setEditSecondarySlots(prev => {
-                      const next = [...prev];
-                      const emptyIdx = next.findIndex(s => !s.preview);
-                      const idx = emptyIdx >= 0 ? emptyIdx : 0;
-                      next[idx] = { file, preview };
-                      return next;
-                    });
-                  }
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-white/85">
-                    Ảnh phụ <span className="text-white/45 font-normal">(tối đa {MAX_SECONDARY})</span>
-                  </label>
-                  <span className="rounded-full bg-primary-500/20 px-2 py-0.5 text-xs font-semibold text-primary-200">
-                    {editSecondarySlots.filter(s => s.preview).length}/{MAX_SECONDARY}
-                  </span>
+              {/* Extra images */}
+              {viewingProduct.images && viewingProduct.images.length > 0 && (
+                <div className="rounded-xl border border-white/[0.12] bg-white/[0.06] p-4 space-y-2">
+                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">Ảnh phụ ({viewingProduct.images.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingProduct.images.map((url, idx) => (
+                      <img
+                        key={idx}
+                        src={url}
+                        alt={`extra-${idx}`}
+                        className="h-16 w-16 rounded-lg border-2 border-white/[0.12] object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/64x64?text=Err"; }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {editSecondarySlots.map((slot, idx) => (
-                    <div key={idx} className="relative">
-                      <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-white/[0.18] bg-white/[0.05] aspect-square transition hover:border-primary-400 hover:bg-white/[0.09] overflow-hidden">
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleEditSecondaryImageChange(e, idx)} />
-                        {slot.preview ? (
-                          <img src={slot.preview} alt={`Ảnh phụ ${idx + 1}`} className="h-full w-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/80x80?text=Err"; }} />
-                        ) : (
-                          <svg className="h-6 w-6 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                          </svg>
-                        )}
-                      </label>
-                      {slot.preview && (
-                        <button type="button" onClick={() => handleEditRemoveSecondary(idx)}
-                          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600 z-10">
-                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
 
-              {/* Name */}
+              {/* Editable: Name */}
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-white/85">
-                  Tên sản phẩm <span className="text-red-400">*</span>
-                </label>
+                <label className="text-sm font-semibold text-white/80">Tên sản phẩm <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   value={detailForm.name}
                   onChange={(e) => setDetailForm((prev) => prev ? { ...prev, name: e.target.value } : prev)}
-                  className="w-full rounded-xl border border-white/[0.18] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder:text-white/35 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
-              {/* Prices */}
+              {/* Editable: Prices */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-white/85">
-                    Giá thấp nhất (đ) <span className="text-red-400">*</span>
-                  </label>
+                  <label className="text-sm font-semibold text-white/80">Giá thấp nhất (đ) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     value={detailForm.min_price}
                     onChange={(e) => setDetailForm((prev) => prev ? { ...prev, min_price: Number(e.target.value) } : prev)}
-                    className="w-full rounded-xl border border-white/[0.18] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder:text-white/35 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-white/85">
-                    Giá cao nhất (đ) <span className="text-red-400">*</span>
-                  </label>
+                  <label className="text-sm font-semibold text-white/80">Giá cao nhất (đ) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     value={detailForm.max_price}
                     onChange={(e) => setDetailForm((prev) => prev ? { ...prev, max_price: Number(e.target.value) } : prev)}
-                    className="w-full rounded-xl border border-white/[0.18] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder:text-white/35 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+                    className="w-full rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                   />
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Editable: Description */}
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-white/85">
-                  Mô tả ngắn <span className="text-red-400">*</span>
-                </label>
+                <label className="text-sm font-semibold text-white/80">Mô tả ngắn <span className="text-red-500">*</span></label>
                 <textarea
                   rows={2}
                   value={detailForm.description}
                   onChange={(e) => setDetailForm((prev) => prev ? { ...prev, description: e.target.value } : prev)}
-                  className="w-full resize-none rounded-xl border border-white/[0.18] bg-white/[0.08] px-3 py-2 text-sm text-white/90 placeholder:text-white/35 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-500/20"
+                  className="w-full resize-none rounded-lg border border-white/[0.15] bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 border-t border-white/[0.10] pt-3.5">
+              <div className="flex flex-wrap gap-3 border-t border-white/[0.08] pt-4">
                 <button
                   onClick={handleDetailSave}
                   disabled={detailSaving}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-60"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-600 disabled:opacity-60"
                 >
                   {detailSaving && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
                   {detailSaving ? "Đang lưu..." : "Lưu thay đổi"}
@@ -786,15 +659,16 @@ export default function ProductListPage() {
                   type="button"
                   onClick={() => setViewingProduct(null)}
                   disabled={detailSaving}
-                  className="flex-1 rounded-xl border border-white/[0.18] px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.1] hover:text-white disabled:opacity-60"
+                  className="w-full rounded-lg border border-white/[0.15] px-4 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/[0.1] hover:text-white disabled:opacity-60"
                 >
-                  Hủy
+                  Đóng
                 </button>
               </div>
             </div>
+            </div>
           </div>
         </div>
-      , document.body)}
+      )}
     </div>
   );
 }
