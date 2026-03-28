@@ -15,6 +15,8 @@ import { getOrderItemDisplayMeta } from "../../../utils/orderItemDisplay.util";
 import { adminProductFranchiseService } from "../../../services/product-franchise.service";
 import { adminProductService } from "../../../services/product.service";
 import { fetchCustomerById } from "../../../services/customer.service";
+import { getFranchiseById } from "../../../services/store.service";
+import type { ApiFranchise } from "../../../services/store.service";
 import type { CustomerDisplay } from "../../../models/customer.model";
 
 function getOrderItemImage(item: Record<string, unknown>, imageMap: Record<string, string>): string | null {
@@ -43,6 +45,7 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
   // product_franchise_id → image_url
   const [imageMap, setImageMap] = useState<Record<string, string>>({});
   const [customerDetail, setCustomerDetail] = useState<CustomerDisplay | null>(null);
+  const [franchiseDetail, setFranchiseDetail] = useState<ApiFranchise | null>(null);
   const lastId = useRef<string | undefined>(undefined);
 
   // Fetch ảnh cho tất cả items sau khi có order
@@ -112,6 +115,11 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
       const customerId = data.customer_id ?? data.customer?._id ?? data.customer?.id;
       if (customerId) {
         fetchCustomerById(String(customerId)).then(c => setCustomerDetail(c)).catch(() => {});
+      }
+      // Fetch franchise detail
+      const franchiseId = data.franchise_id ?? data.franchise?._id ?? data.franchise?.id;
+      if (franchiseId) {
+        getFranchiseById(String(franchiseId)).then(f => setFranchiseDetail(f)).catch(() => {});
       }
     } catch (error) {
       console.error("Lỗi tải chi tiết đơn hàng:", error);
@@ -269,9 +277,9 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                                 <span className="text-white/20">└</span>
                                 <span className="text-xs text-white/50">{tp.name}</span>
                               </div>
-                              <p className="col-span-2 text-right text-xs text-white/30">—</p>
+                              <div className="col-span-2" />
                               <p className="col-span-2 text-center text-xs text-white/40">×{tp.quantity * qty}</p>
-                              <p className="col-span-2 text-right text-xs text-white/30">—</p>
+                              <div className="col-span-2" />
                             </div>
                           ))}
                         </div>
@@ -331,10 +339,39 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                   Chi nhánh
                 </h2>
                 <div className="space-y-2 text-sm">
+                  {franchiseDetail?.logo_url && (
+                    <div className="mb-3 flex justify-center">
+                      <img src={franchiseDetail.logo_url} alt="logo" className="h-12 w-auto rounded-xl object-contain border border-white/10" />
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs text-white/35">Tên</p>
-                    <p className="font-semibold text-white/90">{order.franchise?.name || (order as any).franchise_name || "N/A"}</p>
+                    <p className="font-semibold text-white/90">{franchiseDetail?.name || order.franchise?.name || (order as any).franchise_name || "N/A"}</p>
                   </div>
+                  {(franchiseDetail?.code || order.franchise?.code) && (
+                    <div>
+                      <p className="text-xs text-white/35">Mã chi nhánh</p>
+                      <p className="font-semibold text-white/90">{franchiseDetail?.code || order.franchise?.code}</p>
+                    </div>
+                  )}
+                  {franchiseDetail?.address && (
+                    <div>
+                      <p className="text-xs text-white/35">Địa chỉ</p>
+                      <p className="text-sm text-white/70">{franchiseDetail.address}</p>
+                    </div>
+                  )}
+                  {franchiseDetail?.hotline && (
+                    <div>
+                      <p className="text-xs text-white/35">Hotline</p>
+                      <p className="font-semibold text-white/90">{franchiseDetail.hotline}</p>
+                    </div>
+                  )}
+                  {(franchiseDetail?.opened_at || franchiseDetail?.closed_at) && (
+                    <div>
+                      <p className="text-xs text-white/35">Giờ mở cửa</p>
+                      <p className="font-semibold text-white/90">{franchiseDetail.opened_at} – {franchiseDetail.closed_at}</p>
+                    </div>
+                  )}
                   {order.created_by_user && (
                     <div>
                       <p className="text-xs text-white/35">Nhân viên tạo</p>
@@ -375,7 +412,7 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                   </div>
                   {customerDetail?.address && (
                     <div>
-                      <p className="text-xs text-white/35">?́a chỉ</p>
+                      <p className="text-xs text-white/35">Địa chỉ</p>
                       <p className="text-sm text-white/70">{customerDetail.address}</p>
                     </div>
                   )}
