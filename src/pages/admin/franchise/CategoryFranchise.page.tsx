@@ -7,6 +7,7 @@ import { categoryService } from "../../../services/category.service";
 import { fetchFranchiseSelect, type FranchiseSelectItem } from "../../../services/store.service";
 import type { CategoryFranchiseApiResponse, CategorySelectItem } from "../../../models/product.model";
 import { showError, showSuccess } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 import Pagination from "../../../components/ui/Pagination";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 
@@ -103,6 +104,7 @@ function PortalCombobox({ value, placeholder, options, onChange, allLabel = "-- 
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function CategoryFranchisePage() {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const managerFranchiseId = useManagerFranchiseId();
   const params = useParams<{ id?: string; franchiseId?: string }>();
   const routeFranchiseId = params.franchiseId ?? params.id;
@@ -209,13 +211,24 @@ export default function CategoryFranchisePage() {
     e.preventDefault();
     if (!createFranchiseId) { showError("Vui lòng chọn franchise"); return; }
     if (!createCategoryId) { showError("Vui lòng chọn danh mục"); return; }
+    setShowCreate(false);
+    showPageLoading("Đang tạo...");
     setSubmitting(true);
     try {
       await categoryFranchiseService.createCategoryFranchise({ franchise_id: createFranchiseId, category_id: createCategoryId, display_order: createDisplayOrder });
       showSuccess("Tạo thành công");
-      setShowCreate(false); setCreateCategoryId(""); setCreateDisplayOrder(1);
-      if (createFranchiseId === franchiseId) load(1);
-    } catch { showError("Tạo thất bại"); } finally { setSubmitting(false); }
+      setCreateCategoryId(""); setCreateDisplayOrder(1);
+      if (createFranchiseId === franchiseId) await load(1);
+    } catch (err: unknown) {
+      const data = (err as any)?.response?.data ?? (err as any)?.responseData;
+      const apiErrors: Array<{ field?: string; message?: string }> = data?.errors ?? [];
+      const msg =
+        apiErrors.map(e => e.message).filter(Boolean).join(", ") ||
+        data?.message ||
+        (err instanceof Error ? err.message : null) ||
+        "Tạo thất bại";
+      showError(msg);
+    } finally { setSubmitting(false); hidePageLoading(); }
   };
 
   const franchiseName = franchises.find(f => f.value === franchiseId)?.name;
@@ -378,10 +391,11 @@ export default function CategoryFranchisePage() {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCreate(false)} />
-          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
-            style={{ background: "rgba(15,23,42,0.95)", backdropFilter: "blur(40px)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 25px 60px rgba(0,0,0,0.5)" }}>
-            <div className="flex items-center justify-between mb-5">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+          <div className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-hidden"
+            style={{ background: "rgba(15,23,42,0.85)", backdropFilter: "blur(40px) saturate(180%)", WebkitBackdropFilter: "blur(40px) saturate(180%)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)" }}>
+            <div className="h-0.5 w-full absolute top-0 left-0 right-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+            <div className="flex items-center justify-between mb-5 mt-2">
               <div>
                 <h2 className="text-lg font-bold text-white">Thêm Category Franchise</h2>
                 <p className="text-xs text-white/40 mt-0.5">Gán danh mục vào franchise</p>

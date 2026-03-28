@@ -1,81 +1,40 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "../../../components";
 import type { CustomerDisplay } from "../../../models/customer.model";
-import {
-  LOYALTY_TIER_LABELS,
-  LOYALTY_TIER_COLORS,
-} from "../../../models/customer.model";
-import { changeCustomerStatus, fetchCustomerById } from "../../../services/customer.service";
-import { orderClient } from "../../../services/order.client";
-import type { OrderDisplay } from "../../../models/order.model";
-import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "../../../models/order.model";
+import { fetchCustomerById, updateCustomer } from "../../../services/customer.service";
 import { showSuccess, showError } from "../../../utils";
-
-type Tab = "info" | "orders";
 
 interface CustomerDetailModalProps {
   customerId: string;
   onClose: () => void;
-  onEdit?: (customer: CustomerDisplay) => void;
+  onUpdated?: () => void;
 }
 
-function AvatarLarge({ name, url }: { name: string; url?: string }) {
-  const initials = name
-    .split(" ")
-    .filter(Boolean)
-    .slice(-2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
-  if (url) {
-    return (
-      <img
-        src={url}
-        alt={name}
-        className="size-20 rounded-full object-cover ring-4 ring-white/30 shadow-lg"
-        onError={(e) => (e.currentTarget.style.display = "none")}
-      />
-    );
-  }
-  return (
-    <div className="size-20 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-2xl font-bold ring-4 ring-white/30 shadow-lg">
-      {initials}
-    </div>
-  );
-}
+type EditFormData = {
+  name: string;
+  email: string;
+  phone: string;
+  is_active: boolean;
+};
 
-function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-white/[0.10] last:border-0">
-      <span className="text-sm text-white/60 shrink-0">{label}</span>
-      <span className="text-sm font-semibold text-white/95 text-right">{children}</span>
-    </div>
-  );
-}
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
-
-const glassStyle = {
-  background: "rgba(255, 255, 255, 0.12)",
-  backdropFilter: "blur(40px) saturate(200%)",
-  WebkitBackdropFilter: "blur(40px) saturate(200%)",
-  border: "1px solid rgba(255, 255, 255, 0.25)",
-  boxShadow:
-    "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+const emptyForm: EditFormData = {
+  name: "",
+  email: "",
+  phone: "",
+  is_active: true,
 };
 
 export default function CustomerDetailModal({
   customerId,
   onClose,
+  onUpdated,
 }: CustomerDetailModalProps) {
   const [customer, setCustomer] = useState<CustomerDisplay | null>(null);
-  const [orders, setOrders] = useState<OrderDisplay[]>([]);
+  const [formData, setFormData] = useState<EditFormData>(emptyForm);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState<Tab>("info");
   const overlayRef = useRef<HTMLDivElement>(null);
-
-  const [isActive, setIsActive] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,12 +44,18 @@ export default function CustomerDetailModal({
         const data = await fetchCustomerById(customerId);
         if (!data || controller.signal.aborted) return;
         setCustomer(data);
-        setIsActive(data.is_active);
-        const customerOrders = await orderClient.getOrdersByCustomerId(data.id);
-        if (controller.signal.aborted) return;
-        setOrders(customerOrders);
-      } catch {
-        // silently handled
+        setFormData({
+          name: data.name ?? "",
+          email: data.email ?? "",
+          phone: data.phone ?? "",
+          is_active: data.is_active,
+        });
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          const msg = err instanceof Error ? err.message : "Không thể tải thông tin khách hàng";
+          setFormErrors({ general: msg });
+          showError(msg);
+        }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -104,253 +69,192 @@ export default function CustomerDetailModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const handleToggleStatus = async (newValue: boolean) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!customer) return;
+
+    const nextErrors: Record<string, string> = {};
+    if (!formData.name.trim()) nextErrors.name = "Vui lòng nhập họ tên";
+    if (!formData.phone.trim()) nextErrors.phone = "Vui lòng nhập số điện thoại";
+    if (Object.keys(nextErrors).length > 0) {
+      setFormErrors(nextErrors);
+      return;
+    }
+
+    setFormErrors({});
     setSaving(true);
     try {
-      await changeCustomerStatus(customer.id, newValue);
-      setIsActive(newValue);
-      setCustomer((prev) => prev ? { ...prev, is_active: newValue } : prev);
-      showSuccess(newValue ? "Đã kích hoạt tài khoản" : "Đã vô hiệu hoá tài khoản");
+      const updated = await updateCustomer(customer.id, {
+        name: formData.name.trim(),
+        email: formData.email.trim() || undefined,
+        phone: formData.phone.trim(),
+        is_active: formData.is_active,
+      });
+
+      if (updated) {
+        setCustomer(updated);
+      }
+
+      showSuccess("Cập nhật khách hàng thành công");
+      onUpdated?.();
+      onClose();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Thay đổi trạng thái thất bại";
+      const responseData = (err as any)?.responseData ?? (err as any)?.response?.data;
+      const apiErrors: Array<{ field?: string; message?: string }> = responseData?.errors ?? [];
+      if (apiErrors.length > 0) {
+        const fieldErrors: Record<string, string> = {};
+        apiErrors.forEach((item) => {
+          if (item.field && item.message) {
+            fieldErrors[item.field] = item.message;
+          }
+        });
+        if (Object.keys(fieldErrors).length > 0) {
+          setFormErrors(fieldErrors);
+          return;
+        }
+      }
+
+      const msg = responseData?.message || (err instanceof Error ? err.message : "Cập nhật khách hàng thất bại");
+      setFormErrors({ general: msg });
       showError(msg);
     } finally {
       setSaving(false);
     }
   };
 
-  const displayName = customer?.name || "...";
-
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4"
-      onClick={(e) => e.target === overlayRef.current && onClose()}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === overlayRef.current && !saving && onClose()}
     >
-      {/* Backdrop — nhạt để màu nền admin hiện qua, tạo hiệu ứng glassmorphism */}
-      <div className="absolute inset-0 bg-black/25" />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
       <div
-        className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl animate-slide-in overflow-hidden"
-        style={glassStyle}
+        className="relative w-full max-w-lg rounded-2xl animate-slide-in overflow-hidden max-h-[90vh] overflow-y-auto"
+        style={{
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(40px) saturate(180%)",
+          WebkitBackdropFilter: "blur(40px) saturate(180%)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
+        }}
       >
-
-        {/* Header */}
-        <div className="relative bg-gradient-to-r from-primary-600/60 to-primary-700/50 px-6 pt-6 pb-14 shrink-0 border-b border-white/[0.08]">
+        <div className="h-0.5 w-full shrink-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
+        <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
+          <h2 className="text-lg font-bold text-white/95">Chỉnh sửa khách hàng</h2>
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-4 top-4 rounded-lg p-1.5 text-white/70 hover:bg-white/20 hover:text-white transition"
+            disabled={saving}
+            className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.1] hover:text-white transition disabled:opacity-50"
           >
             <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
-
-          {!loading && customer && (
-            <div className="flex items-center gap-4">
-              <AvatarLarge name={displayName} url={customer.avatar_url} />
-              <div>
-                <h2 className="text-xl font-bold text-white drop-shadow">{displayName}</h2>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold border ${
-                      isActive
-                        ? "bg-green-500/25 text-green-300 border-green-400/40"
-                        : "bg-white/[0.08] text-white/60 border-white/[0.15]"
-                    }`}
-                  >
-                    <span className={`size-1.5 rounded-full ${isActive ? "bg-green-400" : "bg-white/40"}`} />
-                    {isActive ? "Hoạt động" : "Ngưng"}
-                  </span>
-                  {customer.is_verified && (
-                    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold bg-blue-500/25 text-blue-300 border border-blue-400/40">
-                      Đã xác thực
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          {loading && <div className="h-20 animate-pulse rounded-xl bg-white/10" />}
         </div>
 
-        {/* Tabs */}
-        <div className="flex -mt-5 px-6 bg-white/[0.05] relative z-10 rounded-t-2xl shrink-0 border-b border-white/[0.10]">
-          {(["info", "orders"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                tab === t
-                  ? "border-primary-400 text-primary-300"
-                  : "border-transparent text-white/50 hover:text-white/80"
-              }`}
-            >
-              {t === "info"
-                ? "Thông tin"
-                : `Đơn hàng${orders.length ? ` (${orders.length})` : ""}`}
-            </button>
-          ))}
-        </div>
+        {loading ? (
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div key={idx} className="h-10 animate-pulse rounded-lg bg-white/[0.08]" />
+            ))}
+          </div>
+        ) : !customer ? (
+          <div className="p-6 space-y-4">
+            <p className="text-sm text-white/70">Không tìm thấy thông tin khách hàng.</p>
+            <Button type="button" onClick={onClose} className="w-full">
+              Đóng
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            {formErrors.general && (
+              <p className="!text-[#f87171] rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2" style={{ fontSize: 12 }}>
+                {formErrors.general}
+              </p>
+            )}
 
-        {/* Body */}
-        <div className="overflow-y-auto flex-1 min-h-0 p-6">
-          {loading && (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="h-10 animate-pulse rounded-lg bg-white/[0.08]" />
-              ))}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-white/80">
+                Họ tên <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                className={`w-full rounded-lg border bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.name ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
+                placeholder="Nguyễn Văn A"
+              />
+              {formErrors.name && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.name}</p>}
             </div>
-          )}
 
-          {!loading && !customer && (
-            <div className="flex h-40 items-center justify-center text-white/50 text-sm">
-              Không tìm thấy thông tin khách hàng
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-white/80">Email</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                className={`w-full rounded-lg border bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.email ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
+                placeholder="email@example.com"
+              />
+              {formErrors.email && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.email}</p>}
             </div>
-          )}
 
-          {!loading && customer && tab === "info" && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-white/80">
+                Số điện thoại <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                className={`w-full rounded-lg border bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 placeholder-white/30 outline-none transition focus:ring-2 focus:ring-primary-500/20 ${formErrors.phone ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
+                placeholder="09xxxxxxxx"
+              />
+              {formErrors.phone && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.phone}</p>}
+            </div>
 
-              <div className="rounded-xl border border-white/[0.12] bg-white/[0.07] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-white/50 mb-3">Liên hệ</p>
-                <InfoRow label="Họ tên">{customer.name || "—"}</InfoRow>
-                <InfoRow label="Email">{customer.email || "—"}</InfoRow>
-                <InfoRow label="Số điện thoại">{customer.phone || "—"}</InfoRow>
-              </div>
-
-              <div className="rounded-xl border border-white/[0.12] bg-white/[0.07] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-white/50 mb-3">Tài khoản</p>
-                <InfoRow label="Ngày tạo">
-                  {new Date(customer.created_at).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                </InfoRow>
-                <InfoRow label="Cập nhật">
-                  {new Date(customer.updated_at).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" })}
-                </InfoRow>
-                <InfoRow label="Xác thực email">
-                  {customer.is_verified ? (
-                    <span className="text-blue-300 font-semibold">Đã xác thực</span>
-                  ) : (
-                    <span className="text-white/50">Chưa xác thực</span>
-                  )}
-                </InfoRow>
-                <div className="flex items-center justify-between gap-4 pt-2.5">
-                  <span className="text-sm text-white/60 shrink-0">Trạng thái</span>
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => handleToggleStatus(!isActive)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed ${
-                      isActive ? "bg-green-500" : "bg-white/20"
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block size-5 rounded-full bg-white shadow-md transition-transform duration-200 ${
-                        isActive ? "translate-x-5" : "translate-x-0"
-                      }`}
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-white/80">Trạng thái</label>
+              <div className="flex gap-3">
+                {[{ val: true, label: "Hoạt động" }, { val: false, label: "Ngưng hoạt động" }].map(({ val, label }) => (
+                  <label key={String(val)} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="is_active"
+                      checked={formData.is_active === val}
+                      onChange={() => setFormData((prev) => ({ ...prev, is_active: val }))}
+                      className="accent-primary-500"
                     />
-                  </button>
-                </div>
+                    <span className="text-sm text-white/80">{label}</span>
+                  </label>
+                ))}
               </div>
-
-              <div className="rounded-xl border border-white/[0.12] bg-white/[0.07] p-4 sm:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-white/50 mb-3">Thống kê</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="rounded-lg bg-white/[0.07] p-4 text-center border border-white/[0.10]">
-                    <p className="text-2xl font-bold text-white">{orders.length}</p>
-                    <p className="text-xs text-white/55 mt-1">Tổng đơn hàng</p>
-                  </div>
-                  <div className="rounded-lg bg-white/[0.07] p-4 text-center border border-white/[0.10]">
-                    <p className="text-lg font-bold text-green-400">
-                      {formatCurrency(orders.reduce((s, o) => s + o.total_amount, 0))}
-                    </p>
-                    <p className="text-xs text-white/55 mt-1">Tổng chi tiêu</p>
-                  </div>
-                </div>
-              </div>
-
-              {customer.franchises && customer.franchises.length > 0 && (
-                <div className="rounded-xl border border-white/[0.12] bg-white/[0.07] p-4 sm:col-span-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-white/50 mb-3">Thành viên</p>
-                  <div className="divide-y divide-white/[0.08]">
-                    {customer.franchises.map((cf) => (
-                      <div key={cf.id} className="flex items-center justify-between py-2.5">
-                        <div>
-                          <p className="text-sm font-semibold text-white/90">{cf.franchise?.name || "Cửa hàng"}</p>
-                          <p className="text-xs text-white/50">{cf.franchise?.code}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-primary-400">{cf.loyalty_point.toLocaleString()} pts</span>
-                          <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${LOYALTY_TIER_COLORS[cf.loyalty_tier]}`}>
-                            {LOYALTY_TIER_LABELS[cf.loyalty_tier]}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-          )}
 
-          {!loading && customer && tab === "orders" && (
-            <div>
-              {orders.length === 0 ? (
-                <div className="flex h-40 flex-col items-center justify-center gap-2 text-white/50">
-                  <svg className="size-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                  <p className="text-sm">Chưa có đơn hàng nào</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-xl border border-white/[0.12]">
-                  <table className="min-w-full divide-y divide-white/[0.10] text-sm">
-                    <thead className="bg-white/[0.07]">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white/55">Mã đơn</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white/55">Ngày tạo</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white/55">Tổng tiền</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white/55">Trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.08]">
-                      {orders.map((order) => (
-                        <tr key={order.id} className="hover:bg-white/[0.06] transition-colors">
-                          <td className="px-4 py-3 font-semibold text-primary-400">{order.code}</td>
-                          <td className="px-4 py-3 text-white/60 text-xs whitespace-nowrap">
-                            {new Date(order.created_at).toLocaleDateString("vi-VN")}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-white/90">{formatCurrency(order.total_amount)}</td>
-                          <td className="px-4 py-3">
-                            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${ORDER_STATUS_COLORS[order.status]}`}>
-                              {ORDER_STATUS_LABELS[order.status]}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+            <div className="rounded-lg border border-white/[0.15] bg-white/[0.04] px-3 py-2 text-xs text-white/65">
+              <div>Ngày tạo: {new Date(customer.created_at).toLocaleDateString("vi-VN")}</div>
+              <div>Cập nhật: {new Date(customer.updated_at).toLocaleDateString("vi-VN")}</div>
+              <div>Xác thực email: {customer.is_verified ? "Đã xác thực" : "Chưa xác thực"}</div>
             </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        {!loading && customer && (
-          <div className="flex items-center justify-between gap-3 border-t border-white/[0.10] px-6 py-4 shrink-0 bg-white/[0.05]">
-            <p className="text-xs text-white/50">
-              Cập nhật lần cuối: {new Date(customer.updated_at).toLocaleString("vi-VN")}
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={onClose}>
-                Đóng
+            <div className="flex gap-3 pt-2">
+              <Button type="submit" loading={saving} disabled={saving} className="flex-1">
+                Cập nhật
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={onClose}
+                className="flex-1 border border-white/[0.15] text-white/70 hover:bg-white/[0.1] hover:text-white"
+              >
+                Hủy
               </Button>
             </div>
-          </div>
+          </form>
         )}
       </div>
     </div>

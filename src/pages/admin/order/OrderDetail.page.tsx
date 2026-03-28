@@ -437,17 +437,17 @@ export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDeta
 
   if (!orderId) return null;
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" onClick={onClose} />
 
-      {/* Full-screen panel — solid background, không để lộ content phía sau */}
+      {/* Centered modal dialog */}
       <div
-        className="relative z-10 ml-auto flex h-full w-full flex-col overflow-hidden"
+        className="relative z-10 flex h-[min(88vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl"
         style={{
           background: "rgb(10, 15, 30)",
-          borderLeft: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.7)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.7)",
         }}
       >
         {/* Top bar */}
@@ -480,7 +480,7 @@ export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDeta
 
         {/* Scrollable content */}
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-6 py-6 sm:px-10 sm:py-8">
+          <div className="mx-auto w-full px-4 py-4 sm:px-6 sm:py-6">
             <OrderDetailContent orderId={orderId} onClose={onClose} onStatusChange={onStatusChange} />
           </div>
         </div>

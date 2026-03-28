@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../../../components";
 import { OrderDetailModal } from "./OrderDetail.page";
 import { GlassSearchSelect } from "../../../components/ui";
@@ -14,6 +15,7 @@ import Pagination from "../../../components/ui/Pagination";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 import { showSuccess, showError } from "../../../utils";
 import { useAuthStore } from "../../../store";
+import { ROUTER_URL } from "../../../routes/router.const";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -26,6 +28,8 @@ const STATUS_OPTIONS = [
 ];
 
 const OrderListPage = () => {
+  const navigate = useNavigate();
+  const { id: routeOrderId } = useParams<{ id?: string }>();
   const managerFranchiseId = useManagerFranchiseId();
   const { user } = useAuthStore();
   const isShipper = ((user?.active_context as { role?: string } | null)?.role ?? user?.role ?? "").toUpperCase() === "SHIPPER";
@@ -35,7 +39,7 @@ const OrderListPage = () => {
   const [selectedFranchiseId, setSelectedFranchiseId] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(routeOrderId ?? null);
   // inline status popover
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [staffList, setStaffList] = useState<UserFranchiseRole[]>([]);
@@ -55,6 +59,26 @@ const OrderListPage = () => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  // Keep modal open state in sync with URL: /admin/orders/:id
+  useEffect(() => {
+    setSelectedOrderId(routeOrderId ?? null);
+  }, [routeOrderId]);
+
+  const openOrderDetailModal = (orderId: string) => {
+    setSelectedOrderId(orderId);
+    const detailPath = `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDER_DETAIL.replace(":id", orderId)}`;
+    if (routeOrderId !== orderId) {
+      navigate(detailPath);
+    }
+  };
+
+  const closeOrderDetailModal = () => {
+    setSelectedOrderId(null);
+    if (routeOrderId) {
+      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`);
+    }
+  };
 
   // ─── Quick status update ──────────────────────────────────────────────────────
   const handleQuickStatus = async (orderId: string, newStatus: OrderStatus) => {
@@ -389,7 +413,7 @@ const OrderListPage = () => {
                             )}
                             {/* Xem chi tiết */}
                             <button
-                              onClick={() => setSelectedOrderId(String(order._id ?? order.id))}
+                              onClick={() => openOrderDetailModal(String(order._id ?? order.id))}
                               className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
                               title="Xem chi tiết"
                             >
@@ -419,7 +443,7 @@ const OrderListPage = () => {
 
       <OrderDetailModal
         orderId={selectedOrderId}
-        onClose={() => setSelectedOrderId(null)}
+        onClose={closeOrderDetailModal}
         onStatusChange={(orderId, newStatus) => {
           setOrders(prev => prev.map(o =>
             String(o._id ?? o.id) === orderId ? { ...o, status: newStatus } : o

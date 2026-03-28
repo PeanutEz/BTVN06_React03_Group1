@@ -9,6 +9,7 @@ import {
   restoreCustomer,
 } from "../../../services/customer.service";
 import { showSuccess, showError } from "../../../utils";
+import { useLoadingStore } from "../../../store/loading.store";
 import Pagination from "../../../components/ui/Pagination";
 import CustomerDetailModal from "./CustomerDetailModal";
 import { useAuthStore } from "../../../store";
@@ -62,6 +63,7 @@ function AvatarCell({ name, url }: { name: string; url?: string }) {
 
 const CustomerListPage = () => {
   const showConfirm = useConfirm();
+  const { show: showPageLoading, hide: hidePageLoading } = useLoadingStore();
   const user = useAuthStore((s) => s.user);
   const isStaff = user?.active_context
     ? (user.active_context as any)?.role?.toUpperCase() === "STAFF"
@@ -132,7 +134,12 @@ const CustomerListPage = () => {
   };
 
   const handleDelete = async (id: string, name: string, email?: string) => {
-    if (!await showConfirm({ message: `Bạn có chắc muốn xóa khách hàng "${name}" không?`, variant: "danger" })) return;
+    if (!await showConfirm({
+      title: "Xác nhận xóa",
+      message: `Bạn có chắc muốn xóa khách hàng "${name}" không?`,
+      variant: "danger",
+      confirmText: "Xóa",
+    })) return;
     try {
       await deleteCustomer(id);      showSuccess(`Xóa khách hàng${email ? ` ${email}` : ` ${name}`} thành công`);
       const nextPage = customers.length <= 1 && currentPage > 1 ? currentPage - 1 : currentPage;
@@ -154,6 +161,17 @@ const CustomerListPage = () => {
   };
 
   const handleToggleStatus = async (id: string, currentActive: boolean, email?: string, name?: string) => {
+    const actionLabel = currentActive ? "vô hiệu hóa" : "kích hoạt";
+    const targetLabel = email || name ? ` ${email || name}` : "";
+    const variant = currentActive ? "danger" : "warning";
+    const confirmed = await showConfirm({
+      title: "Xác nhận thay đổi trạng thái",
+      message: `Bạn có chắc muốn ${actionLabel} khách hàng${targetLabel} không?`,
+      variant,
+      confirmText: currentActive ? "Vô hiệu hóa" : "Kích hoạt",
+    });
+    if (!confirmed) return;
+
     try {
       await changeCustomerStatus(id, !currentActive);
       const label = email || name || "";
@@ -163,29 +181,34 @@ const CustomerListPage = () => {
       const msg = err instanceof Error ? err.message : "Có lỗi xảy ra";
       showError(msg);
     }
-  };const handleSubmit = async (e: React.FormEvent) => {
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) { setFormErrors({ name: "Vui lòng nhập họ tên" }); return; }
     setFormErrors({});
+    setShowModal(false);
+    showPageLoading("Đang tạo khách hàng...");
     setSubmitting(true);
     try {
       await createCustomer({ ...formData, is_deleted: false });
       showSuccess("Tạo khách hàng thành công");
-      setShowModal(false);
-      loadPage(1, searchRef.current.keyword, searchRef.current.activeFilter);
+      await loadPage(1, searchRef.current.keyword, searchRef.current.activeFilter);
     } catch (err) {
       const responseData = (err as any)?.responseData ?? (err as any)?.response?.data;
       const apiErrors: Array<{ field?: string; message?: string }> = responseData?.errors ?? [];
       if (apiErrors.length > 0) {
         const fieldErrors: Record<string, string> = {};
         apiErrors.forEach(e => { if (e.field && e.message) fieldErrors[e.field] = e.message; });
-        if (Object.keys(fieldErrors).length > 0) { setFormErrors(fieldErrors); return; }
+        if (Object.keys(fieldErrors).length > 0) { setFormErrors(fieldErrors); setShowModal(true); return; }
       }
       // fallback: lỗi không có field cụ thể
       const msg = responseData?.message || (err instanceof Error ? err.message : "Có lỗi xảy ra");
       setFormErrors({ general: msg });
+      setShowModal(true);
     } finally {
       setSubmitting(false);
+      hidePageLoading();
     }
   };
 
@@ -425,6 +448,7 @@ const CustomerListPage = () => {
       {detailCustomerId && (
         <CustomerDetailModal
           customerId={detailCustomerId}
+          onUpdated={() => loadPage(currentPage, searchRef.current.keyword, searchRef.current.activeFilter, searchRef.current.showDeleted)}
           onClose={() => setDetailCustomerId(null)}
         />
       )}
@@ -433,19 +457,20 @@ const CustomerListPage = () => {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/25"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowModal(false)}
            
           />          <div
-            className="relative w-full max-w-lg rounded-2xl animate-slide-in overflow-y-auto max-h-[90vh]"
+            className="relative w-full max-w-lg rounded-2xl animate-slide-in overflow-y-auto max-h-[90vh] overflow-hidden"
             style={{
-              background: "rgba(255, 255, 255, 0.12)",
-              backdropFilter: "blur(40px) saturate(200%)",
-              WebkitBackdropFilter: "blur(40px) saturate(200%)",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2)",
+              background: "rgba(15,23,42,0.85)",
+              backdropFilter: "blur(40px) saturate(180%)",
+              WebkitBackdropFilter: "blur(40px) saturate(180%)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              boxShadow: "0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12)",
             }}
           >
+            <div className="h-0.5 w-full shrink-0" style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6, #06b6d4)" }} />
             {/* Modal header */}
             <div className="flex items-center justify-between border-b border-white/[0.12] px-6 py-4">
               <h2 className="text-lg font-bold text-white/95">
@@ -527,22 +552,6 @@ const CustomerListPage = () => {
                       )}
                     </button>                  </div>
                   {formErrors.password && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{formErrors.password}</p>}
-                </div>                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-sm font-semibold text-white/80">Trạng thái</label>
-                  <div className="flex gap-3">
-                    {[{ val: true, label: "Hoạt động" }, { val: false, label: "Ngưng hoạt động" }].map(({ val, label }) => (
-                      <label key={String(val)} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="is_active"
-                          checked={formData.is_active === val}
-                          onChange={() => setFormData({ ...formData, is_active: val })}
-                          className="accent-primary-500"
-                        />
-                        <span className="text-sm text-white/80">{label}</span>
-                      </label>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Địa chỉ */}
