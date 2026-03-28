@@ -179,6 +179,18 @@ const adminNav: Array<{
       ),
     },
     {
+      label: "Pending Payments",
+      to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PENDING_PAYMENTS}`,
+      hiddenForRoles: ["SHIPPER"],
+      icon: (
+        <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5v10.5H3.75z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 10.5h16.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 15h3.75m5.25-1.5 1.5 1.5 2.25-2.25" />
+        </svg>
+      ),
+    },
+    {
       label: "Orders",
       to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.ORDERS}`,
       icon: (

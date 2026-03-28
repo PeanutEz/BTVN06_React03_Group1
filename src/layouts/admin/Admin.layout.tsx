@@ -84,6 +84,7 @@ const AdminLayout = () => {
 
           {/* Content glass panel */}
           <main
+            data-scroll-lock-root="admin-main"
             className="flex-1 overflow-y-auto px-6 py-4 min-w-0 flex flex-col"
             style={glassPanel}
           >
