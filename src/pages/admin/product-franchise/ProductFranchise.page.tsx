@@ -965,14 +965,14 @@ export default function ProductFranchisePage() {
                   <label className="text-sm font-semibold text-white/80">Size *</label>                  <select
                     value={createForm.size}
                     onChange={(e) => setCreateForm((f) => ({ ...f, size: e.target.value }))}
-                    className={`w-full rounded-lg border bg-white/[0.08] text-white/90 px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-primary-500/20 ${createErrors.size ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
+                    className={`w-full rounded-lg border bg-slate-800 text-white/90 px-4 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-primary-500/20 ${createErrors.size ? "border-red-400 focus:border-red-400" : "border-white/[0.15] focus:border-primary-500"}`}
                   >
-                    <option value="">-- Chọn size --</option>
-                    <option value="S">S</option>
-                    <option value="M">M</option>
-                    <option value="L">L</option>
-                    <option value="XL">XL</option>
-                    <option value="DEFAULT">DEFAULT</option>
+                    <option value="" className="bg-slate-800">-- Chọn size --</option>
+                    <option value="S" className="bg-slate-800">S</option>
+                    <option value="M" className="bg-slate-800">M</option>
+                    <option value="L" className="bg-slate-800">L</option>
+                    <option value="XL" className="bg-slate-800">XL</option>
+                    <option value="DEFAULT" className="bg-slate-800">DEFAULT</option>
                   </select>
                   {createErrors.size && <p className="!text-[#f87171]" style={{ fontSize: 11, marginTop: 4 }}>{createErrors.size}</p>}
                 </div>

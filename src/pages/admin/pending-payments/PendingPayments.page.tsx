@@ -6,6 +6,7 @@ import { ROUTER_URL } from "@/routes/router.const";
 import { clientService } from "@/services/client.service";
 import { paymentClient, type PaymentData } from "@/services/payment.client";
 import { useLoadingStore } from "@/store/loading.store";
+import { OrderDetailModal } from "../order/OrderDetail.page";
 
 const TEXT = {
   noOrderCode: "Kh\u00f4ng c\u00f3 m\u00e3 \u0111\u01a1n",
@@ -97,6 +98,7 @@ export default function PendingPaymentsPage() {
   const initialFranchiseId = searchParams.get("franchiseId")?.trim() ?? "";
   const [selectedFranchiseId, setSelectedFranchiseId] = useState(managerFranchiseId ?? initialFranchiseId);
   const [keyword, setKeyword] = useState("");
+  const [viewingOrderId, setViewingOrderId] = useState<string | null>(null);
   const initialPageLoadHandledRef = useRef(false);
 
   const franchisesQuery = useQuery({
@@ -306,22 +308,43 @@ export default function PendingPaymentsPage() {
 
                 <div className="relative mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-5">
                   <p className="max-w-[260px] text-xs leading-5 text-[#c8bba9]">{TEXT.resumeHint}</p>
-                  <button
-                    type="button"
-                    onClick={() => handleContinuePayment(payment)}
-                    className="inline-flex items-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,#f59e0b_0%,#f97316_100%)] px-5 py-3 text-sm font-bold text-white shadow-[0_16px_30px_rgba(245,158,11,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(245,158,11,0.36)]"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12h16m-7-7 7 7-7 7" />
-                    </svg>
-                    {TEXT.continuePayment}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {payment.order_id && (
+                      <button
+                        type="button"
+                        onClick={() => setViewingOrderId(String(payment.order_id))}
+                        title="Xem chi tiết đơn hàng"
+                        className="inline-flex items-center justify-center rounded-full border border-white/15 bg-white/8 p-3 text-[#e5d7c5] transition hover:-translate-y-0.5 hover:bg-white/14"
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleContinuePayment(payment)}
+                      className="inline-flex items-center gap-2 rounded-[20px] bg-[linear-gradient(135deg,#f59e0b_0%,#f97316_100%)] px-5 py-3 text-sm font-bold text-white shadow-[0_16px_30px_rgba(245,158,11,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(245,158,11,0.36)]"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 12h16m-7-7 7 7-7 7" />
+                      </svg>
+                      {TEXT.continuePayment}
+                    </button>
+                  </div>
                 </div>
               </article>
             );
           })}
         </section>
       )}
+
+      <OrderDetailModal
+        orderId={viewingOrderId}
+        onClose={() => setViewingOrderId(null)}
+        variant="dialog"
+      />
     </div>
   );
 }
