@@ -75,7 +75,6 @@ export default function CustomerFranchisePage() {
     customer_id: "",
     is_active: "" as "" | "true" | "false",
     is_deleted: false,
-    loyalty_points: "",
   });
 
   /* ── franchise combobox ────────────────────────────── */
@@ -137,7 +136,6 @@ export default function CustomerFranchisePage() {
         searchCondition: {
           franchise_id: filters.franchise_id || undefined,
           customer_id: filters.customer_id || undefined,
-          loyalty_points: filters.loyalty_points ? Number(filters.loyalty_points) : undefined,
           is_active: isActive,
           is_deleted: filters.is_deleted,
         },
@@ -424,19 +422,6 @@ export default function CustomerFranchisePage() {
             </div>
           </div>
 
-          {/* Loyalty points */}
-          <div className="min-w-[140px] space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Điểm tối thiểu</label>
-            <input
-              type="number"
-              min={0}
-              value={filters.loyalty_points}
-              onChange={(e) => setFilters((f) => ({ ...f, loyalty_points: e.target.value }))}
-              placeholder="0"
-              className="w-full rounded-lg border border-white/[0.15] bg-slate-800 px-3 py-2 text-sm text-white/90 placeholder-white/40 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-            />
-          </div>
-
           {/* Trạng thái */}
           <div className="min-w-[130px] space-y-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</label>
@@ -480,7 +465,6 @@ export default function CustomerFranchisePage() {
                   customer_id: "",
                   is_active: "",
                   is_deleted: false,
-                  loyalty_points: "",
                 });
                 setCustomerKeyword("");
               }}
