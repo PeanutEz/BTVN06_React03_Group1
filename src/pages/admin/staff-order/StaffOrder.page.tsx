@@ -750,6 +750,9 @@ function CheckoutDialog({
                             {item.ice ? `Đá: ${item.ice}` : ""}
                           </p>
                         )}
+                        {item.toppingsText && (
+                          <p className="mt-1 text-xs text-slate-500">Topping: {item.toppingsText}</p>
+                        )}
                         {item.note && <p className="mt-1 line-clamp-2 text-xs italic text-slate-500">Ghi chú: {item.note}</p>}
                       </div>
 
