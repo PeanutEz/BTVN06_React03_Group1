@@ -9,6 +9,19 @@ import { showSuccess } from "../../../utils";
 import logoHylux from "../../../assets/logo-hylux.png";
 import FranchisePickerModal from "../../../components/admin/FranchisePickerModal";
 
+/** Trả về route mặc định sau khi đăng nhập dựa theo role */
+const getDefaultAdminRoute = (profile: { role?: string; active_context?: unknown; roles?: { role?: string }[] }): string => {
+  const role = (
+    (profile.active_context as { role?: string } | null)?.role ??
+    profile.role ??
+    profile.roles?.[0]?.role ??
+    ""
+  ).toUpperCase();
+  if (role === "SHIPPER") return `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DELIVERIES}`;
+  if (role === "MANAGER" || role === "STAFF") return `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.CUSTOMERS}`;
+  return `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`;
+};
+
 type RippleItem = { id: number; x: number; y: number };
 
 const GOLD = "#c9a227";
@@ -65,7 +78,7 @@ const AdminLoginPage = () => {
     const allowedRoles = ["admin", "system", "manager", "staff", "shipper"];
     const hasAdminRole = user?.roles?.some(r => allowedRoles.includes((r.role ?? "").toString().toLowerCase()));
     if (user && hasAdminRole) {
-      navigate(`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+      navigate(getDefaultAdminRoute(user), { replace: true });
     }
   }, [user, navigate]);
 
@@ -85,7 +98,7 @@ const AdminLoginPage = () => {
       setPendingProfile(null);
       showSuccess("Đăng nhập thành công");
       const redirectTo = (location.state as { from?: Location })?.from?.pathname;
-      navigate(redirectTo || `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`, { replace: true });
+      navigate(redirectTo || getDefaultAdminRoute(updatedProfile), { replace: true });
     } catch (err) {
       setApiErrors({ general: err instanceof Error ? err.message : "Chuyển context thất bại" });
     } finally {

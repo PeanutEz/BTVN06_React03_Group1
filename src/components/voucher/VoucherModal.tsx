@@ -223,7 +223,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
   return ReactDOM.createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm">
       <div className="flex min-h-full items-center justify-center p-4">
-      <div className="w-full max-w-xl my-4 rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{
+      <div className="w-full max-w-xl my-4 rounded-2xl shadow-2xl flex flex-col overflow-hidden max-h-[92vh]" style={{
         background: "rgba(15,23,42,0.85)",
         backdropFilter: "blur(40px) saturate(180%)",
         WebkitBackdropFilter: "blur(40px) saturate(180%)",
@@ -255,7 +255,7 @@ export function VoucherModal({ voucher, onClose, onSave }: VoucherModalProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 flex-1 overflow-y-auto">
           <form id="voucher-form" onSubmit={handleSubmit} className="space-y-4">
             {!voucher && (
               <div className="rounded-xl border border-white/[0.1] bg-white/[0.06] p-3.5 space-y-3">

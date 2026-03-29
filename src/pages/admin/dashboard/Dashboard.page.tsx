@@ -3,11 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { fetchOrdersByFranchise, fetchOrderById } from "../../../services/order.service";
 import { fetchCustomers } from "../../../services/customer.service";
 import { fetchStores } from "../../../services/store.service";
-import { fetchLoyaltyOverview } from "../../../services/loyalty.service";
 import { adminInventoryService } from "../../../services/inventory.service";
 import type { OrderDisplay, OrderStatus } from "../../../models/order.model";
 import { ORDER_STATUS_LABELS } from "../../../models/order.model";
-import type { LoyaltyOverview } from "../../../models/loyalty.model";
 import { ROUTER_URL } from "../../../routes/router.const";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
 
@@ -42,12 +40,6 @@ const glassCard: React.CSSProperties = {
   boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
 };
 
-const glassCardInner: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.05)",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-  borderRadius: "10px",
-};
-
 const DashboardPage = () => {
   const [loading, setLoading] = useState(false);
   const params = useParams();
@@ -70,7 +62,6 @@ const DashboardPage = () => {
     "READY_FOR_PICKUP",
   ];
   const [recentOrders, setRecentOrders] = useState<OrderDisplay[]>([]);
-  const [loyaltyOverview, setLoyaltyOverview] = useState<LoyaltyOverview | null>(null);
   const [revenueChartData, setRevenueChartData] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [lowStocks, setLowStocks] = useState<LowStockItem[]>([]);
@@ -79,9 +70,8 @@ const DashboardPage = () => {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const [customers, loyalty] = await Promise.all([
+      const [customers] = await Promise.all([
         fetchCustomers(),
-        fetchLoyaltyOverview(),
       ]);
 
       let allOrders: any[] = [];
@@ -260,7 +250,6 @@ const DashboardPage = () => {
         canceledOrders,
       });
 
-      setLoyaltyOverview(loyalty);
     } finally {
       setLoading(false);
     }
@@ -443,44 +432,8 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Row 3: Loyalty + Low Stock + Recent Orders — takes ~50% */}
+      {/* Row 3: Low Stock + Recent Orders */}
       <div className="flex gap-3 min-h-0" style={{ flex: "1 1 50%" }}>
-        {/* Loyalty */}
-        <div className="flex-[1] min-w-0 p-4 flex flex-col" style={glassCard}>
-          <div className="flex items-center justify-between mb-2 shrink-0">
-            <h3 className="text-sm font-semibold text-white">Thành viên</h3>
-            <Link to={`${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.LOYALTY}`} className="text-[10px] font-semibold text-primary-400 hover:text-primary-300">
-              Chi tiết →
-            </Link>
-          </div>
-          {loyaltyOverview ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 flex-1 min-h-0">
-              <div className="p-2 text-center flex flex-col justify-center" style={glassCardInner}>
-                <p className="text-[10px] text-white/50">Tổng</p>
-                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.total_customers}</p>
-              </div>
-              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(249, 115, 22, 0.1)", borderColor: "rgba(249, 115, 22, 0.2)" }}>
-                <p className="text-[10px] text-orange-300">Đồng</p>
-                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.BRONZE}</p>
-              </div>
-              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(148, 163, 184, 0.1)", borderColor: "rgba(148, 163, 184, 0.2)" }}>
-                <p className="text-[10px] text-slate-300">Bạc</p>
-                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.SILVER}</p>
-              </div>
-              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(234, 179, 8, 0.1)", borderColor: "rgba(234, 179, 8, 0.2)" }}>
-                <p className="text-[10px] text-yellow-300">Vàng</p>
-                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.GOLD}</p>
-              </div>
-              <div className="p-2 text-center flex flex-col justify-center" style={{ ...glassCardInner, background: "rgba(168, 85, 247, 0.1)", borderColor: "rgba(168, 85, 247, 0.2)" }}>
-                <p className="text-[10px] text-purple-300">Bạch Kim</p>
-                <p className="text-lg font-bold text-white leading-tight">{loyaltyOverview.customers_by_tier.PLATINUM}</p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-white/40">Không có dữ liệu</p>
-          )}
-        </div>
-
         {/* Low Stock */}
         <div className="flex-[1] min-w-0 p-4 flex flex-col" style={{ ...glassCard, borderColor: "rgba(248, 113, 113, 0.2)", background: "rgba(239, 68, 68, 0.04)" }}>
           <h3 className="text-sm font-semibold text-red-300 mb-2 shrink-0">Tồn kho thấp</h3>

@@ -14,7 +14,7 @@ const adminNav: Array<{
     {
       label: "Dashboard",
       to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.DASHBOARD}`,
-      hiddenForRoles: ["STAFF", "SHIPPER"],
+      hiddenForRoles: ["MANAGER", "STAFF", "SHIPPER"],
       icon: (
         <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
@@ -175,6 +175,18 @@ const adminNav: Array<{
         <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 6.75h15m-15 5.25h15m-15 5.25h9" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M18 16.5l1.5 1.5 3-3" />
+        </svg>
+      ),
+    },
+    {
+      label: "Pending Payments",
+      to: `${ROUTER_URL.ADMIN}/${ROUTER_URL.ADMIN_ROUTES.PENDING_PAYMENTS}`,
+      hiddenForRoles: ["SHIPPER"],
+      icon: (
+        <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5v10.5H3.75z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 10.5h16.5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 15h3.75m5.25-1.5 1.5 1.5 2.25-2.25" />
         </svg>
       ),
     },
