@@ -32,13 +32,17 @@ const PaymentListPage = (): React.JSX.Element => {
   const managerFranchiseId = useManagerFranchiseId();
   const _authUser = useAuthStore((s) => s.user);
   const isShipper = ((_authUser?.active_context as { role?: string } | null)?.role ?? _authUser?.role ?? "").toUpperCase() === "SHIPPER";
+  const isAdminOrManager = (() => {
+    const role = ((_authUser?.active_context as { role?: string; scope?: string } | null)?.role ?? "").toUpperCase();
+    const scope = ((_authUser?.active_context as { scope?: string } | null)?.scope ?? "").toUpperCase();
+    return role === "ADMIN" || role === "MANAGER" || scope === "GLOBAL";
+  })();
   const [rawPayments, setRawPayments] = useState<Payment[]>([]);
 
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedFranchiseId, setSelectedFranchiseId] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("");
-  const [methodFilter, setMethodFilter] = useState("");
 
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -175,7 +179,6 @@ const PaymentListPage = (): React.JSX.Element => {
   const handleReset = () => {
     setSelectedCustomerId("");
     setStatusFilter("");
-    setMethodFilter("");
     setCurrentPage(1);
     if (managerFranchiseId) {
       // Staff/Manager: keep franchise, reload data
@@ -215,8 +218,6 @@ const PaymentListPage = (): React.JSX.Element => {
 
     if (statusFilter && p.status !== statusFilter) return false;
 
-    if (methodFilter && p.method !== methodFilter) return false;
-
     return true;
   });
 
@@ -235,10 +236,6 @@ const PaymentListPage = (): React.JSX.Element => {
 
   const franchiseMap = Object.fromEntries(
     franchises.map((f) => [f.value, f.label])
-  );
-
-  const methodOptions = Object.entries(PAYMENT_METHOD_TYPE_LABELS).map(
-    ([value, label]) => ({ value, label })
   );
 
   const statusOptions = Object.entries(PAYMENT_STATUS_LABELS).map(
@@ -325,26 +322,6 @@ const PaymentListPage = (): React.JSX.Element => {
             />
           </div>
 
-          {/* Method */}
-          {!isShipper && (
-          <div className="min-w-[180px] space-y-1.5">
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Phương thức
-            </label>
-            <GlassSearchSelect
-              value={methodFilter}
-              onChange={(v) => {
-                setMethodFilter(v);
-                setCurrentPage(1);
-              }}
-              options={methodOptions}
-              placeholder="-- Tất cả --"
-              searchPlaceholder="Tìm phương thức..."
-              allLabel="-- Tất cả --"
-            />
-          </div>
-          )}
-
           {/* Reset */}
           {!isShipper && (
           <div className="space-y-1.5">
@@ -393,14 +370,14 @@ const PaymentListPage = (): React.JSX.Element => {
                   <th className="px-4 py-3">Số tiền</th>
                   <th className="px-4 py-3">Phương thức</th>
                   <th className="px-4 py-3">Trạng thái</th>
-                  <th className="px-4 py-3">Thao tác</th>
+                  {isAdminOrManager && <th className="px-4 py-3">Thao tác</th>}
                 </tr>
               </thead>
 
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={isAdminOrManager ? 7 : 6}>
                       <div className="flex justify-center items-center py-16">
                         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500" />
                       </div>
@@ -408,7 +385,7 @@ const PaymentListPage = (): React.JSX.Element => {
                   </tr>
                 ) : paginatedPayments.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-10">
+                    <td colSpan={isAdminOrManager ? 7 : 6} className="text-center py-10">
                       Không có dữ liệu
                     </td>
                   </tr>
@@ -441,6 +418,7 @@ const PaymentListPage = (): React.JSX.Element => {
                         </span>
                       </td>
 
+                      {isAdminOrManager && (
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
 
@@ -460,6 +438,7 @@ const PaymentListPage = (): React.JSX.Element => {
 
                         </div>
                       </td>
+                      )}
                     </tr>
                   ))
                 )}
