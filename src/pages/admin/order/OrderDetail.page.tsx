@@ -31,6 +31,75 @@ function getOrderItemImage(item: Record<string, unknown>, imageMap: Record<strin
 
 interface ToppingData { name: string; price: number; productFranchiseId: string; }
 
+function firstNonEmptyText(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+function formatRawCartOptions(options: unknown): string {
+  if (!Array.isArray(options)) return "";
+
+  const aggregated = new Map<string, number>();
+  options.forEach((option) => {
+    if (!option || typeof option !== "object") return;
+    const optionRecord = option as Record<string, unknown>;
+    const nestedProduct =
+      optionRecord.product && typeof optionRecord.product === "object"
+        ? (optionRecord.product as Record<string, unknown>)
+        : null;
+
+    const optionName = firstNonEmptyText(
+      optionRecord.name,
+      optionRecord.option_name,
+      optionRecord.label,
+      optionRecord.product_name,
+      optionRecord.product_name_snapshot,
+      nestedProduct?.name,
+    );
+    if (!optionName) return;
+
+    const rawQty = Number(optionRecord.quantity ?? optionRecord.qty ?? 1);
+    const quantity = Number.isFinite(rawQty) && rawQty > 0 ? rawQty : 1;
+    aggregated.set(optionName, (aggregated.get(optionName) ?? 0) + quantity);
+  });
+
+  if (aggregated.size === 0) return "";
+
+  return Array.from(aggregated.entries())
+    .map(([name, quantity]) => `${name} x${quantity}`)
+    .join(", ");
+}
+
+function buildRawCartInlineMeta(item: Record<string, unknown>): string {
+  const size = firstNonEmptyText(
+    item.size,
+    item.size_snapshot,
+    item.option_size,
+    item.size_name,
+    item.size_label,
+    item.variant_size,
+  );
+  const sugar = firstNonEmptyText(item.sugar, item.sugar_level, item.sugar_snapshot);
+  const ice = firstNonEmptyText(item.ice, item.ice_level, item.ice_snapshot);
+
+  const parts: string[] = [];
+  if (size) {
+    parts.push(/^size\s*:/i.test(size) ? size : `Size: ${size}`);
+  }
+  if (sugar) {
+    parts.push(/đường/i.test(sugar) ? sugar : `Đường: ${sugar}`);
+  }
+  if (ice) {
+    parts.push(/đá/i.test(ice) ? ice : `Đá: ${ice}`);
+  }
+
+  return parts.join(" • ");
+}
+
 /** Extract full topping data list from raw item.toppings */
 function getToppingDataList(item: Record<string, unknown>): ToppingData[] {
   const raw = item.toppings;
@@ -296,19 +365,75 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
               {/* Table header */}
               <div className="mb-2 grid grid-cols-12 gap-3 px-2 text-[10px] font-semibold uppercase tracking-wider text-white/25">
                 <span className="col-span-6">Tên sản phẩm</span>
-                <span className="col-span-3 text-right">Đơn giá</span>
-                <span className="col-span-3 text-center">SL</span>
+                <span className="col-span-2 text-right">Đơn giá</span>
+                <span className="col-span-2 text-center">SL</span>
+                <span className="col-span-2 text-right">Thành tiền</span>
               </div>            <div className="divide-y divide-white/[0.06]">
                 {(order.items ?? []).length === 0 && (
                   <p className="py-6 text-center text-sm text-white/30">Chưa có sản phẩm</p>
                 )}
                 {(order.items ?? []).map((item, idx) => {
-                  const productName = item.product_name_snapshot ?? item.product_name ?? "Sản phẩm";
-                  const price = item.price_snapshot ?? item.price ?? 0;
-                  const qty = item.quantity ?? 0;
-                  const imageUrl = getOrderItemImage(item as Record<string, unknown>, imageMap);
-                  const meta = getOrderItemDisplayMeta(item as Record<string, unknown>);
-                  const toppingDataList = getToppingDataList(item as Record<string, unknown>);
+                  const itemRecord = item as Record<string, unknown>;
+                  const productRecord =
+                    itemRecord.product && typeof itemRecord.product === "object"
+                      ? (itemRecord.product as Record<string, unknown>)
+                      : null;
+
+                  const productName = String(
+                    item.product_name_snapshot ??
+                      item.product_name ??
+                      itemRecord.name ??
+                      productRecord?.name ??
+                      "Sản phẩm",
+                  ).trim() || "Sản phẩm";
+
+                  const rawUnitPrice = Number(
+                    item.price_snapshot ??
+                      item.price ??
+                      itemRecord.unit_price ??
+                      itemRecord.product_cart_price ??
+                      0,
+                  );
+                  const unitPrice = Number.isFinite(rawUnitPrice) && rawUnitPrice > 0 ? rawUnitPrice : 0;
+
+                  const rawQuantity = Number(item.quantity ?? itemRecord.qty ?? 1);
+                  const qty = Number.isFinite(rawQuantity) && rawQuantity > 0 ? rawQuantity : 1;
+
+                  const rawLineTotal = Number(
+                    item.line_total ??
+                      item.subtotal ??
+                      itemRecord.final_line_total ??
+                      itemRecord.lineTotal ??
+                      0,
+                  );
+                  const lineTotal =
+                    Number.isFinite(rawLineTotal) && rawLineTotal > 0
+                      ? rawLineTotal
+                      : unitPrice * qty;
+
+                  const imageUrl = getOrderItemImage(itemRecord, imageMap);
+                  const meta = getOrderItemDisplayMeta(itemRecord);
+                  const toppingDataList = getToppingDataList(itemRecord);
+                  const rawNoteText = firstNonEmptyText(
+                    itemRecord.note,
+                    itemRecord.message,
+                    itemRecord.note_snapshot,
+                    itemRecord.selection_note,
+                    itemRecord.special_instruction,
+                  );
+                  const rawInlineMeta = buildRawCartInlineMeta(itemRecord);
+                  const rawOptionsText = formatRawCartOptions(itemRecord.options);
+
+                  const displayMetaText =
+                    meta.inlineMeta ||
+                    rawInlineMeta ||
+                    (meta.toppings.length === 0 && rawOptionsText ? `Topping: ${rawOptionsText}` : "");
+
+                  const noteText = (meta.noteText || rawNoteText).trim();
+                  const shouldShowNote =
+                    !!noteText &&
+                    (!displayMetaText || noteText.toLowerCase() !== displayMetaText.toLowerCase());
+
                   // Build lookup maps from raw toppings array (for price + productFranchiseId)
                   const toppingRawMap = Object.fromEntries(
                     toppingDataList.map((t) => [t.name.trim().toLowerCase(), t])
@@ -316,8 +441,8 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                   return (
                     <div key={item._id ?? item.id ?? `item-${idx}`}>
                       {/* Main row */}
-                      <div className="grid grid-cols-12 items-center gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-white/[0.04]">
-                        <div className="col-span-6 flex items-center gap-3">
+                      <div className="grid grid-cols-12 items-start gap-3 rounded-xl px-2 py-3 transition-colors hover:bg-white/[0.04]">
+                        <div className="col-span-6 flex items-start gap-3">
                           {/* Product image */}
                           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl overflow-hidden bg-white/[0.06] border border-white/[0.08]">
                             {imageUrl ? (
@@ -326,19 +451,24 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                               <span className="text-lg">☕</span>
                             )}
                           </div>
-                          <div>
-                            <p className="font-semibold text-white/90 leading-snug">{String(productName)}</p>
-                            {meta.inlineMeta && (
-                              <p className="text-[11px] text-white/40 mt-0.5">{meta.inlineMeta}</p>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-white/90 leading-snug break-words">{String(productName)}</p>
+                            {displayMetaText && (
+                              <p className="text-[11px] text-white/40 mt-0.5 break-words">{displayMetaText}</p>
                             )}
-                            {(item as any).note && (
-                              <p className="text-[11px] text-white/35 mt-0.5 italic">"{String((item as any).note)}"</p>
+                            {shouldShowNote && (
+                              <p className="text-[11px] text-white/35 mt-0.5 italic break-words">Ghi chú: "{noteText}"</p>
                             )}
                           </div>
                         </div>
-                        <p className="col-span-3 text-right text-sm text-white/55">{formatCurrency(price)}</p>
-                        <p className="col-span-3 text-center">
+                        <p className="col-span-2 pt-0.5 text-right text-sm text-white/55">
+                          {unitPrice > 0 ? formatCurrency(unitPrice) : "--"}
+                        </p>
+                        <p className="col-span-2 pt-0.5 text-center">
                           <span className="inline-block rounded-lg bg-white/[0.08] px-2.5 py-0.5 text-sm font-bold text-white/80">×{qty}</span>
+                        </p>
+                        <p className="col-span-2 pt-0.5 text-right text-sm font-semibold text-amber-200">
+                          {formatCurrency(lineTotal)}
                         </p>
                       </div>
                       {/* Topping rows — dùng meta.toppings (full source) + tra price/image từ raw */}
@@ -366,10 +496,13 @@ export function OrderDetailContent({ orderId, onClose, onStatusChange }: OrderDe
                                     <span className="text-white/20 shrink-0">└</span>
                                     <span className="text-xs text-white/50 truncate">{tp.name}</span>
                                   </div>                                </div>
-                                <p className="col-span-3 text-right text-xs text-white/40">
+                                <p className="col-span-2 text-right text-xs text-white/40">
                                   {tpPrice > 0 ? formatCurrency(tpPrice) : "—"}
                                 </p>
-                                <p className="col-span-3 text-center text-xs text-white/40">×{tpQty}</p>
+                                <p className="col-span-2 text-center text-xs text-white/40">×{tpQty}</p>
+                                <p className="col-span-2 text-right text-xs text-amber-100/80">
+                                  {tpPrice > 0 ? formatCurrency(tpPrice * tpQty) : "—"}
+                                </p>
                               </div>
                             );
                           })}
@@ -527,9 +660,10 @@ interface OrderDetailModalProps {
   orderId: string | null;
   onClose: () => void;
   onStatusChange?: (orderId: string, newStatus: OrderStatus) => void;
+  variant?: "drawer" | "dialog";
 }
 
-export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDetailModalProps) {
+export function OrderDetailModal({ orderId, onClose, onStatusChange, variant = "drawer" }: OrderDetailModalProps) {
   // Lock body scroll khi modal mở
   useEffect(() => {
     if (!orderId) return;
@@ -538,20 +672,38 @@ export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDeta
     return () => { document.body.style.overflow = prev; };
   }, [orderId]);
 
+  useEffect(() => {
+    if (!orderId) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [onClose, orderId]);
+
   if (!orderId) return null;
+
+  const isDialog = variant === "dialog";
+
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-50 flex">
+    <div className={isDialog ? "fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" : "fixed inset-0 z-50 flex"}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
-      {/* Full-screen panel — solid background, không để lộ content phía sau */}
+      {/* Panel */}
       <div
-        className="relative z-10 ml-auto flex h-full w-full flex-col overflow-hidden"
-        style={{
-          background: "rgb(10, 15, 30)",
-          borderLeft: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.7)",
-        }}
+        role="dialog"
+        aria-modal="true"
+        onClick={(event) => event.stopPropagation()}
+        className={
+          isDialog
+            ? "relative z-10 flex h-[92vh] max-h-[920px] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-[rgb(10,15,30)] shadow-[0_30px_80px_rgba(0,0,0,0.65)]"
+            : "relative z-10 ml-auto flex h-full w-full flex-col overflow-hidden border-l border-white/10 bg-[rgb(10,15,30)] shadow-[-20px_0_60px_rgba(0,0,0,0.7)]"
+        }
       >
         {/* Top bar */}
         <div
@@ -559,16 +711,20 @@ export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDeta
           style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}
         >
           <div className="flex items-center gap-3">
-            <button
-              onClick={onClose}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white"
-            >
-              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
-              Quay lại
-            </button>
-            <div className="h-5 w-px bg-white/10" />
+            {!isDialog && (
+              <>
+                <button
+                  onClick={onClose}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white/50 transition-colors hover:bg-white/[0.08] hover:text-white"
+                >
+                  <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Quay lại
+                </button>
+                <div className="h-5 w-px bg-white/10" />
+              </>
+            )}
             <span className="text-xs text-white/30 uppercase tracking-widest font-medium">Chi tiết đơn hàng</span>
           </div>
           <button
@@ -583,7 +739,7 @@ export function OrderDetailModal({ orderId, onClose, onStatusChange }: OrderDeta
 
         {/* Scrollable content */}
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-7xl px-6 py-6 sm:px-10 sm:py-8">
+          <div className={isDialog ? "px-5 py-5 sm:px-8 sm:py-6" : "mx-auto max-w-7xl px-6 py-6 sm:px-10 sm:py-8"}>
             <OrderDetailContent orderId={orderId} onClose={onClose} onStatusChange={onStatusChange} />
           </div>
         </div>

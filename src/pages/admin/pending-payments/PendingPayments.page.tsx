@@ -343,6 +343,7 @@ export default function PendingPaymentsPage() {
       <OrderDetailModal
         orderId={viewingOrderId}
         onClose={() => setViewingOrderId(null)}
+        variant="dialog"
       />
     </div>
   );
