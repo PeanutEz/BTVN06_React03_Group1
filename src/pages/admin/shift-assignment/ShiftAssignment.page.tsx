@@ -171,10 +171,8 @@ export default function ShiftAssignmentPage() {
     ) => {
         setLoading(true);
         try {
-            // Tìm shift_id theo franchise (nếu có filter franchise)
-            // Backend nhận shift_id, không nhận franchise_id trực tiếp
-            // → filter franchise phía client sau khi lấy data
-            const res: any = await shiftAssignmentService.search(page, ITEMS_PER_PAGE, {
+            // Fetch toàn bộ dữ liệu (pageSize lớn) vì filter franchise/user là client-side
+            const res: any = await shiftAssignmentService.search(1, 10000, {
                 status: status || undefined,
                 is_deleted: false,
             });
@@ -192,10 +190,19 @@ export default function ShiftAssignmentPage() {
                 const matchFranchise = !franchise
                     || shift?.franchise_id === franchise;
                 return matchUser && matchFranchise;
-            });            setData(filtered);
-            setTotalItems(filtered.length);
-            setTotalPages(Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE)));
-            setCurrentPage(res?.pageInfo?.pageNum || 1);
+            });
+
+            // Phân trang client-side
+            const total = filtered.length;
+            const totalPg = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+            const safePage = Math.min(page, totalPg);
+            const start = (safePage - 1) * ITEMS_PER_PAGE;
+            const pageData = filtered.slice(start, start + ITEMS_PER_PAGE);
+
+            setData(pageData);
+            setTotalItems(total);
+            setTotalPages(totalPg);
+            setCurrentPage(safePage);
         } catch (err) {
             console.log(err);
             showError("Lấy danh sách thất bại");
