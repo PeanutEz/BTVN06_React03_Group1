@@ -276,14 +276,13 @@ const ClientHeader = () => {
             {/* Mobile receiving method */}
             <button
               onClick={() => { setMenuOpen(false); openPicker(); }}
-              className={`flex items-center gap-2 w-full px-4 py-2.5 rounded text-sm font-medium transition-colors ${!selectedBranch
+              className={`block w-full text-left px-4 py-2.5 rounded text-sm font-medium transition-colors ${!selectedBranch
                 ? "text-amber-700 bg-amber-50"
                 : orderMode === "PICKUP"
                   ? "text-blue-700 bg-blue-50"
                   : "text-emerald-700 bg-emerald-50"
                 }`}
             >
-              <span>{!selectedBranch ? "🛵" : orderMode === "PICKUP" ? "🏪" : "🛵"}</span>
               <span className="truncate">
                 {!selectedBranch
                   ? "Chọn phương thức nhận hàng"
@@ -293,6 +292,15 @@ const ClientHeader = () => {
               </span>
             </button>
             <div className="h-px bg-gray-200 my-1" />
+            {user && (
+              <Link
+                to={ROUTER_URL.CUSTOMER_ORDER_HISTORY}
+                className="block px-4 py-2.5 text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors text-sm font-medium"
+                onClick={() => setMenuOpen(false)}
+              >
+                Đơn hàng
+              </Link>
+            )}
             <Link
               to={user ? ROUTER_URL.CUSTOMER_PROFILE : ROUTER_URL.LOGIN}
               className="block px-4 py-2.5 text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors text-sm font-medium"
@@ -300,6 +308,23 @@ const ClientHeader = () => {
             >
               {user ? `Tài khoản (${user.name})` : "Đăng nhập"}
             </Link>
+            {user && (
+              <>
+                <Link
+                  to={ROUTER_URL.CUSTOMER_CHANGE_PASSWORD}
+                  className="block px-4 py-2.5 text-gray-700 hover:bg-red-50 hover:text-red-700 rounded transition-colors text-sm font-medium"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Đổi mật khẩu
+                </Link>
+                <button
+                  onClick={() => { setMenuOpen(false); handleLogout(); }}
+                  className="block w-full text-left px-4 py-2.5 text-red-600 hover:bg-red-50 rounded transition-colors text-sm font-medium"
+                >
+                  Đăng xuất
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
