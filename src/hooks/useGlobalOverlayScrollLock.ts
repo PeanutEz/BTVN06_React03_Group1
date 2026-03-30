@@ -22,12 +22,14 @@ function isVisible(element: HTMLElement) {
 }
 
 function getClosestBlockingOverlay(target: HTMLElement) {
-  const overlay = target.closest<HTMLElement>(BLOCKING_OVERLAY_SELECTOR);
-  if (!overlay || !isVisible(overlay)) {
-    return null;
+  let current: HTMLElement | null = target;
+  while (current) {
+    if (current.matches(BLOCKING_OVERLAY_SELECTOR) && isVisible(current)) {
+      return current;
+    }
+    current = current.parentElement;
   }
-
-  return overlay;
+  return null;
 }
 
 function hasScrollableOverflow(element: HTMLElement) {
