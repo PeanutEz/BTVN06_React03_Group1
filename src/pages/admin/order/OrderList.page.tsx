@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "../../../components";
 import { OrderDetailModal } from "./OrderDetail.page";
 import { GlassSearchSelect } from "../../../components/ui";
@@ -42,6 +43,7 @@ const OrderListPage = () => {
   const [assignPopoverId, setAssignPopoverId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [assignSearch, setAssignSearch] = useState("");
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null);
   const assignPopoverRef = useRef<HTMLDivElement | null>(null);
   const loadedFranchiseRef = useRef<string | null>(null);
   const activeFranchiseId = managerFranchiseId ?? selectedFranchiseId;
@@ -50,6 +52,7 @@ const OrderListPage = () => {
     const handler = (e: MouseEvent) => {
       if (assignPopoverRef.current && !assignPopoverRef.current.contains(e.target as Node)) {
         setAssignPopoverId(null);
+        setPopoverPosition(null);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -304,9 +307,19 @@ const OrderListPage = () => {
                               )}
                               {/* Assign — chỉ hiện khi PREPARING */}
                               {order.status === "PREPARING" && (
-                                <div className="relative inline-block" ref={assignPopoverId === String(order._id ?? order.id) ? assignPopoverRef : null}>
+                                <div className="relative inline-block">
                                   <button
-                                    onClick={() => setAssignPopoverId(prev => prev === String(order._id ?? order.id) ? null : String(order._id ?? order.id))}
+                                    onClick={(e) => {
+                                      const currentId = String(order._id ?? order.id);
+                                      if (assignPopoverId === currentId) {
+                                        setAssignPopoverId(null);
+                                        setPopoverPosition(null);
+                                      } else {
+                                        const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                        setAssignPopoverId(currentId);
+                                        setPopoverPosition({ top: rect.bottom + 8, left: rect.right - 224 });
+                                      }
+                                    }}
                                     disabled={assigningId === String(order._id ?? order.id)}
                                     className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-600 transition-colors hover:border-blue-400 hover:bg-blue-100 disabled:opacity-50"
                                     title="Giao việc cho nhân viên (Ready for Pickup)"
@@ -321,8 +334,9 @@ const OrderListPage = () => {
                                         Assign
                                       </>
                                     )}
-                                  </button>                                {assignPopoverId === String(order._id ?? order.id) && (
-                                    <div className="absolute right-0 top-full z-50 mt-1 w-56 rounded-lg border border-slate-600 bg-slate-800 shadow-2xl shadow-black/60">
+                                  </button>
+                                  {assignPopoverId === String(order._id ?? order.id) && popoverPosition && createPortal(
+                                    <div ref={assignPopoverRef} style={{ position: "fixed", top: popoverPosition.top, left: Math.max(8, popoverPosition.left), zIndex: 9999, width: 224 }} className="rounded-lg border border-slate-600 bg-slate-800 shadow-2xl shadow-black/60">
                                       {/* Header */}
                                       <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-700">Chọn nhân viên</p>
                                       {/* Search */}
@@ -362,7 +376,8 @@ const OrderListPage = () => {
                                           );
                                         })()}
                                       </div>
-                                    </div>
+                                    </div>,
+                                    document.body
                                   )}
                                 </div>
                               )}
