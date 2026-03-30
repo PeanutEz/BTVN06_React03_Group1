@@ -8,8 +8,8 @@ import { orderClient } from "../../../services/order.client";
 import { updateOrderStatus } from "../../../services/order.service";
 import { fetchFranchiseSelect } from "../../../services/store.service";
 import type { FranchiseSelectItem } from "../../../services/store.service";
-import { searchUserFranchiseRoles } from "../../../services/user-franchise-role.service";
-import type { UserFranchiseRole } from "../../../services/user-franchise-role.service";
+import { getUsersByFranchiseId } from "../../../services/user-franchise-role.service";
+import type { UserByFranchise } from "../../../services/user-franchise-role.service";
 import Pagination from "../../../components/ui/Pagination";
 import { useManagerFranchiseId } from "../../../hooks/useManagerFranchiseId";
 import { showSuccess, showError } from "../../../utils";
@@ -38,7 +38,7 @@ const OrderListPage = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   // inline status popover
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [staffList, setStaffList] = useState<UserFranchiseRole[]>([]);
+  const [staffList, setStaffList] = useState<UserByFranchise[]>([]);
   const [assignPopoverId, setAssignPopoverId] = useState<string | null>(null);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [assignSearch, setAssignSearch] = useState("");
@@ -84,10 +84,7 @@ const OrderListPage = () => {
     try {
       const [ordersData, staffData] = await Promise.all([
         orderClient.getOrdersByFranchiseId(franchiseId),
-        searchUserFranchiseRoles({
-          searchCondition: { franchise_id: franchiseId, is_deleted: false },
-          pageInfo: { pageNum: 1, pageSize: 100 },
-        }).then(r => r.data).catch(() => [] as UserFranchiseRole[]),
+        getUsersByFranchiseId(franchiseId).catch(() => [] as UserByFranchise[]),
       ]);
       setOrders(ordersData);
       setStaffList(staffData);
@@ -348,19 +345,18 @@ const OrderListPage = () => {
                                       <div className="max-h-52 overflow-y-auto">
                                         {(() => {
                                           const filtered = staffList
-                                            .filter(s => s.role_code === "STAFF" || s.role_code === "SHIPPER")
-                                            .filter(s => !assignSearch.trim() || s.user_name.toLowerCase().includes(assignSearch.toLowerCase()));
+                                            .filter(s => !assignSearch.trim() || s.name.toLowerCase().includes(assignSearch.toLowerCase()));
                                           return filtered.length === 0 ? (
                                             <p className="px-3 py-3 text-xs text-slate-400 text-center">Không có nhân viên</p>
                                           ) : (
                                             filtered.map(s => (
                                               <button
-                                                key={s.id}
-                                                onClick={() => { handleAssign(String(order._id ?? order.id), s.user_id); setAssignSearch(""); }}
+                                                key={s.value}
+                                                onClick={() => { handleAssign(String(order._id ?? order.id), s.value); setAssignSearch(""); }}
                                                 className="w-full px-3 py-2 text-left transition-colors hover:bg-slate-700"
                                               >
-                                                <p className="text-xs font-semibold text-slate-100">{s.user_name}</p>
-                                                <p className="text-[10px] text-slate-400">{s.role_name}</p>
+                                                <p className="text-xs font-semibold text-slate-100">{s.name}</p>
+                                                <p className="text-[10px] text-slate-400">{s.email}</p>
                                               </button>
                                             ))
                                           );
