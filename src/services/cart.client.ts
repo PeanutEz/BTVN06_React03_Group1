@@ -262,9 +262,57 @@ function firstNonEmptyString(...values: unknown[]) {
 function normalizeSizeLabel(raw: string) {
   const size = raw.trim();
   if (!size) return "";
+
+  const sizeValue = size.replace(/^size\s*[:\-]?\s*/i, "").trim();
+  if (/^default$/i.test(sizeValue)) return "";
+
   if (/^size\s+/i.test(size)) return size;
   if (/^(s|m|l|xl|xxl)$/i.test(size)) return size.toUpperCase();
   return size;
+}
+
+function detectSizeFromText(raw: string) {
+  const text = String(raw ?? "").trim();
+  if (!text) return "";
+
+  const explicit = text.match(/(?:size|variant_size|size_name|size_label)\s*[:\-]?\s*(xxl|xl|l|m|s)\b/i);
+  if (explicit?.[1]) return explicit[1].toUpperCase();
+
+  const compact = text.match(/\b(xxl|xl|l|m|s)\b/i);
+  if (compact?.[1]) return compact[1].toUpperCase();
+
+  return "";
+}
+
+function detectSizeFromOptions(options: unknown) {
+  if (!Array.isArray(options)) return "";
+
+  for (const option of options) {
+    if (!option || typeof option !== "object") continue;
+
+    const optionRecord = option as Record<string, unknown>;
+    const nestedProduct =
+      optionRecord.product && typeof optionRecord.product === "object"
+        ? (optionRecord.product as Record<string, unknown>)
+        : null;
+
+    const optionText = firstNonEmptyString(
+      optionRecord.size,
+      optionRecord.size_name,
+      optionRecord.size_label,
+      optionRecord.option_size,
+      optionRecord.product_name_snapshot,
+      optionRecord.product_name,
+      optionRecord.name,
+      optionRecord.option_name,
+      nestedProduct?.name,
+    );
+
+    const parsed = detectSizeFromText(optionText);
+    if (parsed) return parsed;
+  }
+
+  return "";
 }
 
 export function getCartItemSize(item: ApiCartItem): string | undefined {
@@ -273,10 +321,22 @@ export function getCartItemSize(item: ApiCartItem): string | undefined {
     raw.product && typeof raw.product === "object"
       ? (raw.product as Record<string, unknown>)
       : null;
-  const options =
-    raw.options && typeof raw.options === "object"
+  const optionsRecord =
+    raw.options && !Array.isArray(raw.options) && typeof raw.options === "object"
       ? (raw.options as Record<string, unknown>)
       : null;
+
+  const sizeFromOptions = detectSizeFromOptions(raw.options);
+  const sizeFromNote = detectSizeFromText(getCartItemNote(item));
+  const sizeFromName = detectSizeFromText(
+    firstNonEmptyString(
+      raw.product_name_snapshot,
+      raw.product_name,
+      raw.name,
+      product?.name,
+      product?.product_name,
+    ),
+  );
 
   const direct = firstNonEmptyString(
     raw.size,
@@ -288,9 +348,12 @@ export function getCartItemSize(item: ApiCartItem): string | undefined {
     product?.size,
     product?.size_name,
     product?.size_label,
-    options?.size,
-    options?.size_name,
-    options?.size_label,
+    optionsRecord?.size,
+    optionsRecord?.size_name,
+    optionsRecord?.size_label,
+    sizeFromOptions,
+    sizeFromNote,
+    sizeFromName,
   );
 
   return direct ? normalizeSizeLabel(direct) : undefined;

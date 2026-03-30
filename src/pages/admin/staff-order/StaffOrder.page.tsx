@@ -113,6 +113,20 @@ const FRANCHISE_LOADING_MIN_MS = 1200;
 const fmtCurrency = (value: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
+function normalizeCartItemSize(value: unknown): string | undefined {
+  const raw = String(value ?? "").trim();
+  if (!raw) return undefined;
+
+  const normalized = raw.replace(/^size\s*[:\-]?\s*/i, "").trim();
+  if (!normalized || /^default$/i.test(normalized)) return undefined;
+
+  if (/^(s|m|l|xl|xxl)$/i.test(normalized)) {
+    return normalized.toUpperCase();
+  }
+
+  return normalized;
+}
+
 function resolvePaymentField(payment: PaymentData, key: string) {
   const record = asRecord(payment);
   const rawValue = record?.[key];
@@ -740,7 +754,7 @@ function CheckoutDialog({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="line-clamp-1 text-sm font-semibold text-slate-900">{item.name}</p>
+                        <p className="text-sm font-semibold text-slate-900 break-words">{item.name}</p>
                         <p className="mt-1 text-xs text-slate-500">SL: {item.quantity}</p>
                         {item.size && <p className="mt-1 text-xs text-slate-500">Size: {item.size}</p>}
                         {(item.sugar || item.ice) && (
@@ -753,7 +767,10 @@ function CheckoutDialog({
                         {item.toppingsText && (
                           <p className="mt-1 text-xs text-slate-500">Topping: {item.toppingsText}</p>
                         )}
-                        {item.note && <p className="mt-1 line-clamp-2 text-xs italic text-slate-500">Ghi chú: {item.note}</p>}
+                        {!item.size && !item.sugar && !item.ice && !item.toppingsText && (
+                          <p className="mt-1 text-xs text-slate-400">Tùy chọn: mặc định</p>
+                        )}
+                        {item.note && <p className="mt-1 text-xs italic text-slate-500 break-words">Ghi chú: {item.note}</p>}
                       </div>
 
                       <span className="shrink-0 text-sm font-bold text-slate-900">{fmtCurrency(item.lineTotal)}</span>
@@ -882,7 +899,7 @@ function CheckoutDialog({
                   )}
 
                   {pricingSummary.voucherDiscount > 0 && (
-                    <div className="flex items-center justify-between gap-4 text-rose-600">
+                    <div className="flex items-center justify-between gap-4 font-[600] text-orange-500">
                       <span>
                         Giảm voucher
                         {formatDiscountTypeText(pricingSummary.voucherType, pricingSummary.voucherValue)}
@@ -1004,6 +1021,7 @@ export default function StaffOrderPage() {
   const [editingCartItem, setEditingCartItem] = useState<StaffCartEditState | null>(null);
   const [draftCartItemsByFranchise, setDraftCartItemsByFranchise] = useState<Record<string, StaffCartItemView[]>>({});
   const [removingCartItemId, setRemovingCartItemId] = useState<string | null>(null);
+  const [adjustingCartItemId, setAdjustingCartItemId] = useState<string | null>(null);
   const [paymentModal, setPaymentModal] = useState<PaymentModalState>(EMPTY_PAYMENT_MODAL_STATE);
   const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
   const [openingPendingPaymentId, setOpeningPendingPaymentId] = useState<string | null>(null);
@@ -1564,6 +1582,30 @@ export default function StaffOrderPage() {
   }, [selectedCategoryId, visibleProducts, categories, categoryOrderMap]);
 
   const cartItems = useMemo<StaffCartItemView[]>(() => {
+    const productById = new Map<string, ClientProductListItem>();
+    const productFranchiseMetaByIdFromMenu = new Map<string, ProductFranchiseMeta>();
+
+    (productsQuery.data ?? []).forEach((product) => {
+      const productId = String(product.product_id ?? "").trim();
+      if (productId) {
+        productById.set(productId, product);
+      }
+
+      (Array.isArray(product.sizes) ? product.sizes : []).forEach((size) => {
+        const productFranchiseId = String(size.product_franchise_id ?? "").trim();
+        if (!productFranchiseId) return;
+
+        productFranchiseMetaByIdFromMenu.set(productFranchiseId, {
+          productId,
+          productName: product.name,
+          image: product.image_url,
+          categoryName: product.category_name,
+          size: normalizeCartItemSize(size.size),
+          price: Number(size.price ?? 0),
+        });
+      });
+    });
+
     const rawItems = getCartItems(activeCartQuery.data ?? undefined);
     const apiCartItems = rawItems.map((item, index) => {
       const itemNote = getCartItemNote(item);
@@ -1577,30 +1619,135 @@ export default function StaffOrderPage() {
           ? (itemRecord.product as Record<string, unknown>)
           : null;
 
+      const apiProductIdFromCart = getCartItemProductId(item);
+      const matchedProduct = apiProductIdFromCart
+        ? productById.get(apiProductIdFromCart)
+        : undefined;
+
+      const fallbackProductFranchiseId = String(
+        itemRecord.product_franchise_id ??
+          itemRecord.productFranchiseId ??
+          productRecord?.product_franchise_id ??
+          productRecord?.productFranchiseId ??
+          "",
+      ).trim();
+
+      const fallbackSingleSize =
+        !fallbackProductFranchiseId && matchedProduct && matchedProduct.sizes.length === 1
+          ? matchedProduct.sizes[0]
+          : undefined;
+
+      const resolvedProductFranchiseId =
+        fallbackProductFranchiseId ||
+        String(fallbackSingleSize?.product_franchise_id ?? "").trim() ||
+        undefined;
+
+      const baseMeta = resolvedProductFranchiseId
+        ? productFranchiseMetaByIdFromMenu.get(resolvedProductFranchiseId)
+        : undefined;
+
+      const hydratedOptions = options.map((option) => {
+        const optionProductFranchiseId = String(option.product_franchise_id ?? "").trim();
+        const optionMeta = optionProductFranchiseId
+          ? productFranchiseMetaByIdFromMenu.get(optionProductFranchiseId)
+          : undefined;
+
+        const optionName = String(
+          option.product_name ??
+            option.product_name_snapshot ??
+            option.name ??
+            optionMeta?.productName ??
+            "",
+        ).trim();
+
+        const rawOptionPrice = Number(
+          option.price ?? option.final_price ?? option.price_snapshot ?? optionMeta?.price ?? 0,
+        );
+        const optionPrice =
+          Number.isFinite(rawOptionPrice) && rawOptionPrice > 0
+            ? rawOptionPrice
+            : undefined;
+
+        return {
+          ...option,
+          product_name: optionName || undefined,
+          price: optionPrice,
+        };
+      });
+
+      const rawQuantity = Number(item.quantity ?? itemRecord.quantity ?? 1);
+      const quantity = Number.isFinite(rawQuantity) && rawQuantity > 0 ? rawQuantity : 1;
+
+      const resolvedNameFromApi = getCartItemName(item);
+      const fallbackName = matchedProduct?.name ?? baseMeta?.productName;
+      const resolvedName =
+        resolvedNameFromApi === "Sản phẩm" && fallbackName
+          ? fallbackName
+          : resolvedNameFromApi;
+
+      const resolvedImage =
+        getCartItemImage(item) || matchedProduct?.image_url || baseMeta?.image || "";
+
+      const resolvedSize = normalizeCartItemSize(
+        getCartItemSize(item) ||
+          baseMeta?.size ||
+          String(fallbackSingleSize?.size ?? "").trim() ||
+          undefined,
+      );
+
+      const resolvedCategoryName =
+        String(
+          itemRecord.category_name ??
+            productRecord?.category_name ??
+            matchedProduct?.category_name ??
+            baseMeta?.categoryName ??
+            "",
+        ).trim() || undefined;
+
+      const apiUnitPrice = getCartItemUnitPrice(item);
+      const toppingsTotal = hydratedOptions.reduce((sum, option) => {
+        const optionPrice = Number(option.price ?? 0);
+        const optionQuantity = Math.max(1, Number(option.quantity ?? 1));
+        return sum + (Number.isFinite(optionPrice) ? optionPrice : 0) * optionQuantity;
+      }, 0);
+      const fallbackUnitPrice = Math.max(
+        0,
+        Number(baseMeta?.price ?? fallbackSingleSize?.price ?? matchedProduct?.sizes?.[0]?.price ?? 0),
+      ) + toppingsTotal;
+      const unitPrice = apiUnitPrice > 0 ? apiUnitPrice : fallbackUnitPrice;
+
+      const apiLineTotal = getCartItemLineTotal(item);
+      const lineTotal = apiLineTotal > 0 ? apiLineTotal : unitPrice * quantity;
+
       return {
         id: getCartItemId(item) ?? `cart-item-${index}`,
-        name: getCartItemName(item),
-        image: getCartItemImage(item),
-        quantity: item.quantity ?? 1,
-        unitPrice: getCartItemUnitPrice(item),
-        lineTotal: getCartItemLineTotal(item),
-        apiProductId: getCartItemProductId(item),
-        apiProductFranchiseId: String(itemRecord.product_franchise_id ?? "").trim() || undefined,
-        apiCategoryName: String(itemRecord.category_name ?? productRecord?.category_name ?? "").trim() || undefined,
-        apiOptions: options,
-        size: getCartItemSize(item),
+        name: resolvedName,
+        image: resolvedImage,
+        quantity,
+        unitPrice,
+        lineTotal,
+        apiProductId: apiProductIdFromCart ?? baseMeta?.productId,
+        apiProductFranchiseId: resolvedProductFranchiseId,
+        apiCategoryName: resolvedCategoryName,
+        apiOptions: hydratedOptions,
+        size: resolvedSize,
         sugar: parsed.sugar,
         ice: parsed.ice,
         editToppings: expandToppingsForEdit(parsed.toppings),
         toppingsText:
-          formatCartOptionsSummary((options as Array<{ product_franchise_id: string; quantity: number }> | undefined) ?? undefined) ||
+          formatCartOptionsSummary(
+            (hydratedOptions as Array<{ product_franchise_id: string; quantity: number }> | undefined) ?? undefined,
+          ) ||
           formatToppingsSummary(parsed.toppings),
         note: stripGeneratedCartNote(itemNote),
       };
     });
 
-    return [...apiCartItems, ...currentDraftCartItems];
-  }, [activeCartQuery.data, currentDraftCartItems]);
+    return [...apiCartItems, ...currentDraftCartItems].map((entry) => ({
+      ...entry,
+      size: normalizeCartItemSize(entry.size),
+    }));
+  }, [activeCartQuery.data, currentDraftCartItems, productsQuery.data]);
 
   const activeCartId = useMemo(
     () => String(activeCartQuery.data?._id ?? activeCartQuery.data?.id ?? "").trim(),
@@ -1632,7 +1779,7 @@ export default function StaffOrderPage() {
           productName: product.name,
           image: product.image_url,
           categoryName: product.category_name,
-          size: String(size.size ?? "").trim() || undefined,
+          size: normalizeCartItemSize(size.size),
           price: Number(size.price ?? 0),
         });
       });
@@ -1703,7 +1850,7 @@ export default function StaffOrderPage() {
         baseMeta?.categoryName ||
         undefined,
       apiOptions: hydratedOptions,
-      size: baseMeta?.size,
+      size: normalizeCartItemSize(baseMeta?.size),
       sugar: parsed.sugar,
       ice: parsed.ice,
       editToppings: expandToppingsForEdit(parsed.toppings),
@@ -2021,6 +2168,80 @@ export default function StaffOrderPage() {
     },
   });
 
+  const cartQuantityMutation = useMutation({
+    mutationFn: async (payload: { item: StaffCartItemView; nextQuantity: number }) => {
+      const safeQuantity = Math.max(0, payload.nextQuantity);
+
+      if (payload.item.isLocal) {
+        if (!effectiveFranchiseId) {
+          return { isLocal: true };
+        }
+
+        setDraftCartItemsByFranchise((current) => {
+          const currentItems = current[effectiveFranchiseId] ?? [];
+          const nextItems = currentItems.flatMap((entry) => {
+            if (entry.id !== payload.item.id) return [entry];
+            if (safeQuantity <= 0) return [];
+
+            return [
+              {
+                ...entry,
+                quantity: safeQuantity,
+                lineTotal: entry.unitPrice * safeQuantity,
+                draftPayload: entry.draftPayload
+                  ? {
+                      ...entry.draftPayload,
+                      quantity: safeQuantity,
+                    }
+                  : entry.draftPayload,
+              },
+            ];
+          });
+
+          return {
+            ...current,
+            [effectiveFranchiseId]: nextItems,
+          };
+        });
+
+        return { isLocal: true };
+      }
+
+      if (safeQuantity <= 0) {
+        await posService.deleteCartItem(payload.item.id);
+        return { isLocal: false };
+      }
+
+      await posService.updateCartItemQuantity(payload.item.id, safeQuantity);
+      return { isLocal: false };
+    },
+    onMutate: ({ item }) => {
+      setAdjustingCartItemId(item.id);
+    },
+    onSuccess: async (_data, payload) => {
+      if (payload.item.isLocal) return;
+      await queryClient.invalidateQueries({
+        queryKey: ["staff-order-active-cart", selectedCustomer?.id, effectiveFranchiseId],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["pending-payments-page", effectiveFranchiseId] });
+    },
+    onError: (error) => {
+      showError(error instanceof Error ? error.message : "Không thể cập nhật số lượng sản phẩm.");
+    },
+    onSettled: () => {
+      setAdjustingCartItemId(null);
+    },
+  });
+
+  const handleAdjustCartItemQuantity = (item: StaffCartItemView, delta: number) => {
+    if (cartQuantityMutation.isPending || cartRemoveMutation.isPending) return;
+
+    const nextQuantity = Math.max(0, item.quantity + delta);
+    if (nextQuantity === item.quantity) return;
+
+    cartQuantityMutation.mutate({ item, nextQuantity });
+  };
+
   const cartRemoveMutation = useMutation({
     mutationFn: async (item: StaffCartItemView) => {
       if (item.isLocal) {
@@ -2268,12 +2489,14 @@ export default function StaffOrderPage() {
     cartItems.length > 0 &&
     !cancelCartMutation.isPending &&
     !checkoutMutation.isPending &&
-    !syncDraftCartMutation.isPending;
+    !syncDraftCartMutation.isPending &&
+    !cartQuantityMutation.isPending;
   const canCheckoutCurrentCart =
     !!selectedCustomer &&
     cartItems.length > 0 &&
     !checkoutMutation.isPending &&
-    !syncDraftCartMutation.isPending;
+    !syncDraftCartMutation.isPending &&
+    !cartQuantityMutation.isPending;
   const checkoutHint = !selectedCustomer
     ? "Chọn customer để mở checkout."
     : currentDraftCartItems.length > 0
@@ -2890,103 +3113,150 @@ export default function StaffOrderPage() {
                   ) : (
                     <div className="min-h-0 flex-1 overflow-y-auto p-3 pr-2">
                       <div className="space-y-3 pr-1">
-                        {cartItems.map((item) => (
-                          <div key={item.id} className="staff-cart-item-card rounded-[18px] border border-white/10 bg-[rgba(69,67,70,0.84)] p-3 shadow-[0_12px_28px_rgba(15,23,42,0.18)] backdrop-blur-lg">
-                            <div className="flex gap-2.5">
-                              {item.image ? (
-                                <img src={item.image} alt={item.name} className="h-10 w-10 rounded-lg object-cover" />
-                              ) : (
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-lg">🍽️</div>
-                              )}
+                        {cartItems.map((item) => {
+                          const isRemovingItem = removingCartItemId === item.id;
+                          const isAdjustingItem = adjustingCartItemId === item.id;
+                          const isItemBusy = isRemovingItem || isAdjustingItem;
+                          const isQuantityActionDisabled =
+                            isItemBusy ||
+                            cartQuantityMutation.isPending ||
+                            cartRemoveMutation.isPending;
 
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <p className="line-clamp-1 text-sm font-semibold leading-tight text-white/95">{item.name}</p>
-                                    <p className="mt-0.5 text-xs text-slate-500">🏪 {selectedFranchise?.name ?? "Hylux"}</p>
-                                    {item.size && <p className="mt-0.5 text-[11px] font-medium text-sky-200">Size: {item.size}</p>}
-                                    {item.isLocal && (
-                                      <p className="mt-1 text-[11px] font-medium text-amber-700">Giỏ tạm - chờ gắn vào customer</p>
+                          return (
+                            <div key={item.id} className="staff-cart-item-card rounded-[18px] border border-white/10 bg-[rgba(69,67,70,0.84)] p-3 shadow-[0_12px_28px_rgba(15,23,42,0.18)] backdrop-blur-lg">
+                              <div className="flex gap-2.5">
+                                {item.image ? (
+                                  <img src={item.image} alt={item.name} className="h-10 w-10 rounded-lg object-cover" />
+                                ) : (
+                                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-lg">🍽️</div>
+                                )}
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <p className="line-clamp-1 text-sm font-semibold leading-tight text-white/95">{item.name}</p>
+                                      <p className="mt-0.5 text-xs text-slate-500">🏪 {selectedFranchise?.name ?? "Hylux"}</p>
+                                      {item.size && <p className="mt-0.5 text-[11px] font-medium text-sky-200">Size: {item.size}</p>}
+                                      {item.isLocal && (
+                                        <p className="mt-1 text-[11px] font-medium text-amber-700">Giỏ tạm - chờ gắn vào customer</p>
+                                      )}
+                                    </div>
+
+                                    <div className="flex shrink-0 items-center gap-0.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => !item.isLocal && handleOpenCartItemEdit(item)}
+                                        disabled={item.isLocal || isItemBusy}
+                                        className={cn(
+                                          "inline-flex h-6 items-center gap-1 rounded-md border border-amber-300/20 bg-amber-300/12 px-2 text-[11px] font-medium text-amber-100 transition",
+                                          item.isLocal || isItemBusy
+                                            ? "cursor-not-allowed opacity-60"
+                                            : "hover:bg-amber-300/20",
+                                        )}
+                                        title={item.isLocal ? "Chọn customer để đồng bộ rồi mới sửa món" : "Sửa món"}
+                                      >
+                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232 18.768 8.768M7 17h3l8.5-8.5a2.121 2.121 0 0 0-3-3L7 14v3z" />
+                                        </svg>
+                                        <span>Sửa</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => cartRemoveMutation.mutate(item)}
+                                        disabled={cartRemoveMutation.isPending || cartQuantityMutation.isPending}
+                                        className={cn(
+                                          "flex h-5 w-5 items-center justify-center rounded transition",
+                                          isRemovingItem
+                                            ? "cursor-wait bg-rose-400/10 text-rose-200"
+                                            : "text-white/45 hover:bg-rose-400/10 hover:text-rose-200",
+                                        )}
+                                        aria-label="Xóa sản phẩm"
+                                      >
+                                        {isRemovingItem ? (
+                                          <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                          </svg>
+                                        ) : (
+                                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7 18.133 19.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M4 7h16" />
+                                          </svg>
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                    {item.sugar && (
+                                      <span className="rounded-full border border-white/10 bg-white/8 px-2 py-0.5 text-[11px] font-medium text-slate-200">
+                                        Đường: {item.sugar}
+                                      </span>
+                                    )}
+                                    {item.ice && (
+                                      <span className="rounded-full border border-cyan-200/10 bg-cyan-300/12 px-2 py-0.5 text-[11px] font-medium text-cyan-100">
+                                        Đá: {item.ice}
+                                      </span>
                                     )}
                                   </div>
 
-                                  <div className="flex shrink-0 items-center gap-0.5">
-                                    <button
-                                      type="button"
-                                      onClick={() => !item.isLocal && handleOpenCartItemEdit(item)}
-                                      disabled={item.isLocal}
-                                      className="inline-flex h-6 items-center gap-1 rounded-md border border-amber-300/20 bg-amber-300/12 px-2 text-[11px] font-medium text-amber-100 transition hover:bg-amber-300/20"
-                                      title={item.isLocal ? "Chọn customer để đồng bộ rồi mới sửa món" : "Sửa món"}
-                                    >
-                                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232 18.768 8.768M7 17h3l8.5-8.5a2.121 2.121 0 0 0-3-3L7 14v3z" />
-                                      </svg>
-                                      <span>Sửa</span>
-                                    </button>
+                                  {item.toppingsText && (
+                                    <p className="mt-1 text-[11px] leading-tight text-amber-800">
+                                      <span className="font-medium text-amber-700">Topping:</span>{" "}
+                                      <span>{item.toppingsText}</span>
+                                    </p>
+                                  )}
 
-                                    <button
-                                      type="button"
-                                      onClick={() => cartRemoveMutation.mutate(item)}
-                                      disabled={cartRemoveMutation.isPending}
-                                      className={cn(
-                                        "flex h-5 w-5 items-center justify-center rounded transition",
-                                        removingCartItemId === item.id
-                                          ? "cursor-wait bg-rose-400/10 text-rose-200"
-                                          : "text-white/45 hover:bg-rose-400/10 hover:text-rose-200",
-                                      )}
-                                      aria-label="Xóa sản phẩm"
-                                    >
-                                      {removingCartItemId === item.id ? (
-                                        <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                        </svg>
-                                      ) : (
-                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7 18.133 19.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3M4 7h16" />
-                                        </svg>
-                                      )}
-                                    </button>
+                                  {item.note && (
+                                    <p className="mt-1 text-xs italic text-slate-500"><span className="font-medium">Ghi chú:</span> {item.note}</p>
+                                  )}
+
+                                  <div className="mt-2 flex items-center justify-between">
+                                    <div className="inline-flex items-center gap-1 rounded-md border border-amber-300/15 bg-amber-300/12 px-1 py-0.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAdjustCartItemQuantity(item, -1)}
+                                        disabled={isQuantityActionDisabled}
+                                        className={cn(
+                                          "flex h-5 w-5 items-center justify-center rounded text-xs font-bold transition",
+                                          isQuantityActionDisabled
+                                            ? "cursor-not-allowed text-amber-100/40"
+                                            : "text-amber-100 hover:bg-amber-200/15",
+                                        )}
+                                        aria-label="Giảm số lượng"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="min-w-6 text-center text-xs font-semibold text-amber-100">
+                                        {isAdjustingItem ? (
+                                          <svg className="mx-auto h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                                          </svg>
+                                        ) : item.quantity}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAdjustCartItemQuantity(item, 1)}
+                                        disabled={isQuantityActionDisabled}
+                                        className={cn(
+                                          "flex h-5 w-5 items-center justify-center rounded text-xs font-bold transition",
+                                          isQuantityActionDisabled
+                                            ? "cursor-not-allowed text-amber-100/40"
+                                            : "text-amber-100 hover:bg-amber-200/15",
+                                        )}
+                                        aria-label="Tăng số lượng"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                    <span className="text-sm font-bold text-white/95">{fmtCurrency(item.lineTotal)}</span>
                                   </div>
-                                </div>
-
-                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                                  {item.sugar && (
-                                    <span className="rounded-full border border-white/10 bg-white/8 px-2 py-0.5 text-[11px] font-medium text-slate-200">
-                                      Đường: {item.sugar}
-                                    </span>
-                                  )}
-                                  {item.ice && (
-                                    <span className="rounded-full border border-cyan-200/10 bg-cyan-300/12 px-2 py-0.5 text-[11px] font-medium text-cyan-100">
-                                      Đá: {item.ice}
-                                    </span>
-                                  )}
-                                </div>
-
-                                {item.toppingsText && (
-                                  <p className="mt-1 text-[11px] leading-tight text-amber-800">
-                                    <span className="font-medium text-amber-700">Topping:</span>{" "}
-                                    <span>{item.toppingsText}</span>
-                                  </p>
-                                )}
-
-                                {item.note && (
-                                  <p className="mt-1 text-xs italic text-slate-500"><span className="font-medium">Ghi chú:</span> {item.note}</p>
-                                )}
-
-                                <div className="mt-2 flex items-center justify-between">
-                                  <span className="inline-flex items-center gap-1 rounded-md border border-amber-300/15 bg-amber-300/12 px-1.5 py-0.5 text-xs font-semibold text-amber-100">
-                                    <svg className="h-2.5 w-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 2h12l1 5H5l1-5zm0 5h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7z" />
-                                    </svg>
-                                    {item.quantity}
-                                  </span>
-                                  <span className="text-sm font-bold text-white/95">{fmtCurrency(item.lineTotal)}</span>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

@@ -30,6 +30,66 @@ const normalizeText = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+const NO_CUSTOMIZATION_CATEGORY_KEYWORDS = [
+  "topping",
+  "bakery",
+  "pastry",
+  "cake",
+  "bread",
+  "banh",
+  "dessert",
+  "nuoc dong chai",
+  "dong chai",
+  "bottled water",
+] as const;
+
+const NO_TOPPING_CATEGORY_KEYWORDS = [
+  "coffee",
+  "vietnamese coffee",
+  "ca phe",
+  "cafe",
+  "caffe",
+  "non-coffee",
+  "non coffee",
+  "chocolate",
+  "smoothie",
+  "sinh to",
+  "juice",
+  "nuoc ep",
+] as const;
+
+const TOPPING_EXCLUSION_RULES_BY_CATEGORY = [
+  {
+    // Tea-latte drinks: hide coffee-shot style toppings.
+    categoryKeywords: ["tea", "latte"],
+    excludedToppingKeywords: ["shot", "espresso"],
+  },
+] as const;
+
+const isNoCustomizationCategory = (categoryName: unknown) => {
+  const normalized = normalizeText(categoryName);
+  return NO_CUSTOMIZATION_CATEGORY_KEYWORDS.some((keyword) => normalized.includes(keyword));
+};
+
+const isNoToppingCategory = (categoryName: unknown) => {
+  const normalized = normalizeText(categoryName);
+  return NO_TOPPING_CATEGORY_KEYWORDS.some((keyword) => normalized.includes(keyword));
+};
+
+const getExcludedToppingKeywords = (categoryName: unknown) => {
+  const normalizedCategory = normalizeText(categoryName);
+  const excluded = new Set<string>();
+
+  for (const rule of TOPPING_EXCLUSION_RULES_BY_CATEGORY) {
+    if (!rule.categoryKeywords.some((keyword) => normalizedCategory.includes(keyword))) continue;
+    for (const keyword of rule.excludedToppingKeywords) {
+      excluded.add(keyword);
+    }
+  }
+
+  return Array.from(excluded);
+};
+
 function waitForNextPaint() {
   if (typeof window === "undefined") {
     return Promise.resolve();
@@ -358,8 +418,11 @@ export default function MenuProductModal({
       setIsToppingsResolved(false);
       return;
     }
-    const isToppingProductByCategory = normalizeText((product as any)?._apiCategoryName).includes("topping");
-    if (isToppingProductByCategory) {
+    const resolvedCategoryName =
+      (product as any)?._apiCategoryName ??
+      (product as any)?.apiCategoryName ??
+      "";
+    if (isNoCustomizationCategory(resolvedCategoryName) || isNoToppingCategory(resolvedCategoryName)) {
       setApiToppings([]);
       setToppingQtys({});
       setIsToppingsResolved(true);
@@ -531,11 +594,23 @@ export default function MenuProductModal({
   })();
 
   // Derive category info from API-enriched product or fallback
-  const categoryName = (product as any)._apiCategoryName ?? "";
-  const isToppingProduct = normalizeText(categoryName).includes("topping");
+  const categoryName = String(
+    (product as any)._apiCategoryName ??
+    (product as any).apiCategoryName ??
+    productDetail?.category_name ??
+    "",
+  ).trim();
+  const shouldHideCustomizationOptions = isNoCustomizationCategory(categoryName);
+  const shouldHideToppingOptions = shouldHideCustomizationOptions || isNoToppingCategory(categoryName);
+  const excludedToppingKeywords = getExcludedToppingKeywords(categoryName);
 
   // Use API toppings only (no static fallback)
-  const displayToppings = isToppingProduct ? [] : apiToppings;
+  const displayToppings = shouldHideToppingOptions
+    ? []
+    : apiToppings.filter((topping) => {
+        const normalizedToppingName = normalizeText(topping.name);
+        return !excludedToppingKeywords.some((keyword) => normalizedToppingName.includes(keyword));
+      });
 
   const toppingTotal = displayToppings.reduce((sum, t) => sum + t.price * (toppingQtys[t.id] ?? 0), 0);
   const basePrice = selectedSize ? sizePrice(selectedSize as ApiSize & { price_base?: number }) : product.price;
@@ -593,8 +668,8 @@ export default function MenuProductModal({
       return false;
     })();
 
-    const sugarChanged = isToppingProduct ? false : (initSugar !== undefined ? initSugar !== sugar : false);
-    const iceChanged = isToppingProduct ? false : (initIce !== undefined ? initIce !== ice : false);
+    const sugarChanged = shouldHideCustomizationOptions ? false : (initSugar !== undefined ? initSugar !== sugar : false);
+    const iceChanged = shouldHideCustomizationOptions ? false : (initIce !== undefined ? initIce !== ice : false);
     const noteChanged = initNote !== note.trim();
 
     const quantityChanged = initialQuantity !== undefined ? initialQuantity !== quantity : false;
@@ -614,7 +689,7 @@ export default function MenuProductModal({
         Array(toppingQtys[t.id] ?? 0).fill(t),
       );
       const currentUserNote = note.trim() || undefined;
-      const currentApiNote = isToppingProduct
+      const currentApiNote = shouldHideCustomizationOptions
         ? currentUserNote
         : buildCartSelectionNote({
             sugar,
@@ -636,9 +711,9 @@ export default function MenuProductModal({
         apiProductId: (product as any)?._apiProductId as string | undefined,
         apiProductFranchiseId: selectedSize?.product_franchise_id as string | undefined,
         size: selectedSize?.size,
-        sugar: isToppingProduct ? undefined : sugar,
-        ice: isToppingProduct ? undefined : ice,
-        toppings: isToppingProduct ? undefined : (toppingAgg.length ? toppingAgg : undefined),
+        sugar: shouldHideCustomizationOptions ? undefined : sugar,
+        ice: shouldHideCustomizationOptions ? undefined : ice,
+        toppings: shouldHideToppingOptions ? undefined : (toppingAgg.length ? toppingAgg : undefined),
         note: currentApiNote,
       };
     };
@@ -646,7 +721,7 @@ export default function MenuProductModal({
     // Chỉ dùng in-place khi không có topping MỚI (thêm topping mới có thể khiến API tạo dòng riêng → duplicate).
     // Khi có topping mới (prevQty === 0, nextQty > 0) luôn dùng delete+add để thay thế 1 item bằng 1 item.
     const hasNewTopping =
-      !isToppingProduct &&
+      !shouldHideToppingOptions &&
       initToppingQtys &&
       displayToppings.some((t) => (initToppingQtys[t.id] ?? 0) === 0 && (toppingQtys[t.id] ?? 0) > 0);
 
@@ -722,7 +797,7 @@ export default function MenuProductModal({
       Array(toppingQtys[t.id] ?? 0).fill(t)
     );
     const userNote = note.trim() || undefined;
-    const apiNote = isToppingProduct
+    const apiNote = shouldHideCustomizationOptions
       ? userNote
       : buildCartSelectionNote({
           sugar,
@@ -765,7 +840,7 @@ export default function MenuProductModal({
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
-    const submitSelectionDesc = isToppingProduct
+    const submitSelectionDesc = shouldHideCustomizationOptions
       ? `Size ${selectedSize?.size}${note.trim() ? ` • "${note.trim()}"` : ""}`
       : `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${submitToppingDesc ? ` • ${submitToppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`;
     const submitSuccessVerb = replaceApiItemId ? "cập nhật" : "thêm";
@@ -855,7 +930,7 @@ export default function MenuProductModal({
       .filter((t) => (toppingQtys[t.id] ?? 0) > 0)
       .map((t) => `${t.name}${toppingQtys[t.id]! > 1 ? ` x${toppingQtys[t.id]}` : ""}`)
       .join(", ");
-    const selectionDesc = isToppingProduct
+    const selectionDesc = shouldHideCustomizationOptions
       ? `Size ${selectedSize?.size}${note.trim() ? ` • "${note.trim()}"` : ""}`
       : `Size ${selectedSize?.size} • ${sugar} đường • ${ice}${toppingDesc ? ` • ${toppingDesc}` : ""}${note.trim() ? ` • "${note.trim()}"` : ""}`;
     toast.success(`Đã cập nhật "${product.name}" trong giỏ!`, {
@@ -879,7 +954,7 @@ export default function MenuProductModal({
 
       {/* Modal */}
       <div
-        className="relative flex max-h-[92dvh] min-h-0 w-full flex-col overflow-hidden bg-white text-black shadow-2xl sm:max-h-[88dvh] sm:max-w-lg sm:rounded-2xl"
+        className="relative flex h-[92dvh] min-h-[92dvh] w-full flex-col overflow-hidden bg-white text-black shadow-2xl sm:h-[88dvh] sm:min-h-[88dvh] sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header + image */}
@@ -1008,7 +1083,7 @@ export default function MenuProductModal({
                 )}
               </div>
 
-              {!isToppingProduct && (
+              {!shouldHideCustomizationOptions && (
                 <>
                   {/* Sugar */}
                   <div>
@@ -1067,7 +1142,7 @@ export default function MenuProductModal({
                 />
               </div>
 
-              {!isToppingProduct && (
+              {!shouldHideToppingOptions && (
                 <div>
                   <SectionLabel>Topping (tuỳ chọn)</SectionLabel>
                   {displayToppings.length === 0 ? (

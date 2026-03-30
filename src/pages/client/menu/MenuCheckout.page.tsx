@@ -16,6 +16,7 @@ import {
   type CartPricingSummary,
   type CartItemOption,
   formatDiscountTypeText,
+  getCartItemSize,
   getCartPricingSummary,
 } from "@/services/cart.client";
 import { orderClient } from "@/services/order.client";
@@ -445,7 +446,7 @@ function apiCartToDisplayItems(
           : undefined) ??
         franchiseName,
       image: getItemImage(item),
-      size: item.size,
+      size: getCartItemSize(item),
       sugar: parsed.sugar,
       ice: parsed.ice,
       toppingsText: formatCartOptionsSummary(
